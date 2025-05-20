@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <string>
 
 namespace roboplan {
 
@@ -11,6 +12,6 @@ namespace roboplan {
 int add(int a, int b);
 
 /// @brief Creates a dummy Pinocchio model. 
-void createPinocchioModel();
+void createPinocchioModel(const std::string& urdf_path, const std::string& srdf_path);
 
 }  // namespace roboplan

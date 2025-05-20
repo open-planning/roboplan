@@ -36,9 +36,6 @@ find_package(nanobind CONFIG REQUIRED)
 # TODO: Make this not hacky. Is this even doable?
 list(APPEND CMAKE_PREFIX_PATH "/home/sebastian/workspace/roboplan_ws/build/roboplan")
 find_package(roboplan REQUIRED)
-# TODO: Is there a way to not require this?
-find_package(Eigen3 REQUIRED)
-find_package(pinocchio REQUIRED)
 
 # We are now ready to compile the actual extension module
 nanobind_add_module(
