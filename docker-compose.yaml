@@ -1,0 +1,43 @@
+# Docker Compose file for PyRoboSim
+#
+# Usage:
+#
+# To build the images:
+#   docker compose build
+#
+# To run a specific service by name:
+#   docker compose run <service_name>
+#
+# To open an interactive shell to a running container:
+#   docker exec -it <container_name> bash
+
+services:
+  base:
+    image: roboplan_ros:${ROS_DISTRO:-jazzy}
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+      target: roboplan_ros
+      args:
+        ROS_DISTRO: ${ROS_DISTRO:-jazzy}
+    # Ensures signals are actually passed and reaped in the container for shutdowns.
+    # https://docs.docker.com/compose/compose-file/compose-file-v3/#init
+    init: true
+    # Interactive shell
+    stdin_open: true
+    tty: true
+    # Networking and IPC for ROS 2
+    network_mode: host
+    ipc: host
+    # Allows graphical programs in the container.
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      # Mount the source code.
+      - ./:/workspace/roboplan_ws/src/roboplan/:rw
+      # Allows graphical programs in the container.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority
+    command: sleep infinity

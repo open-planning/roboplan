@@ -80,7 +80,7 @@ install(
 )
 
 # Install the headers and targets
-install(FILES 
+install(FILES
             include/roboplan/scene.hpp
             include/roboplan/types.hpp
         DESTINATION lib/cmake/roboplan)
@@ -96,7 +96,7 @@ install(TARGETS roboplan
         INCLUDES DESTINATION include
         )
 
-# If ament_cmake is detected, export the package to be visible in ROS 2. 
+# If ament_cmake is detected, export the package to be visible in ROS 2.
 find_package(ament_cmake QUIET)
 if ( ament_cmake_FOUND )
 

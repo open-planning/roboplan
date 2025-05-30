@@ -1,0 +1,32 @@
+name: build_and_test
+
+on:
+  # Run action on certain pull request events
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+  # Nightly job on default (main) branch
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Whenever certain branches are pushed
+  push:
+    branches: [main]
+
+  # On demand from github.com for testing
+  workflow_dispatch:
+
+jobs:
+  # Build docker images
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          file: .docker/Dockerfile
+          push: false
