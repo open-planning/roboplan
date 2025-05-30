@@ -7,7 +7,7 @@ source /opt/ros/${ROS_DISTRO}/setup.bash
 if [ -f /workspace/roboplan_ws/install/setup.bash ]
 then
   echo "Sourced RoboPlan workspace"
-  source workspace/roboplan_ws/install/setup.bash
+  source /workspace/roboplan_ws/install/setup.bash
 fi
 
 # Execute the command passed into this entrypoint
