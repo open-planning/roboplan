@@ -1,2 +1,1 @@
-from .roboplan import Scene, __doc__
-from .roboplan.types import JointConfiguration
+from .roboplan.core import Scene, JointConfiguration, CartesianConfiguration, __doc__

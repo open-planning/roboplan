@@ -28,6 +28,15 @@ Contributors are expected to implement new features in C++ and provide working P
 
 ---
 
+## Packages list
+This is all still very much work in progress!
+Still debating whether this should be monorepo or multi-repo...
+
+- `roboplan` : The core C++ library.
+- `roboplan_examples` : Basic examples with real robot models.
+
+---
+
 ## Build instructions (colcon)
 
 First, clone this repo to a valid ROS 2 workspace.

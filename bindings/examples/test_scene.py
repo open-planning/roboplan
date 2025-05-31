@@ -15,12 +15,14 @@ if __name__ == "__main__":
     print("")
 
     urdf_path = Path(
-        "/home/sebastian/workspace/roboplan_ws/src/roboplan/pinocchio_ros_example/ur_robot_model/ur5_gripper.urdf"
+        "/home/sebastian/workspace/roboplan_ws/src/roboplan/roboplan_examples/ur_robot_model/ur5_gripper.urdf"
     )
 
     srdf_path = Path(
-        "/home/sebastian/workspace/roboplan_ws/src/roboplan/pinocchio_ros_example/ur_robot_model/ur5_gripper.srdf"
+        "/home/sebastian/workspace/roboplan_ws/src/roboplan/roboplan_examples/ur_robot_model/ur5_gripper.srdf"
     )
 
-    scene = roboplan.Scene(urdf_path, srdf_path)
+    package_paths = [Path("/home/sebastian/workspace/roboplan_ws/src/roboplan/")]
+
+    scene = roboplan.Scene("test_scene", urdf_path, srdf_path, package_paths)
     scene.print()

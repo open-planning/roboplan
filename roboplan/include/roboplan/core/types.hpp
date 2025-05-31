@@ -24,4 +24,20 @@ struct JointConfiguration {
   Eigen::VectorXd accelerations;
 };
 
+/// @brief Represents a robot Cartesian configuration.
+/// @details This comprises a transform, as well as the names of the frames in
+/// the robot model.
+struct CartesianConfiguration {
+  /// @brief The name of the base (or reference) frame.
+  std::string base_frame;
+
+  /// @brief The name of the tip frame.
+  std::string tip_frame;
+
+  /// @brief The transformation matrix from the base to the tip frame.
+  /// NOTE: I'd like this to be an Isometry3d but nanobind doesn't have off the
+  /// shelf bindings for this.
+  Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
+};
+
 } // namespace roboplan
