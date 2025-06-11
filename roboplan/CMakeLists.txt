@@ -11,7 +11,7 @@ find_package(eigen3_cmake_module REQUIRED)
 find_package(pinocchio REQUIRED)
 
 # Add libraries
-add_library (roboplan SHARED
+add_library(roboplan SHARED
     src/core/scene.cpp
     src/core/types.cpp
 )
