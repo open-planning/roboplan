@@ -8,11 +8,13 @@
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
+#include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
 
 NB_MODULE(roboplan, m) {
 
+  /// Core module
   nanobind::module_ m_core = m.def_submodule("core", "Core roboplan module");
 
   nanobind::class_<JointConfiguration>(m_core, "JointConfiguration")
@@ -37,6 +39,21 @@ NB_MODULE(roboplan, m) {
                           const std::filesystem::path&,
                           const std::vector<std::filesystem::path>&>())
       .def("print", &Scene::print);
+
+  /// Simple IK module
+  nanobind::module_ m_simple_ik =
+      m.def_submodule("simple_ik", "Simple IK solver module");
+
+  nanobind::class_<SimpleIkOptions>(m_simple_ik, "SimpleIkOptions")
+      .def(nanobind::init<>()) // Default constructor
+      .def_rw("max_iters", &SimpleIkOptions::max_iters)
+      .def_rw("step_size", &SimpleIkOptions::step_size)
+      .def_rw("damping", &SimpleIkOptions::damping)
+      .def_rw("max_error_norm", &SimpleIkOptions::max_error_norm);
+
+  nanobind::class_<SimpleIk>(m_simple_ik, "SimpleIk")
+      .def(nanobind::init<const Scene&, const SimpleIkOptions&>())
+      .def("solveIk", &SimpleIk::solveIk);
 }
 
 } // namespace roboplan
