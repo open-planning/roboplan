@@ -60,7 +60,7 @@ Now you should be able to run a basic example.
 
 ```bash
 source install/setup.bash
-ros2 run roboplan test_scene
+ros2 run roboplan_examples test_scene
 ```
 
 See the [bindings README](bindings/README.md) for instructions on building the Python bindings.
