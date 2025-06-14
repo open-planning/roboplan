@@ -77,8 +77,6 @@ install(TARGETS roboplan_simple_ik
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 find_package(ament_cmake QUIET)
 if ( ament_cmake_FOUND )
-
     message(STATUS "ament_cmake found. Exporting for ROS 2.")
     ament_package()
-
 endif()
