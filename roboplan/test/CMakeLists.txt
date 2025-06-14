@@ -14,3 +14,9 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(test_types)
+
+# If ament_gtest is detected, make the tests visible in ROS 2.
+find_package(ament_cmake_gtest QUIET)
+if ( ament_cmake_gtest_FOUND )
+    ament_add_gtest_test(test_types)
+endif()
