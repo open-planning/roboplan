@@ -16,6 +16,11 @@ on:
   # On demand from github.com for testing
   workflow_dispatch:
 
+# Ensures that only one workflow runs at a time for this branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Build docker images
   build_and_test:
