@@ -78,6 +78,11 @@ install(TARGETS roboplan
         INCLUDES DESTINATION include
         )
 
+# Add the unit tests, if enabled.
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()
+
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 find_package(ament_cmake QUIET)
 if ( ament_cmake_FOUND )

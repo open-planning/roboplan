@@ -29,4 +29,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           file: .docker/Dockerfile
+          tags: roboplan:latest
           push: false
+          outputs: type=docker,dest=./roboplan_image.tar
+      - name: Run tests
+        run: |
+          docker load --input ./roboplan_image.tar
+          docker run \
+            --volume ./test/results:/opt/pyrobosim/test/results:rw \
+            roboplan:latest \
+            /bin/bash -c './src/roboplan/scripts/run_tests.bash'
