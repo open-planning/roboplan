@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/geometry.hpp>
 
 #include <roboplan/core/types.hpp>
@@ -22,6 +23,10 @@ public:
         const std::filesystem::path& srdf_path,
         const std::vector<std::filesystem::path>& package_paths =
             std::vector<std::filesystem::path>());
+
+  /// @brief Gets the scene's internal Pinocchio model.
+  /// @return The Pinocchio model.
+  pinocchio::Model getModel() { return model_; };
 
   /// @brief Prints basic information about the scene.
   void print();

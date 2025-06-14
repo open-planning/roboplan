@@ -33,6 +33,7 @@ This is all still very much work in progress!
 Still debating whether this should be monorepo or multi-repo...
 
 - `roboplan` : The core C++ library.
+- `roboplan_simple_ik` : A simple inverse kinematics (IK) solver.
 - `roboplan_examples` : Basic examples with real robot models.
 
 ---

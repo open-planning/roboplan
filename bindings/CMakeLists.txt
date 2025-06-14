@@ -31,6 +31,7 @@ find_package(Python
 
 find_package(nanobind CONFIG REQUIRED)
 find_package(roboplan REQUIRED)
+find_package(roboplan_simple_ik REQUIRED)
 
 # We are now ready to compile the actual extension module
 nanobind_add_module(
@@ -39,7 +40,10 @@ nanobind_add_module(
   NB_STATIC
   src/roboplan_ext.cpp
 )
-target_link_libraries(roboplan PRIVATE roboplan::roboplan)
+target_link_libraries(roboplan PRIVATE
+  roboplan::roboplan
+  roboplan_simple_ik::roboplan_simple_ik
+)
 
 # Install directive for scikit-build-core
 install(TARGETS roboplan LIBRARY DESTINATION roboplan)

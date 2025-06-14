@@ -7,16 +7,26 @@ endif()
 
 # Find dependencies.
 find_package(roboplan REQUIRED)
+find_package(roboplan_simple_ik REQUIRED)
 
 # Build and install the examples.
 add_executable(test_scene examples/test_scene.cpp)
 target_link_libraries(test_scene
     roboplan::roboplan
 )
+set_property(TARGET test_scene PROPERTY CXX_STANDARD 20)
+
+add_executable(test_ik examples/test_ik.cpp)
+target_link_libraries(test_ik
+    roboplan::roboplan
+    roboplan_simple_ik::roboplan_simple_ik
+)
+set_property(TARGET test_ik PROPERTY CXX_STANDARD 20)
 
 install(
   TARGETS
   test_scene
+  test_ik
   DESTINATION lib/roboplan_examples
 )
 
