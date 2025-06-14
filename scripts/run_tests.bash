@@ -16,22 +16,22 @@ echo "
 Running C++ tests...
 =======================
 "
-pushd "${COLCON_PREFIX_PATH}/../"
+pushd "${COLCON_PREFIX_PATH}/../"  || exit
 colcon test \
     --event-handlers console_cohesion+ \
     --return-code-on-test-failure || EXIT_CODE=$?
 echo ""
 colcon test-result --verbose
-popd || exit
+popd > /dev/null || exit
 
 echo "
 =======================
 Running Python tests...
 =======================
 "
-pushd "${SCRIPT_DIR}/../bindings"
+pushd "${SCRIPT_DIR}/../bindings" || exit
 python3 -m pytest . || EXIT_CODE=$?
-popd || exit
+popd > /dev/null || exit
 
 echo "
 =======================
