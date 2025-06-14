@@ -82,6 +82,8 @@ install(TARGETS roboplan
 if (BUILD_TESTING)
     message(STATUS "Building unit tests.")
     add_subdirectory(test)
+else()
+    message(STATUS "NOT BUILDING TESTS")
 endif()
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.

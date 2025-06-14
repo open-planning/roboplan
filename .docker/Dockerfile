@@ -19,7 +19,7 @@ COPY . src/roboplan
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && apt-get update -y \
     && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
-    && colcon build
+    && colcon build --cmake-args -DBUILD_TESTING=ON
 
 # Install the Python bindings.
 WORKDIR /workspace/roboplan_ws/src/roboplan/bindings

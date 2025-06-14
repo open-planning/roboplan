@@ -1,4 +1,3 @@
-enable_testing()
 find_package(GTest REQUIRED)
 
 add_executable(
@@ -12,11 +11,14 @@ target_link_libraries(
   GTest::gtest_main
 )
 
-include(GoogleTest)
-gtest_discover_tests(test_types)
-
 # If ament_gtest is detected, make the tests visible in ROS 2.
 find_package(ament_cmake_gtest QUIET)
 if ( ament_cmake_gtest_FOUND )
+    # See https://github.com/ament/ament_cmake/issues/588
+    find_package(ament_cmake_test REQUIRED)
+
     ament_add_gtest_test(test_types)
+else()
+    include(GoogleTest)
+    gtest_discover_tests(test_types)
 endif()
