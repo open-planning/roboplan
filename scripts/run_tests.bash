@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Runs all unit tests
+# Helper script that runs all unit tests and displays results.
 
 EXIT_CODE=0
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
