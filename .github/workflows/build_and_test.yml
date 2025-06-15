@@ -34,12 +34,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           file: .docker/Dockerfile
-          tags: roboplan:latest
+          tags: roboplan:${{ github.head_ref || github.ref_name }}
           push: false
           outputs: type=docker,dest=./roboplan_image.tar
       - name: Run tests
         run: |
           docker load --input ./roboplan_image.tar
           docker run \
-            roboplan:latest \
+            roboplan:${{ github.head_ref || github.ref_name }}  \
             /bin/bash -c './src/roboplan/scripts/run_tests.bash'

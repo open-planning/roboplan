@@ -4,7 +4,7 @@ add_executable(
   test_types
   test_types.cpp
 )
-target_include_directories(test_types PRIVATE ../include)
+# target_include_directories(test_types PRIVATE ../include)
 target_link_libraries(
   test_types
   roboplan

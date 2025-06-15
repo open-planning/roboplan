@@ -15,7 +15,10 @@ add_library(roboplan SHARED
     src/core/scene.cpp
     src/core/types.cpp
 )
-target_include_directories(roboplan PRIVATE include)
+target_include_directories(roboplan PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_link_libraries(roboplan
     Eigen3::Eigen
     pinocchio::pinocchio
