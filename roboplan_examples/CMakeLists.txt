@@ -9,12 +9,14 @@ endif()
 find_package(roboplan REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 
-# Build and install the examples.
+# Build and install the examples, including the sample ur_robot_model.
 add_executable(test_scene examples/test_scene.cpp)
 target_link_libraries(test_scene
     roboplan::roboplan
 )
 set_property(TARGET test_scene PROPERTY CXX_STANDARD 20)
+target_compile_definitions(test_scene PRIVATE
+    TEST_SCENE_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}")
 
 add_executable(test_ik examples/test_ik.cpp)
 target_link_libraries(test_ik
@@ -28,6 +30,12 @@ install(
   test_scene
   test_ik
   DESTINATION lib/roboplan_examples
+)
+
+install(
+  DIRECTORY
+  ur_robot_model
+  DESTINATION share/roboplan_examples
 )
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.
