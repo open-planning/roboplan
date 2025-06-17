@@ -9,12 +9,15 @@ using namespace roboplan;
 
 int main(int /*argc*/, char* /*argv*/[]) {
 
-  const std::filesystem::path share_prefix = std::filesystem::path(roboplan_examples::PACKAGE_SHARE_DIR);
+  const std::filesystem::path share_prefix =
+      std::filesystem::path(roboplan_examples::PACKAGE_SHARE_DIR);
 
   // Set up the scene
-  const std::filesystem::path urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
-  const std::filesystem::path srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
-  const std::vector<std::filesystem::path> package_paths =  {share_prefix};
+  const std::filesystem::path urdf_path =
+      share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
+  const std::filesystem::path srdf_path =
+      share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
+  const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
   auto scene = Scene("test_ik_scene", urdf_path, srdf_path, package_paths);
 
