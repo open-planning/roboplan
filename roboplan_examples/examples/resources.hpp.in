@@ -1,0 +1,7 @@
+#pragma once
+
+namespace roboplan_examples
+{
+  constexpr auto INSTALL_PREFIX = "@CMAKE_INSTALL_PREFIX@";
+  constexpr auto PACKAGE_SHARE_DIR = "@CMAKE_INSTALL_PREFIX@/share/roboplan_examples";
+}
