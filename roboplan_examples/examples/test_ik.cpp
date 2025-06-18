@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <vector>
 
-#include <examples/resources.hpp>
+#include <examples/example_resources.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
