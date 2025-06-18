@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <vector>
 
-#include <examples/example_resources.hpp>
+#include <example_resources/example_resources.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
@@ -9,8 +9,8 @@ using namespace roboplan;
 
 int main(int /*argc*/, char* /*argv*/[]) {
 
-  const std::filesystem::path share_prefix =
-      std::filesystem::path(roboplan_examples::PACKAGE_SHARE_DIR);
+  const std::filesystem::path share_prefix = std::filesystem::path(
+      roboplan_example_resources::get_package_share_dir());
 
   // Set up the scene
   const std::filesystem::path urdf_path =
