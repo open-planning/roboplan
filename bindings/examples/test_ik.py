@@ -2,6 +2,8 @@ from pathlib import Path
 
 import numpy as np
 
+from utils import get_example_resources_directory, get_package_path
+
 from roboplan import (
     Scene,
     JointConfiguration,
@@ -12,15 +14,10 @@ from roboplan import (
 
 if __name__ == "__main__":
 
-    urdf_path = Path(
-        "/home/sebastian/workspace/roboplan_ws/src/roboplan/roboplan_examples/ur_robot_model/ur5_gripper.urdf"
-    )
-
-    srdf_path = Path(
-        "/home/sebastian/workspace/roboplan_ws/src/roboplan/roboplan_examples/ur_robot_model/ur5_gripper.srdf"
-    )
-
-    package_paths = [Path("/home/sebastian/workspace/roboplan_ws/src/roboplan/")]
+    roboplan_examples_dir = Path(get_example_resources_directory())
+    urdf_path = roboplan_examples_dir / "ur5_gripper.urdf"
+    srdf_path = roboplan_examples_dir / "ur5_gripper.srdf"
+    package_paths = [get_package_path()]
 
     scene = Scene("test_scene", urdf_path, srdf_path, package_paths)
 
