@@ -12,8 +12,7 @@ def get_example_resources_directory():
     # TODO: Could replace this with the install location but for now it's
     #       assuming this exists in a compiled workspace.
     roboplan_path = get_package_path()
-    for _ in range(5):
-        roboplan_path = roboplan_path.parent
+    roboplan_path = roboplan_path.parent.parent.parent.parent.parent
     return (
         roboplan_path
         / "install"

@@ -9,7 +9,7 @@ namespace roboplan_examples {
 /**
  * Provides compile time access to the resources install directory.
  */
-inline std::string get_install_prefix() {
+inline std::filesystem::path get_install_prefix() {
   // This would be a lot easier if it were an ament package, instead we use
   // dynamic linking to get the filesystem path of the example executable.
   Dl_info dl_info;
@@ -25,8 +25,8 @@ inline std::string get_install_prefix() {
  * Provides compile time access to the resources shared directory for accessing
  * robot models or other resource files.
  */
-inline std::string get_package_share_dir() {
-  return get_install_prefix() + "/share/roboplan_examples";
+inline std::filesystem::path get_package_share_dir() {
+  return get_install_prefix() / "share" / "roboplan_examples";
 }
 
 } // namespace roboplan_examples
