@@ -9,13 +9,6 @@ endif()
 find_package(roboplan REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 
-# Configure binary resource paths for the examples package
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/examples/example_resources.hpp.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/examples/example_resources.hpp"
-    @ONLY
-)
-
 # Build and install the examples, including the sample ur_robot_model.
 add_executable(test_scene examples/test_scene.cpp)
 target_link_libraries(test_scene

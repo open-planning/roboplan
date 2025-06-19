@@ -7,7 +7,7 @@
 int main(int /*argc*/, char* /*argv*/[]) {
 
   const std::filesystem::path share_prefix =
-      std::filesystem::path(roboplan_examples::PACKAGE_SHARE_DIR);
+      std::filesystem::path(roboplan_examples::get_package_share_dir());
 
   const std::filesystem::path urdf_path =
       share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
