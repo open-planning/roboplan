@@ -10,34 +10,34 @@ find_package(roboplan REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 
-# Build and install the examples, including the sample ur_robot_model.
-add_executable(test_scene examples/test_scene.cpp)
-target_link_libraries(test_scene
+# Build and install the examples.
+add_executable(example_scene examples/example_scene.cpp)
+target_link_libraries(example_scene
     roboplan::roboplan
     roboplan_example_models::roboplan_example_models
 )
-set_property(TARGET test_scene PROPERTY CXX_STANDARD 20)
-target_include_directories(test_scene PRIVATE
+set_property(TARGET example_scene PROPERTY CXX_STANDARD 20)
+target_include_directories(example_scene PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(test_ik examples/test_ik.cpp)
-target_link_libraries(test_ik
+add_executable(example_ik examples/example_ik.cpp)
+target_link_libraries(example_ik
     roboplan::roboplan
     roboplan_simple_ik::roboplan_simple_ik
     roboplan_example_models::roboplan_example_models
 )
-set_property(TARGET test_ik PROPERTY CXX_STANDARD 20)
-target_include_directories(test_ik PRIVATE
+set_property(TARGET example_ik PROPERTY CXX_STANDARD 20)
+target_include_directories(example_ik PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 install(
   TARGETS
-  test_scene
-  test_ik
+  example_scene
+  example_ik
   DESTINATION lib/roboplan_examples
 )
 

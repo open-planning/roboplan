@@ -26,5 +26,5 @@ python3
 ... or run one of the examples.
 
 ```bash
-python3 examples/test_scene.py
+python3 examples/example_scene.py
 ```
