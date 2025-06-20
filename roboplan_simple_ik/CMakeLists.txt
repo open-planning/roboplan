@@ -51,8 +51,6 @@ write_basic_package_version_file(
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
-
-# Install the configuration files
 install(
     FILES
         "${CMAKE_CURRENT_BINARY_DIR}/roboplan_simple_ikConfig.cmake"

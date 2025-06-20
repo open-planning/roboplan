@@ -1,6 +1,6 @@
-import roboplan
-
 from pathlib import Path
+
+import roboplan
 
 
 def get_package_path():
@@ -16,8 +16,8 @@ def get_example_resources_directory():
     return (
         roboplan_path
         / "install"
-        / "roboplan_examples"
+        / "roboplan_example_models"
         / "share"
-        / "roboplan_examples"
-        / "ur_robot_model"
+        / "roboplan_example_models"
+        / "models"
     )

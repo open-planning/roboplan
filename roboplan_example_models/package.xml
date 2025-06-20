@@ -1,17 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>roboplan_examples</name>
+  <name>roboplan_example_models</name>
   <version>0.0.0</version>
-  <description>Basic examples of RoboPlan.</description>
+  <description>Robot descriptions for RoboPlan testing and examples.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <depend>roboplan</depend>
-  <depend>roboplan_example_models</depend>
-  <depend>roboplan_simple_ik</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

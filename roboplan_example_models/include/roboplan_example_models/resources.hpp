@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <string>
 
-namespace roboplan_examples {
+namespace roboplan_example_models {
 
 /**
  * Provides compile time access to the resources install directory.
@@ -17,8 +17,8 @@ inline std::filesystem::path get_install_prefix() {
   std::filesystem::path lib_path = dl_info.dli_fname;
 
   // Then we can just pull the relative path to the share directory
-  // <install_directory>/lib/roboplan_examples/<executable>
-  return lib_path.parent_path().parent_path().parent_path();
+  // <install_directory>/lib/roboplan_example_models/<executable>
+  return lib_path.parent_path().parent_path().parent_path().parent_path();
 }
 
 /**
@@ -26,7 +26,8 @@ inline std::filesystem::path get_install_prefix() {
  * robot models or other resource files.
  */
 inline std::filesystem::path get_package_share_dir() {
-  return get_install_prefix() / "share" / "roboplan_examples";
+  return get_install_prefix() / "roboplan_example_models" / "share" /
+         "roboplan_example_models" / "models";
 }
 
-} // namespace roboplan_examples
+} // namespace roboplan_example_models
