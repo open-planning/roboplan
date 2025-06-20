@@ -53,13 +53,13 @@ enum JointType {
 /// @details Values are all vectorized to denote multi-DOF joint.
 struct JointLimits {
   /// @brief The minimum positions of the joint.
-  std::vector<double> min_position;
+  Eigen::VectorXd min_position;
 
   /// @brief The maximum positions of the joint.
-  std::vector<double> max_position;
+  Eigen::VectorXd max_position;
 
   /// @brief The maximum (symmetric) velocities of the joint.
-  std::vector<double> max_velocity;
+  Eigen::VectorXd max_velocity;
 };
 
 /// @brief Contains joint information relevant to motion planning and control.

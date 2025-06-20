@@ -108,14 +108,15 @@ void Scene::print() {
     std::cout << joint_name << " ";
   }
   std::cout << "\n";
-  // TODO: Print the limits vectors properly for multi-DOF joints.
   std::cout << "Joint limits:\n";
   for (const auto& joint_name : joint_names_) {
     const auto& limits = joint_info_.at(joint_name).limits;
     std::cout << "  " << joint_name << ":\n";
-    std::cout << "    min positions: " << limits.min_position[0] << "\n";
-    std::cout << "    max positions: " << limits.max_position[0] << "\n";
-    std::cout << "    velocity: " << limits.max_velocity[0] << "\n";
+    std::cout << "    min positions: " << limits.min_position.transpose()
+              << "\n";
+    std::cout << "    max positions: " << limits.max_position.transpose()
+              << "\n";
+    std::cout << "    velocity: " << limits.max_velocity.transpose() << "\n";
   }
   std::cout << "State:\n";
   std::cout << "  positions: " << cur_state_.positions.transpose() << "\n";
