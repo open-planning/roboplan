@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <string>
 
@@ -28,6 +29,14 @@ public:
   /// @return The Pinocchio model.
   pinocchio::Model getModel() { return model_; };
 
+  /// @brief Sets the seed for the random number generator (RNG).
+  /// @param seed The seed to set.
+  void setRngSeed(unsigned int seed);
+
+  /// @brief Generates random positions for the robot model.
+  /// @return The random positions.
+  Eigen::VectorXd randomPositions();
+
   /// @brief Prints basic information about the scene.
   void print();
 
@@ -38,6 +47,15 @@ private:
   /// @brief The underlying Pinocchio model representing the robot and its
   /// environment.
   pinocchio::Model model_;
+
+  /// @brief The list of joint names in the model.
+  std::vector<std::string> joint_names_;
+
+  /// @brief Map from joint names to their corresponding information.
+  std::map<std::string, JointInfo> joint_info_;
+
+  /// @brief A random number generator for the scene.
+  std::mt19937 rng_gen_;
 
   /// @brief The current state of the model (used to fill in partial states).
   JointConfiguration cur_state_;

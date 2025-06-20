@@ -40,4 +40,46 @@ struct CartesianConfiguration {
   Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
 };
 
+/// @brief Describes different types of joints.
+enum JointType {
+  PRISMATIC = 0,
+  REVOLUTE = 1,
+  CONTINUOUS = 2,
+  PLANAR = 3,
+  FLOATING = 4,
+};
+
+/// @brief Contains joint limit information.
+/// @details Values are all vectorized to denote multi-DOF joint.
+struct JointLimits {
+  /// @brief The minimum positions of the joint.
+  std::vector<double> min_position;
+
+  /// @brief The maximum positions of the joint.
+  std::vector<double> max_position;
+
+  /// @brief The maximum (symmetric) velocities of the joint.
+  std::vector<double> max_velocity;
+};
+
+/// @brief Contains joint information relevant to motion planning and control.
+struct JointInfo {
+  /// @brief Constructor for joint info.
+  /// @param joint_type The type of the joint. All other variables will be
+  /// initialized according to this value.
+  JointInfo(JointType joint_type);
+
+  /// @brief The type of the joint.
+  JointType type;
+
+  /// @brief The number of positional degrees of freedom.
+  size_t num_position_dofs;
+
+  /// @brief The number of velocity degrees of freedom.
+  size_t num_velocity_dofs;
+
+  /// @brief The joint limit information for each degree of freedom.
+  JointLimits limits;
+};
+
 } // namespace roboplan
