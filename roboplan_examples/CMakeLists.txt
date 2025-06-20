@@ -41,12 +41,6 @@ install(
   DESTINATION lib/roboplan_examples
 )
 
-install(
-  DIRECTORY
-  ur_robot_model
-  DESTINATION share/roboplan_examples
-)
-
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 find_package(ament_cmake QUIET)
 if ( ament_cmake_FOUND )
