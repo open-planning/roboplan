@@ -29,6 +29,10 @@ public:
   /// @return The Pinocchio model.
   pinocchio::Model getModel() { return model_; };
 
+  /// @brief Gets the scene's joint names.
+  /// @return A vector of joint names..
+  std::vector<std::string> getJointNames() { return joint_names_; };
+
   /// @brief Sets the seed for the random number generator (RNG).
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);

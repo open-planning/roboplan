@@ -6,10 +6,14 @@
 namespace {
 
 const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
+    {"JointModelPX", roboplan::JointType::PRISMATIC},
+    {"JointModelPY", roboplan::JointType::PRISMATIC},
+    {"JointModelPZ", roboplan::JointType::PRISMATIC},
     {"JointModelRX", roboplan::JointType::REVOLUTE},
     {"JointModelRY", roboplan::JointType::REVOLUTE},
     {"JointModelRZ", roboplan::JointType::REVOLUTE},
-    // TODO: Add the other joint types
+    {"JointModelPlanar", roboplan::JointType::PLANAR},
+    {"JointModelFreeFlyer", roboplan::JointType::FLOATING},
 };
 
 } // namespace

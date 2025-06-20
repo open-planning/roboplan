@@ -13,6 +13,8 @@
   <depend>eigen3_cmake_module</depend>
   <depend>pinocchio</depend>
 
+  <test_depend>roboplan_example_models</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
