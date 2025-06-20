@@ -7,7 +7,7 @@
   <link name="base_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/base.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/base.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -15,7 +15,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/base.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/base.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -35,7 +35,7 @@
   <link name="shoulder_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/shoulder.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/shoulder.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -43,7 +43,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/shoulder.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/shoulder.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -63,7 +63,7 @@
   <link name="upper_arm_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/upperarm.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/upperarm.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -71,7 +71,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/upperarm.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/upperarm.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -91,7 +91,7 @@
   <link name="forearm_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/forearm.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/forearm.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -99,7 +99,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/forearm.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/forearm.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -119,7 +119,7 @@
   <link name="wrist_1_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/wrist1.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/wrist1.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -127,7 +127,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/wrist1.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/wrist1.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -147,7 +147,7 @@
   <link name="wrist_2_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/wrist2.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/wrist2.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -155,7 +155,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/wrist2.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/wrist2.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -175,7 +175,7 @@
   <link name="wrist_3_link">
     <visual>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/visual/wrist3.dae"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/visual/wrist3.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -183,7 +183,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://roboplan_examples/ur_robot_model/meshes/collision/wrist3.stl"/>
+        <mesh filename="package://roboplan_example_models/models/ur_robot_model/meshes/collision/wrist3.stl"/>
       </geometry>
     </collision>
     <inertial>
