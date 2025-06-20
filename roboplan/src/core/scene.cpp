@@ -59,9 +59,6 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
     joint_names_.push_back(joint_name);
 
     const auto& joint = model_.joints.at(idx);
-    std::cout << "Got joint " << joint_name << " with type "
-              << joint.shortname() << std::endl;
-
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
     for (int idx = 0; idx < joint.nq(); ++idx) {
       info.limits.min_position[idx] = model_.lowerPositionLimit(q_idx);
