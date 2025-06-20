@@ -43,7 +43,7 @@ configure_file(
     @ONLY
 )
 
-# Create and install the config files
+# Create and install the configuration files
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
     cmake/roboplanConfig.cmake.in
@@ -55,8 +55,6 @@ write_basic_package_version_file(
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
-
-# Install the configuration files
 install(
     FILES
         "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake"
