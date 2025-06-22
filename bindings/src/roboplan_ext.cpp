@@ -36,9 +36,12 @@ NB_MODULE(roboplan, m) {
       .def(
           nanobind::init<const std::string&, const std::filesystem::path&,
                          const std::filesystem::path&, const std::vector<std::filesystem::path>&>())
+      .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
       .def("setRngSeed", &Scene::setRngSeed)
       .def("randomPositions", &Scene::randomPositions)
+      .def("hasCollisions", &Scene::hasCollisions)
+      .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
       .def("print", &Scene::print);
 
   /// Simple IK module

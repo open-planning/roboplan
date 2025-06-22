@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <optional>
 #include <string>
 
@@ -29,6 +28,10 @@ public:
         const std::filesystem::path& srdf_path,
         const std::vector<std::filesystem::path>& package_paths =
             std::vector<std::filesystem::path>());
+
+  /// @brief Gets the scene's name.
+  /// @return The scene name.
+  std::string getName() { return name_; };
 
   /// @brief Gets the scene's internal Pinocchio model.
   /// @return The Pinocchio model.

@@ -22,6 +22,7 @@ def test_scene() -> roboplan.Scene:
 
 
 def test_scene_properties(test_scene: roboplan.Scene) -> None:
+    assert test_scene.getName() == "test_scene"
     assert test_scene.getJointNames() == [
         "shoulder_pan_joint",
         "shoulder_lift_joint",
@@ -44,3 +45,24 @@ def test_random_positions(test_scene: roboplan.Scene) -> None:
     test_scene.setRngSeed(1234)  # reset seed
     new_seeded_positions = test_scene.randomPositions()
     assert np.all(np.equal(orig_seeded_positions, new_seeded_positions))
+
+
+def test_collision_check(test_scene: roboplan.Scene) -> None:
+    # Collision free
+    q_free = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])
+    assert not test_scene.hasCollisions(q_free)
+
+    # In collision
+    q_coll = np.array([0.0, -1.57, 3.0, 0.0, 0.0, 0.0])
+    assert test_scene.hasCollisions(q_coll)
+
+
+def test_collision_check_along_path(test_scene: roboplan.Scene) -> None:
+    # Collision free
+    q_start_free = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])
+    q_end_free = np.array([1.0, -1.57, 1.57, 0.0, 0.0, 0.0])
+    assert not test_scene.hasCollisionsAlongPath(q_start_free, q_end_free, 0.05)
+
+    # In collision
+    q_end_coll = np.array([0.0, -1.57, 3.0, 0.0, 0.0, 0.0])
+    assert test_scene.hasCollisionsAlongPath(q_start_free, q_end_coll, 0.05)

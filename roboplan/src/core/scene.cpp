@@ -42,7 +42,6 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   pinocchio::srdf::removeCollisionPairs(model_, collision_model_, srdf_path);
 
   model_data_ = pinocchio::Data(model_);
-  // TODO(IMPORTANT): Why does adding this segfault with double free/corruption in tests?
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
