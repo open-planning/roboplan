@@ -3,11 +3,16 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/geometry.hpp>
+#include <pinocchio/fwd.hpp>
+#include <pinocchio/multibody/data.hpp>
+#include <pinocchio/multibody/geometry.hpp>
+#include <pinocchio/multibody/model.hpp>
 
 #include <roboplan/core/types.hpp>
 
