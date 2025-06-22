@@ -27,6 +27,7 @@ public:
 };
 
 TEST_F(RoboPlanSceneTest, SceneProperties) {
+  EXPECT_EQ(scene_->getName(), "test_scene");
   EXPECT_EQ(scene_->getModel().nq, 6u);
   EXPECT_THAT(scene_->getJointNames(),
               ContainerEq(std::vector<std::string>{"shoulder_pan_joint", "shoulder_lift_joint",
