@@ -19,8 +19,7 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<JointConfiguration>(m_core, "JointConfiguration")
       .def(nanobind::init<>()) // Default constructor
-      .def(nanobind::init<const std::vector<std::string>&,
-                          const Eigen::VectorXd&>())
+      .def(nanobind::init<const std::vector<std::string>&, const Eigen::VectorXd&>())
       .def_rw("joint_names", &JointConfiguration::joint_names)
       .def_rw("positions", &JointConfiguration::positions)
       .def_rw("velocities", &JointConfiguration::velocities)
@@ -28,24 +27,22 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<CartesianConfiguration>(m_core, "CartesianConfiguration")
       .def(nanobind::init<>()) // Default constructor
-      .def(nanobind::init<const std::string&, const std::string&,
-                          const Eigen::Matrix4d&>())
+      .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>())
       .def_rw("base_frame", &CartesianConfiguration::base_frame)
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame)
       .def_rw("tform", &CartesianConfiguration::tform);
 
   nanobind::class_<Scene>(m_core, "Scene")
-      .def(nanobind::init<const std::string&, const std::filesystem::path&,
-                          const std::filesystem::path&,
-                          const std::vector<std::filesystem::path>&>())
+      .def(
+          nanobind::init<const std::string&, const std::filesystem::path&,
+                         const std::filesystem::path&, const std::vector<std::filesystem::path>&>())
       .def("getJointNames", &Scene::getJointNames)
       .def("setRngSeed", &Scene::setRngSeed)
       .def("randomPositions", &Scene::randomPositions)
       .def("print", &Scene::print);
 
   /// Simple IK module
-  nanobind::module_ m_simple_ik =
-      m.def_submodule("simple_ik", "Simple IK solver module");
+  nanobind::module_ m_simple_ik = m.def_submodule("simple_ik", "Simple IK solver module");
 
   nanobind::class_<SimpleIkOptions>(m_simple_ik, "SimpleIkOptions")
       .def(nanobind::init<>()) // Default constructor

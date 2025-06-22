@@ -49,11 +49,9 @@ public:
   /// @brief Checks collisions along a specified configuration space path.
   /// @param q_start The starting joint positions.
   /// @param q_end The ending joint positions.
-  /// @param min_step_size The minimum configuration distance step size for
-  /// interpolation.
+  /// @param min_step_size The minimum configuration distance step size for interpolation.
   /// @return True if there are collisions, else false.
-  bool hasCollisionsAlongPath(const Eigen::VectorXd& q_start,
-                              const Eigen::VectorXd& q_end,
+  bool hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                               const double min_step_size);
 
   /// @brief Prints basic information about the scene.
@@ -70,12 +68,10 @@ private:
   /// @details This won't be thread-safe unless each thread uses its own data.
   pinocchio::Data model_data_;
 
-  /// @brief The Pinocchio collision model representing the robot and its
-  /// environment.
+  /// @brief The Pinocchio collision model representing the robot and its environment.
   pinocchio::GeometryModel collision_model_;
 
-  /// @brief The default data structure for the underlying Pinocchio collision
-  /// model.
+  /// @brief The default data structure for the underlying Pinocchio collision model.
   /// @details This won't be thread-safe unless each thread uses its own data.
   pinocchio::GeometryData collision_model_data_;
 

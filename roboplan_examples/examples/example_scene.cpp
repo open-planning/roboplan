@@ -13,8 +13,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
-  auto scene =
-      roboplan::Scene("test_scene", urdf_path, srdf_path, package_paths);
+  auto scene = roboplan::Scene("test_scene", urdf_path, srdf_path, package_paths);
   scene.print();
 
   // Generate a random state
@@ -22,8 +21,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   std::cout << "Random positions:\n" << random_positions.transpose() << "\n";
   scene.setRngSeed(1234);
   random_positions = scene.randomPositions();
-  std::cout << "Random positions (seeded):\n"
-            << random_positions.transpose() << "\n";
+  std::cout << "Random positions (seeded):\n" << random_positions.transpose() << "\n";
 
   return 0;
 }

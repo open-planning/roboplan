@@ -49,8 +49,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return 0;
   }
 
-  std::cout << "IK solve succeeded\n  Result: "
-            << solution.positions.transpose() << "\n";
+  std::cout << "IK solve succeeded\n  Result: " << solution.positions.transpose() << "\n";
 
   return 0;
 }
