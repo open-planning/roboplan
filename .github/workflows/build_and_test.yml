@@ -24,6 +24,10 @@ concurrency:
 jobs:
   # Build docker images
   build_and_test:
+    strategy:
+      matrix:
+        ros_distro: [humble, jazzy, kilted, rolling]
+
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -35,6 +39,8 @@ jobs:
         with:
           file: .docker/Dockerfile
           tags: roboplan:${{ github.head_ref || github.ref_name }}
+          build-args: |
+            ROS_DISTRO=${{ matrix.ros_distro }}
           push: false
           load: true
       - name: Run tests
