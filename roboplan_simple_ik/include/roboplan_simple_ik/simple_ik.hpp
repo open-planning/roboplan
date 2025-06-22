@@ -33,8 +33,8 @@ public:
   /// @param start The starting joint configuration. (should be optional)
   /// @param solution The IK solution, as a joint configuration.
   /// @return Whether the IK solve succeeded.
-  bool solveIk(const CartesianConfiguration& goal,
-               const JointConfiguration& start, JointConfiguration& solution);
+  bool solveIk(const CartesianConfiguration& goal, const JointConfiguration& start,
+               JointConfiguration& solution);
 
 private:
   /// @brief The scene. (should this be a pointer?)

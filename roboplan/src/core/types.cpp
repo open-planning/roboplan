@@ -29,12 +29,12 @@ JointInfo::JointInfo(JointType joint_type) : type{joint_type} {
     throw std::runtime_error("Got invalid joint type.");
   }
 
-  limits.min_position = Eigen::VectorXd::Constant(
-      num_position_dofs, std::numeric_limits<double>::lowest());
-  limits.max_position = Eigen::VectorXd::Constant(
-      num_position_dofs, std::numeric_limits<double>::max());
-  limits.max_velocity = Eigen::VectorXd::Constant(
-      num_velocity_dofs, std::numeric_limits<double>::max());
+  limits.min_position =
+      Eigen::VectorXd::Constant(num_position_dofs, std::numeric_limits<double>::lowest());
+  limits.max_position =
+      Eigen::VectorXd::Constant(num_position_dofs, std::numeric_limits<double>::max());
+  limits.max_velocity =
+      Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::max());
 };
 
 } // namespace roboplan

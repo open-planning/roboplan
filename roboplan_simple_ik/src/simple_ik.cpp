@@ -5,8 +5,7 @@ namespace roboplan {
 SimpleIk::SimpleIk(const Scene& scene, const SimpleIkOptions& options)
     : scene_{scene}, options_{options} {};
 
-bool SimpleIk::solveIk(const CartesianConfiguration& goal,
-                       const JointConfiguration& start,
+bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfiguration& start,
                        JointConfiguration& solution) {
 
   size_t iter = 0;
@@ -26,8 +25,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal,
     pinocchio::forwardKinematics(model, data, q);
     pinocchio::updateFramePlacement(model, data, frame_id);
 
-    const auto error =
-        pinocchio::log6(goal_tform.actInv(data.oMf[frame_id])).toVector();
+    const auto error = pinocchio::log6(goal_tform.actInv(data.oMf[frame_id])).toVector();
 
     // std::cout << "Iter " << iter << ", error: " << error << "\n";
 
@@ -37,8 +35,8 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal,
       return true;
     }
 
-    pinocchio::computeFrameJacobian(model, data, q, frame_id,
-                                    pinocchio::ReferenceFrame::LOCAL, jacobian);
+    pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
+                                    jacobian);
 
     jjt.noalias() = jacobian * jacobian.transpose();
     jjt.diagonal().array() += options_.damping;

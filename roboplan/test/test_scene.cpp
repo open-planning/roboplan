@@ -18,8 +18,7 @@ protected:
     const auto urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
     const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {share_prefix};
-    scene_ = std::make_unique<Scene>("test_scene", urdf_path, srdf_path,
-                                     package_paths);
+    scene_ = std::make_unique<Scene>("test_scene", urdf_path, srdf_path, package_paths);
   }
 
 public:
@@ -30,9 +29,9 @@ public:
 TEST_F(RoboPlanSceneTest, SceneProperties) {
   EXPECT_EQ(scene_->getModel().nq, 6u);
   EXPECT_THAT(scene_->getJointNames(),
-              ContainerEq(std::vector<std::string>{
-                  "shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
-                  "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"}));
+              ContainerEq(std::vector<std::string>{"shoulder_pan_joint", "shoulder_lift_joint",
+                                                   "elbow_joint", "wrist_1_joint", "wrist_2_joint",
+                                                   "wrist_3_joint"}));
 }
 
 TEST_F(RoboPlanSceneTest, RandomPositions) {

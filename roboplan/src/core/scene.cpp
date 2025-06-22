@@ -37,8 +37,8 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   pinocchio::urdf::buildModel(urdf_path, model_);
   model_data_ = pinocchio::Data(model_);
 
-  pinocchio::urdf::buildGeom(model_, urdf_path, pinocchio::COLLISION,
-                             collision_model_, package_paths_str);
+  pinocchio::urdf::buildGeom(model_, urdf_path, pinocchio::COLLISION, collision_model_,
+                             package_paths_str);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
   collision_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairs(model_, collision_model_, srdf_path);
@@ -71,11 +71,10 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   }
 
   // Initialize the current state of the scene.
-  cur_state_ =
-      JointConfiguration{.joint_names = joint_names_,
-                         .positions = pinocchio::neutral(model_),
-                         .velocities = Eigen::VectorXd::Zero(model_.nv),
-                         .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+  cur_state_ = JointConfiguration{.joint_names = joint_names_,
+                                  .positions = pinocchio::neutral(model_),
+                                  .velocities = Eigen::VectorXd::Zero(model_.nv),
+                                  .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
 void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
@@ -88,8 +87,7 @@ Eigen::VectorXd Scene::randomPositions() {
     for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
       const auto& lo = info.limits.min_position[idx];
       const auto& hi = info.limits.max_position[idx];
-      positions(q_idx) =
-          std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       ++q_idx;
     }
   }
@@ -97,30 +95,25 @@ Eigen::VectorXd Scene::randomPositions() {
 }
 
 bool Scene::hasCollisions(const Eigen::VectorXd& q) {
-  return pinocchio::computeCollisions(model_, model_data_, collision_model_,
-                                      collision_model_data_, q,
+  return pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_,
+                                      q,
                                       /* stop_at_first_collision*/ true);
 }
 
-bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start,
-                                   const Eigen::VectorXd& q_end,
+bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                                    const double min_step_size) {
 
   const auto distance = pinocchio::distance(model_, q_start, q_end);
 
-  // Special case for short paths (also handles division by zero in the next
-  // case).
+  // Special case for short paths (also handles division by zero in the next case).
   if (distance <= min_step_size) {
     return hasCollisions(q_start) && hasCollisions(q_end);
   }
 
-  const auto num_steps =
-      static_cast<size_t>(std::ceil(distance / min_step_size)) + 1;
+  const auto num_steps = static_cast<size_t>(std::ceil(distance / min_step_size)) + 1;
   for (size_t idx = 0; idx <= num_steps; ++idx) {
-    const auto fraction =
-        static_cast<double>(idx) / static_cast<double>(num_steps);
-    const auto q_interp =
-        pinocchio::interpolate(model_, q_start, q_end, fraction);
+    const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
+    const auto q_interp = pinocchio::interpolate(model_, q_start, q_end, fraction);
     if (hasCollisions(q_interp)) {
       return true;
     }
@@ -139,17 +132,14 @@ void Scene::print() {
   for (const auto& joint_name : joint_names_) {
     const auto& limits = joint_info_.at(joint_name).limits;
     std::cout << "  " << joint_name << ":\n";
-    std::cout << "    min positions: " << limits.min_position.transpose()
-              << "\n";
-    std::cout << "    max positions: " << limits.max_position.transpose()
-              << "\n";
+    std::cout << "    min positions: " << limits.min_position.transpose() << "\n";
+    std::cout << "    max positions: " << limits.max_position.transpose() << "\n";
     std::cout << "    velocity: " << limits.max_velocity.transpose() << "\n";
   }
   std::cout << "State:\n";
   std::cout << "  positions: " << cur_state_.positions.transpose() << "\n";
   std::cout << "  velocities: " << cur_state_.velocities.transpose() << "\n";
-  std::cout << "  accelerations: " << cur_state_.accelerations.transpose()
-            << "\n";
+  std::cout << "  accelerations: " << cur_state_.accelerations.transpose() << "\n";
 }
 
 } // namespace roboplan
