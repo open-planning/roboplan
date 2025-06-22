@@ -1,3 +1,4 @@
+#include <pinocchio/collision/broadphase.hpp>
 #include <pinocchio/parsers/srdf.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 
@@ -34,16 +35,13 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
 
   // Build the Pinocchio models.
   pinocchio::urdf::buildModel(urdf_path, model_);
+  model_data_ = pinocchio::Data(model_);
 
-  pinocchio::GeometryModel visual_model;
-  pinocchio::urdf::buildGeom(model_, urdf_path, pinocchio::VISUAL, visual_model,
-                             package_paths_str);
-
-  pinocchio::GeometryModel collision_model;
   pinocchio::urdf::buildGeom(model_, urdf_path, pinocchio::COLLISION,
-                             collision_model, package_paths_str);
-  collision_model.addAllCollisionPairs();
-  pinocchio::srdf::removeCollisionPairs(model_, collision_model, srdf_path);
+                             collision_model_, package_paths_str);
+  collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  collision_model_.addAllCollisionPairs();
+  pinocchio::srdf::removeCollisionPairs(model_, collision_model_, srdf_path);
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
   // this.
@@ -96,6 +94,38 @@ Eigen::VectorXd Scene::randomPositions() {
     }
   }
   return positions;
+}
+
+bool Scene::hasCollisions(const Eigen::VectorXd& q) {
+  return pinocchio::computeCollisions(model_, model_data_, collision_model_,
+                                      collision_model_data_, q,
+                                      /* stop_at_first_collision*/ true);
+}
+
+bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start,
+                                   const Eigen::VectorXd& q_end,
+                                   const double min_step_size) {
+
+  const auto distance = pinocchio::distance(model_, q_start, q_end);
+
+  // Special case for short paths (also handles division by zero in the next
+  // case).
+  if (distance <= min_step_size) {
+    return hasCollisions(q_start) && hasCollisions(q_end);
+  }
+
+  const auto num_steps =
+      static_cast<size_t>(std::ceil(distance / min_step_size)) + 1;
+  for (size_t idx = 0; idx <= num_steps; ++idx) {
+    const auto fraction =
+        static_cast<double>(idx) / static_cast<double>(num_steps);
+    const auto q_interp =
+        pinocchio::interpolate(model_, q_start, q_end, fraction);
+    if (hasCollisions(q_interp)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Scene::print() {
