@@ -26,7 +26,9 @@ jobs:
   build_and_test:
     strategy:
       matrix:
-        ros_distro: [humble, jazzy, kilted, rolling]
+        # NOTE: Kilted is still on older version of Pinocchio (3.4.0).
+        # Revisit when 3.5.0 or greater is released.
+        ros_distro: [humble, jazzy, rolling]
 
     runs-on: ubuntu-latest
     steps:
