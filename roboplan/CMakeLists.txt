@@ -7,7 +7,6 @@ endif()
 
 # Find dependencies.
 find_package(Eigen3 REQUIRED)
-find_package(eigen3_cmake_module REQUIRED)
 find_package(pinocchio REQUIRED)
 
 # Add libraries
@@ -80,6 +79,7 @@ install(TARGETS roboplan
         )
 
 # Add the unit tests, if enabled.
+option(BUILD_TESTING "" ON)
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif()
