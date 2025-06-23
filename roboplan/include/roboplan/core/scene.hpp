@@ -97,4 +97,4 @@ private:
   JointConfiguration cur_state_;
 };
 
-} // namespace roboplan
+}  // namespace roboplan

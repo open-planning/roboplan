@@ -46,7 +46,7 @@ TEST_F(RoboPlanSceneTest, RandomPositions) {
   scene_->setRngSeed(1234);
   const auto orig_seeded_positions = scene_->randomPositions();
   EXPECT_EQ(orig_seeded_positions.size(), 6);
-  scene_->setRngSeed(1234); // reset seed
+  scene_->setRngSeed(1234);  // reset seed
   const auto new_seeded_positions = scene_->randomPositions();
   EXPECT_THAT(orig_seeded_positions, ContainerEq(new_seeded_positions));
 }
@@ -76,4 +76,4 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
   EXPECT_TRUE(scene_->hasCollisionsAlongPath(q_start_free, q_end_coll, 0.05));
 }
 
-} // namespace roboplan
+}  // namespace roboplan

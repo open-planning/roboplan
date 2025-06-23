@@ -19,4 +19,4 @@ std::filesystem::path get_package_share_dir() {
   return get_install_prefix() / "share" / "roboplan_example_models" / "models";
 }
 
-} // namespace roboplan_example_models
+}  // namespace roboplan_example_models

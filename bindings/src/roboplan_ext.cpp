@@ -18,7 +18,7 @@ NB_MODULE(roboplan, m) {
   nanobind::module_ m_core = m.def_submodule("core", "Core roboplan module");
 
   nanobind::class_<JointConfiguration>(m_core, "JointConfiguration")
-      .def(nanobind::init<>()) // Default constructor
+      .def(nanobind::init<>())  // Default constructor
       .def(nanobind::init<const std::vector<std::string>&, const Eigen::VectorXd&>())
       .def_rw("joint_names", &JointConfiguration::joint_names)
       .def_rw("positions", &JointConfiguration::positions)
@@ -26,7 +26,7 @@ NB_MODULE(roboplan, m) {
       .def_rw("accelerations", &JointConfiguration::accelerations);
 
   nanobind::class_<CartesianConfiguration>(m_core, "CartesianConfiguration")
-      .def(nanobind::init<>()) // Default constructor
+      .def(nanobind::init<>())  // Default constructor
       .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>())
       .def_rw("base_frame", &CartesianConfiguration::base_frame)
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame)
@@ -48,7 +48,7 @@ NB_MODULE(roboplan, m) {
   nanobind::module_ m_simple_ik = m.def_submodule("simple_ik", "Simple IK solver module");
 
   nanobind::class_<SimpleIkOptions>(m_simple_ik, "SimpleIkOptions")
-      .def(nanobind::init<>()) // Default constructor
+      .def(nanobind::init<>())  // Default constructor
       .def_rw("max_iters", &SimpleIkOptions::max_iters)
       .def_rw("step_size", &SimpleIkOptions::step_size)
       .def_rw("damping", &SimpleIkOptions::damping)
@@ -59,4 +59,4 @@ NB_MODULE(roboplan, m) {
       .def("solveIk", &SimpleIk::solveIk);
 }
 
-} // namespace roboplan
+}  // namespace roboplan
