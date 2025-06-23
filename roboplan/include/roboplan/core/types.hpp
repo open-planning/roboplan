@@ -82,4 +82,4 @@ struct JointInfo {
   JointLimits limits;
 };
 
-} // namespace roboplan
+}  // namespace roboplan

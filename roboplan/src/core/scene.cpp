@@ -17,7 +17,7 @@ const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
     {"JointModelFreeFlyer", roboplan::JointType::FLOATING},
 };
 
-} // namespace
+}  // namespace
 
 namespace roboplan {
 
@@ -53,7 +53,7 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   size_t q_idx = 0;
   size_t v_idx = 0;
   joint_names_.reserve(model_.njoints - 1);
-  for (int idx = 1; idx < model_.njoints; ++idx) { // omits "universe" joint.
+  for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
     const auto joint_name = model_.names.at(idx);
     joint_names_.push_back(joint_name);
 
@@ -147,4 +147,4 @@ void Scene::print() {
   std::cout << "  accelerations: " << cur_state_.accelerations.transpose() << "\n";
 }
 
-} // namespace roboplan
+}  // namespace roboplan

@@ -13,4 +13,4 @@ std::filesystem::path get_install_prefix();
 /// accessing robot models or other resource files.
 std::filesystem::path get_package_share_dir();
 
-} // namespace roboplan_example_models
+}  // namespace roboplan_example_models

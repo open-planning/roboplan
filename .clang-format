@@ -2,3 +2,4 @@ Language: Cpp
 DerivePointerAlignment: false
 PointerAlignment: Left
 ColumnLimit: 100
+SpacesBeforeTrailingComments: 2

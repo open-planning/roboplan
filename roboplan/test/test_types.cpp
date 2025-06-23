@@ -19,4 +19,4 @@ TEST(RoboPlanTypes, TestCartesianConfiguration) {
   EXPECT_TRUE(cfg.tform.isApprox(Eigen::Matrix4d::Identity()));
 }
 
-} // namespace roboplan
+}  // namespace roboplan

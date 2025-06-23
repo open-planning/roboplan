@@ -49,4 +49,4 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
   return result;
 }
 
-} // namespace roboplan
+}  // namespace roboplan

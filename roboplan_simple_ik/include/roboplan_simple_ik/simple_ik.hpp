@@ -44,4 +44,4 @@ private:
   SimpleIkOptions options_;
 };
 
-} // namespace roboplan
+}  // namespace roboplan

@@ -37,4 +37,4 @@ JointInfo::JointInfo(JointType joint_type) : type{joint_type} {
       Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::max());
 };
 
-} // namespace roboplan
+}  // namespace roboplan
