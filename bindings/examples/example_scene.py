@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 
 import roboplan
-from roboplan.utils import get_example_resources_directory, get_package_path
+from roboplan.utils import get_example_resources_directory
 
 
 if __name__ == "__main__":
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     roboplan_examples_dir = Path(get_example_resources_directory())
     urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
     srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
-    package_paths = [get_package_path()]
+    package_paths = [roboplan_examples_dir]
 
     scene = roboplan.Scene("test_scene", urdf_path, srdf_path, package_paths)
     scene.print()
