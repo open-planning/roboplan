@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-c"]
 # Install core dependencies.
 RUN apt-get update -y \
     && apt install -y \
-        cmake libeigen3-dev libgmock-dev liburdfdom-dev lsb-release python3-pip wget
+        cmake libeigen3-dev libgmock-dev liburdfdom-dev python3-pip
 RUN pip3 install nanobind pytest scikit-build-core
 
 # Install pinocchio with pip as it support additional CPU architectures
