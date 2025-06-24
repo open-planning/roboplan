@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-c"]
 # Install core dependencies.
 RUN apt-get update -y \
     && apt install -y \
-        cmake curl libeigen3-dev libgmock-dev lsb-release python3-pip wget
+        cmake libeigen3-dev libgmock-dev lsb-release python3-pip wget
 
 # Use conda rather than binaries to install Pinocchio to support both amd64 and aarch64 cpus.
 # https://stack-of-tasks.github.io/pinocchio/download.html
@@ -30,7 +30,7 @@ RUN arch=$(uname -m) && \
 ENV PATH="/root/miniconda3/bin:${PATH}"
 
 RUN conda init bash
-RUN conda install pinocchio=3.7.0 coal eigenpy -c conda-forge
+RUN conda install pinocchio=3.7.0 -c conda-forge
 
 # Install remaining python deps
 RUN pip3 install nanobind pytest scikit-build-core
