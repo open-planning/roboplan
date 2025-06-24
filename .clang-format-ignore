@@ -1,0 +1,2 @@
+# Ignore 3rd party dependencies
+roboplan_rrt/include/dynotree/*

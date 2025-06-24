@@ -31,6 +31,10 @@ cmake roboplan_simple_ik/CMakeLists.txt -Bbuild/roboplan_simple_ik
 cmake --build build/roboplan_simple_ik
 cmake --install build/roboplan_simple_ik --prefix ${PWD}/install/roboplan_simple_ik
 
+cmake roboplan_rrt/CMakeLists.txt -Bbuild/roboplan_rrt
+cmake --build build/roboplan_rrt
+cmake --install build/roboplan_rrt --prefix ${PWD}/install/roboplan_rrt
+
 cmake roboplan_examples/CMakeLists.txt -Bbuild/roboplan_examples
 cmake --build build/roboplan_examples
 cmake --install build/roboplan_examples --prefix ${PWD}/install/roboplan_examples

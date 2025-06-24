@@ -9,6 +9,7 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 #include <roboplan_example_models/resources.hpp>
+#include <roboplan_rrt/rrt.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
@@ -45,7 +46,7 @@ NB_MODULE(roboplan, m) {
       .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
       .def("print", &Scene::print);
 
-  /// Example module
+  /// Examples module
   nanobind::module_ m_example_models = m.def_submodule("example_models", "Example models");
 
   m_example_models.def("get_install_prefix", &roboplan_example_models::get_install_prefix);
@@ -64,6 +65,18 @@ NB_MODULE(roboplan, m) {
   nanobind::class_<SimpleIk>(m_simple_ik, "SimpleIk")
       .def(nanobind::init<const Scene&, const SimpleIkOptions&>())
       .def("solveIk", &SimpleIk::solveIk);
+
+  /// RRT module
+  nanobind::module_ m_rrt = m.def_submodule("rrt", "RRT module");
+
+  nanobind::class_<RRTOptions>(m_rrt, "RRTOptions")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("max_connection_distance", &RRTOptions::max_connection_distance)
+      .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size);
+
+  nanobind::class_<RRT>(m_rrt, "RRT")
+      .def(nanobind::init<const Scene&, const RRTOptions&>())
+      .def("plan", &RRT::plan);
 }
 
 }  // namespace roboplan

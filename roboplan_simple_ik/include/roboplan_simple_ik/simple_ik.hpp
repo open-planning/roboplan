@@ -25,7 +25,7 @@ class SimpleIk {
 public:
   /// @brief Constructor.
   /// @param scene The scene to use for solving IK.
-  /// @param options A structcontaining IK solver options.
+  /// @param options A struct containing IK solver options.
   SimpleIk(const Scene& scene, const SimpleIkOptions& options);
 
   /// @brief Solves inverse kinematics.
