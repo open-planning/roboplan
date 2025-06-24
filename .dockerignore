@@ -1,3 +1,7 @@
+.git/
 .github
+.gitignore
 **/build/
 **/install/
+**/Dockerfile*
+docker-compose.yaml
