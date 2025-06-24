@@ -29,6 +29,6 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
 
 # Set up entrypoint and working folder.
 WORKDIR /workspace/roboplan_ws
-COPY .docker/entrypoint.sh /entrypoint.sh
+COPY .docker/ros/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 RUN echo "source /entrypoint.sh" >> ~/.bashrc

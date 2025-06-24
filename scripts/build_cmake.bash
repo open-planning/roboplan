@@ -42,13 +42,4 @@ CMake build complete...
 =======================
 "
 
-pushd bindings || exit
-pip install --break-system-packages --no-build-isolation -ve .
-echo "
-=======================
-Python bindings build complete...
-=======================
-"
-popd > /dev/null || exit
-
 popd > /dev/null || exit

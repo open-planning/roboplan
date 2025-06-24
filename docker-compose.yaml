@@ -12,11 +12,40 @@
 #   docker exec -it <container_name> bash
 
 services:
-  base:
+  ubuntu:
+    image: roboplan_ros:${UBUNTU_VERSION:-24.04}
+    build:
+      context: .
+      dockerfile: .docker/ubuntu/Dockerfile
+      target: roboplan_ubuntu
+    # Ensures signals are actually passed and reaped in the container for shutdowns.
+    # https://docs.docker.com/compose/compose-file/compose-file-v3/#init
+    init: true
+    # Interactive shell
+    stdin_open: true
+    tty: true
+    # Networking and IPC for ROS 2
+    network_mode: host
+    ipc: host
+    # Allows graphical programs in the container.
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - CMAKE_PREFIX_PATH=/roboplan_ws/install/:/opt/openrobots/
+    volumes:
+      # Mount the source code.
+      - ./:/roboplan_ws/:rw
+      # Allows graphical programs in the container.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority
+    command: sleep infinity
+
+  ros:
     image: roboplan_ros:${ROS_DISTRO:-jazzy}
     build:
       context: .
-      dockerfile: .docker/Dockerfile
+      dockerfile: .docker/ros/Dockerfile
       target: roboplan_ros
       args:
         ROS_DISTRO: ${ROS_DISTRO:-jazzy}

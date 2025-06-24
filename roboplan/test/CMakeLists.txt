@@ -1,3 +1,5 @@
+enable_testing()
+
 find_package(GTest REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 
