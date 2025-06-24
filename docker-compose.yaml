@@ -32,7 +32,6 @@ services:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - NVIDIA_DRIVER_CAPABILITIES=all
-      - CMAKE_PREFIX_PATH=/roboplan_ws/install/:/opt/openrobots/
     volumes:
       # Mount the source code.
       - ./:/roboplan_ws/:rw
