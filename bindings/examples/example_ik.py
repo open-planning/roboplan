@@ -3,18 +3,18 @@ from pathlib import Path
 import numpy as np
 
 from roboplan import (
+    get_package_share_dir,
     Scene,
     JointConfiguration,
     CartesianConfiguration,
     SimpleIkOptions,
     SimpleIk,
 )
-from roboplan.utils import get_example_resources_directory
 
 
 if __name__ == "__main__":
 
-    roboplan_examples_dir = Path(get_example_resources_directory())
+    roboplan_examples_dir = Path(get_package_share_dir())
     urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
     srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
     package_paths = [roboplan_examples_dir]

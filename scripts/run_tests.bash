@@ -34,7 +34,6 @@ Running C++ tests...
     pushd "${SCRIPT_DIR}/../build" > /dev/null || exit
     for PACKAGE in */test;
     do
-        echo $PACKAGE
         pushd ${PACKAGE} > /dev/null || exit
         ctest -V || EXIT_CODE=$?
         popd > /dev/null || exit

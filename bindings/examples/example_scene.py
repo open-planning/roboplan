@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 
 import roboplan
-from roboplan.utils import get_example_resources_directory
+from roboplan import get_package_share_dir
 
 
 if __name__ == "__main__":
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     print(f"Config positions: {jc.positions}")
     print("")
 
-    roboplan_examples_dir = Path(get_example_resources_directory())
+    roboplan_examples_dir = Path(get_package_share_dir())
     urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
     srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
     package_paths = [roboplan_examples_dir]

@@ -8,6 +8,7 @@
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
+#include <roboplan_example_models/resources.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
@@ -43,6 +44,12 @@ NB_MODULE(roboplan, m) {
       .def("hasCollisions", &Scene::hasCollisions)
       .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
       .def("print", &Scene::print);
+
+  /// Example module
+  nanobind::module_ m_example_models = m.def_submodule("example_models", "Example models");
+
+  m_example_models.def("get_install_prefix", &roboplan_example_models::get_install_prefix);
+  m_example_models.def("get_package_share_dir", &roboplan_example_models::get_package_share_dir);
 
   /// Simple IK module
   nanobind::module_ m_simple_ik = m.def_submodule("simple_ik", "Simple IK solver module");

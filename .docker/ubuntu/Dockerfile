@@ -21,6 +21,7 @@ RUN mkdir -p /etc/apt/keyrings && \
     apt-get update -y && \
     apt install -qqy robotpkg-py3*-pinocchio
 ENV CMAKE_PREFIX_PATH="/opt/openrobots/:${CMAKE_PREFIX_PATH}"
+ENV LD_LIBRARY_PATH="/opt/openrobots/lib:${LD_LIBRARY_PATH}"
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /roboplan_ws
@@ -34,3 +35,8 @@ RUN ./scripts/build_cmake.bash
 ENV CMAKE_PREFIX_PATH="/roboplan_ws/install/:${CMAKE_PREFIX_PATH}"
 RUN cd bindings && \
     pip3 install --no-build-isolation -ve .
+
+# Set up entrypoint.
+COPY .docker/ubuntu/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+RUN echo "source /entrypoint.sh" >> ~/.bashrc
