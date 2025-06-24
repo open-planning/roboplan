@@ -14,21 +14,24 @@ RUN pip3 install nanobind pytest scikit-build-core
 # Install pinocchio with pip as it support additional CPU architectures
 RUN pip3 install pin
 
-# Set paths for cmeel.prefix installation, this will cause warnings with system package versions
-ENV CMAKE_PREFIX_PATH="/usr/local/lib/python3.12/dist-packages/cmeel.prefix:${CMAKE_PREFIX_PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/lib/python3.12/dist-packages/cmeel.prefix/lib:${LD_LIBRARY_PATH}"
+# Find the location of the relevant pip installed packages and ensure they are available to
+# cmake and LD. This will cause build warnings with system installed packages.
+RUN PIP_PATH="$(pip3 show pin | grep "Location:" | cut -d' ' -f2)/cmeel.prefix" && \
+    echo "${PIP_PATH}/lib" >> /etc/ld.so.conf.d/roboplan.conf && \
+    echo "export CMAKE_PREFIX_PATH=${PIP_PATH}:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /roboplan_ws
 WORKDIR /roboplan_ws
 COPY . /roboplan_ws
 
-# # Build RoboPlan from source and add it to the cmake path
-RUN ./scripts/build_cmake.bash
-ENV CMAKE_PREFIX_PATH="/roboplan_ws/install/:${CMAKE_PREFIX_PATH}"
+# Build RoboPlan from source and add it to the cmake path
+RUN . /roboplan_env.sh && ./scripts/build_cmake.bash
+RUN echo "export CMAKE_PREFIX_PATH=/roboplan_ws/install/:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh
 
 # Install the Python bindings.
-RUN cd bindings && \
+RUN . /roboplan_env.sh && \
+    cd bindings && \
     pip3 install --no-build-isolation -ve .
 
 # Add all installed packages' lib dirs to ldconfig
