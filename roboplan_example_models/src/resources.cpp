@@ -1,5 +1,5 @@
-#include <iostream>
 #include <roboplan_example_models/resources.hpp>
+
 namespace roboplan_example_models {
 
 std::filesystem::path get_install_prefix() {

@@ -22,8 +22,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Build docker images
-  build_and_test:
+
+  ubuntu_build_and_test:
+    strategy:
+      matrix:
+        ubuntu_version: [22.04, 24.04]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          file: .docker/ubuntu/Dockerfile
+          tags: roboplan_ubuntu:${{ github.head_ref || github.ref_name }}
+          build-args: |
+            UBUNTU_VERSION=${{ matrix.ubuntu_version }}
+          push: false
+          load: true
+      - name: Run tests
+        run: |
+          docker run \
+            roboplan_ubuntu:${{ github.head_ref || github.ref_name }} \
+            /bin/bash -c './scripts/run_tests.bash'
+
+  # Build ROS docker images and run tests.
+  ros_build_and_test:
     strategy:
       matrix:
         ros_distro: [humble, jazzy, kilted, rolling]
@@ -37,8 +64,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          file: .docker/Dockerfile
-          tags: roboplan:${{ github.head_ref || github.ref_name }}
+          file: .docker/ros/Dockerfile
+          tags: roboplan_ros:${{ github.head_ref || github.ref_name }}
           build-args: |
             ROS_DISTRO=${{ matrix.ros_distro }}
           push: false
@@ -46,5 +73,5 @@ jobs:
       - name: Run tests
         run: |
           docker run \
-            roboplan:${{ github.head_ref || github.ref_name }} \
+            roboplan_ros:${{ github.head_ref || github.ref_name }} \
             /bin/bash -c './src/roboplan/scripts/run_tests.bash'
