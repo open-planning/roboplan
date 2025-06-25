@@ -18,7 +18,7 @@ RUN pip3 install pin==${PINOCCHIO_VERSION}
 # Find the location of the relevant pip installed packages and ensure they are available to
 # cmake and LD. This will cause build warnings with system installed packages.
 RUN PIP_PATH="$(pip3 show pin | grep "Location:" | cut -d' ' -f2)/cmeel.prefix" && \
-    echo "${PIP_PATH}/lib" >> /etc/ld.so.conf.d/roboplan.conf && \
+    echo "export LD_LIBRARY_PATH=${PIP_PATH}/lib:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh \
     echo "export CMAKE_PREFIX_PATH=${PIP_PATH}:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh
 
 # Create a ROS 2 workspace and copy in the source code.
@@ -35,11 +35,9 @@ RUN . /roboplan_env.sh && \
     cd bindings && \
     pip3 install --no-build-isolation -ve .
 
-# Add all installed packages' lib dirs to ldconfig
 RUN for PACKAGE in /roboplan_ws/install/*/lib; do \
-        echo ${PACKAGE} >> /etc/ld.so.conf.d/roboplan.conf; \
-    done && \
-    ldconfig
+        echo "export LD_LIBRARY_PATH=${PACKAGE}:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh; \
+    done
 
 # Set up entrypoint.
 COPY .docker/ubuntu/entrypoint.sh /entrypoint.sh
