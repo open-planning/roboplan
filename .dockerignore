@@ -3,5 +3,5 @@
 .gitignore
 **/build/
 **/install/
-**/Dockerfile*
+**/Dockerfile
 docker-compose.yaml
