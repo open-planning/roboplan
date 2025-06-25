@@ -11,7 +11,7 @@ RUN apt-get update -y \
         cmake libeigen3-dev libgmock-dev liburdfdom-dev python3-pip
 RUN pip3 install nanobind pytest scikit-build-core
 
-# Install pinocchio with pip as it support additional CPU architectures
+# Install pinocchio with pip as it supports additional CPU architectures
 RUN pip3 install pin
 
 # Find the location of the relevant pip installed packages and ensure they are available to
