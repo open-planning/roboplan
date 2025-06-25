@@ -2,6 +2,7 @@ ARG UBUNTU_VERSION=24.04
 
 FROM ubuntu:${UBUNTU_VERSION} AS roboplan_ubuntu
 
+ARG PINOCCHIO_VERSION=3.4.0
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 SHELL ["/bin/bash", "-c"]
 
@@ -12,7 +13,7 @@ RUN apt-get update -y \
 RUN pip3 install nanobind pytest scikit-build-core
 
 # Install pinocchio with pip as it supports additional CPU architectures
-RUN pip3 install pin
+RUN pip3 install pin==${PINOCCHIO_VERSION}
 
 # Find the location of the relevant pip installed packages and ensure they are available to
 # cmake and LD. This will cause build warnings with system installed packages.
