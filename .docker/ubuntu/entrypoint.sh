@@ -1,13 +1,8 @@
 #!/bin/bash
 
-# Set the library paths
-pushd "/roboplan_ws/install" > /dev/null || exit
-for PACKAGE in */lib;
-do
-    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/roboplan_ws/install/${PACKAGE}"
-done
-popd > /dev/null || exit
-echo "Set LD_LIBRARY_PATH to installed packages."
+# Set the library paths for installed packages
+source /roboplan_env.sh
+echo "Set CMAKE_PREFIX_PATH and LD_LIBRARY_PATH for roboplan."
 
 # Execute the command passed into this entrypoint
 exec "$@"
