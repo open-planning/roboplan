@@ -1,7 +1,9 @@
 #pragma once
 
-#include <dynotree/KDTree.h>
+#include <memory>
+#include <optional>
 
+#include <dynotree/KDTree.h>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 
@@ -21,18 +23,19 @@ struct RRTOptions {
 class RRT {
 public:
   /// @brief Constructor.
-  /// @param scene The scene to use for motion planning.
+  /// @param scene A pointer to the scene to use for motion planning.
   /// @param options A struct containing RRT options.
-  RRT(const Scene& scene, const RRTOptions& options);
+  RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options);
 
   /// @brief Plan a path from start to goal.
   /// @param start The starting joint configuration.
   /// @param goal The goal joint configuration.
-  void plan(const JointConfiguration& start, const JointConfiguration& goal);
+  /// @return A joint-space path, if planning succeeds, else std::nullopt.
+  std::optional<JointPath> plan(const JointConfiguration& start, const JointConfiguration& goal);
 
 private:
-  /// @brief The scene. (should this be a pointer?)
-  Scene scene_;
+  /// @brief A pointer to the scene.
+  std::shared_ptr<Scene> scene_;
 
   /// @brief The struct containing IK solver options.
   RRTOptions options_;

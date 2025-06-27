@@ -82,4 +82,13 @@ struct JointInfo {
   JointLimits limits;
 };
 
+/// @brief Contains a path of joint configurations.
+struct JointPath {
+  /// @brief The list of joint names.
+  std::vector<std::string> joint_names;
+
+  /// @brief The list of joint configuration positions.
+  std::vector<Eigen::VectorXd> positions;
+};
+
 }  // namespace roboplan

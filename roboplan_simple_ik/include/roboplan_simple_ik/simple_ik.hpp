@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 
@@ -24,9 +26,9 @@ struct SimpleIkOptions {
 class SimpleIk {
 public:
   /// @brief Constructor.
-  /// @param scene The scene to use for solving IK.
+  /// @param scene A pointer to the scene to use for solving IK.
   /// @param options A struct containing IK solver options.
-  SimpleIk(const Scene& scene, const SimpleIkOptions& options);
+  SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& options);
 
   /// @brief Solves inverse kinematics.
   /// @param goal The goal Cartesian configuration.
@@ -37,8 +39,8 @@ public:
                JointConfiguration& solution);
 
 private:
-  /// @brief The scene. (should this be a pointer?)
-  Scene scene_;
+  /// @brief A pointer to the scene.
+  std::shared_ptr<Scene> scene_;
 
   /// @brief The struct containing IK solver options.
   SimpleIkOptions options_;

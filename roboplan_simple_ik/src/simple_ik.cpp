@@ -2,7 +2,7 @@
 
 namespace roboplan {
 
-SimpleIk::SimpleIk(const Scene& scene, const SimpleIkOptions& options)
+SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& options)
     : scene_{scene}, options_{options} {};
 
 bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfiguration& start,
@@ -10,7 +10,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
 
   size_t iter = 0;
   bool result = false;
-  const auto& model = scene_.getModel();
+  const auto& model = scene_->getModel();
   pinocchio::Data data(model);
   const auto frame_id = model.getFrameId(goal.tip_frame);
 

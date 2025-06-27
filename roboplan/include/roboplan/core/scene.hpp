@@ -50,6 +50,11 @@ public:
   /// @return The random positions.
   Eigen::VectorXd randomPositions();
 
+  /// @brief Generates random collision-free positions for the robot model.
+  /// @param max_tries The maximum number of samples to attempt.
+  /// @return The random positions, if successful, else std::nullopt.
+  std::optional<Eigen::VectorXd> randomCollisionFreePositions(size_t max_samples = 1000);
+
   /// @brief Checks collisions at specified joint positions.
   /// @param q The joint positions.
   /// @return True if there are collisions, else false.

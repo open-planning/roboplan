@@ -95,6 +95,16 @@ Eigen::VectorXd Scene::randomPositions() {
   return positions;
 }
 
+std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_samples) {
+  for (size_t idx = 0; idx < max_samples; ++idx) {
+    const auto positions = randomPositions();
+    if (!hasCollisions(positions)) {
+      return positions;
+    }
+  }
+  return std::nullopt;
+}
+
 bool Scene::hasCollisions(const Eigen::VectorXd& q) {
   return pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_,
                                       q,

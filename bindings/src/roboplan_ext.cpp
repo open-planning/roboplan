@@ -1,8 +1,11 @@
 #include <iostream>
+#include <memory>
 
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
+#include <nanobind/stl/optional.h>
+#include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
@@ -13,6 +16,8 @@
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
+
+using namespace nanobind::literals;
 
 NB_MODULE(roboplan, m) {
 
@@ -34,6 +39,11 @@ NB_MODULE(roboplan, m) {
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame)
       .def_rw("tform", &CartesianConfiguration::tform);
 
+  nanobind::class_<JointPath>(m_core, "JointPath")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("joint_names", &JointPath::joint_names)
+      .def_rw("positions", &JointPath::positions);
+
   nanobind::class_<Scene>(m_core, "Scene")
       .def(
           nanobind::init<const std::string&, const std::filesystem::path&,
@@ -42,6 +52,8 @@ NB_MODULE(roboplan, m) {
       .def("getJointNames", &Scene::getJointNames)
       .def("setRngSeed", &Scene::setRngSeed)
       .def("randomPositions", &Scene::randomPositions)
+      .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
+           "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions)
       .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
       .def("print", &Scene::print);
@@ -63,7 +75,7 @@ NB_MODULE(roboplan, m) {
       .def_rw("max_error_norm", &SimpleIkOptions::max_error_norm);
 
   nanobind::class_<SimpleIk>(m_simple_ik, "SimpleIk")
-      .def(nanobind::init<const Scene&, const SimpleIkOptions&>())
+      .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>())
       .def("solveIk", &SimpleIk::solveIk);
 
   /// RRT module
@@ -75,7 +87,7 @@ NB_MODULE(roboplan, m) {
       .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size);
 
   nanobind::class_<RRT>(m_rrt, "RRT")
-      .def(nanobind::init<const Scene&, const RRTOptions&>())
+      .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
       .def("plan", &RRT::plan);
 }
 

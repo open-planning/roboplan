@@ -2,7 +2,8 @@
 
 namespace roboplan {
 
-RRT::RRT(const Scene& scene, const RRTOptions& options) : scene_{scene}, options_{options} {
+RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
+    : scene_{scene}, options_{options} {
 
   // TODO: Get the state space info and set bounds from the robot's joints.
   state_space_ = CombinedStateSpace({"Rn:6"});
@@ -11,7 +12,8 @@ RRT::RRT(const Scene& scene, const RRTOptions& options) : scene_{scene}, options
   tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
 };
 
-void RRT::plan(const JointConfiguration& start, const JointConfiguration& goal) {
+std::optional<JointPath> RRT::plan(const JointConfiguration& start,
+                                   const JointConfiguration& goal) {
   std::cout << "Planning...\n";
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
@@ -20,31 +22,33 @@ void RRT::plan(const JointConfiguration& start, const JointConfiguration& goal) 
   tree_.addPoint(q_start, num_nodes);
   std::cout << "Added start node\n";
 
-  if (!scene_.hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size)) {
+  if (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size)) {
     std::cout << "Can directly connect start and goal!\n";
-    return;
+    return JointPath{.joint_names = {}, .positions = {q_start, q_goal}};
   }
 
   for (size_t idx = 0; idx < 10000; ++idx) {
     std::cout << "Node " << idx << ":\n";
-    const auto q_rand = scene_.randomPositions();
+    const auto q_rand = scene_->randomPositions();
     const auto nn = tree_.search(q_rand);
     std::cout << "  Nearest neighbor: " << nn.id << "\n";
 
-    if (!scene_.hasCollisionsAlongPath(q_start, q_rand, options_.collision_check_step_size)) {
+    if (!scene_->hasCollisionsAlongPath(q_start, q_rand, options_.collision_check_step_size)) {
       std::cout << "  Edge valid -- adding node\n";
       num_nodes++;
       tree_.addPoint(q_rand, num_nodes);
 
-      if (!scene_.hasCollisionsAlongPath(q_rand, q_goal, options_.collision_check_step_size)) {
+      if (!scene_->hasCollisionsAlongPath(q_rand, q_goal, options_.collision_check_step_size)) {
         std::cout << "  Found goal!\n";
-        return;
+        return std::nullopt;  // TODO: Back out path
       }
     } else {
       std::cout << "  Edge in collision\n";
     }
     std::cout << "\n";
   }
+
+  return std::nullopt;
 }
 
 }  // namespace roboplan
