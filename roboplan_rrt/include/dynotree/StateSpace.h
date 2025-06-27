@@ -20,7 +20,7 @@ inline Eigen::IOFormat __CleanFmt(4, 0, ", ", "\n", "[", "]");
 template <typename T, typename Scalar>
 void choose_split_dimension_default(const T &lb, const T &ub, int &ii,
                                     Scalar &width) {
-  for (std::size_t i = 0; i < lb.size(); i++) {
+  for (std::size_t i = 0; i < static_cast<size_t>(lb.size()); i++) {
     Scalar dWidth = ub[i] - lb[i];
     if (dWidth > width) {
       ii = i;
@@ -32,7 +32,7 @@ void choose_split_dimension_default(const T &lb, const T &ub, int &ii,
 template <typename T, typename T2, typename Scalar>
 void choose_split_dimension_weights(const T &lb, const T &ub, const T2 &weight,
                                     int &ii, Scalar &width) {
-  for (std::size_t i = 0; i < lb.size(); i++) {
+  for (std::size_t i = 0; i < static_cast<size_t>(lb.size()); i++) {
     Scalar dWidth = (ub[i] - lb[i]) * weight(i);
     // Scalar dWidth = (ub[i] - lb[i]);
     if (dWidth > width) {
@@ -75,7 +75,7 @@ template <typename Scalar, int Dimensions = -1> struct RnL1 {
     CHECK_PRETTY_DYNOTREE__(lb.size() == x.size());
     CHECK_PRETTY_DYNOTREE__(ub.size() == x.size());
 
-    for (size_t i = 0; i < x.size(); i++) {
+    for (size_t i = 0; i < static_cast<size_t>(x.size()); i++) {
       if (x(i) < lb(i)) {
         return false;
       }
@@ -109,7 +109,6 @@ template <typename Scalar, int Dimensions = -1> struct RnL1 {
 
   inline Scalar distance_to_rectangle(cref_t &x, cref_t &lb, cref_t &ub) const {
 
-    Scalar d = 0;
     Scalar dist = 0;
 
     if constexpr (Dimensions == Eigen::Dynamic) {
@@ -120,7 +119,7 @@ template <typename Scalar, int Dimensions = -1> struct RnL1 {
       assert(x.size() == ub.size());
       assert(x.size() == lb.size());
 
-      for (size_t i = 0; i < x.size(); i++) {
+      for (size_t i = 0; i < static_cast<size_t>(x.size()); i++) {
         Scalar xx = std::max(lb(i), std::min(ub(i), x(i)));
         Scalar dif = xx - x(i);
         dist += std::abs(dif) * (use_weights ? weights(i) : 1.);
@@ -256,7 +255,7 @@ template <typename Scalar> struct SO2 {
     x(0) = (double(rand()) / (RAND_MAX + 1.)) * 2. * M_PI - M_PI;
   }
 
-  void set_bounds(cref_t lb_, cref_t ub_) {
+  void set_bounds([[maybe_unused]] cref_t lb_, [[maybe_unused]] cref_t ub_) {
 
     THROW_PRETTY_DYNOTREE("so2 has no bounds");
   }
@@ -377,7 +376,8 @@ template <typename Scalar> struct SO2Squared {
 
   inline void sample_uniform(ref_t x) const { so2.sample_uniform(x); }
 
-  inline void set_bounds(cref_t lb_, cref_t ub_) {
+  inline void set_bounds([[maybe_unused]] cref_t lb_,
+                         [[maybe_unused]] cref_t ub_) {
 
     THROW_PRETTY_DYNOTREE("so2 has no bounds");
   }
@@ -468,7 +468,6 @@ template <typename Scalar, int Dimensions = -1> struct RnSquared {
 
   inline Scalar distance_to_rectangle(cref_t x, cref_t lb, cref_t ub) const {
 
-    Scalar d = 0;
     Scalar dist = 0;
 
     if constexpr (Dimensions == Eigen::Dynamic) {
@@ -479,7 +478,7 @@ template <typename Scalar, int Dimensions = -1> struct RnSquared {
       assert(x.size() == ub.size());
       assert(x.size() == lb.size());
 
-      for (size_t i = 0; i < x.size(); i++) {
+      for (size_t i = 0; i < static_cast<size_t>(x.size()); i++) {
         Scalar xx = std::max(lb(i), std::min(ub(i), x(i)));
         Scalar dif = xx - x(i);
         dist += dif * dif * (use_weights ? weights(i) * weights(i) : 1.);
@@ -541,7 +540,7 @@ template <typename Scalar, int Dimensions = -1> struct Rn {
     CHECK_PRETTY_DYNOTREE__(lb.size() == x.size());
     CHECK_PRETTY_DYNOTREE__(ub.size() == x.size());
 
-    for (size_t i = 0; i < x.size(); i++) {
+    for (size_t i = 0; i < static_cast<size_t>(x.size()); i++) {
       if (x(i) < lb(i)) {
         return false;
       }
@@ -952,12 +951,14 @@ template <typename Scalar> struct SO3Squared {
     THROW_PRETTY_DYNOTREE("so3 weights not implemented");
   }
 
-  void set_bounds(cref_t lb_, cref_t ub_) {
+  void set_bounds([[maybe_unused]] cref_t lb_, [[maybe_unused]] cref_t ub_) {
 
     THROW_PRETTY_DYNOTREE("so3 has no bounds");
   }
 
-  void interpolate(cref_t from, cref_t to, Scalar t, ref_t out) const {
+  void interpolate([[maybe_unused]] cref_t from, [[maybe_unused]] cref_t to,
+                   [[maybe_unused]] Scalar t,
+                   [[maybe_unused]] ref_t out) const {
     THROW_PRETTY_DYNOTREE("so3 has no interpolate implemented");
   }
 
@@ -1004,11 +1005,11 @@ template <typename Scalar> struct SO3 {
 
   void sample_uniform(ref_t x) const { so3squared.sample_uniform(x); }
 
-  void set_bounds(cref_t lb_, cref_t ub_) {
+  void set_bounds([[maybe_unused]] cref_t lb_, [[maybe_unused]] cref_t ub_) {
     THROW_PRETTY_DYNOTREE("so3 has no bounds");
   }
 
-  void set_weights(cref_t weights_) {
+  void set_weights([[maybe_unused]] cref_t weights_) {
     THROW_PRETTY_DYNOTREE("so3 weights not implemented");
   }
 
