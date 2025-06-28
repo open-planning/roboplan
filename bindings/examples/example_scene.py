@@ -22,4 +22,4 @@ if __name__ == "__main__":
     package_paths = [roboplan_examples_dir]
 
     scene = roboplan.Scene("test_scene", urdf_path, srdf_path, package_paths)
-    scene.print()
+    print(scene)

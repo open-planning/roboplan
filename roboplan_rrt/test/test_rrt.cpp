@@ -41,7 +41,9 @@ TEST_F(RoboPlanRRTTest, Plan) {
   JointConfiguration goal;
   goal.positions = maybe_q_goal.value();
 
-  rrt_->plan(start, goal);
+  const auto path = rrt_->plan(start, goal);
+  ASSERT_TRUE(path.has_value());
+  std::cout << path.value() << "\n";
 }
 
 }  // namespace roboplan

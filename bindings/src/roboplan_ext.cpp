@@ -42,7 +42,12 @@ NB_MODULE(roboplan, m) {
   nanobind::class_<JointPath>(m_core, "JointPath")
       .def(nanobind::init<>())  // Default constructor
       .def_rw("joint_names", &JointPath::joint_names)
-      .def_rw("positions", &JointPath::positions);
+      .def_rw("positions", &JointPath::positions)
+      .def("__repr__", [](const JointPath& path) {
+        std::stringstream ss;
+        ss << path;
+        return ss.str();
+      });
 
   nanobind::class_<Scene>(m_core, "Scene")
       .def(
@@ -57,7 +62,11 @@ NB_MODULE(roboplan, m) {
            "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions)
       .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
-      .def("print", &Scene::print);
+      .def("__repr__", [](const Scene& scene) {
+        std::stringstream ss;
+        ss << scene;
+        return ss.str();
+      });
 
   /// Examples module
   nanobind::module_ m_example_models = m.def_submodule("example_models", "Example models");

@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <iostream>
 #include <vector>
 
 #include <roboplan/core/scene.hpp>
@@ -14,7 +15,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
   auto scene = roboplan::Scene("test_scene", urdf_path, srdf_path, package_paths);
-  scene.print();
+  std::cout << scene;
 
   // Generate a random state
   auto random_positions = scene.randomPositions();

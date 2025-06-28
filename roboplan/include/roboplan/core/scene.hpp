@@ -75,7 +75,7 @@ public:
                               const double min_step_size);
 
   /// @brief Prints basic information about the scene.
-  void print();
+  friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
   /// @brief The name of the scene.

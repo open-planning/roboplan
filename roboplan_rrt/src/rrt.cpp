@@ -37,7 +37,8 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     const auto nn = tree_.search(q_sample);
 
     // Extend to max connection distance.
-    // TODO: In the case of RRT-Connect, we will keep extending
+    // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
+    // The collision checking will likely need to be inside this function in that case.
     const auto q_extend =
         extend(nodes_.at(nn.id).config, q_sample, options_.max_connection_distance);
 
@@ -57,7 +58,6 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
         path.positions.push_back(cur_node.config);
         auto cur_idx = static_cast<int>(nodes_.size()) - 1;
         while (true) {
-          std::cout << "Node " << cur_idx << " has parent " << cur_node.parent_id << "\n";
           cur_idx = cur_node.parent_id;
           if (cur_idx < 0) {
             break;
@@ -66,14 +66,6 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
           path.positions.push_back(cur_node.config);
         }
         std::reverse(path.positions.begin(), path.positions.end());
-
-        // TODO: Make this a stream operator overload of the path itself.
-        std::cout << "Path:\n";
-        for (size_t idx = 0; idx < path.positions.size(); ++idx) {
-          const auto& pos = path.positions.at(idx);
-          std::cout << "  " << (idx + 1) << ": " << pos.transpose() << "\n";
-        }
-
         return path;
       }
     }

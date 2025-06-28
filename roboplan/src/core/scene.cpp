@@ -140,25 +140,26 @@ bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::
   return false;
 }
 
-void Scene::print() {
-  std::cout << "Scene : " << name_ << "\n";
-  std::cout << "Joint names: ";
-  for (const auto& joint_name : joint_names_) {
-    std::cout << joint_name << " ";
+std::ostream& operator<<(std::ostream& os, const Scene& scene) {
+  os << "Scene: " << scene.name_ << "\n";
+  os << "Joint names: ";
+  for (const auto& joint_name : scene.joint_names_) {
+    os << joint_name << " ";
   }
-  std::cout << "\n";
-  std::cout << "Joint limits:\n";
-  for (const auto& joint_name : joint_names_) {
-    const auto& limits = joint_info_.at(joint_name).limits;
-    std::cout << "  " << joint_name << ":\n";
-    std::cout << "    min positions: " << limits.min_position.transpose() << "\n";
-    std::cout << "    max positions: " << limits.max_position.transpose() << "\n";
-    std::cout << "    velocity: " << limits.max_velocity.transpose() << "\n";
+  os << "\n";
+  os << "Joint limits:\n";
+  for (const auto& joint_name : scene.joint_names_) {
+    const auto& limits = scene.joint_info_.at(joint_name).limits;
+    os << "  " << joint_name << ":\n";
+    os << "    min positions: " << limits.min_position.transpose() << "\n";
+    os << "    max positions: " << limits.max_position.transpose() << "\n";
+    os << "    velocity: " << limits.max_velocity.transpose() << "\n";
   }
-  std::cout << "State:\n";
-  std::cout << "  positions: " << cur_state_.positions.transpose() << "\n";
-  std::cout << "  velocities: " << cur_state_.velocities.transpose() << "\n";
-  std::cout << "  accelerations: " << cur_state_.accelerations.transpose() << "\n";
+  os << "State:\n";
+  os << "  positions: " << scene.cur_state_.positions.transpose() << "\n";
+  os << "  velocities: " << scene.cur_state_.velocities.transpose() << "\n";
+  os << "  accelerations: " << scene.cur_state_.accelerations.transpose() << "\n";
+  return os;
 }
 
 }  // namespace roboplan

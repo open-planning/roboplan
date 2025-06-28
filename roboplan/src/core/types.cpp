@@ -37,4 +37,13 @@ JointInfo::JointInfo(JointType joint_type) : type{joint_type} {
       Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::max());
 };
 
+std::ostream& operator<<(std::ostream& os, const JointPath& path) {
+  std::cout << "Joint Path with " << path.positions.size() << " points:\n";
+  for (size_t idx = 0; idx < path.positions.size(); ++idx) {
+    const auto& pos = path.positions.at(idx);
+    std::cout << "  " << (idx + 1) << ": " << pos.transpose() << "\n";
+  }
+  return os;
+}
+
 }  // namespace roboplan
