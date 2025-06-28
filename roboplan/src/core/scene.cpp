@@ -78,6 +78,10 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
+double Scene::configurationDistance(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end) {
+  return pinocchio::distance(model_, q_start, q_end);
+}
+
 void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 Eigen::VectorXd Scene::randomPositions() {
@@ -114,7 +118,7 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q) {
 bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                                    const double min_step_size) {
 
-  const auto distance = pinocchio::distance(model_, q_start, q_end);
+  const auto distance = configurationDistance(q_start, q_end);
 
   // Special case for short paths (also handles division by zero in the next case).
   const bool collision_at_endpoints = hasCollisions(q_start) || hasCollisions(q_end);

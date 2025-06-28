@@ -42,6 +42,12 @@ public:
   /// @return A vector of joint names..
   std::vector<std::string> getJointNames() { return joint_names_; };
 
+  /// @brief Gets the distance between two joint configurations.
+  /// @param q_start The starting joint positions.
+  /// @param q_end The ending joint positions.
+  /// @return The configuration-space distance between the two positions.
+  double configurationDistance(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end);
+
   /// @brief Sets the seed for the random number generator (RNG).
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);

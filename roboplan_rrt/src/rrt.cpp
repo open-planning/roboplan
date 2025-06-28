@@ -8,47 +8,99 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   // TODO: Get the state space info and set bounds from the robot's joints.
   state_space_ = CombinedStateSpace({"Rn:6"});
   state_space_.set_bounds(-3.14 * Eigen::VectorXd::Ones(6), 3.14 * Eigen::VectorXd::Ones(6));
-
-  tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
 };
 
 std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                                    const JointConfiguration& goal) {
   std::cout << "Planning...\n";
+  tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
+  nodes_.clear();
+  nodes_.reserve(options_.max_nodes);
+
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
 
-  int num_nodes = 0;
-  tree_.addPoint(q_start, num_nodes);
-  std::cout << "Added start node\n";
+  tree_.addPoint(q_start, 0);
+  nodes_.emplace_back(q_start, -1);
 
-  if (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size)) {
+  if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
+      (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
     return JointPath{.joint_names = {}, .positions = {q_start, q_goal}};
   }
 
-  for (size_t idx = 0; idx < 10000; ++idx) {
-    std::cout << "Node " << idx << ":\n";
-    const auto q_rand = scene_->randomPositions();
-    const auto nn = tree_.search(q_rand);
-    std::cout << "  Nearest neighbor: " << nn.id << "\n";
+  while (true) {
+    // Sample the next node.
+    const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
+                              ? q_goal
+                              : scene_->randomPositions();
+    const auto nn = tree_.search(q_sample);
 
-    if (!scene_->hasCollisionsAlongPath(q_start, q_rand, options_.collision_check_step_size)) {
-      std::cout << "  Edge valid -- adding node\n";
-      num_nodes++;
-      tree_.addPoint(q_rand, num_nodes);
+    // Extend to max connection distance.
+    // TODO: In the case of RRT-Connect, we will keep extending
+    const auto q_extend =
+        extend(nodes_.at(nn.id).config, q_sample, options_.max_connection_distance);
 
-      if (!scene_->hasCollisionsAlongPath(q_rand, q_goal, options_.collision_check_step_size)) {
-        std::cout << "  Found goal!\n";
-        return std::nullopt;  // TODO: Back out path
+    // Check that the extended node can be added to the tree, and if so whether it can directly
+    // connect to the goal node.
+    if (!scene_->hasCollisionsAlongPath(q_start, q_extend, options_.collision_check_step_size)) {
+      tree_.addPoint(q_extend, nodes_.size());
+      nodes_.emplace_back(q_extend, nn.id);
+
+      if (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size)) {
+        std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
+        nodes_.emplace_back(q_goal, nodes_.size() - 1);
+
+        // TODO: Factor out backing out of path
+        JointPath path;
+        auto cur_node = nodes_.back();
+        path.positions.push_back(cur_node.config);
+        auto cur_idx = static_cast<int>(nodes_.size()) - 1;
+        while (true) {
+          std::cout << "Node " << cur_idx << " has parent " << cur_node.parent_id << "\n";
+          cur_idx = cur_node.parent_id;
+          if (cur_idx < 0) {
+            break;
+          }
+          cur_node = nodes_.at(cur_idx);
+          path.positions.push_back(cur_node.config);
+        }
+        std::reverse(path.positions.begin(), path.positions.end());
+
+        // TODO: Make this a stream operator overload of the path itself.
+        std::cout << "Path:\n";
+        for (size_t idx = 0; idx < path.positions.size(); ++idx) {
+          const auto& pos = path.positions.at(idx);
+          std::cout << "  " << (idx + 1) << ": " << pos.transpose() << "\n";
+        }
+
+        return path;
       }
-    } else {
-      std::cout << "  Edge in collision\n";
     }
-    std::cout << "\n";
+
+    if (nodes_.size() >= options_.max_nodes) {
+      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
+      break;
+    }
   }
 
+  std::cout << "Unable to find a plan!\n";
   return std::nullopt;
+}
+
+Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
+                            double max_connection_dist) {
+  const auto distance = scene_->configurationDistance(q_start, q_goal);
+  if (distance <= max_connection_dist) {
+    return q_goal;
+  }
+  return pinocchio::interpolate(scene_->getModel(), q_start, q_goal,
+                                max_connection_dist / distance);
+}
+
+void RRT::setRngSeed(unsigned int seed) {
+  rng_gen_ = std::mt19937(seed);
+  scene_->setRngSeed(seed);
 }
 
 }  // namespace roboplan

@@ -50,6 +50,7 @@ NB_MODULE(roboplan, m) {
                          const std::filesystem::path&, const std::vector<std::filesystem::path>&>())
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
+      .def("configurationDistance", &Scene::configurationDistance)
       .def("setRngSeed", &Scene::setRngSeed)
       .def("randomPositions", &Scene::randomPositions)
       .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
@@ -83,12 +84,15 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<RRTOptions>(m_rrt, "RRTOptions")
       .def(nanobind::init<>())  // Default constructor
+      .def_rw("max_nodes", &RRTOptions::max_nodes)
       .def_rw("max_connection_distance", &RRTOptions::max_connection_distance)
-      .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size);
+      .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size)
+      .def_rw("goal_biasing_probability", &RRTOptions::goal_biasing_probability);
 
   nanobind::class_<RRT>(m_rrt, "RRT")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
-      .def("plan", &RRT::plan);
+      .def("plan", &RRT::plan)
+      .def("setRngSeed", &RRT::setRngSeed);
 }
 
 }  // namespace roboplan
