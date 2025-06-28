@@ -46,7 +46,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
-    return JointPath{.joint_names = {}, .positions = {q_start, q_goal}};
+    return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
   }
 
   while (true) {
@@ -74,6 +74,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
         // TODO: Factor out backing out of path
         JointPath path;
+        path.joint_names = scene_->getJointNames();
         auto cur_node = nodes_.back();
         path.positions.push_back(cur_node.config);
         auto cur_idx = static_cast<int>(nodes_.size()) - 1;
