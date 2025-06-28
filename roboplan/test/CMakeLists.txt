@@ -3,6 +3,7 @@ find_package(roboplan_example_models REQUIRED)
 
 # Build tests
 add_executable(test_types test_types.cpp)
+set_property(TARGET test_types PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_types
   roboplan
@@ -10,6 +11,7 @@ target_link_libraries(
 )
 
 add_executable(test_scene test_scene.cpp)
+set_property(TARGET test_scene PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_scene
   roboplan

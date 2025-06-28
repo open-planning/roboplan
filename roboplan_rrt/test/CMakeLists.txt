@@ -3,6 +3,7 @@ find_package(roboplan_example_models REQUIRED)
 
 # Build tests
 add_executable(test_rrt test_rrt.cpp)
+set_property(TARGET test_rrt PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_rrt
   roboplan_rrt

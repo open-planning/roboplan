@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import numpy as np
 
-from roboplan import get_package_share_dir, JointConfiguration, Scene
+from roboplan import get_package_share_dir, JointType, Scene
 
 
 @pytest.fixture
@@ -30,7 +30,16 @@ def test_scene_properties(test_scene: Scene) -> None:
         "wrist_2_joint",
         "wrist_3_joint",
     ]
-    print(test_scene)
+
+    joint_info = test_scene.getJointInfo("shoulder_pan_joint")
+    assert joint_info.type == JointType.REVOLUTE
+    assert joint_info.num_position_dofs == 1
+    assert joint_info.num_velocity_dofs == 1
+    assert np.allclose(joint_info.limits.min_position, np.array([-np.pi]))
+    assert np.allclose(joint_info.limits.max_position, np.array([np.pi]))
+    assert np.allclose(joint_info.limits.max_velocity, np.array([3.15]))
+
+    print(test_scene)  # Test printing for good measure
 
 
 def test_random_positions(test_scene: Scene) -> None:

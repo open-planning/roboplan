@@ -1,8 +1,11 @@
 from .roboplan.core import (
-    Scene,
-    JointConfiguration,
-    JointPath,
     CartesianConfiguration,
+    JointConfiguration,
+    JointInfo,
+    JointLimits,
+    JointPath,
+    JointType,
+    Scene,
     __doc__,
 )
 from .roboplan.example_models import get_install_prefix, get_package_share_dir

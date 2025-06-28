@@ -39,6 +39,26 @@ NB_MODULE(roboplan, m) {
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame)
       .def_rw("tform", &CartesianConfiguration::tform);
 
+  nanobind::enum_<JointType>(m_core, "JointType")
+      .value("PRISMATIC", JointType::PRISMATIC)
+      .value("REVOLUTE", JointType::REVOLUTE)
+      .value("CONTINUOUS", JointType::CONTINUOUS)
+      .value("PLANAR", JointType::PLANAR)
+      .value("FLOATING", JointType::FLOATING);
+
+  nanobind::class_<JointLimits>(m_core, "JointLimits")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("min_position", &JointLimits::min_position)
+      .def_rw("max_position", &JointLimits::max_position)
+      .def_rw("max_velocity", &JointLimits::max_velocity);
+
+  nanobind::class_<JointInfo>(m_core, "JointInfo")
+      .def(nanobind::init<const JointType>())
+      .def_ro("type", &JointInfo::type)
+      .def_ro("num_position_dofs", &JointInfo::num_position_dofs)
+      .def_ro("num_velocity_dofs", &JointInfo::num_velocity_dofs)
+      .def_ro("limits", &JointInfo::limits);
+
   nanobind::class_<JointPath>(m_core, "JointPath")
       .def(nanobind::init<>())  // Default constructor
       .def_rw("joint_names", &JointPath::joint_names)
@@ -55,6 +75,7 @@ NB_MODULE(roboplan, m) {
                          const std::filesystem::path&, const std::vector<std::filesystem::path>&>())
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
+      .def("getJointInfo", &Scene::getJointInfo)
       .def("configurationDistance", &Scene::configurationDistance)
       .def("setRngSeed", &Scene::setRngSeed)
       .def("randomPositions", &Scene::randomPositions)

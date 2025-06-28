@@ -33,7 +33,19 @@ TEST_F(RoboPlanSceneTest, SceneProperties) {
               ContainerEq(std::vector<std::string>{"shoulder_pan_joint", "shoulder_lift_joint",
                                                    "elbow_joint", "wrist_1_joint", "wrist_2_joint",
                                                    "wrist_3_joint"}));
-  std::cout << *scene_;
+
+  const auto joint_info = scene_->getJointInfo("shoulder_pan_joint");
+  EXPECT_EQ(joint_info.type, JointType::REVOLUTE);
+  EXPECT_EQ(joint_info.num_position_dofs, 1u);
+  EXPECT_EQ(joint_info.num_velocity_dofs, 1u);
+  ASSERT_EQ(joint_info.limits.min_position.size(), 1u);
+  EXPECT_NEAR(joint_info.limits.min_position[0], -M_PI, 1e-4);
+  ASSERT_EQ(joint_info.limits.max_position.size(), 1u);
+  EXPECT_NEAR(joint_info.limits.max_position[0], M_PI, 1e-4);
+  ASSERT_EQ(joint_info.limits.max_velocity.size(), 1u);
+  EXPECT_NEAR(joint_info.limits.max_velocity[0], 3.15, 1e-4);
+
+  std::cout << *scene_;  // Test printing for good measure
 }
 
 TEST_F(RoboPlanSceneTest, RandomPositions) {

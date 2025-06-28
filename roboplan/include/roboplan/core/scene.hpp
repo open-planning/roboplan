@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <string>
 
 #include <pinocchio/algorithm/frames.hpp>
@@ -41,6 +42,16 @@ public:
   /// @brief Gets the scene's joint names.
   /// @return A vector of joint names..
   std::vector<std::string> getJointNames() { return joint_names_; };
+
+  /// @brief Gets the information for a specific joint.
+  /// @param joint_name The name of the joint.
+  /// @return The joint information struct.
+  JointInfo getJointInfo(const std::string& joint_name) {
+    if (!joint_info_.contains(joint_name)) {
+      throw std::runtime_error("Joint '" + joint_name + "' is not in the scene.");
+    }
+    return joint_info_.at(joint_name);
+  }
 
   /// @brief Gets the distance between two joint configurations.
   /// @param q_start The starting joint positions.

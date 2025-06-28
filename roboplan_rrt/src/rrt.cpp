@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include <roboplan_rrt/rrt.hpp>
 
 namespace roboplan {
@@ -5,22 +7,40 @@ namespace roboplan {
 RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     : scene_{scene}, options_{options} {
 
-  // TODO: Get the state space info and set bounds from the robot's joints.
-  state_space_ = CombinedStateSpace({"Rn:6"});
-  state_space_.set_bounds(-3.14 * Eigen::VectorXd::Ones(6), 3.14 * Eigen::VectorXd::Ones(6));
+  // Get the state space info and set bounds from the robot's joints.
+  // TODO: Support other joint types besides prismatic and revolute.
+  size_t concurrent_one_dof_joints = 0;
+  Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
+  Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
+  for (const auto& joint_name : scene_->getJointNames()) {
+    const auto& joint_info = scene_->getJointInfo(joint_name);
+    switch (joint_info.type) {
+    case JointType::FLOATING:
+    case JointType::PLANAR:
+      throw std::runtime_error("Multi-DOF joints not yet supported by RRT.");
+    case JointType::CONTINUOUS:
+      throw std::runtime_error("Continuous joints not yet supported by RRT.");
+    default:  // Prismatic or revolute, which are single-DOF.
+      lower_bounds(concurrent_one_dof_joints) = joint_info.limits.min_position[0];
+      upper_bounds(concurrent_one_dof_joints) = joint_info.limits.max_position[0];
+      ++concurrent_one_dof_joints;
+    }
+  }
+  state_space_ = CombinedStateSpace({"Rn:" + std::to_string(concurrent_one_dof_joints)});
+  state_space_.set_bounds(lower_bounds, upper_bounds);
 };
 
 std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                                    const JointConfiguration& goal) {
   std::cout << "Planning...\n";
-  tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
+  kd_tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
   nodes_.clear();
   nodes_.reserve(options_.max_nodes);
 
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
 
-  tree_.addPoint(q_start, 0);
+  kd_tree_.addPoint(q_start, 0);
   nodes_.emplace_back(q_start, -1);
 
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
@@ -34,18 +54,18 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
                               ? q_goal
                               : scene_->randomPositions();
-    const auto nn = tree_.search(q_sample);
 
-    // Extend to max connection distance.
+    // Extend from the nearest neighbor to max connection distance.
     // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
     // The collision checking will likely need to be inside this function in that case.
+    const auto nn = kd_tree_.search(q_sample);
     const auto q_extend =
         extend(nodes_.at(nn.id).config, q_sample, options_.max_connection_distance);
 
     // Check that the extended node can be added to the tree, and if so whether it can directly
     // connect to the goal node.
     if (!scene_->hasCollisionsAlongPath(q_start, q_extend, options_.collision_check_step_size)) {
-      tree_.addPoint(q_extend, nodes_.size());
+      kd_tree_.addPoint(q_extend, nodes_.size());
       nodes_.emplace_back(q_extend, nn.id);
 
       if (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size)) {

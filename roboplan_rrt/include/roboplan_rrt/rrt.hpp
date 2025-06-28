@@ -66,7 +66,7 @@ private:
   CombinedStateSpace state_space_;
 
   /// @brief A k-d tree for nearest neighbor lookup.
-  dynotree::KDTree<int, -1, 32, double, CombinedStateSpace> tree_;
+  dynotree::KDTree<int, -1, 32, double, CombinedStateSpace> kd_tree_;
 
   /// @brief A list of sampled nodes.
   std::vector<Node> nodes_;
