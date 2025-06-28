@@ -29,7 +29,7 @@ public:
 };
 
 TEST_F(RoboPlanRRTTest, Plan) {
-  // rrt_->setRngSeed(1234);  // uncomment before merge
+  rrt_->setRngSeed(1234);
 
   const auto maybe_q_start = scene_->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_start.has_value());

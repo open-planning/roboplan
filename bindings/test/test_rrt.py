@@ -31,7 +31,7 @@ def test_plan(test_scene: Scene) -> None:
     options.collision_check_step_size = 0.05
 
     rrt = RRT(test_scene, options)
-    # rrt.setRngSeed(1234)  # Uncomment before merge
+    rrt.setRngSeed(1234)
 
     start = JointConfiguration()
     start.positions = test_scene.randomCollisionFreePositions()
