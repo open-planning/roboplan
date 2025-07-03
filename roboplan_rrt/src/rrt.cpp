@@ -40,16 +40,25 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
 
-  kd_tree_.addPoint(q_start, 0);
-  nodes_.emplace_back(q_start, -1);
-
+  // Check whether direct connection between the start and goal are possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
     return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
   }
 
+  // Initialize the trees for searching.
+  kd_tree_.addPoint(q_start, 0);
+  nodes_.emplace_back(q_start, -1);
+
   while (true) {
+    // Check loop termination criteria.
+    // TODO: Also check for max elapsed time in future?
+    if (nodes_.size() >= options_.max_nodes) {
+      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
+      break;
+    }
+
     // Sample the next node.
     const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
                               ? q_goal
@@ -59,16 +68,17 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
     // The collision checking will likely need to be inside this function in that case.
     const auto nn = kd_tree_.search(q_sample);
-    const auto q_extend =
-        extend(nodes_.at(nn.id).config, q_sample, options_.max_connection_distance);
+    const auto& q_nearest = nodes_.at(nn.id).config;
+    const auto q_extend = extend(q_nearest, q_sample, options_.max_connection_distance);
 
     // Check that the extended node can be added to the tree, and if so whether it can directly
     // connect to the goal node.
-    if (!scene_->hasCollisionsAlongPath(q_start, q_extend, options_.collision_check_step_size)) {
+    if (!scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
       kd_tree_.addPoint(q_extend, nodes_.size());
       nodes_.emplace_back(q_extend, nn.id);
 
-      if (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size)) {
+      if ((scene_->configurationDistance(q_extend, q_goal) <= options_.max_connection_distance) &&
+          (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size))) {
         std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
         nodes_.emplace_back(q_goal, nodes_.size() - 1);
 
@@ -89,11 +99,6 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
         std::reverse(path.positions.begin(), path.positions.end());
         return path;
       }
-    }
-
-    if (nodes_.size() >= options_.max_nodes) {
-      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
-      break;
     }
   }
 
