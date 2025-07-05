@@ -18,9 +18,19 @@
 #include <roboplan_rrt/rrt.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
+#include <tl_expected/expected.hpp>
+
 namespace roboplan {
 
 using namespace nanobind::literals;
+
+template <typename T, typename E> T unwrap_expected(const tl::expected<T, E>& ret) {
+  if (ret.has_value()) {
+    return ret.value();
+  } else {
+    throw std::runtime_error("whoopsie daisey");
+  }
+}
 
 NB_MODULE(roboplan, m) {
 
@@ -136,6 +146,10 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<RRT>(m_rrt, "RRT")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
+      .def("plan_expected",
+           [](RRT& self, const JointConfiguration& start, const JointConfiguration& goal) {
+             return unwrap_expected(self.plan_expected(start, goal));
+           })
       .def("plan", &RRT::plan)
       .def("setRngSeed", &RRT::setRngSeed)
       .def("getNodes", &RRT::getNodes);

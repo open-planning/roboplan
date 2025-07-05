@@ -32,6 +32,17 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   state_space_.set_bounds(lower_bounds, upper_bounds);
 };
 
+tl::expected<JointPath, std::string> RRT::plan_expected(const JointConfiguration& start,
+                                                        const JointConfiguration& goal) {
+  std::optional<JointPath> maybe_path = plan(start, goal);
+
+  if (maybe_path.has_value()) {
+    return maybe_path.value();
+  } else {
+    return tl::make_unexpected("Failed to find path!");
+  }
+}
+
 std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                                    const JointConfiguration& goal) {
   std::cout << "Planning...\n";

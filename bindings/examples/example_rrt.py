@@ -110,7 +110,13 @@ if __name__ == "__main__":
     assert goal.positions is not None
 
     path = rrt.plan(start, goal)
-    assert path is not None
+
+    # WHOOPSIE DAISEY
+    goal.positions[0] = -6
+    path = rrt.plan_expected(start, goal)
+    assert path is None
+
+    # assert path is not None
 
     # Visualize the tree and path
     print(path)

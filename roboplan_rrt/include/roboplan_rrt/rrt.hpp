@@ -5,6 +5,8 @@
 #include <random>
 #include <vector>
 
+#include <tl_expected/expected.hpp>
+
 #include <dynotree/KDTree.h>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
@@ -43,6 +45,9 @@ public:
   /// @param scene A pointer to the scene to use for motion planning.
   /// @param options A struct containing RRT options.
   RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options = RRTOptions());
+
+  tl::expected<JointPath, std::string> plan_expected(const JointConfiguration& start,
+                                                     const JointConfiguration& goal);
 
   /// @brief Plan a path from start to goal.
   /// @param start The starting joint configuration.
