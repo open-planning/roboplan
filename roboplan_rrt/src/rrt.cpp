@@ -1,3 +1,4 @@
+#include <chrono>
 #include <stdexcept>
 
 #include <roboplan_rrt/rrt.hpp>
@@ -51,9 +52,19 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   kd_tree_.addPoint(q_start, 0);
   nodes_.emplace_back(q_start, -1);
 
+  // Record the start for measuring timeouts
+  const auto start_time = std::chrono::steady_clock::now();
+
   while (true) {
+    // Check for timeout
+    auto elapsed =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
+    if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
+      std::cout << "RRT timed out after " << options_.max_planning_time << " seconds.\n";
+      break;
+    }
+
     // Check loop termination criteria.
-    // TODO: Also check for max elapsed time in future?
     if (nodes_.size() >= options_.max_nodes) {
       std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
       break;
@@ -71,34 +82,37 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     const auto& q_nearest = nodes_.at(nn.id).config;
     const auto q_extend = extend(q_nearest, q_sample, options_.max_connection_distance);
 
-    // Check that the extended node can be added to the tree, and if so whether it can directly
-    // connect to the goal node.
-    if (!scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
-      kd_tree_.addPoint(q_extend, nodes_.size());
-      nodes_.emplace_back(q_extend, nn.id);
+    // Check if the extended node is valid and can be connected to the tree.
+    if (!scene_->isValidPose((q_extend)) ||
+        scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
+      continue;
+    }
 
-      if ((scene_->configurationDistance(q_extend, q_goal) <= options_.max_connection_distance) &&
-          (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size))) {
-        std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
-        nodes_.emplace_back(q_goal, nodes_.size() - 1);
+    kd_tree_.addPoint(q_extend, nodes_.size());
+    nodes_.emplace_back(q_extend, nn.id);
 
-        // TODO: Factor out backing out of path
-        JointPath path;
-        path.joint_names = scene_->getJointNames();
-        auto cur_node = nodes_.back();
-        path.positions.push_back(cur_node.config);
-        auto cur_idx = static_cast<int>(nodes_.size()) - 1;
-        while (true) {
-          cur_idx = cur_node.parent_id;
-          if (cur_idx < 0) {
-            break;
-          }
-          cur_node = nodes_.at(cur_idx);
-          path.positions.push_back(cur_node.config);
+    // Check if we can connect directly to the goal node.
+    if ((scene_->configurationDistance(q_extend, q_goal) <= options_.max_connection_distance) &&
+        (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size))) {
+      std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
+      nodes_.emplace_back(q_goal, nodes_.size() - 1);
+
+      // TODO: Factor out backing out of path
+      JointPath path;
+      path.joint_names = scene_->getJointNames();
+      auto cur_node = nodes_.back();
+      path.positions.push_back(cur_node.config);
+      auto cur_idx = static_cast<int>(nodes_.size()) - 1;
+      while (true) {
+        cur_idx = cur_node.parent_id;
+        if (cur_idx < 0) {
+          break;
         }
-        std::reverse(path.positions.begin(), path.positions.end());
-        return path;
+        cur_node = nodes_.at(cur_idx);
+        path.positions.push_back(cur_node.config);
       }
+      std::reverse(path.positions.begin(), path.positions.end());
+      return path;
     }
   }
 

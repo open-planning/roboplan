@@ -26,6 +26,10 @@ struct RRTOptions {
   /// @brief The probability of sampling the goal node instead of a random node.
   /// @details Must be between 0 and 1.
   double goal_biasing_probability = 0.15;
+
+  /// @brief The maximum amount of time to allow for planning, in seconds.
+  /// @details If <= 0 then planning will never timeout.
+  double max_planning_time = 0;
 };
 
 class RRT {
@@ -33,7 +37,7 @@ public:
   /// @brief Constructor.
   /// @param scene A pointer to the scene to use for motion planning.
   /// @param options A struct containing RRT options.
-  RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options);
+  RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options = RRTOptions());
 
   /// @brief Plan a path from start to goal.
   /// @param start The starting joint configuration.
