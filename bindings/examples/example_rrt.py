@@ -21,6 +21,7 @@ if __name__ == "__main__":
     options = RRTOptions()
     options.max_connection_distance = 1.0
     options.collision_check_step_size = 0.05
+    options.max_planning_time = 3.0
     rrt = RRT(scene, options)
 
     start = JointConfiguration()
