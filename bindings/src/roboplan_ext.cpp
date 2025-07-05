@@ -83,6 +83,7 @@ NB_MODULE(roboplan, m) {
            "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions)
       .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
+      .def("isValidPose", &Scene::isValidPose)
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;
