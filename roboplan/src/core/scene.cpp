@@ -140,6 +140,22 @@ bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::
   return false;
 }
 
+bool Scene::isValidPose(const Eigen::VectorXd& q) {
+  size_t q_idx = 0;
+  for (const auto& joint_name : joint_names_) {
+    const auto& info = joint_info_.at(joint_name);
+    for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
+      const auto& lo = info.limits.min_position[idx];
+      const auto& hi = info.limits.max_position[idx];
+      if (q(q_idx) < lo || q(q_idx) > hi) {
+        return false;
+      }
+      ++q_idx;
+    }
+  }
+  return true;
+}
+
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "Scene: " << scene.name_ << "\n";
   os << "Joint names: ";

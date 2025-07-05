@@ -85,6 +85,11 @@ public:
   bool hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                               const double min_step_size);
 
+  /// @brief Checks if the specified joint positions are valid with respect to joint limits.
+  /// @param q The joint positions.
+  /// @return True if the positions respect joint limits, else false.
+  bool isValidPose(const Eigen::VectorXd& q);
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
