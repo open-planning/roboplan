@@ -41,6 +41,12 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
 
+  // Ensure the start and goal poses are valid
+  if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
+    std::cout << "Invalid poses requested, cannot plan!\n";
+    return std::nullopt;
+  }
+
   // Check whether direct connection between the start and goal are possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
@@ -82,9 +88,8 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     const auto& q_nearest = nodes_.at(nn.id).config;
     const auto q_extend = extend(q_nearest, q_sample, options_.max_connection_distance);
 
-    // Check if the extended node is valid and can be connected to the tree.
-    if (!scene_->isValidPose((q_extend)) ||
-        scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
+    // If the extended node cannot be connected to the tree then throw it away.
+    if (scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
       continue;
     }
 
