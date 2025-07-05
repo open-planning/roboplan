@@ -43,10 +43,27 @@ TEST_F(RoboPlanRRTTest, Plan) {
   std::cout << path.value() << "\n";
 }
 
+TEST_F(RoboPlanRRTTest, InvalidPoses) {
+  rrt_ = std::make_unique<RRT>(scene_);
+  rrt_->setRngSeed(1234);
+
+  const auto valid_pose = scene_->randomCollisionFreePositions().value();
+  const Eigen::VectorXd invalid_pose{{-6, -6, -6, -6, -6, -6}};
+
+  JointConfiguration start;
+  start.positions = valid_pose;
+  JointConfiguration goal;
+  goal.positions = invalid_pose;
+
+  // Planning will fail as the goal pose is unreachable due to joint limits.
+  const auto path = rrt_->plan(start, goal);
+  ASSERT_FALSE(path.has_value());
+}
+
 TEST_F(RoboPlanRRTTest, PlanningTimeout) {
   // Set planning timeout to be impossibly short.
   RRTOptions options;
-  options.max_planning_time = 0.001;
+  options.max_planning_time = 1E-6;
   options.max_connection_distance = 0.1;
   rrt_ = std::make_unique<RRT>(scene_, options);
   rrt_->setRngSeed(1234);
@@ -58,9 +75,6 @@ TEST_F(RoboPlanRRTTest, PlanningTimeout) {
   start.positions = maybe_q_start.value();
   JointConfiguration goal;
   goal.positions = maybe_q_goal.value();
-
-  // Set the goal pose to an unreachable position.
-  goal.positions(0) = -6;
 
   // Planning will timeout.
   const auto path = rrt_->plan(start, goal);
