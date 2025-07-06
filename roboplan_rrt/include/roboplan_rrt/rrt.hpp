@@ -31,6 +31,9 @@ struct RRTOptions {
   /// @brief The maximum amount of time to allow for planning, in seconds.
   /// @details If <= 0 then planning will never timeout.
   double max_planning_time = 0;
+
+  /// @brief If true, use the RRT-Connect algorithm to grow the search trees.
+  bool rrt_connect = false;
 };
 
 class RRT {

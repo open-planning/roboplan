@@ -121,22 +121,47 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 std::optional<Eigen::VectorXd> RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes,
                                               const Eigen::VectorXd& q_sample) {
 
+  std::optional<Eigen::VectorXd> q_return = std::nullopt;
+
   // Extend from the nearest neighbor to max connection distance.
   // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
   // The collision checking will likely need to be inside this function in that case.
   const auto nn = kd_tree.search(q_sample);
   const auto& q_nearest = nodes.at(nn.id).config;
-  const auto q_extend = extend(q_nearest, q_sample, options_.max_connection_distance);
 
-  // If the extended node cannot be connected to the tree then throw it away.
-  if (scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
-    return std::nullopt;
+  int parent_id = nn.id;  // Track the correct parent ID
+  auto q_current = q_nearest;
+
+  while (true) {
+    // Extend towards the sampled node
+    auto q_extend = extend(q_current, q_sample, options_.max_connection_distance);
+
+    // If the extended node cannot be connected to the tree then throw it away and return
+    if (scene_->hasCollisionsAlongPath(q_current, q_extend, options_.collision_check_step_size)) {
+      break;
+    }
+
+    q_return = q_extend;
+    auto new_id = nodes.size();
+    kd_tree.addPoint(q_extend, new_id);
+    nodes.emplace_back(q_extend, parent_id);
+
+    // Only one iteration if we are not using RRT-Connect.
+    if (!options_.rrt_connect) {
+      break;
+    }
+
+    // If we have reached the end point we're done.
+    if (q_extend == q_sample) {
+      break;
+    }
+
+    // Otherwise update the parent and continue extendeing.
+    parent_id = new_id;
+    q_current = q_extend;
   }
 
-  kd_tree.addPoint(q_extend, nodes.size());
-  nodes.emplace_back(q_extend, nn.id);
-
-  return q_extend;
+  return q_return;
 }
 
 Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
