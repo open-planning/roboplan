@@ -12,6 +12,7 @@
 namespace roboplan {
 
 using CombinedStateSpace = dynotree::Combined<double>;
+using KdTree = dynotree::KDTree<int, -1, 32, double, CombinedStateSpace>;
 
 struct RRTOptions {
   /// @brief The maximum number of nodes to sample.
@@ -52,6 +53,14 @@ public:
   void setRngSeed(unsigned int seed);
 
 private:
+  /// @brief Attempt to add a sampled node to the provided tree and node set.
+  /// @param tree The tree to grow.
+  /// @param nodes The set of sampled nodes so far.
+  /// @param q_sample Randomly sampled node to extend towards (or connect).
+  /// @return The most recently sampled node, if available.
+  std::optional<Eigen::VectorXd> grow_tree(KdTree& tree, std::vector<Node>& nodes,
+                                           const Eigen::VectorXd& q_sample);
+
   /// @brief Runs the RRT extend operation from a start node to a goal node.
   /// @param q_start The start configuration.
   /// @param q_goal The goal configuration.
@@ -70,7 +79,7 @@ private:
   CombinedStateSpace state_space_;
 
   /// @brief A k-d tree for nearest neighbor lookup.
-  dynotree::KDTree<int, -1, 32, double, CombinedStateSpace> kd_tree_;
+  KdTree kd_tree_;
 
   /// @brief A list of sampled nodes.
   std::vector<Node> nodes_;

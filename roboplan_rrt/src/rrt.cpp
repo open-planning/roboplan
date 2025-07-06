@@ -34,9 +34,6 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                                    const JointConfiguration& goal) {
   std::cout << "Planning...\n";
-  kd_tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
-  nodes_.clear();
-  nodes_.reserve(options_.max_nodes);
 
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
@@ -55,7 +52,11 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   }
 
   // Initialize the trees for searching.
+  kd_tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
   kd_tree_.addPoint(q_start, 0);
+
+  nodes_.clear();
+  nodes_.reserve(options_.max_nodes);
   nodes_.emplace_back(q_start, -1);
 
   // Record the start for measuring timeouts
@@ -76,25 +77,17 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
       break;
     }
 
-    // Sample the next node.
+    // Sample the next node with goal biasing.
     const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
                               ? q_goal
                               : scene_->randomPositions();
 
-    // Extend from the nearest neighbor to max connection distance.
-    // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
-    // The collision checking will likely need to be inside this function in that case.
-    const auto nn = kd_tree_.search(q_sample);
-    const auto& q_nearest = nodes_.at(nn.id).config;
-    const auto q_extend = extend(q_nearest, q_sample, options_.max_connection_distance);
-
-    // If the extended node cannot be connected to the tree then throw it away.
-    if (scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
+    // Attempt to add the node to the tree, if a node is not added resample and try again.
+    const auto q_extend_maybe = grow_tree(kd_tree_, nodes_, q_sample);
+    if (!q_extend_maybe.has_value()) {
       continue;
     }
-
-    kd_tree_.addPoint(q_extend, nodes_.size());
-    nodes_.emplace_back(q_extend, nn.id);
+    const auto q_extend = q_extend_maybe.value();
 
     // Check if we can connect directly to the goal node.
     if ((scene_->configurationDistance(q_extend, q_goal) <= options_.max_connection_distance) &&
@@ -123,6 +116,27 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
   std::cout << "Unable to find a plan!\n";
   return std::nullopt;
+}
+
+std::optional<Eigen::VectorXd> RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes,
+                                              const Eigen::VectorXd& q_sample) {
+
+  // Extend from the nearest neighbor to max connection distance.
+  // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
+  // The collision checking will likely need to be inside this function in that case.
+  const auto nn = kd_tree.search(q_sample);
+  const auto& q_nearest = nodes.at(nn.id).config;
+  const auto q_extend = extend(q_nearest, q_sample, options_.max_connection_distance);
+
+  // If the extended node cannot be connected to the tree then throw it away.
+  if (scene_->hasCollisionsAlongPath(q_nearest, q_extend, options_.collision_check_step_size)) {
+    return std::nullopt;
+  }
+
+  kd_tree.addPoint(q_extend, nodes.size());
+  nodes.emplace_back(q_extend, nn.id);
+
+  return q_extend;
 }
 
 Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
