@@ -53,7 +53,10 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
   // Initialize the trees for searching.
   // TODO: We will need two trees, one from start and one from goal.
-  initialize_tree(kd_tree_, nodes_, q_start);
+  KdTree start_tree, goal_tree;
+  std::vector<Node> start_nodes, goal_nodes;
+  initialize_tree(start_tree, start_nodes, q_start);
+  initialize_tree(goal_tree, goal_nodes, q_goal);
 
   // Record the start for measuring timeouts.
   const auto start_time = std::chrono::steady_clock::now();
@@ -68,7 +71,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     }
 
     // Check loop termination criteria.
-    if (nodes_.size() >= options_.max_nodes) {
+    if (start_nodes.size() >= options_.max_nodes) {
       std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
       break;
     }
@@ -80,15 +83,15 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
     // Attempt to grow the tree towards the sampled node, if no nodes are added resample and try
     // again.
-    if (!grow_tree(kd_tree_, nodes_, q_sample)) {
+    if (!grow_tree(start_tree, start_nodes, q_sample)) {
       continue;
     }
-    const auto q_extend = nodes_.back().config;
+    const auto q_extend = start_nodes.back().config;
 
     // If we have reached the goal then we are done.
     if (q_extend == q_goal) {
-      std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
-      return get_path(nodes_.size() - 1);
+      std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
+      return get_path(start_nodes, start_nodes.size() - 1);
     }
 
     // Otherwise try to connect directly to the goal node.
@@ -96,9 +99,9 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
         (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size))) {
 
       // Always add the goal to the end of the nodes list
-      nodes_.emplace_back(q_goal, nodes_.size() - 1);
-      std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
-      return get_path(nodes_.size() - 1);
+      start_nodes.emplace_back(q_goal, start_nodes.size() - 1);
+      std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
+      return get_path(start_nodes, start_nodes.size() - 1);
     }
   }
 
@@ -107,7 +110,6 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 }
 
 void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_start) {
-  tree = KdTree{};
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   tree.addPoint(q_start, 0);
 
@@ -168,10 +170,10 @@ Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorX
                                 max_connection_dist / distance);
 }
 
-JointPath RRT::get_path(int end_idx) {
+JointPath RRT::get_path(std::vector<Node>& nodes, int end_idx) {
   JointPath path;
   path.joint_names = scene_->getJointNames();
-  auto cur_node = nodes_[end_idx];
+  auto cur_node = nodes[end_idx];
   path.positions.push_back(cur_node.config);
   auto cur_idx = end_idx;
   while (true) {
@@ -179,7 +181,7 @@ JointPath RRT::get_path(int end_idx) {
     if (cur_idx < 0) {
       break;
     }
-    cur_node = nodes_.at(cur_idx);
+    cur_node = nodes.at(cur_idx);
     path.positions.push_back(cur_node.config);
   }
   std::reverse(path.positions.begin(), path.positions.end());

@@ -77,7 +77,7 @@ protected:
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
 
-  JointPath get_path(int end_idx);
+  JointPath get_path(std::vector<Node>& nodes, int end_idx);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
@@ -87,12 +87,6 @@ protected:
 
   /// @brief A state space for the k-d tree for nearest neighbor lookup.
   CombinedStateSpace state_space_;
-
-  /// @brief A k-d tree for nearest neighbor lookup.
-  KdTree kd_tree_;
-
-  /// @brief A list of sampled nodes.
-  std::vector<Node> nodes_;
 
   /// @brief A random number generator for the planner.
   std::mt19937 rng_gen_;

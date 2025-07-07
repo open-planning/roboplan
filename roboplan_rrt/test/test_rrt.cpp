@@ -13,8 +13,6 @@ class RRTTest : public RRT {
 public:
   using RRT::grow_tree;
   using RRT::initialize_tree;
-  using RRT::kd_tree_;
-  using RRT::nodes_;
   using RRT::options_;
   using RRT::RRT;
 };
@@ -123,8 +121,8 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   const Eigen::VectorXd q_end{{0.5, 0, 0, 0, 0, 0}};
 
   // Initialize the search to the start pose.
-  auto tree = rrt->kd_tree_;
-  auto nodes = rrt->nodes_;
+  KdTree tree;
+  std::vector<Node> nodes;
   rrt->initialize_tree(tree, nodes, q_start);
 
   // Extending WITHOUT RRT-Connect will add exactly one node at the expected pose
@@ -134,6 +132,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
   // Reset the search tree and enable RRT Connect.
+  tree = KdTree{};
   rrt->options_.rrt_connect = true;
   rrt->initialize_tree(tree, nodes, q_start);
 
