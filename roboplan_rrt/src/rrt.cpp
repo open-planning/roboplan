@@ -76,6 +76,17 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
       break;
     }
 
+    // Check if the latest node can be connected directly to the goal.
+    auto q_latest = start_nodes.back().config;
+    if ((scene_->configurationDistance(q_latest, q_goal) <= options_.max_connection_distance) &&
+        (!scene_->hasCollisionsAlongPath(q_latest, q_goal, options_.collision_check_step_size))) {
+
+      // Always add the goal to the end of the nodes list
+      start_nodes.emplace_back(q_goal, start_nodes.size() - 1);
+      std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
+      return get_path(start_nodes, start_nodes.size() - 1);
+    }
+
     // Sample the next node with goal biasing.
     const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
                               ? q_goal
@@ -86,20 +97,9 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     if (!grow_tree(start_tree, start_nodes, q_sample)) {
       continue;
     }
-    const auto q_extend = start_nodes.back().config;
 
     // If we have reached the goal then we are done.
-    if (q_extend == q_goal) {
-      std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
-      return get_path(start_nodes, start_nodes.size() - 1);
-    }
-
-    // Otherwise try to connect directly to the goal node.
-    if ((scene_->configurationDistance(q_extend, q_goal) <= options_.max_connection_distance) &&
-        (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size))) {
-
-      // Always add the goal to the end of the nodes list
-      start_nodes.emplace_back(q_goal, start_nodes.size() - 1);
+    if (start_nodes.back().config == q_goal) {
       std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
       return get_path(start_nodes, start_nodes.size() - 1);
     }
