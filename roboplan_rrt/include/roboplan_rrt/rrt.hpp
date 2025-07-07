@@ -69,6 +69,13 @@ protected:
   /// @return True if node(s) were added to the tree, false otherwise.
   bool grow_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
 
+  /// @brief Returns a path from the specified index to the first added node.
+  /// @param nodes The list of nodes in the tree.
+  /// @param end_idx The index of the goal destination in the nodes list.
+  /// @return A JointPath from nodes[0] to nodes[end_idx].
+  JointPath get_path(std::vector<Node>& nodes, int end_idx);
+
+private:
   /// @brief Runs the RRT extend operation from a start node to a goal node.
   /// @param q_start The start configuration.
   /// @param q_goal The goal configuration.
@@ -76,8 +83,6 @@ protected:
   /// @return The extended configuration.
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
-
-  JointPath get_path(std::vector<Node>& nodes, int end_idx);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;

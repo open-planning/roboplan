@@ -110,6 +110,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 }
 
 void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_start) {
+  tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   tree.addPoint(q_start, 0);
 
@@ -160,16 +161,6 @@ bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vect
   return grew_tree;
 }
 
-Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
-                            double max_connection_dist) {
-  const auto distance = scene_->configurationDistance(q_start, q_goal);
-  if (distance <= max_connection_dist) {
-    return q_goal;
-  }
-  return pinocchio::interpolate(scene_->getModel(), q_start, q_goal,
-                                max_connection_dist / distance);
-}
-
 JointPath RRT::get_path(std::vector<Node>& nodes, int end_idx) {
   JointPath path;
   path.joint_names = scene_->getJointNames();
@@ -186,6 +177,16 @@ JointPath RRT::get_path(std::vector<Node>& nodes, int end_idx) {
   }
   std::reverse(path.positions.begin(), path.positions.end());
   return path;
+}
+
+Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
+                            double max_connection_dist) {
+  const auto distance = scene_->configurationDistance(q_start, q_goal);
+  if (distance <= max_connection_dist) {
+    return q_goal;
+  }
+  return pinocchio::interpolate(scene_->getModel(), q_start, q_goal,
+                                max_connection_dist / distance);
 }
 
 void RRT::setRngSeed(unsigned int seed) {

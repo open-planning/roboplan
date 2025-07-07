@@ -13,7 +13,6 @@ class RRTTest : public RRT {
 public:
   using RRT::grow_tree;
   using RRT::initialize_tree;
-  using RRT::options_;
   using RRT::RRT;
 };
 
@@ -131,13 +130,13 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   ASSERT_EQ(nodes.size(), 2);
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
-  // Reset the search tree and enable RRT Connect.
-  tree = KdTree{};
-  rrt->options_.rrt_connect = true;
-  rrt->initialize_tree(tree, nodes, q_start);
+  // Reset the search tree and enable RRT-Connect.
+  options.rrt_connect = true;
+  auto rrt_connect = std::make_unique<RRTTest>(scene_, options);
+  rrt_connect->initialize_tree(tree, nodes, q_start);
 
   // Extending WITH RRT-Connect will add exactly 6 nodes and reach q_end.
-  ASSERT_TRUE(rrt->grow_tree(tree, nodes, q_end));
+  ASSERT_TRUE(rrt_connect->grow_tree(tree, nodes, q_end));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
 }
