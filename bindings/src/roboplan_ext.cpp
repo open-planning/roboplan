@@ -119,7 +119,8 @@ NB_MODULE(roboplan, m) {
       .def_rw("max_connection_distance", &RRTOptions::max_connection_distance)
       .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size)
       .def_rw("goal_biasing_probability", &RRTOptions::goal_biasing_probability)
-      .def_rw("max_planning_time", &RRTOptions::max_planning_time);
+      .def_rw("max_planning_time", &RRTOptions::max_planning_time)
+      .def_rw("rrt_connect", &RRTOptions::rrt_connect);
 
   nanobind::class_<RRT>(m_rrt, "RRT")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
