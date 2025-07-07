@@ -55,14 +55,19 @@ public:
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);
 
-private:
+protected:
+  /// @brief Initializes the search tree with the specified start pose.
+  /// @param tree Reference to an empty tree.
+  /// @param nodes Reference to the nodes vector.
+  /// @param q_start The first node to add to the tree.
+  void initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_start);
+
   /// @brief Attempt to add a sampled node to the provided tree and node set.
   /// @param tree The tree to grow.
   /// @param nodes The set of sampled nodes so far.
   /// @param q_sample Randomly sampled node to extend towards (or connect).
-  /// @return The most recently sampled node, if available.
-  std::optional<Eigen::VectorXd> grow_tree(KdTree& tree, std::vector<Node>& nodes,
-                                           const Eigen::VectorXd& q_sample);
+  /// @return True if node(s) were added to the tree, false otherwise.
+  bool grow_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
 
   /// @brief Runs the RRT extend operation from a start node to a goal node.
   /// @param q_start The start configuration.
@@ -71,6 +76,8 @@ private:
   /// @return The extended configuration.
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
+
+  JointPath get_path(int end_idx);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;

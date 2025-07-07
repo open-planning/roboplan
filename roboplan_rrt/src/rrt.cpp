@@ -52,18 +52,14 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   }
 
   // Initialize the trees for searching.
-  kd_tree_.init_tree(state_space_.get_runtime_dim(), state_space_);
-  kd_tree_.addPoint(q_start, 0);
+  // TODO: We will need two trees, one from start and one from goal.
+  initialize_tree(kd_tree_, nodes_, q_start);
 
-  nodes_.clear();
-  nodes_.reserve(options_.max_nodes);
-  nodes_.emplace_back(q_start, -1);
-
-  // Record the start for measuring timeouts
+  // Record the start for measuring timeouts.
   const auto start_time = std::chrono::steady_clock::now();
 
   while (true) {
-    // Check for timeout
+    // Check for timeout.
     auto elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
     if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
@@ -82,35 +78,27 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                               ? q_goal
                               : scene_->randomPositions();
 
-    // Attempt to add the node to the tree, if a node is not added resample and try again.
-    const auto q_extend_maybe = grow_tree(kd_tree_, nodes_, q_sample);
-    if (!q_extend_maybe.has_value()) {
+    // Attempt to grow the tree towards the sampled node, if no nodes are added resample and try
+    // again.
+    if (!grow_tree(kd_tree_, nodes_, q_sample)) {
       continue;
     }
-    const auto q_extend = q_extend_maybe.value();
+    const auto q_extend = nodes_.back().config;
 
-    // Check if we can connect directly to the goal node.
+    // If we have reached the goal then we are done.
+    if (q_extend == q_goal) {
+      std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
+      return get_path(nodes_.size() - 1);
+    }
+
+    // Otherwise try to connect directly to the goal node.
     if ((scene_->configurationDistance(q_extend, q_goal) <= options_.max_connection_distance) &&
         (!scene_->hasCollisionsAlongPath(q_extend, q_goal, options_.collision_check_step_size))) {
-      std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
-      nodes_.emplace_back(q_goal, nodes_.size() - 1);
 
-      // TODO: Factor out backing out of path
-      JointPath path;
-      path.joint_names = scene_->getJointNames();
-      auto cur_node = nodes_.back();
-      path.positions.push_back(cur_node.config);
-      auto cur_idx = static_cast<int>(nodes_.size()) - 1;
-      while (true) {
-        cur_idx = cur_node.parent_id;
-        if (cur_idx < 0) {
-          break;
-        }
-        cur_node = nodes_.at(cur_idx);
-        path.positions.push_back(cur_node.config);
-      }
-      std::reverse(path.positions.begin(), path.positions.end());
-      return path;
+      // Always add the goal to the end of the nodes list
+      nodes_.emplace_back(q_goal, nodes_.size() - 1);
+      std::cout << "  Found goal with " << nodes_.size() << " sampled nodes!\n";
+      return get_path(nodes_.size() - 1);
     }
   }
 
@@ -118,18 +106,24 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   return std::nullopt;
 }
 
-std::optional<Eigen::VectorXd> RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes,
-                                              const Eigen::VectorXd& q_sample) {
+void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_start) {
+  tree = KdTree{};
+  tree.init_tree(state_space_.get_runtime_dim(), state_space_);
+  tree.addPoint(q_start, 0);
 
-  std::optional<Eigen::VectorXd> q_return = std::nullopt;
+  nodes.clear();
+  nodes.reserve(options_.max_nodes);
+  nodes.emplace_back(q_start, -1);
+}
+
+bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample) {
+  bool grew_tree = false;
 
   // Extend from the nearest neighbor to max connection distance.
-  // TODO: In the case of RRT-Connect, we will keep extending until we cannot any longer.
-  // The collision checking will likely need to be inside this function in that case.
   const auto nn = kd_tree.search(q_sample);
   const auto& q_nearest = nodes.at(nn.id).config;
 
-  int parent_id = nn.id;  // Track the correct parent ID
+  int parent_id = nn.id;
   auto q_current = q_nearest;
 
   while (true) {
@@ -141,7 +135,7 @@ std::optional<Eigen::VectorXd> RRT::grow_tree(KdTree& kd_tree, std::vector<Node>
       break;
     }
 
-    q_return = q_extend;
+    grew_tree = true;
     auto new_id = nodes.size();
     kd_tree.addPoint(q_extend, new_id);
     nodes.emplace_back(q_extend, parent_id);
@@ -161,7 +155,7 @@ std::optional<Eigen::VectorXd> RRT::grow_tree(KdTree& kd_tree, std::vector<Node>
     q_current = q_extend;
   }
 
-  return q_return;
+  return grew_tree;
 }
 
 Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
@@ -172,6 +166,24 @@ Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorX
   }
   return pinocchio::interpolate(scene_->getModel(), q_start, q_goal,
                                 max_connection_dist / distance);
+}
+
+JointPath RRT::get_path(int end_idx) {
+  JointPath path;
+  path.joint_names = scene_->getJointNames();
+  auto cur_node = nodes_[end_idx];
+  path.positions.push_back(cur_node.config);
+  auto cur_idx = end_idx;
+  while (true) {
+    cur_idx = cur_node.parent_id;
+    if (cur_idx < 0) {
+      break;
+    }
+    cur_node = nodes_.at(cur_idx);
+    path.positions.push_back(cur_node.config);
+  }
+  std::reverse(path.positions.begin(), path.positions.end());
+  return path;
 }
 
 void RRT::setRngSeed(unsigned int seed) {
