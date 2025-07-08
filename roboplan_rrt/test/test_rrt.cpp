@@ -13,6 +13,7 @@ class RRTTest : public RRT {
 public:
   using RRT::grow_tree;
   using RRT::initialize_tree;
+  using RRT::join_trees;
   using RRT::RRT;
 };
 
@@ -45,9 +46,14 @@ TEST_F(RoboPlanRRTTest, Plan) {
   JointConfiguration goal;
   goal.positions = maybe_q_goal.value();
 
-  const auto path = rrt->plan(start, goal);
-  ASSERT_TRUE(path.has_value());
-  std::cout << path.value() << "\n";
+  const auto maybe_path = rrt->plan(start, goal);
+  ASSERT_TRUE(maybe_path.has_value());
+
+  // Ensure the path starts and ends at the correct poses.
+  const auto path = maybe_path.value();
+  std::cout << path << "\n";
+  ASSERT_EQ(path.positions[0], start.positions);
+  ASSERT_EQ(path.positions.back(), goal.positions);
 }
 
 TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
@@ -66,9 +72,14 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
   JointConfiguration goal;
   goal.positions = maybe_q_goal.value();
 
-  const auto path = rrt->plan(start, goal);
-  ASSERT_TRUE(path.has_value());
-  std::cout << path.value() << "\n";
+  const auto maybe_path = rrt->plan(start, goal);
+  ASSERT_TRUE(maybe_path.has_value());
+
+  // Ensure the path starts and ends at the correct poses.
+  const auto path = maybe_path.value();
+  std::cout << path << "\n";
+  ASSERT_EQ(path.positions[0], start.positions);
+  ASSERT_EQ(path.positions.back(), goal.positions);
 }
 
 TEST_F(RoboPlanRRTTest, InvalidPoses) {
@@ -139,6 +150,49 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   ASSERT_TRUE(rrt_connect->grow_tree(tree, nodes, q_end));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
+}
+
+TEST_F(RoboPlanRRTTest, TestJoinTrees) {
+  RRTOptions options;
+  options.rrt_connect = false;
+  options.max_connection_distance = 0.1;
+  auto rrt = std::make_unique<RRTTest>(scene_, options);
+
+  // Tree1 Nodes
+  const Eigen::VectorXd q_start{{0, 0, 0, 0, 0, 0}};
+  const Eigen::VectorXd q_start_nearest{{0.1, 0, 0, 0, 0, 0}};
+
+  // Tree2 Nodes
+  const Eigen::VectorXd q_goal_nearest{{0.2, 0, 0, 0, 0, 0}};
+  const Eigen::VectorXd q_goal{{0.3, 0, 0, 0, 0, 0}};
+
+  const std::vector<Eigen::VectorXd> expected_positions = {q_start, q_start_nearest, q_goal_nearest,
+                                                           q_goal};
+
+  // Initialize the search to the start pose.
+  KdTree start_tree, goal_tree;
+  std::vector<Node> start_nodes, goal_nodes;
+  rrt->initialize_tree(start_tree, start_nodes, q_start);
+  rrt->initialize_tree(goal_tree, goal_nodes, q_goal);
+
+  // The nodes should both be appended directly to the start and goal nodes.
+  ASSERT_TRUE(rrt->grow_tree(start_tree, start_nodes, q_start_nearest));
+  ASSERT_EQ(start_nodes.size(), 2);
+  ASSERT_EQ(start_nodes.back().config, q_start_nearest);
+
+  ASSERT_TRUE(rrt->grow_tree(goal_tree, goal_nodes, q_goal_nearest));
+  ASSERT_EQ(goal_nodes.size(), 2);
+  ASSERT_EQ(goal_nodes.back().config, q_goal_nearest);
+
+  // Starting from the start_tree, the trees should be joinable.
+  const auto maybe_path = rrt->join_trees(start_nodes, goal_tree, goal_nodes, true);
+  ASSERT_TRUE(maybe_path.has_value());
+  ASSERT_EQ(maybe_path.value().positions, expected_positions);
+
+  // Starting from the goal_tree, the trees should be joinable.
+  const auto maybe_path2 = rrt->join_trees(goal_nodes, start_tree, start_nodes, false);
+  ASSERT_TRUE(maybe_path2.has_value());
+  ASSERT_EQ(maybe_path2.value().positions, expected_positions);
 }
 
 }  // namespace roboplan

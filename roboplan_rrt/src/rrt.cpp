@@ -33,30 +33,33 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
 std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                                    const JointConfiguration& goal) {
-  std::cout << "Planning...\n";
+  std::cout << "Planning..." << std::endl;
 
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    std::cout << "Invalid poses requested, cannot plan!\n";
+    std::cout << "Invalid poses requested, cannot plan!" << std::endl;
     return std::nullopt;
   }
 
   // Check whether direct connection between the start and goal are possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
-    std::cout << "Can directly connect start and goal!\n";
+    std::cout << "Can directly connect start and goal!" << std::endl;
     return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
   }
 
   // Initialize the trees for searching.
-  // TODO: We will need two trees, one from start and one from goal.
+  // When using RRT-Connect we use two trees, one growing from the start, on growing from the goal.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
   initialize_tree(start_tree, start_nodes, q_start);
   initialize_tree(goal_tree, goal_nodes, q_goal);
+
+  // For switching which tree we grow when using RRT-Connect.
+  bool grow_start_tree = true;
 
   // Record the start for measuring timeouts.
   const auto start_time = std::chrono::steady_clock::now();
@@ -66,57 +69,59 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     auto elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
     if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
-      std::cout << "RRT timed out after " << options_.max_planning_time << " seconds.\n";
+      std::cout << "RRT timed out after " << options_.max_planning_time << " seconds." << std::endl;
       break;
     }
 
     // Check loop termination criteria.
-    if (start_nodes.size() >= options_.max_nodes) {
-      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
+    if (start_nodes.size() + goal_nodes.size() >= options_.max_nodes) {
+      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ")." << std::endl;
       break;
     }
 
-    // Check if the latest node can be connected directly to the goal.
-    auto q_latest = start_nodes.back().config;
-    if ((scene_->configurationDistance(q_latest, q_goal) <= options_.max_connection_distance) &&
-        (!scene_->hasCollisionsAlongPath(q_latest, q_goal, options_.collision_check_step_size))) {
+    // Set grow and target tree for this loop iteration.
+    KdTree& tree = grow_start_tree ? start_tree : goal_tree;
+    KdTree& target_tree = grow_start_tree ? goal_tree : start_tree;
+    std::vector<Node>& nodes = grow_start_tree ? start_nodes : goal_nodes;
+    std::vector<Node>& target_nodes = grow_start_tree ? goal_nodes : start_nodes;
 
-      // Always add the goal to the end of the nodes list
-      start_nodes.emplace_back(q_goal, start_nodes.size() - 1);
-      std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
-      return get_path(start_nodes, start_nodes.size() - 1);
+    // Check if the trees can be connected from the latest added node. If so we are done.
+    auto maybe_path = join_trees(nodes, target_tree, target_nodes, grow_start_tree);
+    if (maybe_path.has_value()) {
+      std::cout << " Found goal with " << start_nodes.size() + goal_nodes.size()
+                << " sampled nodes!" << std::endl;
+      return maybe_path.value();
     }
 
-    // Sample the next node with goal biasing.
+    // Sample the next node with goal biasing, using the goal node for the starting tree,
+    // the start node for the goal tree.
+    const auto& q_target = grow_start_tree ? q_goal : q_start;
     const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
-                              ? q_goal
+                              ? q_target
                               : scene_->randomPositions();
 
-    // Attempt to grow the tree towards the sampled node, if no nodes are added resample and try
-    // again.
-    if (!grow_tree(start_tree, start_nodes, q_sample)) {
-      continue;
-    }
+    // Attempt to grow the tree towards the sampled node and continue growing.
+    auto grew_tree = grow_tree(tree, nodes, q_sample);
 
-    // If we have reached the goal then we are done.
-    if (start_nodes.back().config == q_goal) {
-      std::cout << "  Found goal with " << start_nodes.size() << " sampled nodes!\n";
-      return get_path(start_nodes, start_nodes.size() - 1);
+    // Switch the grow and target trees for the next iteration, if required.
+    // If no nodes were added we do not swap the trees to keep them growing at the same rate.
+    if (options_.rrt_connect && grew_tree) {
+      grow_start_tree = !grow_start_tree;
     }
   }
 
-  std::cout << "Unable to find a plan!\n";
+  std::cout << "Unable to find a plan!" << std::endl;
   return std::nullopt;
 }
 
-void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_start) {
+void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init) {
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
-  tree.addPoint(q_start, 0);
+  tree.addPoint(q_init, 0);
 
   nodes.clear();
   nodes.reserve(options_.max_nodes);
-  nodes.emplace_back(q_start, -1);
+  nodes.emplace_back(q_init, -1);
 }
 
 bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample) {
@@ -161,21 +166,52 @@ bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vect
   return grew_tree;
 }
 
-JointPath RRT::get_path(std::vector<Node>& nodes, int end_idx) {
+std::optional<JointPath> RRT::join_trees(const std::vector<Node>& nodes, const KdTree& target_tree,
+                                         const std::vector<Node>& target_nodes,
+                                         bool grow_start_tree) {
+  // Check if the trees can be connected from the latest added node.
+  const auto& latest_node = nodes.back();
+  const auto& q_latest = latest_node.config;
+  const auto& nn = target_tree.search(q_latest);
+  const auto& nearest_node = target_nodes.at(nn.id);
+  const auto& q_nearest = nearest_node.config;
+
+  // If the latest sampled node in one tree can be connected to the nearest node in the target tree,
+  // then a path exists and we should return it.
+  if ((scene_->configurationDistance(q_latest, q_nearest) <= options_.max_connection_distance) &&
+      (!scene_->hasCollisionsAlongPath(q_latest, q_nearest, options_.collision_check_step_size))) {
+
+    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree. Otherwise it is
+    // reversed.
+    JointPath start_path =
+        grow_start_tree ? get_path(nodes, latest_node) : get_path(target_nodes, nearest_node);
+    JointPath goal_path =
+        grow_start_tree ? get_path(target_nodes, nearest_node) : get_path(nodes, latest_node);
+
+    // We always set start_path as connection -> start_node and goal_path is connection ->
+    // goal_node.
+    std::reverse(start_path.positions.begin(), start_path.positions.end());
+    start_path.positions.insert(start_path.positions.end(), goal_path.positions.begin(),
+                                goal_path.positions.end());
+    return start_path;
+  }
+
+  return std::nullopt;
+}
+
+JointPath RRT::get_path(const std::vector<Node>& nodes, const Node& end_node) {
   JointPath path;
   path.joint_names = scene_->getJointNames();
-  auto cur_node = nodes[end_idx];
-  path.positions.push_back(cur_node.config);
-  auto cur_idx = end_idx;
+  auto cur_node = &end_node;
+  path.positions.push_back(cur_node->config);
   while (true) {
-    cur_idx = cur_node.parent_id;
+    auto cur_idx = cur_node->parent_id;
     if (cur_idx < 0) {
       break;
     }
-    cur_node = nodes.at(cur_idx);
-    path.positions.push_back(cur_node.config);
+    cur_node = &nodes.at(cur_idx);
+    path.positions.push_back(cur_node->config);
   }
-  std::reverse(path.positions.begin(), path.positions.end());
   return path;
 }
 

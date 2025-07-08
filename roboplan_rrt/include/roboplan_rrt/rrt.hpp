@@ -59,8 +59,8 @@ protected:
   /// @brief Initializes the search tree with the specified start pose.
   /// @param tree Reference to an empty tree.
   /// @param nodes Reference to the nodes vector.
-  /// @param q_start The first node to add to the tree.
-  void initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_start);
+  /// @param q_init The first node to add to the tree.
+  void initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init);
 
   /// @brief Attempt to add a sampled node to the provided tree and node set.
   /// @param tree The tree to grow.
@@ -69,11 +69,21 @@ protected:
   /// @return True if node(s) were added to the tree, false otherwise.
   bool grow_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
 
+  /// @brief Attempts to make a path between the two trees and nodes using the latest added node in
+  /// `tree`.
+  /// @param nodes
+  /// @param target_tree
+  /// @param target_nodes
+  /// @param grow_start_tree
+  /// @return
+  std::optional<JointPath> join_trees(const std::vector<Node>& nodes, const KdTree& target_tree,
+                                      const std::vector<Node>& target_nodes, bool grow_start_tree);
+
   /// @brief Returns a path from the specified index to the first added node.
   /// @param nodes The list of nodes in the tree.
-  /// @param end_idx The index of the goal destination in the nodes list.
-  /// @return A JointPath from nodes[0] to nodes[end_idx].
-  JointPath get_path(std::vector<Node>& nodes, int end_idx);
+  /// @param end_node The index of the goal destination in the nodes list.
+  /// @return A JointPath between end_node and nodes[0].
+  JointPath get_path(const std::vector<Node>& nodes, const Node& end_node);
 
 private:
   /// @brief Runs the RRT extend operation from a start node to a goal node.
