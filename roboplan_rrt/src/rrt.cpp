@@ -100,12 +100,21 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                               ? q_target
                               : scene_->randomPositions();
 
-    // Attempt to grow the tree towards the sampled node and continue growing.
-    auto grew_tree = grow_tree(tree, nodes, q_sample);
+    // Attempt to grow the tree towards the sampled node, if no nodes are added we resample
+    // and try again.
+    if (!grow_tree(tree, nodes, q_sample)) {
+      continue;
+    }
+
+    // If we have reached the goal or start then we are done and should just return the path.
+    const auto q_extend = nodes.back().config;
+    if (q_extend == q_goal || q_extend == q_start) {
+      // TODO: We either connected the start tree directly to the goal node or the goal tree
+      //       directly to the start node. Either way we have found a path and should terminate.
+    }
 
     // Switch the grow and target trees for the next iteration, if required.
-    // If no nodes were added we do not swap the trees to keep them growing at the same rate.
-    if (options_.rrt_connect && grew_tree) {
+    if (options_.rrt_connect) {
       grow_start_tree = !grow_start_tree;
     }
   }
