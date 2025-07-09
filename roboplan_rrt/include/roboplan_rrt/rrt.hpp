@@ -59,7 +59,9 @@ public:
   /// @param tree Reference to an empty tree.
   /// @param nodes Reference to the nodes vector.
   /// @param q_init The first node to add to the tree.
-  void initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init);
+  /// @param max_size The maximum size of the tree.
+  void initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
+                       size_t max_size = 1000);
 
   /// @brief Attempt to add a sampled node to the provided tree and node set.
   /// @param tree The tree to grow.

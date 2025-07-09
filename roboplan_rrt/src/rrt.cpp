@@ -55,8 +55,11 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   // When using RRT-Connect we use two trees, one growing from the start, one growing from the goal.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
-  initialize_tree(start_tree, start_nodes, q_start);
-  initialize_tree(goal_tree, goal_nodes, q_goal);
+  initialize_tree(start_tree, start_nodes, q_start, options_.max_nodes);
+
+  // The goal tree will only contain the goal pose if not using connect.
+  size_t goal_tree_size = options_.rrt_connect ? options_.max_nodes : 1;
+  initialize_tree(goal_tree, goal_nodes, q_goal, goal_tree_size);
 
   // For switching which tree we grow when using RRT-Connect.
   bool grow_start_tree = true;
@@ -116,13 +119,14 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   return std::nullopt;
 }
 
-void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init) {
+void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
+                          size_t max_size) {
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   tree.addPoint(q_init, 0);
 
   nodes.clear();
-  nodes.reserve(options_.max_nodes);
+  nodes.reserve(max_size);
   nodes.emplace_back(q_init, -1);
 }
 
