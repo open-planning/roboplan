@@ -8,15 +8,6 @@
 
 namespace roboplan {
 
-/// @brief Override the class to provide access to protected functions for testing.
-class RRTTest : public RRT {
-public:
-  using RRT::grow_tree;
-  using RRT::initialize_tree;
-  using RRT::join_trees;
-  using RRT::RRT;
-};
-
 class RoboPlanRRTTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -124,7 +115,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   RRTOptions options;
   options.rrt_connect = false;
   options.max_connection_distance = 0.1;
-  auto rrt = std::make_unique<RRTTest>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene_, options);
 
   const Eigen::VectorXd q_start{{0, 0, 0, 0, 0, 0}};
   const Eigen::VectorXd q_extend_expected{{0.1, 0, 0, 0, 0, 0}};
@@ -143,7 +134,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
 
   // Reset the search tree and enable RRT-Connect.
   options.rrt_connect = true;
-  auto rrt_connect = std::make_unique<RRTTest>(scene_, options);
+  auto rrt_connect = std::make_unique<RRT>(scene_, options);
   rrt_connect->initialize_tree(tree, nodes, q_start);
 
   // Extending WITH RRT-Connect will add exactly 6 nodes and reach q_end.
@@ -156,7 +147,7 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   RRTOptions options;
   options.rrt_connect = false;
   options.max_connection_distance = 0.1;
-  auto rrt = std::make_unique<RRTTest>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene_, options);
 
   // Tree1 Nodes
   const Eigen::VectorXd q_start{{0, 0, 0, 0, 0, 0}};

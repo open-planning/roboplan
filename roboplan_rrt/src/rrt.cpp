@@ -33,21 +33,21 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
 std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                                    const JointConfiguration& goal) {
-  std::cout << "Planning..." << std::endl;
+  std::cout << "Planning...\n";
 
   const auto& q_start = start.positions;
   const auto& q_goal = goal.positions;
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    std::cout << "Invalid poses requested, cannot plan!" << std::endl;
+    std::cout << "Invalid poses requested, cannot plan!\n";
     return std::nullopt;
   }
 
   // Check whether direct connection between the start and goal are possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
-    std::cout << "Can directly connect start and goal!" << std::endl;
+    std::cout << "Can directly connect start and goal!\n";
     return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
   }
 
@@ -69,13 +69,13 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     auto elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
     if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
-      std::cout << "RRT timed out after " << options_.max_planning_time << " seconds." << std::endl;
+      std::cout << "RRT timed out after " << options_.max_planning_time << " seconds.\n";
       break;
     }
 
     // Check loop termination criteria.
     if (start_nodes.size() + goal_nodes.size() >= options_.max_nodes) {
-      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ")." << std::endl;
+      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
       break;
     }
 
@@ -89,8 +89,8 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     auto maybe_path = join_trees(nodes, target_tree, target_nodes, grow_start_tree);
     if (maybe_path.has_value()) {
       std::cout << " Found goal with " << start_nodes.size() + goal_nodes.size()
-                << " sampled nodes!" << std::endl;
-      return maybe_path.value();
+                << " sampled nodes!\n";
+      auto path = maybe_path.value();
     }
 
     // Sample the next node with goal biasing, using the goal node for the starting tree,
@@ -102,12 +102,12 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
     // Attempt to grow the tree towards the sampled node.
     // If no nodes are added, we resample and try again.
-    if (!grow_tree(tree, nodes, q_sample)) {
+    if (!grow_tree(tree, nodes, q_sample, q_sample == q_target)) {
       continue;
     }
 
     // If we have reached the goal or start then we are done and should just return the path.
-    const auto q_extend = nodes.back().config;
+    const auto& q_extend = nodes.back().config;
     if (q_extend == q_goal || q_extend == q_start) {
       // TODO: We either connected the start tree directly to the goal node or the goal tree
       //       directly to the start node. Either way we have found a path and should terminate.
@@ -119,7 +119,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     }
   }
 
-  std::cout << "Unable to find a plan!" << std::endl;
+  std::cout << "Unable to find a plan!\n";
   return std::nullopt;
 }
 
@@ -137,7 +137,7 @@ bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vect
   bool grew_tree = false;
 
   // Extend from the nearest neighbor to max connection distance.
-  const auto nn = kd_tree.search(q_sample);
+  const auto& nn = kd_tree.search(q_sample);
   const auto& q_nearest = nodes.at(nn.id).config;
 
   int parent_id = nn.id;
@@ -167,7 +167,7 @@ bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vect
       break;
     }
 
-    // Otherwise update the parent and continue extendeing.
+    // Otherwise update the parent and continue extending.
     parent_id = new_id;
     q_current = q_extend;
   }

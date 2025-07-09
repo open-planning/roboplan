@@ -55,7 +55,6 @@ public:
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);
 
-protected:
   /// @brief Initializes the search tree with the specified start pose.
   /// @param tree Reference to an empty tree.
   /// @param nodes Reference to the nodes vector.
@@ -69,13 +68,15 @@ protected:
   /// @return True if node(s) were added to the tree, false otherwise.
   bool grow_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
 
-  /// @brief Attempts to make a path between the two trees and nodes using the latest added node in
-  /// `tree`.
-  /// @param nodes
-  /// @param target_tree
-  /// @param target_nodes
-  /// @param grow_start_tree
-  /// @return
+  /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
+  /// @details The "latest added node" refers to `nodes.back()`. The function will identify the
+  /// nearest node in the target_tree, and attempt to make a connection. If successful, will
+  /// return a path from the start node to the goal node.
+  /// @param nodes The list of source tree nodes, `nodes.back()` is the most recently added node.
+  /// @param target_tree The tree to connect to the nodes list.
+  /// @param target_nodes The nodes in the target tree.
+  /// @param grow_start_tree If true, the target_tree is the goal tree.
+  /// @return A completed path from the start to the goal node if it exists, otherwise none.
   std::optional<JointPath> join_trees(const std::vector<Node>& nodes, const KdTree& target_tree,
                                       const std::vector<Node>& target_nodes, bool grow_start_tree);
 
