@@ -52,7 +52,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   }
 
   // Initialize the trees for searching.
-  // When using RRT-Connect we use two trees, one growing from the start, on growing from the goal.
+  // When using RRT-Connect we use two trees, one growing from the start, one growing from the goal.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
   initialize_tree(start_tree, start_nodes, q_start);
@@ -100,8 +100,8 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
                               ? q_target
                               : scene_->randomPositions();
 
-    // Attempt to grow the tree towards the sampled node, if no nodes are added we resample
-    // and try again.
+    // Attempt to grow the tree towards the sampled node.
+    // If no nodes are added, we resample and try again.
     if (!grow_tree(tree, nodes, q_sample)) {
       continue;
     }
