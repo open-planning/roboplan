@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import numpy as np
 
-from roboplan import get_package_share_dir, JointType, Scene
+from roboplan import get_package_share_dir, hasCollisionsAlongPath, JointType, Scene
 
 
 @pytest.fixture
