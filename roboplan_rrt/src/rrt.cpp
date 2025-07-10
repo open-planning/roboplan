@@ -54,12 +54,11 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   // Initialize the trees for searching.
   // When using RRT-Connect we use two trees, one growing from the start, one growing from the goal.
   KdTree start_tree, goal_tree;
-  std::vector<Node> start_nodes, goal_nodes;
-  initialize_tree(start_tree, start_nodes, q_start, options_.max_nodes);
+  initializeTree(start_tree, start_nodes_, q_start, options_.max_nodes);
 
   // The goal tree will only contain the goal pose if not using connect.
   size_t goal_tree_size = options_.rrt_connect ? options_.max_nodes : 1;
-  initialize_tree(goal_tree, goal_nodes, q_goal, goal_tree_size);
+  initializeTree(goal_tree, goal_nodes_, q_goal, goal_tree_size);
 
   // For switching which tree we grow when using RRT-Connect.
   bool grow_start_tree = true;
@@ -77,7 +76,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     }
 
     // Check loop termination criteria.
-    if (start_nodes.size() + goal_nodes.size() >= options_.max_nodes) {
+    if (start_nodes_.size() + goal_nodes_.size() >= options_.max_nodes) {
       std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
       break;
     }
@@ -85,8 +84,8 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     // Set grow and target tree for this loop iteration.
     KdTree& tree = grow_start_tree ? start_tree : goal_tree;
     KdTree& target_tree = grow_start_tree ? goal_tree : start_tree;
-    std::vector<Node>& nodes = grow_start_tree ? start_nodes : goal_nodes;
-    std::vector<Node>& target_nodes = grow_start_tree ? goal_nodes : start_nodes;
+    std::vector<Node>& nodes = grow_start_tree ? start_nodes_ : goal_nodes_;
+    std::vector<Node>& target_nodes = grow_start_tree ? goal_nodes_ : start_nodes_;
 
     // Sample the next node with goal biasing, using the goal node for the starting tree,
     // the start node for the goal tree.
@@ -97,14 +96,14 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
     // Attempt to grow the tree towards the sampled node.
     // If no nodes are added, we resample and try again.
-    if (!grow_tree(tree, nodes, q_sample)) {
+    if (!growTree(tree, nodes, q_sample)) {
       continue;
     }
 
     // Check if the trees can be connected from the latest added node. If so we are done.
-    auto maybe_path = join_trees(nodes, target_tree, target_nodes, grow_start_tree);
+    auto maybe_path = joinTrees(nodes, target_tree, target_nodes, grow_start_tree);
     if (maybe_path.has_value()) {
-      std::cout << " Found goal with " << start_nodes.size() + goal_nodes.size()
+      std::cout << " Found goal with " << start_nodes_.size() + goal_nodes_.size()
                 << " sampled nodes!\n";
       return maybe_path.value();
     }
@@ -119,8 +118,8 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
   return std::nullopt;
 }
 
-void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
-                          size_t max_size) {
+void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
+                         size_t max_size) {
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   tree.addPoint(q_init, 0);
@@ -130,7 +129,7 @@ void RRT::initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::V
   nodes.emplace_back(q_init, -1);
 }
 
-bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample) {
+bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample) {
   bool grew_tree = false;
 
   // Extend from the nearest neighbor to max connection distance.
@@ -172,9 +171,9 @@ bool RRT::grow_tree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vect
   return grew_tree;
 }
 
-std::optional<JointPath> RRT::join_trees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                         const std::vector<Node>& target_nodes,
-                                         bool grow_start_tree) {
+std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
+                                        const std::vector<Node>& target_nodes,
+                                        bool grow_start_tree) {
   // The most recently added node is the last appended node in the nodes list.
   const auto& last_added_node = nodes.back();
   const auto& q_last_added = last_added_node.config;
@@ -197,9 +196,9 @@ std::optional<JointPath> RRT::join_trees(const std::vector<Node>& nodes, const K
     // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree. Otherwise it is
     // reversed.
     JointPath start_path =
-        grow_start_tree ? get_path(nodes, latest_node) : get_path(target_nodes, nearest_node);
+        grow_start_tree ? getPath(nodes, latest_node) : getPath(target_nodes, nearest_node);
     JointPath goal_path =
-        grow_start_tree ? get_path(target_nodes, nearest_node) : get_path(nodes, latest_node);
+        grow_start_tree ? getPath(target_nodes, nearest_node) : getPath(nodes, latest_node);
 
     // We always set start_path as connection -> start_node and goal_path is connection ->
     // goal_node.
@@ -213,7 +212,7 @@ std::optional<JointPath> RRT::join_trees(const std::vector<Node>& nodes, const K
   return std::nullopt;
 }
 
-JointPath RRT::get_path(const std::vector<Node>& nodes, const Node& end_node) {
+JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
   JointPath path;
   path.joint_names = scene_->getJointNames();
   auto cur_node = &end_node;

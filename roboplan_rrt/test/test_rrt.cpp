@@ -124,21 +124,21 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   // Initialize the search to the start pose.
   KdTree tree;
   std::vector<Node> nodes;
-  rrt->initialize_tree(tree, nodes, q_start);
+  rrt->initializeTree(tree, nodes, q_start);
 
   // Extending WITHOUT RRT-Connect will add exactly one node at the expected pose
   // which is exactly options.max_connection_distance away.
-  ASSERT_TRUE(rrt->grow_tree(tree, nodes, q_end));
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end));
   ASSERT_EQ(nodes.size(), 2);
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
   // Reset the search tree and enable RRT-Connect.
   options.rrt_connect = true;
   auto rrt_connect = std::make_unique<RRT>(scene_, options);
-  rrt_connect->initialize_tree(tree, nodes, q_start);
+  rrt_connect->initializeTree(tree, nodes, q_start);
 
   // Extending WITH RRT-Connect will add exactly 6 nodes and reach q_end.
-  ASSERT_TRUE(rrt_connect->grow_tree(tree, nodes, q_end));
+  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
 }
@@ -163,25 +163,25 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   // Initialize the search to the start pose.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
-  rrt->initialize_tree(start_tree, start_nodes, q_start);
-  rrt->initialize_tree(goal_tree, goal_nodes, q_goal);
+  rrt->initializeTree(start_tree, start_nodes, q_start);
+  rrt->initializeTree(goal_tree, goal_nodes, q_goal);
 
   // The nodes should both be appended directly to the start and goal nodes.
-  ASSERT_TRUE(rrt->grow_tree(start_tree, start_nodes, q_start_nearest));
+  ASSERT_TRUE(rrt->growTree(start_tree, start_nodes, q_start_nearest));
   ASSERT_EQ(start_nodes.size(), 2);
   ASSERT_EQ(start_nodes.back().config, q_start_nearest);
 
-  ASSERT_TRUE(rrt->grow_tree(goal_tree, goal_nodes, q_goal_nearest));
+  ASSERT_TRUE(rrt->growTree(goal_tree, goal_nodes, q_goal_nearest));
   ASSERT_EQ(goal_nodes.size(), 2);
   ASSERT_EQ(goal_nodes.back().config, q_goal_nearest);
 
   // Starting from the start_tree, the trees should be joinable.
-  const auto maybe_path = rrt->join_trees(start_nodes, goal_tree, goal_nodes, true);
+  const auto maybe_path = rrt->joinTrees(start_nodes, goal_tree, goal_nodes, true);
   ASSERT_TRUE(maybe_path.has_value());
   ASSERT_EQ(maybe_path.value().positions, expected_positions);
 
   // Starting from the goal_tree, the trees should be joinable.
-  const auto maybe_path2 = rrt->join_trees(goal_nodes, start_tree, start_nodes, false);
+  const auto maybe_path2 = rrt->joinTrees(goal_nodes, start_tree, start_nodes, false);
   ASSERT_TRUE(maybe_path2.has_value());
   ASSERT_EQ(maybe_path2.value().positions, expected_positions);
 }

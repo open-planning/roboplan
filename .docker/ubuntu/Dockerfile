@@ -12,8 +12,9 @@ RUN apt-get update -y \
         cmake libeigen3-dev libgmock-dev liburdfdom-dev python3-pip
 RUN pip3 install nanobind pytest scikit-build-core
 
-# Install pinocchio with pip as it supports additional CPU architectures
-RUN pip3 install pin==${PINOCCHIO_VERSION}
+# Install pinocchio with pip as it supports additional CPU architectures.
+# Also install additional dependencies for examples.
+RUN pip3 install pin==${PINOCCHIO_VERSION} viser opencv-contrib-python-headless
 
 # Find the location of the relevant pip installed packages and ensure they are available to
 # cmake and LD. This will cause build warnings with system installed packages.

@@ -30,15 +30,10 @@ int main(int /*argc*/, char* /*argv*/[]) {
   q_tgt[2] -= 0.1;
   q_tgt[4] -= 0.25;
 
-  // TODO: Add forward kinematics method to Scene
-  pinocchio::Data data(model);
-  pinocchio::framesForwardKinematics(model, data, q_tgt);
-  const auto init_tform = data.oMf[model.getFrameId("tool0")];
-
   const auto goal = CartesianConfiguration{
       .base_frame = "base",
       .tip_frame = "tool0",
-      .tform = init_tform.toHomogeneousMatrix(),
+      .tform = scene->forwardKinematics(q_tgt, "tool0"),
   };
 
   JointConfiguration start;

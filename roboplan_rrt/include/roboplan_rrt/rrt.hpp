@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <vector>
 
 #include <dynotree/KDTree.h>
 #include <roboplan/core/scene.hpp>
@@ -60,15 +61,15 @@ public:
   /// @param nodes Reference to the nodes vector.
   /// @param q_init The first node to add to the tree.
   /// @param max_size The maximum size of the tree.
-  void initialize_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
-                       size_t max_size = 1000);
+  void initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
+                      size_t max_size = 1000);
 
   /// @brief Attempt to add a sampled node to the provided tree and node set.
   /// @param tree The tree to grow.
   /// @param nodes The set of sampled nodes so far.
   /// @param q_sample Randomly sampled node to extend towards (or connect).
   /// @return True if node(s) were added to the tree, false otherwise.
-  bool grow_tree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
+  bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
 
   /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
   /// @details The "latest added node" refers to `nodes.back()`. The function will identify the
@@ -79,14 +80,17 @@ public:
   /// @param target_nodes The nodes in the target tree.
   /// @param grow_start_tree If true, the target_tree is the goal tree.
   /// @return A completed path from the start to the goal node if it exists, otherwise none.
-  std::optional<JointPath> join_trees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                      const std::vector<Node>& target_nodes, bool grow_start_tree);
+  std::optional<JointPath> joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
+                                     const std::vector<Node>& target_nodes, bool grow_start_tree);
 
   /// @brief Returns a path from the specified index to the first added node.
   /// @param nodes The list of nodes in the tree.
   /// @param end_node The index of the goal destination in the nodes list.
   /// @return A JointPath between end_node and nodes[0].
-  JointPath get_path(const std::vector<Node>& nodes, const Node& end_node);
+  JointPath getPath(const std::vector<Node>& nodes, const Node& end_node);
+
+  /// @brief Returns the start and goal node vectors, for visualization purposes.
+  std::pair<std::vector<Node>, std::vector<Node>> getNodes() { return {start_nodes_, goal_nodes_}; }
 
 private:
   /// @brief Runs the RRT extend operation from a start node to a goal node.
@@ -111,6 +115,12 @@ private:
 
   /// @brief A uniform distribution for goal biasing sampling.
   std::uniform_real_distribution<double> uniform_dist_{0.0, 1.0};
+
+  /// @brief The start tree nodes.
+  std::vector<Node> start_nodes_;
+
+  /// @brief The goal tree nodes.
+  std::vector<Node> goal_nodes_;
 };
 
 }  // namespace roboplan

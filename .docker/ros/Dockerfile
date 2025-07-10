@@ -22,8 +22,13 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && colcon build --cmake-args -DBUILD_TESTING=ON
 
 # Install the Python bindings.
+# NOTE: We remove some Python debian's here because we need newer versions vs.
+# the ancient ones that the ROS debian's force us to download.
+# Also, since Pinocchio in ROS is built with Numpy 1.x, we must preserve this.
 WORKDIR /workspace/roboplan_ws/src/roboplan/bindings
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
+    && sudo dpkg --remove --force-depends python3-typing-extensions \
+    && pip3 install "numpy<2.0.0" viser opencv-contrib-python-headless \
     && source /workspace/roboplan_ws/install/setup.bash \
     && pip3 install --no-build-isolation -ve .
 

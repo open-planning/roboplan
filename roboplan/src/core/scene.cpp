@@ -156,6 +156,19 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) {
   return true;
 }
 
+Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                                   const double fraction) {
+  return pinocchio::interpolate(model_, q_start, q_end, fraction);
+}
+
+Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) {
+  // TODO: Need to add all sorts of validation here.
+  // TODO: I recently learned recently that Pinocchio's getFrameId() actually does a linear-time
+  // search! So we should put together a map.
+  pinocchio::framesForwardKinematics(model_, model_data_, q);
+  return model_data_.oMf[model_.getFrameId(frame_name)];
+}
+
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "Scene: " << scene.name_ << "\n";
   os << "Joint names: ";

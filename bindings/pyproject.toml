@@ -18,7 +18,6 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/sea-bass/roboplan"
 
-
 [tool.scikit-build]
 # Protect the configuration against future changes in scikit-build-core
 minimum-version = "build-system.requires"

@@ -90,6 +90,14 @@ public:
   /// @return True if the positions respect joint limits, else false.
   bool isValidPose(const Eigen::VectorXd& q);
 
+  /// @brief Interpolates between two joint configurations.
+  Eigen::VectorXd interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                              const double fraction);
+
+  /// @brief Calculates forward kinematics for a specific frame.
+  /// TODO
+  Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name);
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
