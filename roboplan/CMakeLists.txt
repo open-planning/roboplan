@@ -11,6 +11,7 @@ find_package(pinocchio REQUIRED)
 
 # Add libraries
 add_library(roboplan SHARED
+    src/core/path_utils.cpp
     src/core/scene.cpp
     src/core/types.cpp
 )

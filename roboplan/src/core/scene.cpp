@@ -78,7 +78,8 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
-double Scene::configurationDistance(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end) {
+double Scene::configurationDistance(const Eigen::VectorXd& q_start,
+                                    const Eigen::VectorXd& q_end) const {
   return pinocchio::distance(model_, q_start, q_end);
 }
 
@@ -109,38 +110,13 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
   return std::nullopt;
 }
 
-bool Scene::hasCollisions(const Eigen::VectorXd& q) {
+bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
   return pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_,
                                       q,
                                       /* stop_at_first_collision*/ true);
 }
 
-bool Scene::hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
-                                   const double min_step_size) {
-
-  const auto distance = configurationDistance(q_start, q_end);
-
-  // Special case for short paths (also handles division by zero in the next case).
-  const bool collision_at_endpoints = hasCollisions(q_start) || hasCollisions(q_end);
-  if (distance <= min_step_size) {
-    return collision_at_endpoints;
-  }
-
-  // In the general case, check the first and last points, then all the intermediate ones.
-  const auto num_steps = static_cast<size_t>(std::ceil(distance / min_step_size)) + 1;
-  if (collision_at_endpoints) {
-    return true;
-  }
-  for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
-    const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-    if (hasCollisions(pinocchio::interpolate(model_, q_start, q_end, fraction))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool Scene::isValidPose(const Eigen::VectorXd& q) {
+bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   size_t q_idx = 0;
   for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_.at(joint_name);
@@ -157,11 +133,12 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) {
 }
 
 Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
-                                   const double fraction) {
+                                   const double fraction) const {
   return pinocchio::interpolate(model_, q_start, q_end, fraction);
 }
 
-Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) {
+Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
+                                         const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.
   // TODO: I recently learned recently that Pinocchio's getFrameId() actually does a linear-time
   // search! So we should put together a map.

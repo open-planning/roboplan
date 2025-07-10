@@ -57,7 +57,7 @@ public:
   /// @param q_start The starting joint positions.
   /// @param q_end The ending joint positions.
   /// @return The configuration-space distance between the two positions.
-  double configurationDistance(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end);
+  double configurationDistance(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end) const;
 
   /// @brief Sets the seed for the random number generator (RNG).
   /// @param seed The seed to set.
@@ -75,28 +75,25 @@ public:
   /// @brief Checks collisions at specified joint positions.
   /// @param q The joint positions.
   /// @return True if there are collisions, else false.
-  bool hasCollisions(const Eigen::VectorXd& q);
-
-  /// @brief Checks collisions along a specified configuration space path.
-  /// @param q_start The starting joint positions.
-  /// @param q_end The ending joint positions.
-  /// @param min_step_size The minimum configuration distance step size for interpolation.
-  /// @return True if there are collisions, else false.
-  bool hasCollisionsAlongPath(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
-                              const double min_step_size);
+  bool hasCollisions(const Eigen::VectorXd& q) const;
 
   /// @brief Checks if the specified joint positions are valid with respect to joint limits.
   /// @param q The joint positions.
   /// @return True if the positions respect joint limits, else false.
-  bool isValidPose(const Eigen::VectorXd& q);
+  bool isValidPose(const Eigen::VectorXd& q) const;
 
   /// @brief Interpolates between two joint configurations.
+  /// @param q_start The starting joint configuration.
+  /// @param q_end The ending joint configuration.
+  /// @param fraction The interpolation coefficient, between 0 and 1.
   Eigen::VectorXd interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
-                              const double fraction);
+                              const double fraction) const;
 
   /// @brief Calculates forward kinematics for a specific frame.
-  /// TODO
-  Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name);
+  /// @param q The joint configuration.
+  /// @param frame_name The name of the frame for which to perform forward kinematics.
+  /// @return The 4x4 matrix denoting the transform of the specified frame.
+  Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) const;
 
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
@@ -110,14 +107,14 @@ private:
 
   /// @brief The default data structure for the underlying Pinocchio model.
   /// @details This won't be thread-safe unless each thread uses its own data.
-  pinocchio::Data model_data_;
+  mutable pinocchio::Data model_data_;
 
   /// @brief The Pinocchio collision model representing the robot and its environment.
   pinocchio::GeometryModel collision_model_;
 
   /// @brief The default data structure for the underlying Pinocchio collision model.
   /// @details This won't be thread-safe unless each thread uses its own data.
-  pinocchio::GeometryData collision_model_data_;
+  mutable pinocchio::GeometryData collision_model_data_;
 
   /// @brief The list of joint names in the model.
   std::vector<std::string> joint_names_;

@@ -1,4 +1,6 @@
 from .roboplan.core import (
+    computeFramePath,
+    hasCollisionsAlongPath,
     CartesianConfiguration,
     JointConfiguration,
     JointInfo,

@@ -10,6 +10,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -84,7 +85,6 @@ NB_MODULE(roboplan, m) {
       .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
            "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions)
-      .def("hasCollisionsAlongPath", &Scene::hasCollisionsAlongPath)
       .def("isValidPose", &Scene::isValidPose)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
@@ -93,6 +93,9 @@ NB_MODULE(roboplan, m) {
         ss << scene;
         return ss.str();
       });
+
+  m_core.def("computeFramePath", &computeFramePath);
+  m_core.def("hasCollisionsAlongPath", &hasCollisionsAlongPath);
 
   /// Examples module
   nanobind::module_ m_example_models = m.def_submodule("example_models", "Example models");

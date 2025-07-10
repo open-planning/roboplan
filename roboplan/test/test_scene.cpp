@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 
@@ -82,11 +83,11 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
   q_start_free << 0.0, -1.57, 0.0, 0.0, 0.0, 0.0;
   Eigen::VectorXd q_end_free(6);
   q_end_free << 1.0, -1.57, 1.57, 0.0, 0.0, 0.0;
-  EXPECT_FALSE(scene_->hasCollisionsAlongPath(q_start_free, q_end_free, 0.05));
+  EXPECT_FALSE(hasCollisionsAlongPath(*scene_, q_start_free, q_end_free, 0.05));
 
   Eigen::VectorXd q_end_coll(6);
   q_end_coll << 0.0, -1.57, 3.0, 0.0, 0.0, 0.0;
-  EXPECT_TRUE(scene_->hasCollisionsAlongPath(q_start_free, q_end_coll, 0.05));
+  EXPECT_TRUE(hasCollisionsAlongPath(*scene_, q_start_free, q_end_coll, 0.05));
 }
 
 }  // namespace roboplan

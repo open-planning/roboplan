@@ -70,8 +70,8 @@ def test_collision_check_along_path(test_scene: Scene) -> None:
     # Collision free
     q_start_free = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])
     q_end_free = np.array([1.0, -1.57, 1.57, 0.0, 0.0, 0.0])
-    assert not test_scene.hasCollisionsAlongPath(q_start_free, q_end_free, 0.05)
+    assert not hasCollisionsAlongPath(test_scene, q_start_free, q_end_free, 0.05)
 
     # In collision
     q_end_coll = np.array([0.0, -1.57, 3.0, 0.0, 0.0, 0.0])
-    assert test_scene.hasCollisionsAlongPath(q_start_free, q_end_coll, 0.05)
+    assert hasCollisionsAlongPath(test_scene, q_start_free, q_end_coll, 0.05)

@@ -1,6 +1,7 @@
 #include <chrono>
 #include <stdexcept>
 
+#include <roboplan/core/path_utils.hpp>
 #include <roboplan_rrt/rrt.hpp>
 
 namespace roboplan {
@@ -46,7 +47,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
   // Check whether direct connection between the start and goal are possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
-      (!scene_->hasCollisionsAlongPath(q_start, q_goal, options_.collision_check_step_size))) {
+      (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
     return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
   }
@@ -144,7 +145,7 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     auto q_extend = extend(q_current, q_sample, options_.max_connection_distance);
 
     // If the extended node cannot be connected to the tree then throw it away and return
-    if (scene_->hasCollisionsAlongPath(q_current, q_extend, options_.collision_check_step_size)) {
+    if (hasCollisionsAlongPath(*scene_, q_current, q_extend, options_.collision_check_step_size)) {
       break;
     }
 
@@ -191,7 +192,7 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   // If the latest sampled node in one tree can be connected to the nearest node in the target tree,
   // then a path exists and we should return it.
   if ((scene_->configurationDistance(q_latest, q_nearest) <= options_.max_connection_distance) &&
-      (!scene_->hasCollisionsAlongPath(q_latest, q_nearest, options_.collision_check_step_size))) {
+      (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size))) {
 
     // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree. Otherwise it is
     // reversed.
