@@ -7,6 +7,7 @@ from roboplan import (
     computeFramePath,
     get_package_share_dir,
     JointConfiguration,
+    JointPath,
     Scene,
     RRTOptions,
     RRT,
@@ -15,8 +16,13 @@ from roboplan.viser_visualizer import ViserVisualizer
 
 
 def visualizePath(
-    viz: ViserVisualizer, scene: Scene, rrt: RRT, frame_name: str, max_step_size: float
-):
+    viz: ViserVisualizer,
+    scene: Scene,
+    rrt: RRT,
+    path: JointPath,
+    frame_name: str,
+    max_step_size: float,
+) -> None:
     """
     Helper function to visualize the RRT path.
     TODO: Move this to the actual Python package itself.
@@ -66,7 +72,7 @@ def visualizePath(
         "/rrt/path",
         points=np.array(path_segments),
         colors=(100, 100, 0),
-        line_width=2.0,
+        line_width=3.0,
     )
 
 
@@ -109,6 +115,7 @@ if __name__ == "__main__":
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
-    visualizePath(viz, scene, rrt, "tool0", 0.05)
+    visualizePath(viz, scene, rrt, path, "tool0", 0.05)
 
-    time.sleep(10000)
+    while True:
+        time.sleep(10.0)
