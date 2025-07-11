@@ -59,29 +59,37 @@ class ViserVisualizer(BaseVisualizer):
         )
         self.static_objects = []
 
-    def initViewer(self, viewer=None, open=False, loadModel=False, zmq_url=None):
+    def initViewer(
+        self,
+        viewer=None,
+        open=False,
+        loadModel=False,
+        host="localhost",
+        port="8000",
+    ):
         """
         Start a new Viser server and client.
         Note: the server can also be passed in through the `viewer` argument.
+        Parameters:
+            viewer: An existing ViserServer instance, or None.
+                If None, creates a new ViserServer in this visualizer.
+            open: If True, automatically opens a browser tab to the visualizer.
+            loadModel: If True, loads the Pinocchio models passed in.
+            host: If `viewer` is None, this will be the host URL.
+            port: If `viewer` is None, this will be the host port.
         """
         if (viewer is not None) and (not isinstance(viewer, viser.ViserServer)):
             raise RuntimeError(
                 "'viewer' argument must be None or a valid ViserServer instance."
             )
 
-        self.viewer = viewer or viser.ViserServer()
+        self.viewer = viewer or viser.ViserServer(host=host, server_port=port)
         self.frames = {}
 
         if open:
             import webbrowser
 
-            host = self.viewer.get_host()
-            port = self.viewer.get_port()
-            if host == "0.0.0.0":
-                http_url = f"http://localhost:{port}"
-            else:
-                http_url = f"http://{host}:{port}"
-            webbrowser.open(http_url)
+            webbrowser.open(f"http://{self.viewer.get_host()}:{self.viewer.get_port()}")
 
             # Wait until clients are reported.
             # Otherwise, capturing an image too soon after opening a browser window
@@ -101,7 +109,6 @@ class ViserVisualizer(BaseVisualizer):
         frame_axis_radius=0.01,
     ):
         """Load the robot in a Viser viewer.
-
         Parameters:
             rootNodeName: name to give to the robot in the viewer
             collision_color: optional, color to give to the collision model of
@@ -282,7 +289,6 @@ class ViserVisualizer(BaseVisualizer):
     def captureImage(self, w=None, h=None, client_id=None, transport_format="jpeg"):
         """
         Capture an image from the Viser viewer and return an RGB array.
-
         Parameters:
             w: The width of the captured image.
             h: The height of the captured image.
