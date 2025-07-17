@@ -25,6 +25,7 @@ jobs:
 
   ubuntu_build_and_test:
     strategy:
+      fail-fast: false
       matrix:
         ubuntu_version: [22.04, 24.04]
 
@@ -52,6 +53,7 @@ jobs:
   # Build ROS docker images and run tests.
   ros_build_and_test:
     strategy:
+      fail-fast: false
       matrix:
         ros_distro: [humble, jazzy, kilted, rolling]
 
