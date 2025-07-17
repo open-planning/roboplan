@@ -27,10 +27,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
 
     const auto error = pinocchio::log6(goal_tform.actInv(data.oMf[frame_id])).toVector();
 
-    // std::cout << "Iter " << iter << ", error: " << error << "\n";
-
     if (error.norm() <= options_.max_error_norm) {
-      std::cout << "Solved IK within error norm!\n";
       solution.positions = q;
       return true;
     }
