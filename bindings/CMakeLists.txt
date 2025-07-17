@@ -29,7 +29,22 @@ find_package(Python
   REQUIRED COMPONENTS Interpreter Development.Module
   OPTIONAL_COMPONENTS Development.SABIModule)
 
+# Detect the installed nanobind package and import it into CMake
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+message(STATUS "nanobind cmake directory: " ${nanobind_ROOT})
 find_package(nanobind CONFIG REQUIRED)
+
+
+include(GNUInstallDirs)
+# Determine the python installation directory
+set(PYTHON_SITE_PACKAGES
+    ${CMAKE_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages
+)
+message(STATUS "Python site-packages directory: " ${PYTHON_SITE_PACKAGES})
+
+# find_package(nanobind CONFIG REQUIRED)
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 find_package(roboplan_rrt REQUIRED)
@@ -51,4 +66,9 @@ target_link_libraries(roboplan PRIVATE
 )
 
 # Install directive for scikit-build-core
-install(TARGETS roboplan LIBRARY DESTINATION roboplan)
+install(TARGETS roboplan LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES}/roboplan)
+install(FILES
+  src/roboplan/__init__.py
+  DESTINATION ${PYTHON_SITE_PACKAGES}/roboplan
+)
+# install(TARGETS roboplan LIBRARY DESTINATION roboplan)
