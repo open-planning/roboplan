@@ -1,0 +1,30 @@
+CompileFlags:
+  CompilationDatabase: build/roboplan/
+If:
+  PathMatch:
+  - roboplan/.*
+---
+CompileFlags:
+  CompilationDatabase: build/roboplan_rrt/
+If:
+  PathMatch:
+  - roboplan_rrt/.*
+---
+CompileFlags:
+  CompilationDatabase: build/roboplan_simple_ik/
+If:
+  PathMatch:
+  - roboplan_simple_ik/.*
+---
+CompileFlags:
+  CompilationDatabase: build/roboplan_examples/
+If:
+  PathMatch:
+  - roboplan_examples/.*
+---
+CompileFlags:
+  CompilationDatabase: build/roboplan_example_models/
+If:
+  PathMatch:
+  - roboplan_example_models/.*
+---
