@@ -28,3 +28,9 @@ If:
   PathMatch:
   - roboplan_example_models/.*
 ---
+CompileFlags:
+  CompilationDatabase: build/bindings/
+If:
+  PathMatch:
+  - bindings/.*
+---

@@ -160,7 +160,7 @@ build_tests = { depends-on = [
 ] }
 
 # Test related tasks
-test = { cmd = "ctest -V --test-dir build/dev/{{ package_name }}", args = [
+test = { cmd = "ctest -V --test-dir build/{{ package_name }}", args = [
   { arg = "package_name" },
 ], env = { GTEST_COLOR = "YES" } }
 
