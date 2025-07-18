@@ -108,8 +108,8 @@ jobs:
           manifest-path: pixi.toml
       - name: Build and test
         run: |
-          pixi run -e dev install_all
-          pixi run -e dev build_tests
-          pixi run -e dev test_cpp
+          pixi run install_all
+          pixi run build_tests
+          pixi run test_cpp
           # TODO: Uncomment when building the Python bindings is well supported.
           # pixi run -e dev test_all
