@@ -38,11 +38,7 @@ configure = { cmd = [
   "{{ package_name }}",
   "-B",
   "build/$PIXI_ENVIRONMENT_NAME/{{ package_name }}",
-], args = [
-  { arg = "package_name" },
-  { arg = "cxx_flags", default = "" },
-  { arg = "test", default = "OFF" },
-] }
+], args = [{ arg = "package_name" }, { arg = "cxx_flags", default = "" }, { arg = "test", default = "OFF" }] }
 build = { cmd = [
   "cmake",
   "--build",
@@ -129,6 +125,7 @@ python            = ">=3.11,<3.12"
 nanobind          = ">=2.8.0,<3"
 scikit-build-core = ">=0.11.5,<0.12"
 numpy             = "*"
+viser             = ">=1.0.0,<2"
 
 [feature.dev.activation.env]
 ASAN_OPTIONS         = "symbolize=1:print_stacktrace=1"
@@ -139,6 +136,8 @@ gtest = ">=1.17.0,<2"
 # Sanitizer dependencies
 llvm-tools  = ">=19.1.7,<20"
 compiler-rt = ">=19.1.7,<20"
+# Python test dependencies
+pytest = ">=6"
 
 [feature.dev.tasks]
 build_asan = { cmd = [
@@ -203,14 +202,9 @@ test = { cmd = "ctest -V --test-dir build/dev/{{ package_name }}", args = [
   { arg = "package_name" },
 ], env = { GTEST_COLOR = "YES" } }
 
-test_all = { depends-on = [
-  { task = "test", args = [
-    "roboplan",
-  ] },
-  { task = "test", args = [
-    "roboplan_rrt",
-  ] },
-] }
+test_py  = { cmd = "python3 -m pytest --capture=no", cwd = "bindings" }
+test_cpp = { depends-on = [{ task = "test", args = ["roboplan"] }, { task = "test", args = ["roboplan_rrt"] }] }
+test_all = { depends-on = ["test_py", "test_cpp"] }
 
 [feature.lint.dependencies]
 pre-commit = ">=4.1.0,<5"
