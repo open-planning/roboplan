@@ -67,8 +67,8 @@ target_link_libraries(roboplan PRIVATE
 
 # Install directive for scikit-build-core
 install(TARGETS roboplan LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES}/roboplan)
-install(FILES
-  src/roboplan/__init__.py
-  DESTINATION ${PYTHON_SITE_PACKAGES}/roboplan
+install(DIRECTORY src/roboplan
+    DESTINATION ${PYTHON_SITE_PACKAGES}
+    FILES_MATCHING PATTERN "*.py"
 )
 # install(TARGETS roboplan LIBRARY DESTINATION roboplan)

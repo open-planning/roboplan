@@ -37,12 +37,12 @@ configure = { cmd = [
   "-S",
   "{{ package_name }}",
   "-B",
-  "build/$PIXI_ENVIRONMENT_NAME/{{ package_name }}",
+  "build//{{ package_name }}",
 ], args = [{ arg = "package_name" }, { arg = "cxx_flags", default = "" }, { arg = "test", default = "OFF" }] }
 build = { cmd = [
   "cmake",
   "--build",
-  "build/$PIXI_ENVIRONMENT_NAME/{{ package_name }}",
+  "build/{{ package_name }}",
 ], depends-on = [
   { task = "configure", args = [
     "{{ package_name }}",
@@ -57,7 +57,7 @@ build = { cmd = [
 install = { cmd = [
   "cmake",
   "--install",
-  "build/$PIXI_ENVIRONMENT_NAME/{{ package_name }}",
+  "build/{{ package_name }}",
   "--prefix",
   "$CONDA_PREFIX",
 ], depends-on = [
@@ -126,6 +126,9 @@ nanobind          = ">=2.8.0,<3"
 scikit-build-core = ">=0.11.5,<0.12"
 numpy             = "*"
 viser             = ">=1.0.0,<2"
+
+[pypi-dependencies]
+pycollada = ">=0.9.2, <0.10"
 
 [feature.dev.activation.env]
 ASAN_OPTIONS         = "symbolize=1:print_stacktrace=1"
