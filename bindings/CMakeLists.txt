@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.22)
 
 project(roboplan_bindings LANGUAGES CXX)
 
+set(PYTHON_INSTALL_DIR "roboplan" CACHE STRING "Python installation directory")
+
+find_package(Python
+  REQUIRED COMPONENTS Interpreter Development.Module
+  OPTIONAL_COMPONENTS Development.SABIModule)
+
 if (NOT SKBUILD)
   message(WARNING "\
   This CMake file is meant to be executed using 'scikit-build'. Running
@@ -23,28 +29,26 @@ if (NOT SKBUILD)
   You may optionally add -Ceditable.rebuild=true to auto-rebuild when
   the package is imported. Otherwise, you need to re-run the above
   after editing C++ files.")
+
+  # Detect the installed nanobind package and import it into CMake
+  execute_process(
+    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+
+  include(GNUInstallDirs)
+  # Determine the python installation directory
+  set(PYTHON_SITE_PACKAGES
+      ${CMAKE_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages
+  )
+  set(PYTHON_INSTALL_DIR ${PYTHON_SITE_PACKAGES}/roboplan)
+
+  install(DIRECTORY src/roboplan
+      DESTINATION ${PYTHON_SITE_PACKAGES}
+      FILES_MATCHING PATTERN "*.py"
+  )
 endif()
 
-find_package(Python
-  REQUIRED COMPONENTS Interpreter Development.Module
-  OPTIONAL_COMPONENTS Development.SABIModule)
-
-# Detect the installed nanobind package and import it into CMake
-execute_process(
-  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-message(STATUS "nanobind cmake directory: " ${nanobind_ROOT})
 find_package(nanobind CONFIG REQUIRED)
-
-
-include(GNUInstallDirs)
-# Determine the python installation directory
-set(PYTHON_SITE_PACKAGES
-    ${CMAKE_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages
-)
-message(STATUS "Python site-packages directory: " ${PYTHON_SITE_PACKAGES})
-
-# find_package(nanobind CONFIG REQUIRED)
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 find_package(roboplan_rrt REQUIRED)
@@ -66,9 +70,4 @@ target_link_libraries(roboplan PRIVATE
 )
 
 # Install directive for scikit-build-core
-install(TARGETS roboplan LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES}/roboplan)
-install(DIRECTORY src/roboplan
-    DESTINATION ${PYTHON_SITE_PACKAGES}
-    FILES_MATCHING PATTERN "*.py"
-)
-# install(TARGETS roboplan LIBRARY DESTINATION roboplan)
+install(TARGETS roboplan LIBRARY DESTINATION ${PYTHON_INSTALL_DIR})
