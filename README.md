@@ -66,3 +66,49 @@ ros2 run roboplan_examples example_scene
 ```
 
 See the [bindings README](bindings/README.md) for instructions on building the Python bindings.
+
+## Development using pixi
+
+### Build instructions
+
+Make sure to install pixi from [here](https://pixi.sh/latest/#installation).
+
+```bash
+git clone https://github.com/sea-bass/roboplan.git
+cd roboplan
+# Build all packages
+pixi run build_all
+# Install all packages
+pixi run install_all
+# This will only build the package (You must have built the dependencies first)
+pixi run build PACKAGE_NAME
+# This will only install the package
+pixi run install PACKAGE_NAME
+```
+
+
+### Run tests
+
+```bash
+pixi run test_all
+# Test a specific package
+pixi run test PACKAGE_NAME
+```
+
+### Linting
+
+```bash
+pixi run lint
+```
+
+### Build with AddressSanitizer (ASan)
+
+```bash
+pixi run build_asan PACKAGE_NAME
+```
+
+### Build with compilation time report
+
+```bash
+pixi run build_timetrace PACKAGE_NAME
+```
