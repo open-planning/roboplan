@@ -110,6 +110,4 @@ jobs:
         run: |
           pixi run install_all
           pixi run build_tests
-          pixi run test_cpp
-          # TODO: Uncomment when building the Python bindings is well supported.
-          # pixi run -e dev test_all
+          pixi run test_all
