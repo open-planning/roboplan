@@ -2,12 +2,6 @@ cmake_minimum_required(VERSION 3.22)
 
 project(roboplan_bindings LANGUAGES CXX)
 
-set(PYTHON_INSTALL_DIR "roboplan" CACHE STRING "Python installation directory")
-
-find_package(Python
-  REQUIRED COMPONENTS Interpreter Development.Module
-  OPTIONAL_COMPONENTS Development.SABIModule)
-
 if (NOT SKBUILD)
   message(WARNING "\
   This CMake file is meant to be executed using 'scikit-build'. Running
@@ -29,24 +23,11 @@ if (NOT SKBUILD)
   You may optionally add -Ceditable.rebuild=true to auto-rebuild when
   the package is imported. Otherwise, you need to re-run the above
   after editing C++ files.")
-
-  # Detect the installed nanobind package and import it into CMake
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-
-  include(GNUInstallDirs)
-  # Determine the python installation directory
-  set(PYTHON_SITE_PACKAGES
-      ${CMAKE_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages
-  )
-  set(PYTHON_INSTALL_DIR ${PYTHON_SITE_PACKAGES}/roboplan)
-
-  install(DIRECTORY src/roboplan
-      DESTINATION ${PYTHON_SITE_PACKAGES}
-      FILES_MATCHING PATTERN "*.py"
-  )
 endif()
+
+find_package(Python
+  REQUIRED COMPONENTS Interpreter Development.Module
+  OPTIONAL_COMPONENTS Development.SABIModule)
 
 find_package(nanobind CONFIG REQUIRED)
 find_package(roboplan REQUIRED)
@@ -70,4 +51,4 @@ target_link_libraries(roboplan PRIVATE
 )
 
 # Install directive for scikit-build-core
-install(TARGETS roboplan LIBRARY DESTINATION ${PYTHON_INSTALL_DIR})
+install(TARGETS roboplan LIBRARY DESTINATION roboplan)
