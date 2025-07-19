@@ -69,7 +69,7 @@ install = { cmd = [
   { "arg" = "package_name" },
   { arg = "cxx_flags", default = "" },
 ] }
-
+build_bindings = "pip install -e bindings --no-build-isolation"
 build_all = { depends-on = [
   { task = "install", args = [
     "roboplan_example_models",
@@ -86,17 +86,12 @@ build_all = { depends-on = [
   { task = "build", args = [
     "roboplan_examples",
   ] },
-  { task = "build", args = [
-    "bindings",
-  ] },
+  "build_bindings"
 ] }
 install_all = { depends-on = [
   { task = "build_all" },
   { task = "install", args = [
     "roboplan_examples",
-  ] },
-  { task = "install", args = [
-    "bindings",
   ] },
 ] }
 
@@ -150,11 +145,6 @@ build_tests = { depends-on = [
     "{{ cxx_flags  }}",
     "ON",
   ] },
-  { task = "build", args = [
-    "bindings",
-    "{{ cxx_flags  }}",
-    "ON",
-  ] },
 ], args = [
   { arg = "cxx_flags", "default" = "" },
 ] }
@@ -193,6 +183,16 @@ nanobind          = ">=2.8.0,<3"
 scikit-build-core = ">=0.11.5,<0.12"
 numpy             = "*"
 viser             = ">=1.0.0,<2"
+
+# We use pip as a workaround for pixi building the bindings before we build the core packages
+# In theory, it should be like this:
+# [pypi-dependencies]
+# roboplan = { path = "bindings", editable = true }
+#
+# [pypi-options]
+# no-build-isolation = ["roboplan"]
+
+pip = ">=25.1.1,<26"
 
 # Test dependencies
 gtest = ">=1.17.0,<2"
