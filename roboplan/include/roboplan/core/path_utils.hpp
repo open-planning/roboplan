@@ -28,4 +28,34 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size);
 
+/// @brief Attempts to shortcut the path with random sampling and checking connections.
+/// @details This implementation is based on section 3.5.3 of:
+/// https://motion.cs.illinois.edu/RoboticSystems/MotionPlanningHigherDimensions.html
+/// @param scene The scene for checking connectability between joint poses.
+/// @param path The JointPath to try to shorten.
+/// @param max_step_size Maximum step size to use in collision checking.
+/// @param max_iters Maximum number of iterations of random sampling (default 100).
+/// @return A shortcutted JointPath, if available.
+JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_step_size,
+                       unsigned int max_iters = 100);
+
+/// @brief Helper function to compute length-normalized scaling values along a JointPath.
+/// @param scene The scene to compute configuration distances.
+/// @param path The path to length-normalize.
+/// @return A vector of scaling values between 0.0 and 1.0 at each point in the path.
+std::vector<double> getNormalizedPathScaling(const Scene& scene, const JointPath& path);
+
+/// @brief Helper function to get joint configurations from a path with normalized joint scalings.
+/// @param scene The scene to use for joint interpolation.
+/// @param path A JointPath of joint poses.
+/// @param path_scalings The corresponding path scalings (between 0 and 1) to the provided path.
+/// @param value A value between 0.0 and 1.0, at which to get the joint configuration along the
+/// path.
+/// @return a tuple containing the joint configuration at the specified scaling value along the
+/// path,
+///         as well as the index corresponding to the next point along the path.
+std::pair<Eigen::VectorXd, size_t>
+getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& path,
+                                          const std::vector<double>& path_scalings, double value);
+
 }  // namespace roboplan
