@@ -63,7 +63,7 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
 
   for (unsigned int i = 0; i < max_iters; ++i) {
 
-    // The the path is at maximum shortcutted-ness
+    // The path is at maximum shortcutted-ness
     if (shortened_path.positions.size() < 3) {
       return shortened_path;
     }
