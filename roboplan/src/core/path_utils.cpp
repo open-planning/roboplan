@@ -54,19 +54,25 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
   std::mt19937 gen(rd());
   std::uniform_real_distribution<double> dis(0.0, 1.0);
 
-  // Make a copy of the provided path.
+  // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
+  auto& path_configs = shortened_path.positions;
 
   for (unsigned int i = 0; i < max_iters; ++i) {
-
     // The path is at maximum shortcutted-ness
-    if (shortened_path.positions.size() < 3) {
+    if (path_configs.size() < 3) {
       return shortened_path;
     }
 
-    // Randomly sample two points along the scaled path. This will have a value as there are
-    // at least 3 points in the path.
-    const auto path_scalings = getNormalizedPathScaling(scene, shortened_path).value();
+    // Recompute the path scalings every iteration. If we can't compute these we can
+    // assume we are done.
+    const auto path_scalings_maybe = getNormalizedPathScaling(scene, shortened_path);
+    if (!path_scalings_maybe.has_value()) {
+      return shortened_path;
+    }
+    const auto path_scalings = path_scalings_maybe.value();
+
+    // Randomly sample two points along the scaled path.
     double low = dis(gen);
     double high = dis(gen);
     if (low > high) {
@@ -80,41 +86,29 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
       continue;
     }
 
-    // Check if the sampled segment is collision free. If it is, shortcut the path.
+    // Check if the sampled segment is collision free. If it is, shortcut the path by updating
+    // the configs vector in place. We connect the low and high configurations directly, and
+    // erase the intermediate nodes (if any).
     if (!hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
-      std::vector<Eigen::VectorXd> new_positions;
-      new_positions.reserve(idx_low + 2 + (shortened_path.positions.size() - idx_high));
+      path_configs[idx_low] = q_low;
+      path_configs[idx_high] = q_high;
 
-      for (size_t i = 0; i < idx_low; ++i) {
-        new_positions.push_back(shortened_path.positions[i]);
+      if (idx_high > idx_low + 1) {
+        path_configs.erase(path_configs.begin() + idx_low + 1, path_configs.begin() + idx_high);
       }
-
-      new_positions.push_back(q_low);
-      new_positions.push_back(q_high);
-
-      for (size_t i = idx_high; i < shortened_path.positions.size(); ++i) {
-        new_positions.push_back(shortened_path.positions[i]);
-      }
-
-      shortened_path.positions = std::move(new_positions);
     }
   }
 
   return shortened_path;
 }
 
-std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, const JointPath& path) {
+std::optional<Eigen::VectorXd> getPathLengths(const Scene& scene, const JointPath& path) {
   if (path.positions.size() < 2) {
     return std::nullopt;
   }
 
   Eigen::VectorXd path_length_list;
   path_length_list.resize(path.positions.size());
-
-  if (path.positions.size() == 2) {
-    path_length_list << 0.0, 1.0;
-    return path_length_list;
-  }
 
   // Iteratively compute path lengths from start to finish
   double path_length = 0.0;
@@ -124,7 +118,18 @@ std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, cons
     path_length_list(idx + 1) = path_length;
   }
 
-  // Normalize
+  return path_length_list;
+}
+
+std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, const JointPath& path) {
+  auto path_length_list_maybe = getPathLengths(scene, path);
+  if (!path_length_list_maybe.has_value()) {
+    return std::nullopt;
+  }
+  auto path_length_list = path_length_list_maybe.value();
+  auto path_length = path_length_list(path_length_list.size() - 1);
+
+  // Normalize and return
   if (path_length > 0.0) {
     path_length_list /= path_length;
   }
@@ -136,9 +141,9 @@ std::pair<Eigen::VectorXd, size_t>
 getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& path,
                                           const Eigen::VectorXd& path_scalings, double value) {
 
-  for (long idx = 0; idx < path_scalings.size(); ++idx) {
-    // Find the smallest index that is less than value
-    if (value > path_scalings(idx)) {
+  for (long idx = 0; idx < path_scalings.size() - 1; ++idx) {
+    // Find the smallest index that is less than or equal to the provided value.
+    if (value >= path_scalings(idx)) {
       continue;
     }
 
@@ -151,7 +156,7 @@ getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& p
     return {q_interp, idx};
   }
 
-  // This shouldn't be possible
+  // If we get here then the index is the end of the list and we should just return the goal pose.
   return {path.positions.back(), path.positions.size() - 1};
 }
 

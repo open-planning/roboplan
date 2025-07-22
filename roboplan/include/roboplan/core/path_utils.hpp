@@ -39,6 +39,12 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
 JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_step_size,
                        unsigned int max_iters = 100);
 
+/// @brief Computes configuration distances from the start to each pose in a path.
+/// @param scene The scene for checking distances between joint poses.
+/// @param path The JointPath to evaluate.
+/// @return A vector of incremental path distances, if there is sufficient data.
+std::optional<Eigen::VectorXd> getPathLengths(const Scene& scene, const JointPath& path);
+
 /// @brief Helper function to compute length-normalized scaling values along a JointPath.
 /// @param scene The scene to compute configuration distances.
 /// @param path The path to length-normalize.
@@ -49,10 +55,8 @@ std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, cons
 /// @param scene The scene to use for joint interpolation.
 /// @param path A JointPath of joint poses.
 /// @param path_scalings The corresponding path scalings (between 0 and 1) to the provided path.
-/// @param value A value between 0.0 and 1.0, at which to get the joint configuration along the
-/// path.
-/// @return a pair containing the joint configuration at the specified scaling value along the
-/// path,
+/// @param value A value between 0.0 and 1.0 pointing to the intermediate point along the path.
+/// @return a pair containing the joint configuration at the scaled value along the path,
 ///         as well as the index corresponding to the next point along the path.
 std::pair<Eigen::VectorXd, size_t>
 getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& path,

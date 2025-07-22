@@ -30,9 +30,11 @@ public:
     Eigen::VectorXd q1(6);
     Eigen::VectorXd q2(6);
     Eigen::VectorXd q3(6);
+    Eigen::VectorXd q4(6);
     q1 << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
     q2 << 0.5, 0.0, 0.0, 0.0, 0.0, 0.0;
     q3 << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+    q4 << 1.5, 0.0, 0.0, 0.0, 0.0, 0.0;
 
     if (num_points >= 1)
       test_path.positions.push_back(q1);
@@ -40,6 +42,8 @@ public:
       test_path.positions.push_back(q2);
     if (num_points >= 3)
       test_path.positions.push_back(q3);
+    if (num_points >= 4)
+      test_path.positions.push_back(q4);
 
     return test_path;
   }
@@ -65,6 +69,35 @@ TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
   EXPECT_DOUBLE_EQ(path_scalings(0), 0.0);
   EXPECT_DOUBLE_EQ(path_scalings(1), 0.5);
   EXPECT_DOUBLE_EQ(path_scalings(2), 1.0);
+}
+
+TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
+  auto test_path = getTestPath(3);
+  auto path_scalings = getNormalizedPathScaling(*scene_, test_path).value();
+
+  auto [config, idx] =
+      getConfigurationFromNormalizedPathScaling(*scene_, test_path, path_scalings, 0.25);
+  ASSERT_EQ(idx, 1);
+  ASSERT_EQ(config(0), 0.25);
+
+  auto [config_end, idx_end] =
+      getConfigurationFromNormalizedPathScaling(*scene_, test_path, path_scalings, 0.95);
+  ASSERT_EQ(idx_end, 2);
+  ASSERT_EQ(config_end(0), 1.0);
+
+  auto [config_start, idx_start] =
+      getConfigurationFromNormalizedPathScaling(*scene_, test_path, path_scalings, 0.0);
+  ASSERT_EQ(idx_start, 1);
+  ASSERT_EQ(config_start(0), 0.0);
+}
+
+TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
+  auto test_path = getTestPath(4);
+  auto shortcut_path = shortcutPath(*scene_, test_path, 0.25, 100);
+
+  ASSERT_EQ(shortcut_path.positions.size(), 3);
+  ASSERT_EQ(shortcut_path.positions[0], test_path.positions[0]);
+  ASSERT_EQ(shortcut_path.positions[2], test_path.positions[3]);
 }
 
 }  // namespace roboplan

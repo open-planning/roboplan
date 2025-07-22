@@ -19,6 +19,7 @@ target_link_libraries(
   GTest::gtest_main
   roboplan_example_models::roboplan_example_models
 )
+
 add_executable(test_path_utils test_path_utils.cpp)
 set_property(TARGET test_path_utils PROPERTY CXX_STANDARD 20)
 target_link_libraries(
