@@ -93,7 +93,8 @@ TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
 
 TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
   auto test_path = getTestPath(4);
-  auto shortcut_path = shortcutPath(*scene_, test_path, 0.25, 100);
+  auto shortcut_path =
+      shortcutPath(*scene_, test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
 
   ASSERT_EQ(shortcut_path.positions.size(), 3);
   ASSERT_EQ(shortcut_path.positions[0], test_path.positions[0]);
