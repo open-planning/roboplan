@@ -48,22 +48,23 @@ public:
 TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
 
   JointPath empty_path = getTestPath(0);
-  auto empty_scalings = getNormalizedPathScaling(*scene_, empty_path);
-  EXPECT_TRUE(empty_scalings.empty());
+  auto empty_scalings_maybe = getNormalizedPathScaling(*scene_, empty_path);
+  EXPECT_FALSE(empty_scalings_maybe.has_value());
 
-  JointPath length_1_path = getTestPath(1);
-  auto length_1_path_scalings = getNormalizedPathScaling(*scene_, length_1_path);
-  ASSERT_EQ(length_1_path_scalings.size(), 1);
-  EXPECT_DOUBLE_EQ(length_1_path_scalings[0], 1.0);
+  JointPath length_2_path = getTestPath(2);
+  auto length_2_path_scalings = getNormalizedPathScaling(*scene_, length_2_path).value();
+  ASSERT_EQ(length_2_path_scalings.size(), 2);
+  EXPECT_DOUBLE_EQ(length_2_path_scalings(0), 0.0);
+  EXPECT_DOUBLE_EQ(length_2_path_scalings(1), 1.0);
 
   // Path with 3 evenly spaced points
   auto test_path = getTestPath(3);
-  auto path_scalings = getNormalizedPathScaling(*scene_, test_path);
+  auto path_scalings = getNormalizedPathScaling(*scene_, test_path).value();
 
   ASSERT_EQ(path_scalings.size(), 3);
-  EXPECT_DOUBLE_EQ(path_scalings[0], 0.0);
-  EXPECT_DOUBLE_EQ(path_scalings[1], 0.5);
-  EXPECT_DOUBLE_EQ(path_scalings[2], 1.0);
+  EXPECT_DOUBLE_EQ(path_scalings(0), 0.0);
+  EXPECT_DOUBLE_EQ(path_scalings(1), 0.5);
+  EXPECT_DOUBLE_EQ(path_scalings(2), 1.0);
 }
 
 }  // namespace roboplan

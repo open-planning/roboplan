@@ -43,7 +43,7 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
 /// @param scene The scene to compute configuration distances.
 /// @param path The path to length-normalize.
 /// @return A vector of scaling values between 0.0 and 1.0 at each point in the path.
-std::vector<double> getNormalizedPathScaling(const Scene& scene, const JointPath& path);
+std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, const JointPath& path);
 
 /// @brief Helper function to get joint configurations from a path with normalized joint scalings.
 /// @param scene The scene to use for joint interpolation.
@@ -51,11 +51,11 @@ std::vector<double> getNormalizedPathScaling(const Scene& scene, const JointPath
 /// @param path_scalings The corresponding path scalings (between 0 and 1) to the provided path.
 /// @param value A value between 0.0 and 1.0, at which to get the joint configuration along the
 /// path.
-/// @return a tuple containing the joint configuration at the specified scaling value along the
+/// @return a pair containing the joint configuration at the specified scaling value along the
 /// path,
 ///         as well as the index corresponding to the next point along the path.
 std::pair<Eigen::VectorXd, size_t>
 getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& path,
-                                          const std::vector<double>& path_scalings, double value);
+                                          const Eigen::VectorXd& path_scalings, double value);
 
 }  // namespace roboplan
