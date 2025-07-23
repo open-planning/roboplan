@@ -50,13 +50,14 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
 JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_step_size,
                        unsigned int max_iters, unsigned int seed) {
 
-  std::random_device rd;
-  std::mt19937 gen(seed != 0 ? seed : rd());
-  std::uniform_real_distribution<double> dis(0.0, 1.0);
-
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
   auto& path_configs = shortened_path.positions;
+
+  // We sample in the range (0, 1] to prevent modification of the starting configuration.
+  std::random_device rd;
+  std::mt19937 gen(seed != 0 ? seed : rd());
+  std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   for (unsigned int i = 0; i < max_iters; ++i) {
     // The path is at maximum shortcutted-ness
@@ -65,7 +66,7 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can
-    // assume we are done.
+    // assume we are done (the path is at maximum shortness).
     const auto path_scalings_maybe = getNormalizedPathScaling(scene, shortened_path);
     if (!path_scalings_maybe.has_value()) {
       return shortened_path;
@@ -141,9 +142,9 @@ std::pair<Eigen::VectorXd, size_t>
 getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& path,
                                           const Eigen::VectorXd& path_scalings, double value) {
 
-  for (long idx = 0; idx < path_scalings.size() - 1; ++idx) {
-    // Find the smallest index that is less than or equal to the provided value.
-    if (value >= path_scalings(idx)) {
+  for (long idx = 1; idx < path_scalings.size() - 1; ++idx) {
+    // Find the smallest index that is less than the provided value.
+    if (value > path_scalings(idx)) {
       continue;
     }
 
