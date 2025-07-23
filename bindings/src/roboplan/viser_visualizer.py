@@ -65,7 +65,7 @@ class ViserVisualizer(BaseVisualizer):
         open=False,
         loadModel=False,
         host="localhost",
-        port="8000",
+        port="8080",
     ):
         """
         Start a new Viser server and client.
@@ -88,14 +88,24 @@ class ViserVisualizer(BaseVisualizer):
 
         if open:
             import webbrowser
+            import threading
+
+            client_connected = threading.Event()
+
+            # Set up callback for when a client connects
+            @self.viewer.on_client_connect
+            def handle_client_connect(client):
+                print(f"Client connected: {client.client_id}")
+                client_connected.set()
 
             webbrowser.open(f"http://{self.viewer.get_host()}:{self.viewer.get_port()}")
 
-            # Wait until clients are reported.
-            # Otherwise, capturing an image too soon after opening a browser window
-            # may not register any clients.
-            while len(self.viewer.get_clients()) == 0:
-                time.sleep(0.1)
+            # Wait until clients are reported with a timeout.
+            if not client_connected.wait(timeout=3.0):
+                print(
+                    "Warning: No client connected within 3.0 seconds, open a browser to:"
+                )
+                print(f"    http://{self.viewer.get_host()}:{self.viewer.get_port()}")
 
         if loadModel:
             self.loadViewerModel()
