@@ -96,6 +96,12 @@ NB_MODULE(roboplan, m) {
 
   m_core.def("computeFramePath", &computeFramePath);
   m_core.def("hasCollisionsAlongPath", &hasCollisionsAlongPath);
+  m_core.def("shortcutPath", &shortcutPath, "scene"_a, "path"_a, "max_step_size"_a,
+             "max_iters"_a = 100, "seed"_a = 0);
+  m_core.def("getPathLengths", &getPathLengths);
+  m_core.def("getNormalizedPathScaling", &getNormalizedPathScaling);
+  m_core.def("getConfigurationFromNormalizedPathScaling",
+             &getConfigurationFromNormalizedPathScaling);
 
   /// Examples module
   nanobind::module_ m_example_models = m.def_submodule("example_models", "Example models");
