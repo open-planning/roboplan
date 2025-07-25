@@ -10,6 +10,12 @@ find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
 
 # Add libraries
+add_library(expected INTERFACE)
+target_include_directories(expected
+  INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
 add_library(roboplan SHARED
     src/core/path_utils.cpp
     src/core/scene.cpp
@@ -27,6 +33,7 @@ set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
 install(
   TARGETS
+  expected
   roboplan
   EXPORT roboplan-targets
   LIBRARY DESTINATION lib

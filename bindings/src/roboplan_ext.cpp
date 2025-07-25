@@ -1,6 +1,8 @@
 #include <iostream>
 #include <memory>
 
+#include <tl/expected.hpp>
+
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
@@ -17,8 +19,6 @@
 #include <roboplan_rrt/graph.hpp>
 #include <roboplan_rrt/rrt.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
-
-#include <tl_expected/expected.hpp>
 
 namespace roboplan {
 

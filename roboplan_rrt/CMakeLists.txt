@@ -7,7 +7,6 @@ endif()
 
 # Find dependencies.
 find_package(roboplan REQUIRED)
-find_package(tl_expected REQUIRED)
 
 # Add libraries
 add_library(roboplan_rrt SHARED
@@ -18,8 +17,8 @@ target_include_directories(roboplan_rrt PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(roboplan_rrt
+    roboplan::expected
     roboplan::roboplan
-    tl_expected::tl_expected
 )
 set_property(TARGET roboplan_rrt PROPERTY CXX_STANDARD 20)
 

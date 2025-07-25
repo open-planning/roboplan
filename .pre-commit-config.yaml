@@ -74,3 +74,10 @@ repos:
     rev: v3.13.7
     hooks:
       - id: markdown-link-check
+
+# Exclude all third-party dependencies from pre-commit.
+exclude: |
+  (?x)^(
+    roboplan/include/tl/.*|
+    roboplan_rrt/include/dynotree/.*
+  )$
