@@ -65,7 +65,7 @@ class ViserVisualizer(BaseVisualizer):
         open=False,
         loadModel=False,
         host="localhost",
-        port="8080",
+        port="8000",
     ):
         """
         Start a new Viser server and client.
