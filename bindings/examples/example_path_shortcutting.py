@@ -59,10 +59,10 @@ if __name__ == "__main__":
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True)
 
-    # Set up an RRT and perform path planning.
+    # Set up an RRT with a very small connection distance to demonstrate path shortening.
     options = RRTOptions()
-    options.max_connection_distance = 0.25
-    options.collision_check_step_size = 0.05
+    options.max_connection_distance = 1.0
+    options.collision_check_step_size = 0.01
     options.max_planning_time = 5.0
     options.rrt_connect = True
     rrt = RRT(scene, options)
@@ -77,12 +77,12 @@ if __name__ == "__main__":
 
     path = rrt.plan(start, goal)
     assert path is not None
-    print("Original path:")
+    print("Original path (in red):")
     print(path)
 
     # After planning attempt to shorten the path
     shortcut_path = shortcutPath(scene, path, options.collision_check_step_size, 1000)
-    print("Shortcutted path:")
+    print("Shortcutted path (in green):")
     print(shortcut_path)
 
     # Visualize the tree, path, and shortcutted path
