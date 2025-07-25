@@ -24,12 +24,25 @@ namespace roboplan {
 
 using namespace nanobind::literals;
 
-template <typename T, typename E> T unwrap_expected(const tl::expected<T, E>& ret) {
-  if (ret.has_value()) {
-    return ret.value();
-  } else {
-    throw std::runtime_error("whoopsie daisey");
-  }
+/// @brief Wrapper function for easily binding tl::expected return types with nanobind.
+/// @return The unwrapped value, or throw a runtime_error.
+template <typename Class, typename Ret, typename Err, typename... Args>
+auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...)) {
+  return [method](Class& self, Args... args) -> Ret {
+    auto result = (self.*method)(args...);
+    if (result.has_value()) {
+      return result.value();
+    } else {
+      // If the error is string convertible then we can pass it on. Otherwise
+      // we do not know the details of the underlying exception.
+      // TODO: Consider wrapping with a streamable option.
+      if constexpr (std::is_convertible_v<Err, std::string>) {
+        throw std::runtime_error(std::string(result.error()));
+      } else {
+        throw std::runtime_error("Unknown error occurred.");
+      }
+    }
+  };
 }
 
 NB_MODULE(roboplan, m) {
@@ -146,10 +159,7 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<RRT>(m_rrt, "RRT")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
-      .def("plan_expected",
-           [](RRT& self, const JointConfiguration& start, const JointConfiguration& goal) {
-             return unwrap_expected(self.plan_expected(start, goal));
-           })
+      .def("plan_expected", unwrap_expected(&RRT::plan_expected))
       .def("plan", &RRT::plan)
       .def("setRngSeed", &RRT::setRngSeed)
       .def("getNodes", &RRT::getNodes);
