@@ -12,6 +12,7 @@ from roboplan import (
 )
 from roboplan.viser_visualizer import ViserVisualizer, visualizePath
 
+
 if __name__ == "__main__":
 
     roboplan_examples_dir = Path(get_package_share_dir())

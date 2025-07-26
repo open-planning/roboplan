@@ -12,68 +12,7 @@ from roboplan import (
     RRTOptions,
     RRT,
 )
-from roboplan.viser_visualizer import ViserVisualizer
-
-
-def visualizePath(
-    viz: ViserVisualizer,
-    scene: Scene,
-    rrt: RRT,
-    path: JointPath,
-    frame_name: str,
-    max_step_size: float,
-) -> None:
-    """
-    Helper function to visualize the RRT path.
-    TODO: Move this to the actual Python package itself.
-    """
-    start_nodes, goal_nodes = rrt.getNodes()
-
-    start_segments = []
-    for node in start_nodes[1:]:
-        q_start = start_nodes[node.parent_id].config
-        q_end = node.config
-        frame_path = computeFramePath(scene, q_start, q_end, frame_name, max_step_size)
-        for idx in range(len(frame_path) - 1):
-            start_segments.append([frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]])
-
-    goal_segments = []
-    for node in goal_nodes[1:]:
-        q_start = goal_nodes[node.parent_id].config
-        q_end = node.config
-        frame_path = computeFramePath(scene, q_start, q_end, frame_name, max_step_size)
-        for idx in range(len(frame_path) - 1):
-            goal_segments.append([frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]])
-
-    path_segments = []
-    for idx in range(len(path.positions) - 1):
-        q_start = path.positions[idx]
-        q_end = path.positions[idx + 1]
-        frame_path = computeFramePath(scene, q_start, q_end, frame_name, max_step_size)
-        for idx in range(len(frame_path) - 1):
-            path_segments.append([frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]])
-
-    if start_segments:
-        viz.viewer.scene.add_line_segments(
-            "/rrt/start_tree",
-            points=np.array(start_segments),
-            colors=(0, 100, 100),
-            line_width=1.0,
-        )
-    if goal_segments:
-        viz.viewer.scene.add_line_segments(
-            "/rrt/goal_tree",
-            points=np.array(goal_segments),
-            colors=(100, 0, 100),
-            line_width=1.0,
-        )
-
-    viz.viewer.scene.add_line_segments(
-        "/rrt/path",
-        points=np.array(path_segments),
-        colors=(100, 100, 0),
-        line_width=3.0,
-    )
+from roboplan.viser_visualizer import ViserVisualizer, visualizePath
 
 
 if __name__ == "__main__":
