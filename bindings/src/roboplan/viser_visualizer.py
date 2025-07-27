@@ -92,9 +92,9 @@ class ViserVisualizer(BaseVisualizer):
             import webbrowser
             import threading
 
+            # Use a callback to notify the viz that the browser connected.
             client_connected = threading.Event()
 
-            # Set up callback for when a client connects
             @self.viewer.on_client_connect
             def handle_client_connect(client):
                 print(f"Client connected: {client.client_id}")
@@ -102,10 +102,10 @@ class ViserVisualizer(BaseVisualizer):
 
             webbrowser.open(f"http://{self.viewer.get_host()}:{self.viewer.get_port()}")
 
-            # Wait until clients are reported with a timeout.
+            # Timeout after 3 seconds and just move on.
             if not client_connected.wait(timeout=3.0):
                 print(
-                    "Warning: No client connected within 3.0 seconds, open a browser to:"
+                    "Warning: No client connected to the visualizer within 3.0 seconds, open a browser to:"
                 )
                 print(f"    http://{self.viewer.get_host()}:{self.viewer.get_port()}")
 
