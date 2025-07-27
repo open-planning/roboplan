@@ -48,7 +48,7 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
 }
 
 JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_step_size,
-                       unsigned int max_iters, unsigned int seed) {
+                       unsigned int max_iters, int seed) {
 
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
@@ -56,7 +56,7 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
 
   // We sample in the range (0, 1] to prevent modification of the starting configuration.
   std::random_device rd;
-  std::mt19937 gen(seed != 0 ? seed : rd());
+  std::mt19937 gen(seed < 0 ? seed : rd());
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   for (unsigned int i = 0; i < max_iters; ++i) {

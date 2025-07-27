@@ -35,10 +35,10 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
 /// @param path The JointPath to try to shorten.
 /// @param max_step_size Maximum step size to use in collision checking.
 /// @param max_iters Maximum number of iterations of random sampling (default 100).
-/// @param seed Seed for the random generator, if 0 will not be applied (default 0).
+/// @param seed Seed for the random generator, if < 0 then use a random seed (default -1).
 /// @return A shortcutted JointPath, if available.
 JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_step_size,
-                       unsigned int max_iters = 100, unsigned int seed = 0);
+                       unsigned int max_iters = 100, int seed = 0);
 
 /// @brief Computes configuration distances from the start to each pose in a path.
 /// @param scene The scene for checking distances between joint poses.
