@@ -10,7 +10,7 @@ from roboplan import (
     RRTOptions,
     RRT,
 )
-from roboplan.viser_visualizer import ViserVisualizer, visualizePath
+from roboplan.viser_visualizer import ViserVisualizer, visualizePath, visualizeTree
 
 
 if __name__ == "__main__":
@@ -52,7 +52,8 @@ if __name__ == "__main__":
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
-    visualizePath(viz, scene, rrt, path, "fr3_hand", 0.05)
+    visualizePath(viz, scene, path, "fr3_hand", 0.05)
+    visualizeTree(viz, scene, rrt, "fr3_hand", 0.05)
 
     while True:
         time.sleep(10.0)

@@ -4,15 +4,13 @@ import time
 import numpy as np
 import pinocchio as pin
 from roboplan import (
-    computeFramePath,
     get_package_share_dir,
     JointConfiguration,
-    JointPath,
     Scene,
     RRTOptions,
     RRT,
 )
-from roboplan.viser_visualizer import ViserVisualizer, visualizePath
+from roboplan.viser_visualizer import ViserVisualizer, visualizePath, visualizeTree
 
 
 if __name__ == "__main__":
@@ -54,7 +52,8 @@ if __name__ == "__main__":
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
-    visualizePath(viz, scene, rrt, path, "tool0", 0.05)
+    visualizePath(viz, scene, path, "tool0", 0.05)
+    visualizeTree(viz, scene, rrt, "tool0", 0.05)
 
     while True:
         time.sleep(10.0)
