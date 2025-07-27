@@ -1,10 +1,10 @@
 from pathlib import Path
 import time
 
-import numpy as np
 import pinocchio as pin
 from roboplan import (
     get_package_share_dir,
+    shortcutPath,
     JointConfiguration,
     Scene,
     RRTOptions,
@@ -30,10 +30,15 @@ if __name__ == "__main__":
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True)
 
+    # Optionally include path shortening
+    include_shortcutting = True
+
     # Set up an RRT and perform path planning.
     options = RRTOptions()
     options.max_connection_distance = 1.0
     options.collision_check_step_size = 0.05
+    options.goal_biasing_probability = 0.15
+    options.max_nodes = 1000
     options.max_planning_time = 3.0
     options.rrt_connect = False
     rrt = RRT(scene, options)
@@ -49,11 +54,32 @@ if __name__ == "__main__":
     path = rrt.plan(start, goal)
     assert path is not None
 
+    if include_shortcutting:
+        shortcut_path = shortcutPath(
+            scene, path, options.collision_check_step_size, 1000
+        )
+
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
     visualizePath(viz, scene, path, "fr3_hand", 0.05)
     visualizeTree(viz, scene, rrt, "fr3_hand", 0.05)
 
-    while True:
-        time.sleep(10.0)
+    if include_shortcutting:
+        print("Shortcutted path:")
+        print(shortcut_path)
+        visualizePath(
+            viz,
+            scene,
+            shortcut_path,
+            "fr3_hand",
+            0.05,
+            (0, 100, 0),
+            "/rrt/shortcut_path",
+        )
+
+    try:
+        while True:
+            time.sleep(10.0)
+    except KeyboardInterrupt:
+        pass

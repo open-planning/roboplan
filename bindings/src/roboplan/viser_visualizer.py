@@ -352,7 +352,7 @@ def visualizePath(
     path: JointPath,
     frame_name: str,
     max_step_size: float,
-    color: tuple = (100, 100, 0),
+    color: tuple = (100, 0, 0),
     name: str = "/rrt/path",
 ) -> None:
     """
