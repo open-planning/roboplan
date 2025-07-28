@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-c"]
 # Install core dependencies.
 RUN apt-get update -y \
     && apt install -y libgmock-dev python3-pip
-RUN pip3 install nanobind scikit-build-core tyro
+RUN pip3 install typing_extensions==4.10.0 nanobind scikit-build-core tyro
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /workspace/roboplan_ws/src/roboplan
