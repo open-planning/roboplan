@@ -1,11 +1,10 @@
-from pathlib import Path
 import sys
 import time
 import tyro
 
 import pinocchio as pin
+from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
-    get_package_share_dir,
     shortcutPath,
     JointConfiguration,
     Scene,
@@ -13,21 +12,6 @@ from roboplan import (
     RRT,
 )
 from roboplan.viser_visualizer import ViserVisualizer, visualizePath, visualizeTree
-
-
-ROBOPLAN_EXAMPLES_DIR = Path(get_package_share_dir())
-MODELS = {
-    "ur5": [
-        ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",
-        ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.srdf",
-        "tool0",
-    ],
-    "franka": [
-        ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.urdf",
-        ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.srdf",
-        "fr3_hand",
-    ],
-}
 
 
 def main(
@@ -63,7 +47,7 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    urdf_path, srdf_path, ee_name = MODELS[model]
+    urdf_path, srdf_path, ee_name, _, _ = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
     scene = Scene("test_scene", urdf_path, srdf_path, package_paths)
