@@ -3,6 +3,14 @@ from roboplan import get_package_share_dir
 
 
 ROBOPLAN_EXAMPLES_DIR = Path(get_package_share_dir())
+
+# Dictionary of supported example models and their relevant parameters.
+# Entries are a list of:
+#     - The URDF path.
+#     - The SRDF path.
+#     - The end-effector name.
+#     - The robot's base link.
+#     - The starting "pose" of the robot.
 MODELS = {
     "ur5": [
         ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",
