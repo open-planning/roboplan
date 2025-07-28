@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-c"]
 # Install core dependencies.
 RUN apt-get update -y \
     && apt install -y libgmock-dev python3-pip
-RUN pip3 install typing_extensions==4.10.0 nanobind scikit-build-core tyro
+RUN pip3 install nanobind scikit-build-core
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /workspace/roboplan_ws/src/roboplan
@@ -28,7 +28,7 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
 # As/if this package matures, a possible solution is to apply patches for ROS release.
 WORKDIR /workspace/roboplan_ws/src/roboplan/bindings
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    && pip3 install "numpy<2.0.0" typing_extensions==4.10.0 viser opencv-contrib-python-headless \
+    && pip3 install "numpy<2.0.0" typing_extensions==4.10.0 viser opencv-contrib-python-headless tyro \
     && source /workspace/roboplan_ws/install/setup.bash \
     && pip3 install --no-build-isolation -ve .
 
