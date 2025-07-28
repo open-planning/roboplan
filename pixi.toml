@@ -183,6 +183,7 @@ nanobind          = ">=2.8.0,<3"
 scikit-build-core = ">=0.11.5,<0.12"
 numpy             = "*"
 viser             = ">=1.0.0,<2"
+tyro              = ">=0.9.26,<0.10"
 
 # We use pip as a workaround for pixi building the bindings before we build the core packages
 # In theory, it should be like this:
