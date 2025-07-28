@@ -20,11 +20,6 @@ def main(
     model: str = "ur5",
     max_iters: int = 100,
     step_size: float = 0.25,
-    goal_biasing_probability: float = 0.15,
-    max_nodes: int = 1000,
-    max_planning_time: float = 3.0,
-    rrt_connect: bool = False,
-    include_shortcutting: bool = False,
     host: str = "localhost",
     port: str = "8000",
 ):
