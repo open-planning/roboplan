@@ -1,4 +1,5 @@
 #include <chrono>
+#include <sstream>
 #include <stdexcept>
 
 #include <roboplan/core/path_utils.hpp>
@@ -32,19 +33,8 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   state_space_.set_bounds(lower_bounds, upper_bounds);
 };
 
-tl::expected<JointPath, std::string> RRT::plan_expected(const JointConfiguration& start,
-                                                        const JointConfiguration& goal) {
-  std::optional<JointPath> maybe_path = plan(start, goal);
-
-  if (maybe_path.has_value()) {
-    return maybe_path.value();
-  } else {
-    return tl::make_unexpected("Failed to find path!");
-  }
-}
-
-std::optional<JointPath> RRT::plan(const JointConfiguration& start,
-                                   const JointConfiguration& goal) {
+tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
+                                               const JointConfiguration& goal) {
   std::cout << "Planning...\n";
 
   const auto& q_start = start.positions;
@@ -52,8 +42,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    std::cout << "Invalid poses requested, cannot plan!\n";
-    return std::nullopt;
+    return tl::make_unexpected("Invalid poses requested, cannot plan!");
   }
 
   // Check whether direct connection between the start and goal are possible.
@@ -83,14 +72,18 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     auto elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
     if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
-      std::cout << "RRT timed out after " << options_.max_planning_time << " seconds.\n";
-      break;
+      std::stringstream ss;
+      ss << "RRT timed out after " << options_.max_planning_time << " seconds.";
+      std::cout << ss.str() << "\n";
+      return tl::make_unexpected(ss.str());
     }
 
     // Check loop termination criteria.
     if (start_nodes_.size() + goal_nodes_.size() >= options_.max_nodes) {
-      std::cout << "Added maximum number of nodes (" << options_.max_nodes << ").\n";
-      break;
+      std::stringstream ss;
+      ss << "Added maximum number of nodes (" << options_.max_nodes << ").";
+      std::cout << ss.str() << "\n";
+      return tl::make_unexpected(ss.str());
     }
 
     // Set grow and target tree for this loop iteration.
@@ -126,8 +119,7 @@ std::optional<JointPath> RRT::plan(const JointConfiguration& start,
     }
   }
 
-  std::cout << "Unable to find a plan!\n";
-  return std::nullopt;
+  return tl::make_unexpected("Unable to find a path!");
 }
 
 void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,

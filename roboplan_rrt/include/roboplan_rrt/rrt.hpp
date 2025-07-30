@@ -45,14 +45,12 @@ public:
   /// @param options A struct containing RRT options.
   RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options = RRTOptions());
 
-  tl::expected<JointPath, std::string> plan_expected(const JointConfiguration& start,
-                                                     const JointConfiguration& goal);
-
   /// @brief Plan a path from start to goal.
   /// @param start The starting joint configuration.
   /// @param goal The goal joint configuration.
-  /// @return A joint-space path, if planning succeeds, else std::nullopt.
-  std::optional<JointPath> plan(const JointConfiguration& start, const JointConfiguration& goal);
+  /// @return A joint-space path, if planning succeeds, otherwise an error message.
+  tl::expected<JointPath, std::string> plan(const JointConfiguration& start,
+                                            const JointConfiguration& goal);
 
   /// @brief Sets the seed for the random number generator (RNG).
   /// @details For reproducibility, this also seeds the underlying scene.
