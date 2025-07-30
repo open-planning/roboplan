@@ -1,93 +1,54 @@
-from pathlib import Path
+import sys
 import time
+import tyro
 
-import numpy as np
 import pinocchio as pin
+from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
-    computeFramePath,
-    get_package_share_dir,
+    shortcutPath,
     JointConfiguration,
-    JointPath,
     Scene,
     RRTOptions,
     RRT,
 )
-from roboplan.viser_visualizer import ViserVisualizer
+from roboplan.viser_visualizer import ViserVisualizer, visualizePath, visualizeTree
 
 
-def visualizePath(
-    viz: ViserVisualizer,
-    scene: Scene,
-    rrt: RRT,
-    path: JointPath | None,
-    frame_name: str,
-    max_step_size: float,
-) -> None:
+def main(
+    model: str = "ur5",
+    max_connection_distance: float = 1.0,
+    collision_check_step_size: float = 0.05,
+    goal_biasing_probability: float = 0.15,
+    max_nodes: int = 1000,
+    max_planning_time: float = 3.0,
+    rrt_connect: bool = False,
+    include_shortcutting: bool = False,
+    host: str = "localhost",
+    port: str = "8000",
+):
     """
-    Helper function to visualize the RRT path.
-    TODO: Move this to the actual Python package itself.
+    Run the RRT example with the provided parameters.
+
+
+    Parameters:
+        model: The name of the model to user (ur5 or franka).
+        max_connection_distance: Maximum connection distance between two search nodes.
+        collision_check_step_size: Configuration-space step size for collision checking along edges.
+        goal_biasing_probability: Weighting of the goal node during random sampling.
+        max_nodes: The maximum number of nodes to add to the search tree.
+        max_planning_time: The maximum time (in seconds) to search for a path.
+        rrt_connect: Whether or not to use RRT-Connect.
+        include_shortcutting: Whether or not to include path shortcutting for found paths.
+        host: The host for the ViserVisualizer.
+        port: The port for the ViserVisualizer.
     """
-    start_nodes, goal_nodes = rrt.getNodes()
 
-    start_segments = []
-    for node in start_nodes[1:]:
-        q_start = start_nodes[node.parent_id].config
-        q_end = node.config
-        frame_path = computeFramePath(scene, q_start, q_end, frame_name, max_step_size)
-        for idx in range(len(frame_path) - 1):
-            start_segments.append([frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]])
+    if model not in MODELS:
+        print(f"Invalid model requested: {model}")
+        sys.exit(1)
 
-    goal_segments = []
-    for node in goal_nodes[1:]:
-        q_start = goal_nodes[node.parent_id].config
-        q_end = node.config
-        frame_path = computeFramePath(scene, q_start, q_end, frame_name, max_step_size)
-        for idx in range(len(frame_path) - 1):
-            goal_segments.append([frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]])
-
-    path_segments = []
-    if path is not None:
-        for idx in range(len(path.positions) - 1):
-            q_start = path.positions[idx]
-            q_end = path.positions[idx + 1]
-            frame_path = computeFramePath(
-                scene, q_start, q_end, frame_name, max_step_size
-            )
-            for idx in range(len(frame_path) - 1):
-                path_segments.append(
-                    [frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]]
-                )
-
-    if start_segments:
-        viz.viewer.scene.add_line_segments(
-            "/rrt/start_tree",
-            points=np.array(start_segments),
-            colors=(0, 100, 100),
-            line_width=1.0,
-        )
-    if goal_segments:
-        viz.viewer.scene.add_line_segments(
-            "/rrt/goal_tree",
-            points=np.array(goal_segments),
-            colors=(100, 0, 100),
-            line_width=1.0,
-        )
-
-    if path_segments:
-        viz.viewer.scene.add_line_segments(
-            "/rrt/path",
-            points=np.array(path_segments),
-            colors=(100, 100, 0),
-            line_width=3.0,
-        )
-
-
-if __name__ == "__main__":
-
-    roboplan_examples_dir = Path(get_package_share_dir())
-    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
-    srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
-    package_paths = [roboplan_examples_dir]
+    urdf_path, srdf_path, ee_name, _, _ = MODELS[model]
+    package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
     scene = Scene("test_scene", urdf_path, srdf_path, package_paths)
 
@@ -97,14 +58,19 @@ if __name__ == "__main__":
         urdf_path, package_dirs=package_paths
     )
     viz = ViserVisualizer(model, collision_model, visual_model)
-    viz.initViewer(open=True, loadModel=True)
+    viz.initViewer(open=True, loadModel=True, host=host, port=port)
+
+    # Optionally include path shortening
+    include_shortcutting = True
 
     # Set up an RRT and perform path planning.
     options = RRTOptions()
-    options.max_connection_distance = 1.0
-    options.collision_check_step_size = 0.05
-    options.max_planning_time = 3.0
-    options.rrt_connect = True
+    options.max_connection_distance = max_connection_distance
+    options.collision_check_step_size = collision_check_step_size
+    options.goal_biasing_probability = goal_biasing_probability
+    options.max_nodes = max_nodes
+    options.max_planning_time = max_planning_time
+    options.rrt_connect = rrt_connect
     rrt = RRT(scene, options)
 
     start = JointConfiguration()
@@ -118,14 +84,30 @@ if __name__ == "__main__":
     path = rrt.plan(start, goal)
     assert path is not None
 
-    # WHOOPSIE DAISEY
-    goal.positions[0] = -6
-    path = rrt.plan_expected(start, goal)
+    if include_shortcutting:
+        shortcut_path = shortcutPath(
+            scene, path, options.collision_check_step_size, 1000
+        )
 
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
-    visualizePath(viz, scene, rrt, path, "tool0", 0.05)
+    visualizePath(viz, scene, path, ee_name, 0.05)
+    visualizeTree(viz, scene, rrt, ee_name, 0.05)
 
-    while True:
-        time.sleep(10.0)
+    if include_shortcutting:
+        print("Shortcutted path:")
+        print(shortcut_path)
+        visualizePath(
+            viz, scene, shortcut_path, ee_name, 0.05, (0, 100, 0), "/rrt/shortcut_path"
+        )
+
+    try:
+        while True:
+            time.sleep(10.0)
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    tyro.cli(main)

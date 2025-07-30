@@ -1,6 +1,10 @@
 from .roboplan.core import (
     computeFramePath,
     hasCollisionsAlongPath,
+    shortcutPath,
+    getPathLengths,
+    getNormalizedPathScaling,
+    getConfigurationFromNormalizedPathScaling,
     CartesianConfiguration,
     JointConfiguration,
     JointInfo,

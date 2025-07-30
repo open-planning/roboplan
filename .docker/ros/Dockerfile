@@ -28,7 +28,7 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
 # As/if this package matures, a possible solution is to apply patches for ROS release.
 WORKDIR /workspace/roboplan_ws/src/roboplan/bindings
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    && pip3 install "numpy<2.0.0" typing_extensions==4.10.0 viser opencv-contrib-python-headless \
+    && pip3 install "numpy<2.0.0" typing_extensions==4.10.0 viser opencv-contrib-python-headless tyro \
     && source /workspace/roboplan_ws/install/setup.bash \
     && pip3 install --no-build-isolation -ve .
 

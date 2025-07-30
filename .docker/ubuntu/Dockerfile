@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update -y \
     && apt install -y \
         cmake libeigen3-dev libgmock-dev liburdfdom-dev python3-pip
-RUN pip3 install nanobind pytest scikit-build-core
+RUN pip3 install nanobind pytest scikit-build-core tyro
 
 # Install pinocchio with pip as it supports additional CPU architectures.
 # Also install additional dependencies for examples.

@@ -1,11 +1,12 @@
-from pathlib import Path
+import sys
 import time
+import tyro
 
 import numpy as np
 import pinocchio as pin
 
+from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
-    get_package_share_dir,
     Scene,
     JointConfiguration,
     CartesianConfiguration,
@@ -15,12 +16,31 @@ from roboplan import (
 from roboplan.viser_visualizer import ViserVisualizer
 
 
-if __name__ == "__main__":
+def main(
+    model: str = "ur5",
+    max_iters: int = 100,
+    step_size: float = 0.25,
+    host: str = "localhost",
+    port: str = "8000",
+):
+    """
+    Run the IK example with the provided parameters.
 
-    roboplan_examples_dir = Path(get_package_share_dir())
-    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
-    srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
-    package_paths = [roboplan_examples_dir]
+
+    Parameters:
+        model: The name of the model to user (ur5 or franka).
+        max_iters: Maximum number of iterations for the IK solver.
+        step_size: Integration step size for the IK solver.
+        host: The host for the ViserVisualizer.
+        port: The port for the ViserVisualizer.
+    """
+
+    if model not in MODELS:
+        print(f"Invalid model requested: {model}")
+        sys.exit(1)
+
+    urdf_path, srdf_path, ee_name, base_link, start_pose = MODELS[model]
+    package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
     scene = Scene("test_scene", urdf_path, srdf_path, package_paths)
 
@@ -30,18 +50,18 @@ if __name__ == "__main__":
         urdf_path, package_dirs=package_paths
     )
     viz = ViserVisualizer(model, collision_model, visual_model)
-    viz.initViewer(open=True, loadModel=True)
+    viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     # Set up an IK solver
     options = SimpleIkOptions()
-    options.max_iters = 100
-    options.step_size = 0.25
+    options.max_iters = max_iters
+    options.step_size = step_size
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()
     goal = CartesianConfiguration()
-    goal.base_frame = "base"
-    goal.tip_frame = "tool0"
+    goal.base_frame = base_link
+    goal.tip_frame = ee_name
     solution = JointConfiguration()
 
     # Create an interactive marker.
@@ -58,7 +78,7 @@ if __name__ == "__main__":
         goal.tform = pin.SE3(
             pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), controls.position
         ).homogeneous
-        start.positions = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        start.positions = np.array(start_pose)
         result = ik_solver.solveIk(goal, start, solution)
         if result:
             viz.display(solution.positions)
@@ -83,5 +103,12 @@ if __name__ == "__main__":
 
     # Display the arm and marker at the starting position, then sleep forever.
     randomize_position(None)
-    while True:
-        time.sleep(10.0)
+    try:
+        while True:
+            time.sleep(10.0)
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    tyro.cli(main)
