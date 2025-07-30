@@ -42,7 +42,9 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    return tl::make_unexpected("Invalid poses requested, cannot plan!");
+    const auto msg = "Invalid poses requested, cannot plan!";
+    std::cout << msg << "\n";
+    return tl::make_unexpected(msg);
   }
 
   // Check whether direct connection between the start and goal are possible.
