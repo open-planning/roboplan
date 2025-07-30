@@ -165,8 +165,7 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<RRT>(m_rrt, "RRT")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
-      .def("plan_expected", unwrap_expected(&RRT::plan_expected))
-      .def("plan", &RRT::plan)
+      .def("plan", unwrap_expected(&RRT::plan))
       .def("setRngSeed", &RRT::setRngSeed)
       .def("getNodes", &RRT::getNodes);
 }
