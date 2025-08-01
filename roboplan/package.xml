@@ -11,7 +11,7 @@
 
   <depend>eigen</depend>
   <depend>pinocchio</depend>
-  <depend>urdfdom</depend>
+  <depend>urdfdom_headers</depend>
 
   <test_depend>roboplan_example_models</test_depend>
 
