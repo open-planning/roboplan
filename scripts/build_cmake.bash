@@ -35,10 +35,17 @@ cmake roboplan_rrt/CMakeLists.txt -Bbuild/roboplan_rrt
 cmake --build build/roboplan_rrt
 cmake --install build/roboplan_rrt --prefix ${PWD}/install/roboplan_rrt
 
+cmake external/toppra/cpp/CMakeLists.txt -Bbuild/toppra
+cmake --build build/toppra
+cmake --install build/toppra --prefix ${PWD}/install/toppra
+
+cmake roboplan_toppra/CMakeLists.txt -Bbuild/roboplan_toppra
+cmake --build build/roboplan_toppra
+cmake --install build/roboplan_toppra --prefix ${PWD}/install/roboplan_toppra
+
 cmake roboplan_examples/CMakeLists.txt -Bbuild/roboplan_examples
 cmake --build build/roboplan_examples
 cmake --install build/roboplan_examples --prefix ${PWD}/install/roboplan_examples
-
 
 echo "
 =======================

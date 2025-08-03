@@ -42,12 +42,12 @@ Still debating whether this should be monorepo or multi-repo...
 
 ## Build instructions (colcon)
 
-First, clone this repo to a valid ROS 2 workspace.
+First, clone this repo (including submodules) to a valid ROS 2 workspace.
 
 ```bash
 mkdir -p ~/roboplan_ws/src
 cd ~/roboplan_ws/src
-git clone https://github.com/sea-bass/roboplan.git
+git clone --recursive https://github.com/sea-bass/roboplan.git
 ```
 
 Source your favorite ROS distro and compile the package.

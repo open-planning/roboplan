@@ -37,10 +37,14 @@ configure = { cmd = [
   # Disable warnings about unused command line arguments
   "--no-warn-unused-cli",
   "-S",
-  "{{ package_name }}",
+  "{{ package_path }}",
   "-B",
   "build//{{ package_name }}",
-], args = [{ arg = "package_name" }, { arg = "cxx_flags", default = "" }] }
+], args = [
+  { arg = "package_name" },
+  { arg = "package_path" },
+  { arg = "cxx_flags", default = "" },
+] }
 build = { cmd = [
   "cmake",
   "--build",
@@ -48,10 +52,12 @@ build = { cmd = [
 ], depends-on = [
   { task = "configure", args = [
     "{{ package_name }}",
+    "{{ package_path }}",
     "{{ cxx_flags }}",
   ] },
 ], args = [
   { arg = "package_name" },
+  { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
 ] }
 install = { cmd = [
@@ -63,36 +69,28 @@ install = { cmd = [
 ], depends-on = [
   { task = "build", args = [
     "{{ package_name }}",
+    "{{ package_path }}",
     "{{ cxx_flags }}",
   ] },
 ], args = [
-  { "arg" = "package_name" },
+  { arg = "package_name" },
+  { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
 ] }
 build_bindings = "pip install -e bindings --no-build-isolation"
 build_all = { depends-on = [
-  { task = "install", args = [
-    "roboplan_example_models",
-  ] },
-  { task = "install", args = [
-    "roboplan",
-  ] },
-  { task = "install", args = [
-    "roboplan_simple_ik",
-  ] },
-  { task = "install", args = [
-    "roboplan_rrt",
-  ] },
-  { task = "build", args = [
-    "roboplan_examples",
-  ] },
-  "build_bindings"
+  { task = "install", args = ["roboplan_example_models", "roboplan_example_models",] },
+  { task = "install", args = ["roboplan", "roboplan"] },
+  { task = "install", args = ["roboplan_simple_ik", "roboplan_simple_ik"] },
+  { task = "install", args = ["roboplan_rrt", "roboplan_rrt"] },
+  { task = "install", args = ["toppra", "external/toppra/cpp"] },
+  { task = "install", args = ["roboplan_toppra", "roboplan_toppra"] },
+  { task = "build", args = ["roboplan_examples", "roboplan_examples"] },
+  "build_bindings",
 ] }
 install_all = { depends-on = [
   { task = "build_all" },
-  { task = "install", args = [
-    "roboplan_examples",
-  ] },
+  { task = "install", args = ["roboplan_examples", "roboplan_examples"] },
 ] }
 
 build_asan = { cmd = [
@@ -111,38 +109,58 @@ build_asan = { cmd = [
 build_timetrace = { depends-on = [
   { task = "configure", args = [
     "{{ package_name }}",
+    "{{ package_path }}",
     "-ftime-trace",
   ] },
   { task = "build", args = [
     "{{ package_name }}",
+    "{{ package_path }}",
   ] },
 ], args = [
   { arg = "package_name" },
+  { arg = "package_path" },
 ] }
 build_tests = { depends-on = [
   { task = "install", args = [
     "roboplan_example_models",
-    "{{ cxx_flags  }}",
+    "roboplan_example_models",
+    "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
     "roboplan",
-    "{{ cxx_flags  }}",
+    "roboplan",
+    "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
     "roboplan_simple_ik",
-    "{{ cxx_flags  }}",
+    "roboplan_simple_ik",
+    "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
     "roboplan_rrt",
-    "{{ cxx_flags  }}",
+    "roboplan_rrt",
+    "{{ cxx_flags }}",
+    "ON",
+  ] },
+  { task = "install", args = [
+    "toppra",
+    "external/toppra/cpp",
+    "{{ cxx_flags }}",
+    "ON",
+  ] },
+  { task = "install", args = [
+    "roboplan_toppra",
+    "roboplan_toppra",
+    "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "build", args = [
     "roboplan_examples",
-    "{{ cxx_flags  }}",
+    "roboplan_examples",
+    "{{ cxx_flags }}",
     "ON",
   ] },
 ], args = [

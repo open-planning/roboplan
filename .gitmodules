@@ -1,0 +1,3 @@
+[submodule "external/toppra"]
+	path = external/toppra
+	url = https://github.com/sea-bass/toppra.git

@@ -32,7 +32,6 @@ repos:
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
-      - id: forbid-new-submodules
       - id: mixed-line-ending
       - id: name-tests-test
       - id: requirements-txt-fixer
