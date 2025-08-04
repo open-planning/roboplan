@@ -10,6 +10,7 @@ from .roboplan.core import (
     JointInfo,
     JointLimits,
     JointPath,
+    JointTrajectory,
     JointType,
     Scene,
     __doc__,

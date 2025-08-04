@@ -90,7 +90,8 @@ NB_MODULE(roboplan, m) {
       .def(nanobind::init<>())  // Default constructor
       .def_rw("min_position", &JointLimits::min_position)
       .def_rw("max_position", &JointLimits::max_position)
-      .def_rw("max_velocity", &JointLimits::max_velocity);
+      .def_rw("max_velocity", &JointLimits::max_velocity)
+      .def_rw("max_acceleration", &JointLimits::max_acceleration);
 
   nanobind::class_<JointInfo>(m_core, "JointInfo")
       .def(nanobind::init<const JointType>())
@@ -106,6 +107,19 @@ NB_MODULE(roboplan, m) {
       .def("__repr__", [](const JointPath& path) {
         std::stringstream ss;
         ss << path;
+        return ss.str();
+      });
+
+  nanobind::class_<JointTrajectory>(m_core, "JointTrajectory")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("joint_names", &JointTrajectory::joint_names)
+      .def_rw("times", &JointTrajectory::times)
+      .def_rw("positions", &JointTrajectory::positions)
+      .def_rw("velocities", &JointTrajectory::velocities)
+      .def_rw("accelerations", &JointTrajectory::accelerations)
+      .def("__repr__", [](const JointTrajectory& traj) {
+        std::stringstream ss;
+        ss << traj;
         return ss.str();
       });
 

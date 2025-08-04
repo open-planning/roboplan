@@ -46,4 +46,15 @@ std::ostream& operator<<(std::ostream& os, const JointPath& path) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const JointTrajectory& traj) {
+  std::cout << "Joint Trajectory with " << traj.times.size() << " points:\n";
+  for (size_t idx = 0; idx < traj.times.size(); ++idx) {
+    const auto& t = traj.times.at(idx);
+    const auto& pos = traj.positions.at(idx);
+    std::cout << "  [t=" << t << "]\n"
+              << "    q: " << pos.transpose() << "\n";
+  }
+  return os;
+}
+
 }  // namespace roboplan

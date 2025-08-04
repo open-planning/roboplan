@@ -51,7 +51,7 @@ enum JointType {
 };
 
 /// @brief Contains joint limit information.
-/// @details Values are all vectorized to denote multi-DOF joint.
+/// @details Values are all vectorized to denote multi-DOF joints.
 struct JointLimits {
   /// @brief The minimum positions of the joint.
   Eigen::VectorXd min_position;
@@ -61,6 +61,9 @@ struct JointLimits {
 
   /// @brief The maximum (symmetric) velocities of the joint.
   Eigen::VectorXd max_velocity;
+
+  /// @brief The maximum (symmetric) accelerations of the joint.
+  Eigen::VectorXd max_acceleration;
 };
 
 /// @brief Contains joint information relevant to motion planning and control.
@@ -91,8 +94,31 @@ struct JointPath {
   /// @brief The list of joint configuration positions.
   std::vector<Eigen::VectorXd> positions;
 
+  // TODO: Add higher-order terms as needed.
+
   /// @brief Prints basic information about the path.
   friend std::ostream& operator<<(std::ostream& os, const JointPath& path);
+};
+
+/// @brief Contains a trajectory of joint configurations.
+struct JointTrajectory {
+  /// @brief The list of joint names.
+  std::vector<std::string> joint_names;
+
+  /// @brief The list of times.
+  std::vector<double> times;
+
+  /// @brief The list of joint configuration positions.
+  std::vector<Eigen::VectorXd> positions;
+
+  /// @brief The list of joint configuration velocities.
+  std::vector<Eigen::VectorXd> velocities;
+
+  /// @brief The list of joint configuration accelerations.
+  std::vector<Eigen::VectorXd> accelerations;
+
+  /// @brief Prints basic information about the trajectory.
+  friend std::ostream& operator<<(std::ostream& os, const JointTrajectory& traj);
 };
 
 }  // namespace roboplan
