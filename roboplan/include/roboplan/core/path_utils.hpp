@@ -4,6 +4,7 @@
 
 #include <Eigen/Dense>
 #include <roboplan/core/scene.hpp>
+#include <tl/expected.hpp>
 
 namespace roboplan {
 
@@ -43,14 +44,17 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
 /// @brief Computes configuration distances from the start to each pose in a path.
 /// @param scene The scene for checking distances between joint poses.
 /// @param path The JointPath to evaluate.
-/// @return A vector of incremental path distances, if there is sufficient data.
-std::optional<Eigen::VectorXd> getPathLengths(const Scene& scene, const JointPath& path);
+/// @return A vector of incremental path distances, if there is sufficient data. Otherwise an error.
+tl::expected<Eigen::VectorXd, std::string> getPathLengths(const Scene& scene,
+                                                          const JointPath& path);
 
 /// @brief Helper function to compute length-normalized scaling values along a JointPath.
 /// @param scene The scene to compute configuration distances.
 /// @param path The path to length-normalize.
-/// @return A vector of scaling values between 0.0 and 1.0 at each point in the path.
-std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, const JointPath& path);
+/// @return A vector of scaling values between 0.0 and 1.0 at each point in the path if available,
+/// otherwise an error.
+tl::expected<Eigen::VectorXd, std::string> getNormalizedPathScaling(const Scene& scene,
+                                                                    const JointPath& path);
 
 /// @brief Helper function to get joint configurations from a path with normalized joint scalings.
 /// @param scene The scene to use for joint interpolation.

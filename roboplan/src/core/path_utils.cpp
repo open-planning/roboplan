@@ -103,9 +103,10 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
   return shortened_path;
 }
 
-std::optional<Eigen::VectorXd> getPathLengths(const Scene& scene, const JointPath& path) {
+tl::expected<Eigen::VectorXd, std::string> getPathLengths(const Scene& scene,
+                                                          const JointPath& path) {
   if (path.positions.size() < 2) {
-    return std::nullopt;
+    return tl::make_unexpected("Path must contain 2 or more points!");
   }
 
   Eigen::VectorXd path_length_list;
@@ -122,10 +123,11 @@ std::optional<Eigen::VectorXd> getPathLengths(const Scene& scene, const JointPat
   return path_length_list;
 }
 
-std::optional<Eigen::VectorXd> getNormalizedPathScaling(const Scene& scene, const JointPath& path) {
+tl::expected<Eigen::VectorXd, std::string> getNormalizedPathScaling(const Scene& scene,
+                                                                    const JointPath& path) {
   auto path_length_list_maybe = getPathLengths(scene, path);
   if (!path_length_list_maybe.has_value()) {
-    return std::nullopt;
+    return path_length_list_maybe;
   }
   auto path_length_list = path_length_list_maybe.value();
   auto path_length = path_length_list(path_length_list.size() - 1);
