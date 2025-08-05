@@ -18,6 +18,7 @@ target_include_directories(roboplan_toppra PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(roboplan_toppra
+    roboplan::expected
     roboplan::roboplan
     toppra::toppra
 )

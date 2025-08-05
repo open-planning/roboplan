@@ -2,11 +2,13 @@ import sys
 import time
 import tyro
 
+import matplotlib.pyplot as plt
 import pinocchio as pin
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
     shortcutPath,
     JointConfiguration,
+    PathParameterizerTOPPRA,
     Scene,
     RRTOptions,
     RRT,
@@ -60,9 +62,6 @@ def main(
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
-    # Optionally include path shortening
-    include_shortcutting = True
-
     # Set up an RRT and perform path planning.
     options = RRTOptions()
     options.max_connection_distance = max_connection_distance
@@ -84,6 +83,7 @@ def main(
     path = rrt.plan(start, goal)
     assert path is not None
 
+    # Optionally include path shortening
     if include_shortcutting:
         shortcut_path = shortcutPath(
             scene, path, options.collision_check_step_size, 1000
@@ -101,6 +101,26 @@ def main(
         visualizePath(
             viz, scene, shortcut_path, ee_name, 0.05, (0, 100, 0), "/rrt/shortcut_path"
         )
+        path = shortcut_path
+
+    # Set up TOPP-RA path parameterization
+    dt = 0.01
+    toppra = PathParameterizerTOPPRA(scene)
+    traj = toppra.generate(path, dt)
+
+    plt.ion()
+    plt.plot(traj.times, traj.positions)
+    plt.xlabel("Time")
+    plt.ylabel("Joint positions")
+    plt.title("Time-parameterized trajectory")
+    plt.legend([f"joint{idx+1}" for idx in range(len(traj.positions[0]))])
+    plt.show()
+
+    # Animate the trajectory
+    input("Press 'Enter' to animate the trajectory.")
+    for q in traj.positions:
+        viz.display(q)
+        time.sleep(dt)
 
     try:
         while True:

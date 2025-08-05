@@ -1,5 +1,6 @@
 @PACKAGE_INIT@
 
 find_package(roboplan REQUIRED)
+find_package(toppra REQUIRED)
 
 include("${CMAKE_CURRENT_LIST_DIR}/roboplan_toppraTargets.cmake")

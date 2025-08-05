@@ -23,4 +23,6 @@ public:
   std::shared_ptr<Scene> scene_;
 };
 
+// TODO: Add actual tests!
+
 }  // namespace roboplan

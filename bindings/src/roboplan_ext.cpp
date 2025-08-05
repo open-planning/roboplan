@@ -19,6 +19,7 @@
 #include <roboplan_rrt/graph.hpp>
 #include <roboplan_rrt/rrt.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
+#include <roboplan_toppra/toppra.hpp>
 
 namespace roboplan {
 
@@ -196,6 +197,13 @@ NB_MODULE(roboplan, m) {
       .def("plan", unwrap_expected(&RRT::plan))
       .def("setRngSeed", &RRT::setRngSeed)
       .def("getNodes", &RRT::getNodes);
+
+  /// TOPP-RA module
+  nanobind::module_ m_toppra = m.def_submodule("toppra", "TOPP-RA module");
+
+  nanobind::class_<PathParameterizerTOPPRA>(m_toppra, "PathParameterizerTOPPRA")
+      .def(nanobind::init<const std::shared_ptr<Scene>>())
+      .def("generate", unwrap_expected(&PathParameterizerTOPPRA::generate));
 }
 
 }  // namespace roboplan

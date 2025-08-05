@@ -34,6 +34,7 @@ find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
+find_package(roboplan_toppra REQUIRED)
 
 # We are now ready to compile the actual extension module
 nanobind_add_module(
@@ -49,6 +50,7 @@ target_link_libraries(roboplan PRIVATE
   roboplan_example_models::roboplan_example_models
   roboplan_rrt::roboplan_rrt
   roboplan_simple_ik::roboplan_simple_ik
+  roboplan_toppra::roboplan_toppra
 )
 
 # Install directive for scikit-build-core
