@@ -35,7 +35,7 @@ cmake roboplan_rrt/CMakeLists.txt -Bbuild/roboplan_rrt
 cmake --build build/roboplan_rrt
 cmake --install build/roboplan_rrt --prefix ${PWD}/install/roboplan_rrt
 
-cmake external/toppra/cpp/CMakeLists.txt -Bbuild/toppra
+cmake external/toppra/cpp/CMakeLists.txt -Bbuild/toppra -DBUILD_TESTS=OFF
 cmake --build build/toppra
 cmake --install build/toppra --prefix ${PWD}/install/toppra
 
