@@ -29,6 +29,7 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
 WORKDIR /workspace/roboplan_ws/src/roboplan/bindings
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && pip3 install \
+        matplotlib \
         "numpy<2.0.0" \
         opencv-contrib-python-headless \
         typing_extensions==4.10.0 \

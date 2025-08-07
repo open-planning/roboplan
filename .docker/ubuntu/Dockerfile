@@ -15,6 +15,7 @@ RUN pip3 install nanobind pytest scikit-build-core
 # Install pinocchio with pip as it supports additional CPU architectures.
 # Also install additional dependencies for examples.
 RUN pip3 install \
+    matplotlib \
     pin==${PINOCCHIO_VERSION} \
     opencv-contrib-python-headless \
     tyro \

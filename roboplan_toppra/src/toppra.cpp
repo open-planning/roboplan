@@ -1,6 +1,5 @@
 #include <chrono>
 #include <stdexcept>
-#include <string>
 
 #include <toppra/constraint/linear_joint_acceleration.hpp>
 #include <toppra/constraint/linear_joint_velocity.hpp>
@@ -14,17 +13,17 @@ namespace roboplan {
 
 PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene) {
 
-  // Extract joint velocity + acceleration limits from scene and create constraints.
+  // Extract joint velocity + acceleration limits from scene.
   // TODO: Extract only for specified joint group.
   const auto num_joints = scene->getModel().nq;
-  toppra::Vector vel_lower_limit = Eigen::VectorXd::Zero(num_joints);
-  toppra::Vector vel_upper_limit = Eigen::VectorXd::Zero(num_joints);
-  toppra::Vector acc_lower_limit = Eigen::VectorXd::Zero(num_joints);
-  toppra::Vector acc_upper_limit = Eigen::VectorXd::Zero(num_joints);
+  vel_lower_limits_ = Eigen::VectorXd::Zero(num_joints);
+  vel_upper_limits_ = Eigen::VectorXd::Zero(num_joints);
+  acc_lower_limits_ = Eigen::VectorXd::Zero(num_joints);
+  acc_upper_limits_ = Eigen::VectorXd::Zero(num_joints);
 
-  const auto joint_names = scene->getJointNames();
-  for (size_t idx = 0; idx < joint_names.size(); ++idx) {
-    const auto& joint_name = joint_names.at(idx);
+  joint_names_ = scene->getJointNames();
+  for (size_t idx = 0; idx < joint_names_.size(); ++idx) {
+    const auto& joint_name = joint_names_.at(idx);
     const auto& joint_info = scene->getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::FLOATING:
@@ -42,25 +41,18 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
       //                            "'.");
       // }
       const auto& max_vel = joint_info.limits.max_velocity[0];
-      vel_lower_limit(idx) = -max_vel;
-      vel_upper_limit(idx) = max_vel;
+      vel_lower_limits_(idx) = -max_vel;
+      vel_upper_limits_(idx) = max_vel;
       const auto& max_acc = 1.0;  // joint_info.limits.max_acceleration[0];
-      acc_lower_limit(idx) = -max_acc;
-      acc_upper_limit(idx) = max_acc;
+      acc_lower_limits_(idx) = -max_acc;
+      acc_upper_limits_(idx) = max_acc;
     }
   }
-
-  toppra::LinearConstraintPtr vel_constraint, acc_constraint;
-  vel_constraint =
-      std::make_shared<toppra::constraint::LinearJointVelocity>(vel_lower_limit, vel_upper_limit);
-  acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(acc_lower_limit,
-                                                                                 acc_upper_limit);
-  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
-  constraints_ = {vel_constraint, acc_constraint};
 }
 
-tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(const JointPath& path,
-                                                                             const double dt) {
+tl::expected<JointTrajectory, std::string>
+PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
+                                  const double velocity_scale, const double acceleration_scale) {
   const auto num_pts = path.positions.size();
   if (num_pts < 2) {
     return tl::make_unexpected("Path must have at least 2 points.");
@@ -68,6 +60,27 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(con
   if (dt <= 0.0) {
     return tl::make_unexpected("dt must be strictly positive.");
   }
+  if ((velocity_scale <= 0.0) || (velocity_scale > 1.0)) {
+    return tl::make_unexpected("Velocity scale must be greater than 0.0 and less than 1.0.");
+  }
+  if ((acceleration_scale <= 0.0) || (acceleration_scale > 1.0)) {
+    return tl::make_unexpected("Acceleration scale must be greater than 0.0 and less than 1.0.");
+  }
+
+  // // TODO: Check this based on the joint group.
+  if ((joint_names_.size() != path.joint_names.size()) ||
+      !std::equal(joint_names_.begin(), joint_names_.end(), path.joint_names.begin())) {
+    return tl::make_unexpected("Path joint names do not match the scene joint names.");
+  }
+
+  // Create scaled velocity and acceleration constraints.
+  toppra::LinearConstraintPtr vel_constraint, acc_constraint;
+  vel_constraint = std::make_shared<toppra::constraint::LinearJointVelocity>(
+      vel_lower_limits_ * velocity_scale, vel_upper_limits_ * velocity_scale);
+  acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(
+      acc_lower_limits_ * acceleration_scale, acc_upper_limits_ * acceleration_scale);
+  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
+  toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
   // Create initial cubic spline with path and random times.
   // TODO: Support nonzero velocity at end points?
@@ -103,7 +116,7 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(con
 
   // Solve TOPP-RA problem.
   toppra::PathParametrizationAlgorithmPtr algo =
-      std::make_shared<toppra::algorithm::TOPPRA>(constraints_, geom_path);
+      std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
   const auto rc = algo->computePathParametrization();
   if (rc != toppra::ReturnCode::OK) {
     return tl::make_unexpected("TOPPRA failed with return code " +

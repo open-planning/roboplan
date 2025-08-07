@@ -203,7 +203,8 @@ NB_MODULE(roboplan, m) {
 
   nanobind::class_<PathParameterizerTOPPRA>(m_toppra, "PathParameterizerTOPPRA")
       .def(nanobind::init<const std::shared_ptr<Scene>>())
-      .def("generate", unwrap_expected(&PathParameterizerTOPPRA::generate));
+      .def("generate", unwrap_expected(&PathParameterizerTOPPRA::generate), "path"_a, "dt"_a,
+           "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0);
 }
 
 }  // namespace roboplan
