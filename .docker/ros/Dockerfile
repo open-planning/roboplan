@@ -6,7 +6,8 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 SHELL ["/bin/bash", "-c"]
 
 # Install core dependencies.
-RUN apt-get update -y \
+RUN apt update -y \
+    && apt upgrade -y \
     && apt install -y libgmock-dev python3-pip
 RUN pip3 install nanobind scikit-build-core
 
@@ -17,7 +18,6 @@ COPY . src/roboplan
 
 # Install dependencies and build RoboPlan.
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    && apt-get update -y \
     && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
     && colcon build --cmake-args -DBUILD_TESTING=ON
 
