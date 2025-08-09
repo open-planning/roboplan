@@ -31,10 +31,11 @@ target_link_libraries(roboplan
     Eigen3::Eigen
     pinocchio::pinocchio
 )
-target_link_libraries(roboplan
-    PRIVATE
-    yaml-cpp::yaml-cpp
-)
+if (yaml-cpp_VERSION VERSION_LESS "0.8")  # for Ubuntu 22.04
+    target_link_libraries(roboplan PRIVATE yaml-cpp)
+else()
+    target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
+endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
 install(
