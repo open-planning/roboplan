@@ -59,11 +59,12 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
   std::mt19937 gen(seed < 0 ? seed : rd());
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
+  bool path_changed = true;
   for (unsigned int i = 0; i < max_iters; ++i) {
     if (path_configs.size() < 3) {
       // The path is at maximum shortcutted-ness
       return shortened_path;
-    } else if (path_configs.size() == 3) {
+    } else if (path_changed && (path_configs.size() == 3)) {
       // If the path has exactly 3 points, exclusively try to bypass the middle one
       if (!hasCollisionsAlongPath(scene, path_configs[0], path_configs[2], max_step_size)) {
         path_configs.erase(path_configs.begin() + 1);
@@ -73,6 +74,7 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
 
     // Recompute the path scalings every iteration. If we can't compute these we can
     // assume we are done (the path is at maximum shortness).
+    path_changed = false;
     const auto path_scalings_maybe = getNormalizedPathScaling(scene, shortened_path);
     if (!path_scalings_maybe.has_value()) {
       return shortened_path;
@@ -99,10 +101,10 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     if (!hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
       path_configs[idx_low] = q_low;
       path_configs[idx_high] = q_high;
-
       if (idx_high > idx_low + 1) {
         path_configs.erase(path_configs.begin() + idx_low + 1, path_configs.begin() + idx_high);
       }
+      path_changed = true;
     }
   }
 
