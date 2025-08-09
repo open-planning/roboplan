@@ -16,8 +16,9 @@ def test_scene() -> Scene:
     urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
     srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
     package_paths = [roboplan_examples_dir]
+    yaml_config_path = roboplan_examples_dir / "ur_robot_model" / "ur5_config.yaml"
 
-    return Scene("test_scene", urdf_path, srdf_path, package_paths)
+    return Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
 
 
 def test_scene_properties(test_scene: Scene) -> None:
@@ -38,6 +39,8 @@ def test_scene_properties(test_scene: Scene) -> None:
     assert np.allclose(joint_info.limits.min_position, np.array([-np.pi]))
     assert np.allclose(joint_info.limits.max_position, np.array([np.pi]))
     assert np.allclose(joint_info.limits.max_velocity, np.array([3.15]))
+    assert np.allclose(joint_info.limits.max_acceleration, np.array([2.0]))
+    assert np.allclose(joint_info.limits.max_jerk, np.array([10.0]))
 
     print(test_scene)  # Test printing for good measure
 

@@ -1,0 +1,21 @@
+# RoboPlan configuration file for the UR5 robot model.
+
+joint_limits:
+  shoulder_pan_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  shoulder_lift_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  elbow_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  wrist_1_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  wrist_2_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  wrist_3_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]

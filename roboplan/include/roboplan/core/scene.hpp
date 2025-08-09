@@ -26,10 +26,12 @@ public:
   /// @param urdf_path Path to the URDF file.
   /// @param srdf_path Path to the SRDF file.
   /// @param package_paths A vector of package paths to look for packages.
+  /// @param yaml_config_path Path to the YAML configuration file with additional information.
   Scene(const std::string& name, const std::filesystem::path& urdf_path,
         const std::filesystem::path& srdf_path,
         const std::vector<std::filesystem::path>& package_paths =
-            std::vector<std::filesystem::path>());
+            std::vector<std::filesystem::path>(),
+        const std::filesystem::path& yaml_config_path = std::filesystem::path());
 
   /// @brief Gets the scene's name.
   /// @return The scene name.

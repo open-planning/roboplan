@@ -49,10 +49,10 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    urdf_path, srdf_path, ee_name, _, _ = MODELS[model]
+    urdf_path, srdf_path, yaml_config_path, ee_name, _, _ = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    scene = Scene("test_scene", urdf_path, srdf_path, package_paths)
+    scene = Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.

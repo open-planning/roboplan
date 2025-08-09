@@ -35,15 +35,14 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
       if (joint_info.limits.max_velocity.size() == 0) {
         throw std::runtime_error("Velocity limit must be defined for joint '" + joint_name + "'.");
       }
-      // TODO: Re-enable before this PR lands
-      // if (joint_info.limits.max_acceleration.size() == 0) {
-      //   throw std::runtime_error("Acceleration limit must be defined for joint '" + joint_name +
-      //                            "'.");
-      // }
+      if (joint_info.limits.max_acceleration.size() == 0) {
+        throw std::runtime_error("Acceleration limit must be defined for joint '" + joint_name +
+                                 "'.");
+      }
       const auto& max_vel = joint_info.limits.max_velocity[0];
       vel_lower_limits_(idx) = -max_vel;
       vel_upper_limits_(idx) = max_vel;
-      const auto& max_acc = 1.0;  // joint_info.limits.max_acceleration[0];
+      const auto& max_acc = joint_info.limits.max_acceleration[0];
       acc_lower_limits_(idx) = -max_acc;
       acc_upper_limits_(idx) = max_acc;
     }

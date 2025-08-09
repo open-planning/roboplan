@@ -92,7 +92,8 @@ NB_MODULE(roboplan, m) {
       .def_rw("min_position", &JointLimits::min_position)
       .def_rw("max_position", &JointLimits::max_position)
       .def_rw("max_velocity", &JointLimits::max_velocity)
-      .def_rw("max_acceleration", &JointLimits::max_acceleration);
+      .def_rw("max_acceleration", &JointLimits::max_acceleration)
+      .def_rw("max_jerk", &JointLimits::max_jerk);
 
   nanobind::class_<JointInfo>(m_core, "JointInfo")
       .def(nanobind::init<const JointType>())
@@ -125,9 +126,12 @@ NB_MODULE(roboplan, m) {
       });
 
   nanobind::class_<Scene>(m_core, "Scene")
-      .def(
-          nanobind::init<const std::string&, const std::filesystem::path&,
-                         const std::filesystem::path&, const std::vector<std::filesystem::path>&>())
+      .def(nanobind::init<const std::string&, const std::filesystem::path&,
+                          const std::filesystem::path&, const std::vector<std::filesystem::path>&,
+                          const std::filesystem::path&>(),
+           "name"_a, "urdf_path"_a, "srdf_path"_a,
+           "package_paths"_a = std::vector<std::filesystem::path>(),
+           "yaml_config_path"_a = std::filesystem::path())
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
       .def("getJointInfo", &Scene::getJointInfo)

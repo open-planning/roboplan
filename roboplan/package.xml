@@ -11,6 +11,7 @@
 
   <depend>eigen</depend>
   <depend>pinocchio</depend>
+  <depend>yaml_cpp_vendor</depend>
 
   <test_depend>roboplan_example_models</test_depend>
 

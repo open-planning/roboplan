@@ -1,6 +1,9 @@
+#include <stdexcept>
+
 #include <pinocchio/collision/broadphase.hpp>
 #include <pinocchio/parsers/srdf.hpp>
 #include <pinocchio/parsers/urdf.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
 
@@ -23,7 +26,8 @@ namespace roboplan {
 
 Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
              const std::filesystem::path& srdf_path,
-             const std::vector<std::filesystem::path>& package_paths)
+             const std::vector<std::filesystem::path>& package_paths,
+             const std::filesystem::path& yaml_config_path)
     : name_{name} {
   // Convert the vector of package paths to string to be compatible with
   // Pinocchio.
@@ -43,6 +47,11 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+
+  YAML::Node yaml_config;
+  if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
+    yaml_config = YAML::LoadFile(yaml_config_path);
+  }
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
   // this.
@@ -64,8 +73,37 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
       info.limits.max_position[idx] = model_.upperPositionLimit(q_idx);
       ++q_idx;
     }
+    std::optional<YAML::Node> maybe_acc_limits;
+    std::optional<YAML::Node> maybe_jerk_limits;
+    if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
+      const auto& limits_config = yaml_config["joint_limits"][joint_name];
+      if (limits_config["max_acceleration"]) {
+        maybe_acc_limits = limits_config["max_acceleration"];
+        if (!maybe_acc_limits->IsSequence() ||
+            (maybe_acc_limits->size() != static_cast<size_t>(joint.nv()))) {
+          throw std::runtime_error("Acceleration limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
+                                   ".");
+        }
+      }
+      if (limits_config["max_jerk"]) {
+        maybe_jerk_limits = limits_config["max_jerk"];
+        if (!maybe_jerk_limits->IsSequence() ||
+            (maybe_jerk_limits->size() != static_cast<size_t>(joint.nv()))) {
+          throw std::runtime_error("Jerk limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
+                                   ".");
+        }
+      }
+    }
     for (int idx = 0; idx < joint.nv(); ++idx) {
       info.limits.max_velocity[idx] = model_.velocityLimit(v_idx);
+      if (maybe_acc_limits) {
+        info.limits.max_acceleration[idx] = maybe_acc_limits.value()[idx].as<double>();
+      }
+      if (maybe_jerk_limits) {
+        info.limits.max_jerk[idx] = maybe_jerk_limits.value()[idx].as<double>();
+      }
       ++v_idx;
     }
     joint_info_.emplace(joint_name, info);
@@ -159,7 +197,9 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
     os << "  " << joint_name << ":\n";
     os << "    min positions: " << limits.min_position.transpose() << "\n";
     os << "    max positions: " << limits.max_position.transpose() << "\n";
-    os << "    velocity: " << limits.max_velocity.transpose() << "\n";
+    os << "    max velocity: " << limits.max_velocity.transpose() << "\n";
+    os << "    max acceleration: " << limits.max_acceleration.transpose() << "\n";
+    os << "    max jerk: " << limits.max_jerk.transpose() << "\n";
   }
   os << "State:\n";
   os << "  positions: " << scene.cur_state_.positions.transpose() << "\n";

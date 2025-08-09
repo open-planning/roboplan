@@ -7,6 +7,10 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 
+namespace {
+constexpr double kTolerance = 1e-4;
+}
+
 namespace roboplan {
 
 using ::testing::ContainerEq;
@@ -19,7 +23,9 @@ protected:
     const auto urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
     const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {share_prefix};
-    scene_ = std::make_unique<Scene>("test_scene", urdf_path, srdf_path, package_paths);
+    const auto yaml_config_path = share_prefix / "ur_robot_model" / "ur5_config.yaml";
+    scene_ = std::make_unique<Scene>("test_scene", urdf_path, srdf_path, package_paths,
+                                     yaml_config_path);
   }
 
 public:
@@ -40,11 +46,15 @@ TEST_F(RoboPlanSceneTest, SceneProperties) {
   EXPECT_EQ(joint_info.num_position_dofs, 1u);
   EXPECT_EQ(joint_info.num_velocity_dofs, 1u);
   ASSERT_EQ(joint_info.limits.min_position.size(), 1u);
-  EXPECT_NEAR(joint_info.limits.min_position[0], -M_PI, 1e-4);
+  EXPECT_NEAR(joint_info.limits.min_position[0], -M_PI, kTolerance);
   ASSERT_EQ(joint_info.limits.max_position.size(), 1u);
-  EXPECT_NEAR(joint_info.limits.max_position[0], M_PI, 1e-4);
+  EXPECT_NEAR(joint_info.limits.max_position[0], M_PI, kTolerance);
   ASSERT_EQ(joint_info.limits.max_velocity.size(), 1u);
-  EXPECT_NEAR(joint_info.limits.max_velocity[0], 3.15, 1e-4);
+  EXPECT_NEAR(joint_info.limits.max_velocity[0], 3.15, kTolerance);
+  ASSERT_EQ(joint_info.limits.max_acceleration.size(), 1u);
+  EXPECT_NEAR(joint_info.limits.max_acceleration[0], 2.0, kTolerance);
+  ASSERT_EQ(joint_info.limits.max_jerk.size(), 1u);
+  EXPECT_NEAR(joint_info.limits.max_jerk[0], 10.0, kTolerance);
 
   std::cout << *scene_;  // Test printing for good measure
 }

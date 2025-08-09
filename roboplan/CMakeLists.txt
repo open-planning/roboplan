@@ -8,6 +8,7 @@ endif()
 # Find dependencies.
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # Add libraries
 add_library(expected INTERFACE)
@@ -28,6 +29,7 @@ target_include_directories(roboplan PUBLIC
 target_link_libraries(roboplan
     Eigen3::Eigen
     pinocchio::pinocchio
+    yaml-cpp
 )
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 

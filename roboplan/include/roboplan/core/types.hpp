@@ -64,6 +64,9 @@ struct JointLimits {
 
   /// @brief The maximum (symmetric) accelerations of the joint.
   Eigen::VectorXd max_acceleration;
+
+  /// @brief The maximum (symmetric) jerks of the joint.
+  Eigen::VectorXd max_jerk;
 };
 
 /// @brief Contains joint information relevant to motion planning and control.
