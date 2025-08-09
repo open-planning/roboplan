@@ -83,36 +83,22 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
   toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
   // Create initial cubic spline with path and random times.
-  // TODO: Support nonzero velocity at end points?
-  toppra::Vectors path_pos_vecs;
+  toppra::Vectors path_pos_vecs, path_vel_vecs;
   path_pos_vecs.reserve(num_pts);
-
+  path_vel_vecs.reserve(num_pts);
+  std::vector<double> steps;
+  steps.reserve(num_pts);
+  double s = 0.0;
   for (const auto& pos : path.positions) {
     path_pos_vecs.push_back(pos);
+    // TODO: Support nonzero endpoint velocities?
+    path_vel_vecs.push_back(Eigen::VectorXd::Zero(pos.size()));
+    steps.push_back(s);
+    s += 1.0;
   }
-
-  // TODO: For some reason, with less than 3 points the cubic spline does a weird undershooting.
-  // But for more points, the cubic hermite spline stops at zero velocities we have to specify.
-  toppra::PiecewisePolyPath spline;
-  if (num_pts <= 3) {
-    toppra::Vectors path_vel_vecs;
-    path_vel_vecs.reserve(num_pts);
-    std::vector<double> steps;
-    steps.reserve(num_pts);
-    double s = 0.0;
-    for (const auto& pos : path.positions) {
-      path_vel_vecs.push_back(Eigen::VectorXd::Zero(pos.size()));
-      steps.push_back(s);
-      s += 1.0;
-    }
-    spline = toppra::PiecewisePolyPath::CubicHermiteSpline(path_pos_vecs, path_vel_vecs, steps);
-  } else {
-    Eigen::VectorXd times = Eigen::VectorXd::LinSpaced(num_pts, 0.0, 1.0);
-    toppra::BoundaryCondFull boundary_conditions = {toppra::BoundaryCond("clamped"),
-                                                    toppra::BoundaryCond("clamped")};
-    spline = toppra::PiecewisePolyPath::CubicSpline(path_pos_vecs, times, boundary_conditions);
-  }
-  toppra::GeometricPathPtr geom_path = std::make_shared<toppra::PiecewisePolyPath>(spline);
+  const auto spline =
+      toppra::PiecewisePolyPath::CubicHermiteSpline(path_pos_vecs, path_vel_vecs, steps);
+  const auto geom_path = std::make_shared<toppra::PiecewisePolyPath>(spline);
 
   // Solve TOPP-RA problem.
   toppra::PathParametrizationAlgorithmPtr algo =
