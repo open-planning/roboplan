@@ -27,9 +27,13 @@ target_include_directories(roboplan PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(roboplan
+    PUBLIC
     Eigen3::Eigen
     pinocchio::pinocchio
-    yaml-cpp
+)
+target_link_libraries(roboplan
+    PRIVATE
+    yaml-cpp::yaml-cpp
 )
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
