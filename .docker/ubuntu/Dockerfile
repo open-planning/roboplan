@@ -7,7 +7,8 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 SHELL ["/bin/bash", "-c"]
 
 # Install core dependencies.
-RUN apt-get update -y \
+RUN apt update -y \
+    && apt upgrade -y \
     && apt install -y \
         cmake libeigen3-dev libgmock-dev liburdfdom-dev python3-pip
 RUN pip3 install nanobind pytest scikit-build-core
