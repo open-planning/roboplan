@@ -60,9 +60,15 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   for (unsigned int i = 0; i < max_iters; ++i) {
-    // The path is at maximum shortcutted-ness
     if (path_configs.size() < 3) {
+      // The path is at maximum shortcutted-ness
       return shortened_path;
+    } else if (path_configs.size() == 3) {
+      // If the path has exactly 3 points, exclusively try to bypass the middle one
+      if (!hasCollisionsAlongPath(scene, path_configs[0], path_configs[2], max_step_size)) {
+        path_configs.erase(path_configs.begin() + 1);
+        return shortened_path;
+      }
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can

@@ -96,9 +96,9 @@ TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
   auto shortcut_path =
       shortcutPath(*scene_, test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
 
-  ASSERT_EQ(shortcut_path.positions.size(), 3);
+  ASSERT_EQ(shortcut_path.positions.size(), 2);
   ASSERT_EQ(shortcut_path.positions[0], test_path.positions[0]);
-  ASSERT_EQ(shortcut_path.positions[2], test_path.positions[3]);
+  ASSERT_EQ(shortcut_path.positions[1], test_path.positions[3]);
 }
 
 }  // namespace roboplan
