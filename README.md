@@ -77,7 +77,7 @@ See the [bindings README](bindings/README.md) for instructions on building the P
 
 ### Build instructions
 
-Make sure to install pixi from [here](https://pixi.sh/latest/#installation).
+Make sure to install [pixi](https://pixi.sh/latest/#installation).
 
 ```bash
 git clone https://github.com/sea-bass/roboplan.git
