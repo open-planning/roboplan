@@ -1,4 +1,5 @@
 # roboplan
+
 Modern and performant robot motion planning library based on Pinocchio.
 
 > [!WARNING]
@@ -9,6 +10,7 @@ Modern and performant robot motion planning library based on Pinocchio.
 ## Design philosophy
 
 ### Not a monolith
+
 Several tools optimize their design for runtime configurability via YAML config files and plugins that rely on abstract interface classes for motion planners, IK solvers, etc.
 This library shall instead establish _standard data types_ for things like joint states, paths, and trajectories.
 It is strongly recommended that implementations use these data types in their interfaces as much as possible.
@@ -16,12 +18,14 @@ It is strongly recommended that implementations use these data types in their in
 This does mean that switching to different planners (for example) requires recompiling your code, but we consider this worthwhile to keep the codebase simpler and more flexible.
 
 ### Middleware is optional
+
 The core library is standalone.
 Middleware such as ROS, and all its specific tools (message definitions, pub/sub, parameters, etc.) shall be available as _optional_, lightweight wrappers around the core... in a separate repository.
 
 As a side benefit, this means that community contributors can provide their own connections to different middleware while leveraging the core library as-is.
 
 ### Bindings are first-class
+
 Users should be able to `pip install` the Python bindings and get to hacking, debugging, and visualizing as quickly as possible.
 New users can develop directly using Python, whereas intermediate/advanced users can directly use C++ for performance.
 Contributors are expected to implement new features in C++ and provide working Python bindings.
@@ -29,6 +33,7 @@ Contributors are expected to implement new features in C++ and provide working P
 ---
 
 ## Packages list
+
 This is all still very much work in progress!
 Still debating whether this should be monorepo or multi-repo...
 
@@ -86,7 +91,6 @@ pixi run build PACKAGE_NAME
 # This will only install the package
 pixi run install PACKAGE_NAME
 ```
-
 
 ### Run tests
 
