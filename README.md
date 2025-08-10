@@ -73,7 +73,7 @@ ros2 run roboplan_examples example_scene
 
 See the [bindings README](bindings/README.md) for instructions on building the Python bindings.
 
-## Development using pixi
+## Build instructions (pixi)
 
 ### Build instructions
 
