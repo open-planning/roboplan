@@ -15,14 +15,14 @@ Several tools optimize their design for runtime configurability via YAML config 
 This library shall instead establish _standard data types_ for things like joint states, paths, and trajectories.
 It is strongly recommended that implementations use these data types in their interfaces as much as possible.
 
-This does mean that switching to different planners (for example) requires recompiling your code, but we consider this worthwhile to keep the codebase simpler and more flexible.
+This does mean that switching to different planners (for example) requires changing your code. But, grounded in a decade of experience developing runtime-configurable systems, we consider this worthwhile to keep the codebase simple and flexible.
 
 ### Middleware is optional
 
 The core library is standalone.
 Middleware such as ROS, and all its specific tools (message definitions, pub/sub, parameters, etc.) shall be available as _optional_, lightweight wrappers around the core... in a separate repository.
 
-As a side benefit, this means that community contributors can provide their own connections to different middleware while leveraging the core library as-is.
+Consequently, community contributors can leverage the core library in any project as-is and can consider middleware connections tailored to their use-cases.
 
 ### Bindings are first-class
 
