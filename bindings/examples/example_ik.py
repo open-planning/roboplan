@@ -89,9 +89,7 @@ def main(
 
     @reset_button.on_click
     def reset_position(_):
-        print(f"Start positions: {start.positions}")
         fk_tform = scene.forwardKinematics(start.positions, goal.tip_frame)
-        print(f"FK:\n{fk_tform}")
         controls.position = fk_tform[:3, 3]
         controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
 
