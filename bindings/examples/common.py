@@ -12,6 +12,7 @@ ROBOPLAN_EXAMPLES_DIR = Path(get_package_share_dir())
 #     - The end-effector name.
 #     - The robot's base link.
 #     - The starting joint configuration of the robot.
+#     - If the model file is an xacro file.
 MODELS = {
     "ur5": [
         ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",
@@ -20,6 +21,7 @@ MODELS = {
         "tool0",
         "base",
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        False,
     ],
     "franka": [
         ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.urdf",
@@ -28,5 +30,15 @@ MODELS = {
         "fr3_hand",
         "fr3_link0",
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        True,
+    ],
+    "dual": [
+        ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3.urdf",
+        ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3.srdf",
+        ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3_config.yaml",
+        "left_fr3_hand",
+        "left_fr3_link0",
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        True,
     ],
 }

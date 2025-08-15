@@ -28,7 +28,7 @@ def main(
 
 
     Parameters:
-        model: The name of the model to user (ur5 or franka).
+        model: The name of the model to user (ur5, franka, or dual).
         max_iters: Maximum number of iterations for the IK solver.
         step_size: Integration step size for the IK solver.
         host: The host for the ViserVisualizer.
@@ -39,8 +39,22 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    urdf_path, srdf_path, yaml_config_path, ee_name, base_link, q_start = MODELS[model]
+    urdf_path, srdf_path, yaml_config_path, ee_name, base_link, q_start, is_xacro = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
+
+    if is_xacro:
+        import xacro, tempfile
+        urdf = xacro.process_file(urdf_path).toxml()
+        srdf = xacro.process_file(srdf_path).toxml()
+
+        # Create temporary files for processed XML
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False) as temp_urdf_file:
+            temp_urdf_file.write(urdf)
+            urdf_path = temp_urdf_file.name
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.srdf', delete=False) as temp_srdf_file:
+            temp_srdf_file.write(srdf)
+            srdf_path = temp_srdf_file.name
 
     scene = Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
 
