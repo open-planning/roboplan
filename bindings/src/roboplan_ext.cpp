@@ -132,6 +132,21 @@ NB_MODULE(roboplan, m) {
            "name"_a, "urdf_path"_a, "srdf_path"_a,
            "package_paths"_a = std::vector<std::filesystem::path>(),
            "yaml_config_path"_a = std::filesystem::path())
+      // There's an ambiguity issue due to file paths vs strings in python, so if you're using xml
+      // we use a factory method for XMLs. We could alternatively change the function signatures, or
+      // or else figure out some other way to distinguish these.
+      .def_static("from_xml",
+          [](const std::string& name,
+             const std::string& urdf,
+             const std::string& srdf,
+             const std::vector<std::filesystem::path>& package_paths,
+             const std::filesystem::path& yaml_config_path) {
+            return Scene(name, urdf, srdf, package_paths, yaml_config_path);
+          },
+          "name"_a, "urdf"_a, "srdf"_a,
+          "package_paths"_a = std::vector<std::filesystem::path>(),
+          "yaml_config_path"_a = std::filesystem::path()
+        )
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
       .def("getJointInfo", &Scene::getJointInfo)

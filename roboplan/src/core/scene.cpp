@@ -45,6 +45,36 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   collision_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairs(model_, collision_model_, srdf_path);
 
+  initialize(yaml_config_path);
+}
+
+Scene::Scene(const std::string& name,
+        const std::string& urdf,
+        const std::string& srdf,
+        const std::vector<std::filesystem::path>& package_paths,
+        const std::filesystem::path& yaml_config_path)
+    : name_{name} {
+  // Convert the vector of package paths to string to be compatible with
+  // Pinocchio.
+  std::vector<std::string> package_paths_str;
+  package_paths_str.reserve(package_paths.size());
+  for (const auto& path : package_paths) {
+    package_paths_str.push_back(std::string(path));
+  }
+
+  // Build the Pinocchio models and default data from XML strings.
+  pinocchio::urdf::buildModelFromXML(urdf, model_);
+
+  pinocchio::urdf::buildGeom(model_, std::istringstream(urdf), pinocchio::COLLISION,
+                                    collision_model_, package_paths_str);
+  collision_model_.addAllCollisionPairs();
+  pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
+
+  initialize(yaml_config_path);
+}
+
+void Scene::initialize(const std::filesystem::path& yaml_config_path) {
+
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
 
@@ -114,6 +144,7 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+
 }
 
 double Scene::configurationDistance(const Eigen::VectorXd& q_start,

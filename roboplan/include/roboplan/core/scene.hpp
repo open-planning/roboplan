@@ -33,6 +33,18 @@ public:
             std::vector<std::filesystem::path>(),
         const std::filesystem::path& yaml_config_path = std::filesystem::path());
 
+  /// @brief Basic constructor with pre-parsed URDF and SRDF options.
+  /// @param name The name of the scene.
+  /// @param urdf XML String of the URDF.
+  /// @param srdf XML String of the SRDF.
+  /// @param package_paths A vector of package paths to look for packages.
+  /// @param yaml_config_path Path to the YAML configuration file with additional information.
+  Scene(const std::string& name, const std::string& urdf,
+        const std::string& srdf,
+        const std::vector<std::filesystem::path>& package_paths =
+            std::vector<std::filesystem::path>(),
+        const std::filesystem::path& yaml_config_path = std::filesystem::path());
+
   /// @brief Gets the scene's name.
   /// @return The scene name.
   std::string getName() { return name_; };
@@ -101,6 +113,11 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
+
+  /// @brief Private helper function to initialize a scene after loading a model.
+  /// @param yaml_config_path Path to the YAML configuration file with additional information.
+  void initialize(const std::filesystem::path& yaml_config_path);
+
   /// @brief The name of the scene.
   std::string name_;
 
