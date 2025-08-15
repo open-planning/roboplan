@@ -1,0 +1,45 @@
+# RoboPlan configuration file for the Franka Research 3 (FR3) robot model.
+
+joint_limits:
+  left_fr3_joint1:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  left_fr3_joint2:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  left_fr3_joint3:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  left_fr3_joint4:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  left_fr3_joint5:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  left_fr3_joint6:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  left_fr3_joint7:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint1:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint2:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint3:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint4:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint5:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint6:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  right_fr3_joint7:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
