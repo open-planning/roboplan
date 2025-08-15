@@ -117,9 +117,12 @@ TEST_F(RoboPlanSceneTest, TestLoadXMLStrings) {
   srdf_file.close();
 
   // Just make sure it is the same as when loading from file (the validation is above)
-  auto scene_xml = std::make_unique<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_, yaml_config_path_);
+  auto scene_xml = std::make_unique<Scene>("test_scene", urdf_xml, srdf_xml, package_paths_, yaml_config_path_);
   EXPECT_EQ(scene_xml->getModel().nq, scene_->getModel().nq);
   EXPECT_THAT(scene_xml->getJointNames(), scene_->getJointNames());
+
+  const auto seeded_positions = scene_xml->randomPositions();
+  EXPECT_EQ(seeded_positions.size(), 6);
 }
 
 }  // namespace roboplan
