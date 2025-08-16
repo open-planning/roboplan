@@ -29,7 +29,7 @@ jobs:
       matrix:
         ubuntu_version: [22.04, 24.04]
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  #ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -59,7 +59,7 @@ jobs:
       matrix:
         ros_distro: [humble, jazzy, kilted, rolling]
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  #ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -87,10 +87,11 @@ jobs:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
     strategy:
       fail-fast: false
-      matrix:
-        ubuntu_version: [22.04, 24.04]
+      # TODO: Re-enable when we do not have self-hosted runners in the public repo
+      # matrix:
+      #   ubuntu_version: [22.04, 24.04]
 
-    runs-on: ubuntu-${{ matrix.ubuntu_version }}
+    runs-on: self-hosted  #ubuntu-${{ matrix.ubuntu_version }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
