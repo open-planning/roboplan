@@ -39,10 +39,10 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    urdf_path, srdf_path, ee_name, base_link, start_pose = MODELS[model]
+    urdf_path, srdf_path, yaml_config_path, ee_name, base_link, q_start = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    scene = Scene("test_scene", urdf_path, srdf_path, package_paths)
+    scene = Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -59,6 +59,7 @@ def main(
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()
+    start.positions = np.array(q_start)
     goal = CartesianConfiguration()
     goal.base_frame = base_link
     goal.tip_frame = ee_name
@@ -78,7 +79,6 @@ def main(
         goal.tform = pin.SE3(
             pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), controls.position
         ).homogeneous
-        start.positions = np.array(start_pose)
         result = ik_solver.solveIk(goal, start, solution)
         if result:
             viz.display(solution.positions)

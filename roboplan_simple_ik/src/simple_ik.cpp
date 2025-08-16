@@ -38,6 +38,11 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
     jjt.noalias() = jacobian * jacobian.transpose();
     jjt.diagonal().array() += options_.damping;
     vel.noalias() = -jacobian.transpose() * jjt.ldlt().solve(error);
+
+    if (vel.hasNaN()) {
+      break;
+    }
+
     q = pinocchio::integrate(model, q, vel * options_.step_size);
 
     ++iter;
