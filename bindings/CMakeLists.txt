@@ -36,15 +36,24 @@ find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 find_package(roboplan_toppra REQUIRED)
 
-# We are now ready to compile the actual extension module
+# Compile the extension module
 nanobind_add_module(
-  roboplan
+  roboplan_ext
   STABLE_ABI
   NB_STATIC
   src/roboplan_ext.cpp
+  src/modules/core.cpp
+  src/modules/example_models.cpp
+  src/modules/rrt.cpp
+  src/modules/simple_ik.cpp
+  src/modules/toppra.cpp
 )
-set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
-target_link_libraries(roboplan PRIVATE
+target_include_directories(roboplan_ext PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+set_property(TARGET roboplan_ext PROPERTY CXX_STANDARD 20)
+target_link_libraries(roboplan_ext PRIVATE
   roboplan::expected
   roboplan::roboplan
   roboplan_example_models::roboplan_example_models
@@ -54,4 +63,4 @@ target_link_libraries(roboplan PRIVATE
 )
 
 # Install directive for scikit-build-core
-install(TARGETS roboplan LIBRARY DESTINATION roboplan)
+install(TARGETS roboplan_ext LIBRARY DESTINATION roboplan)
