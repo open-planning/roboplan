@@ -12,7 +12,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
   bool result = false;
   const auto& model = scene_->getModel();
   pinocchio::Data data(model);
-  const auto frame_id = model.getFrameId(goal.tip_frame);
+  const auto frame_id = scene_->getFrameMapId(goal.tip_frame);
 
   const auto goal_tform = pinocchio::SE3(goal.tform);
   solution = start;

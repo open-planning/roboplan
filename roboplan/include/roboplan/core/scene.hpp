@@ -100,6 +100,10 @@ public:
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
+  /// @brief Helper funtion to get the pinocchio ID of a frame through its name
+  /// @return The pinocchio frame ID
+  pinocchio::FrameIndex getFrameMapId(const std::string &name) const;
+
 private:
   /// @brief The name of the scene.
   std::string name_;
@@ -129,6 +133,14 @@ private:
 
   /// @brief The current state of the model (used to fill in partial states).
   JointConfiguration cur_state_;
+
+  /// @brief Maps each frame name to each respective frame ID
+  std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
+
+  /// @brief Helper funtion to create a map of the robot's frame ID's
+  /// @param model The Pinocchio model 
+  void createFrameMap(pinocchio::Model model);
+
 };
 
 }  // namespace roboplan

@@ -51,6 +51,9 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   YAML::Node yaml_config;
   if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
     yaml_config = YAML::LoadFile(yaml_config_path);
+
+  createFrameMap(model_);
+  
   }
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
@@ -114,6 +117,7 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+
 }
 
 double Scene::configurationDistance(const Eigen::VectorXd& q_start,
@@ -181,7 +185,7 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
   // TODO: I recently learned recently that Pinocchio's getFrameId() actually does a linear-time
   // search! So we should put together a map.
   pinocchio::framesForwardKinematics(model_, model_data_, q);
-  return model_data_.oMf[model_.getFrameId(frame_name)];
+  return model_data_.oMf[getFrameMapId(frame_name)];
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -206,6 +210,28 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "  velocities: " << scene.cur_state_.velocities.transpose() << "\n";
   os << "  accelerations: " << scene.cur_state_.accelerations.transpose() << "\n";
   return os;
+}
+
+void Scene::createFrameMap(pinocchio::Model model){
+  frame_map_.clear(); // Clear existing map if needed
+  
+  if (model.nframes <= 1) {
+    std::cout << "Warning: Model has no frames to process" << std::endl;
+    return;
+  }
+
+  for (size_t i = 1; i < model.frames.size(); ++i) {
+    const auto& frame = model.frames[i];
+    frame_map_[frame.name] = model.getFrameId(frame.name);
+  }
+}
+
+pinocchio::FrameIndex Scene::getFrameMapId(const std::string &name) const {
+  auto it = frame_map_.find(name);
+  if (it == frame_map_.end()) {
+      throw std::runtime_error("Frame name '" + name + "' not found in frame_map_");
+  }
+  return it->second;
 }
 
 }  // namespace roboplan

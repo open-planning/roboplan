@@ -144,6 +144,7 @@ NB_MODULE(roboplan, m) {
       .def("isValidPose", &Scene::isValidPose)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
+      .def("getFrameMapId", &Scene::getFrameMapId)
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;
