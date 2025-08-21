@@ -1,5 +1,7 @@
 #include <stdexcept>
 
+#include <tl/expected.hpp>
+
 #include <pinocchio/collision/broadphase.hpp>
 #include <pinocchio/parsers/srdf.hpp>
 #include <pinocchio/parsers/urdf.hpp>
@@ -226,12 +228,12 @@ void Scene::createFrameMap(pinocchio::Model model){
   }
 }
 
-pinocchio::FrameIndex Scene::getFrameMapId(const std::string &name) const {
-  auto it = frame_map_.find(name);
-  if (it == frame_map_.end()) {
-      throw std::runtime_error("Frame name '" + name + "' not found in frame_map_");
+tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameMapId(const std::string &name) const {
+  if (!frame_map_.contains(name)) {
+    return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_");
   }
-  return it->second;
+  
+  return frame_map_.at(name);
 }
 
 }  // namespace roboplan

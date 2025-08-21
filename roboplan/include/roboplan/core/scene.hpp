@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <tl/expected.hpp>
+
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/geometry.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
@@ -100,9 +102,10 @@ public:
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
-  /// @brief Helper funtion to get the pinocchio ID of a frame through its name
+  /// @brief Helper function to get the pinocchio ID of a frame through its name
+  /// @param name The name of the frame to look up.
   /// @return The pinocchio frame ID
-  pinocchio::FrameIndex getFrameMapId(const std::string &name) const;
+  tl::expected<pinocchio::FrameIndex, std::string> getFrameMapId(const std::string &name) const;
 
 private:
   /// @brief The name of the scene.
@@ -137,7 +140,7 @@ private:
   /// @brief Maps each frame name to each respective frame ID
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
 
-  /// @brief Helper funtion to create a map of the robot's frame ID's
+  /// @brief Helper function to create a map of the robot's frame IDs
   /// @param model The Pinocchio model 
   void createFrameMap(pinocchio::Model model);
 
