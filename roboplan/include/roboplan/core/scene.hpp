@@ -137,7 +137,7 @@ private:
   /// @brief Maps each frame name to each respective frame ID
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
 
-  /// @brief Helper funtion to create a map of the robot's frame ID's
+  /// @brief Helper function to create a map of the robot's frame IDs.
   /// @param model The Pinocchio model 
   void createFrameMap(pinocchio::Model model);
 
