@@ -105,7 +105,7 @@ public:
   /// @brief Helper function to get the pinocchio ID of a frame through its name
   /// @param name The name of the frame to look up.
   /// @return The pinocchio frame ID
-  tl::expected<pinocchio::FrameIndex, std::string> getFrameMapId(const std::string &name) const;
+  tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string &name) const;
 
 private:
   /// @brief The name of the scene.

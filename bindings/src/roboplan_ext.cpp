@@ -144,7 +144,15 @@ NB_MODULE(roboplan, m) {
       .def("isValidPose", &Scene::isValidPose)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
-      .def("getFrameMapId", &Scene::getFrameMapId)
+      .def("getFrameId", [](Scene &s, const std::string &name) {
+        auto result = s.getFrameId(name);
+        if (result) {
+            return static_cast<pinocchio::FrameIndex>(*result);  // return FrameIndex
+        } else {
+            throw std::runtime_error("Frame not found: " + result.error());
+        }
+    })
+    
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;

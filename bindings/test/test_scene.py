@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 import numpy as np
+import pinocchio as pin
 
 from roboplan import get_package_share_dir, hasCollisionsAlongPath, JointType, Scene
 
@@ -78,3 +79,23 @@ def test_collision_check_along_path(test_scene: Scene) -> None:
     # In collision
     q_end_coll = np.array([0.0, -1.57, 3.0, 0.0, 0.0, 0.0])
     assert hasCollisionsAlongPath(test_scene, q_start_free, q_end_coll, 0.05)
+
+
+def test_create_frame_map(test_scene: Scene) -> None:
+    roboplan_examples_dir = Path(get_package_share_dir())
+    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
+    package_paths = [roboplan_examples_dir]
+    model, _, _ = pin.buildModelsFromUrdf(
+        urdf_path, package_dirs=package_paths
+    )
+    assert test_scene.getFrameId("base_link") == model.getFrameId("base_link")
+    assert test_scene.getFrameId("shoulder_link") == model.getFrameId("shoulder_link")
+    assert test_scene.getFrameId("upper_arm_link") == model.getFrameId("upper_arm_link")
+    assert test_scene.getFrameId("forearm_link") == model.getFrameId("forearm_link")
+    assert test_scene.getFrameId("wrist_1_link") == model.getFrameId("wrist_1_link")
+    assert test_scene.getFrameId("wrist_2_link") == model.getFrameId("wrist_2_link")
+    assert test_scene.getFrameId("wrist_3_link") == model.getFrameId("wrist_3_link")
+    assert test_scene.getFrameId("ee_link") == model.getFrameId("ee_link")
+    assert test_scene.getFrameId("base") == model.getFrameId("base")
+    assert test_scene.getFrameId("tool0") == model.getFrameId("tool0")
+    assert test_scene.getFrameId("world") == model.getFrameId("world")  

@@ -187,7 +187,11 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
   // TODO: I recently learned recently that Pinocchio's getFrameId() actually does a linear-time
   // search! So we should put together a map.
   pinocchio::framesForwardKinematics(model_, model_data_, q);
-  return model_data_.oMf[getFrameMapId(frame_name)];
+  auto frame_id = getFrameId(frame_name);
+  if (!frame_id) {
+    throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
+  }
+  return collision_model_data_.oMg[frame_id.value()];
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -228,7 +232,7 @@ void Scene::createFrameMap(pinocchio::Model model){
   }
 }
 
-tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameMapId(const std::string &name) const {
+tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string &name) const {
   if (!frame_map_.contains(name)) {
     return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_");
   }
