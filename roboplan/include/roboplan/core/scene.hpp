@@ -102,9 +102,9 @@ public:
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
-  /// @brief Helper function to get the pinocchio ID of a frame through its name
+  /// @brief Helper function to get the pinocchio ID of a frame through its name.
   /// @param name The name of the frame to look up.
-  /// @return The pinocchio frame ID
+  /// @return The pinocchio frame ID.
   tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string &name) const;
 
 private:
@@ -140,8 +140,8 @@ private:
   /// @brief Maps each frame name to each respective frame ID
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
 
-  /// @brief Helper function to create a map of the robot's frame IDs
-  /// @param model The Pinocchio model 
+  /// @brief Helper function to create a map of the robot's frame IDs.
+  /// @param model The Pinocchio model. 
   void createFrameMap(pinocchio::Model model);
 
 };
