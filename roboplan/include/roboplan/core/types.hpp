@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -43,11 +44,12 @@ struct CartesianConfiguration {
 
 /// @brief Describes different types of joints.
 enum JointType {
-  PRISMATIC = 0,
-  REVOLUTE = 1,
-  CONTINUOUS = 2,
-  PLANAR = 3,
-  FLOATING = 4,
+  UNKNOWN = 0,
+  PRISMATIC = 1,
+  REVOLUTE = 2,
+  CONTINUOUS = 3,
+  PLANAR = 4,
+  FLOATING = 5,
 };
 
 /// @brief Contains joint limit information.
@@ -69,6 +71,18 @@ struct JointLimits {
   Eigen::VectorXd max_jerk;
 };
 
+/// @brief Contains joint mimic information.
+struct JointMimicInfo {
+  /// @brief The name of the joint being mimicked.
+  std::string mimicked_joint_name;
+
+  /// @brief The scaling factor for the mimic relationship.
+  double scaling = 1.0;
+
+  /// @brief The offset for the mimic relationship.
+  double offset = 0.0;
+};
+
 /// @brief Contains joint information relevant to motion planning and control.
 struct JointInfo {
   /// @brief Constructor for joint info.
@@ -87,6 +101,9 @@ struct JointInfo {
 
   /// @brief The joint limit information for each degree of freedom.
   JointLimits limits;
+
+  /// @brief The joint mimic information
+  std::optional<JointMimicInfo> mimic_info;
 };
 
 /// @brief Contains a path of joint configurations.

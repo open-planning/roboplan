@@ -18,8 +18,14 @@ const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
     {"JointModelRX", roboplan::JointType::REVOLUTE},
     {"JointModelRY", roboplan::JointType::REVOLUTE},
     {"JointModelRZ", roboplan::JointType::REVOLUTE},
+    {"JointModelRevoluteUnaligned", roboplan::JointType::REVOLUTE},
+    {"JointModelRUBX", roboplan::JointType::CONTINUOUS},
+    {"JointModelRUBY", roboplan::JointType::CONTINUOUS},
+    {"JointModelRUBZ", roboplan::JointType::CONTINUOUS},
+    {"JointModelRevoluteUnboundedUnaligned", roboplan::JointType::CONTINUOUS},
     {"JointModelPlanar", roboplan::JointType::PLANAR},
     {"JointModelFreeFlyer", roboplan::JointType::FLOATING},
+    {"JointModelMimic", roboplan::JointType::UNKNOWN},
 };
 
 }  // namespace
@@ -56,7 +62,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   }
 
   // Build the Pinocchio models and default data from XML strings.
-  pinocchio::urdf::buildModelFromXML(urdf, model_);
+  pinocchio::urdf::buildModelFromXML(urdf, model_, /*verbose*/ false, /*mimic*/ true);
 
   pinocchio::urdf::buildGeom(model_, std::istringstream(urdf), pinocchio::COLLISION,
                              collision_model_, package_paths_str);
@@ -85,6 +91,15 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     joint_names_.push_back(joint_name);
 
     const auto& joint = model_.joints.at(idx);
+    if (joint.shortname() == "JointModelMimic") {
+      // If the joint is a mimic joint, do nothing for now.
+      // The information will be extracted later.
+      continue;
+    }
+    if (!kPinocchioJointTypeMap.contains(joint.shortname())) {
+      throw std::runtime_error("Joint '" + joint_name + "' was parsed as a joint of type '" +
+                               joint.shortname() + "' but this is not in the RoboPlan joint map.");
+    }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
     for (int idx = 0; idx < joint.nq(); ++idx) {
       info.limits.min_position[idx] = model_.lowerPositionLimit(q_idx);
@@ -127,6 +142,27 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     joint_info_.emplace(joint_name, info);
   }
 
+  // Add the mimic joint information once all the other joints have been parsed.
+  const auto num_mimics = model_.mimicked_joints.size();
+  for (size_t idx = 0; idx < num_mimics; ++idx) {
+    const auto mimicking_idx = model_.mimicking_joints[idx];
+    const auto& mimicking_joint_name = model_.names[mimicking_idx];
+    const auto& mimicking_joint = model_.joints[mimicking_idx];
+
+    const auto mimicked_idx = model_.mimicked_joints[idx];
+    const auto& mimicked_joint_name = model_.names[mimicked_idx];
+
+    auto* mimic_joint = boost::get<pinocchio::JointModelMimic>(&mimicking_joint);
+    const auto mimicked_joint_type = joint_info_.at(mimicked_joint_name).type;
+    auto info = JointInfo(mimicked_joint_type);
+    info.mimic_info = JointMimicInfo{
+        .mimicked_joint_name = mimicked_joint_name,
+        .scaling = mimic_joint->scaling(),
+        .offset = mimic_joint->offset(),
+    };
+    joint_info_.emplace(mimicking_joint_name, info);
+  }
+
   createFrameMap(model_);
 
   // Initialize the current state of the scene.
@@ -148,13 +184,32 @@ Eigen::VectorXd Scene::randomPositions() {
   int q_idx = 0;
   for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_.at(joint_name);
-    for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-      const auto& lo = info.limits.min_position[idx];
-      const auto& hi = info.limits.max_position[idx];
-      positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
-      ++q_idx;
+
+    // Mimic joints will get updated later.
+    if (info.mimic_info) {
+      q_idx += info.num_position_dofs;
+      continue;
+    }
+
+    if (info.type == JointType::CONTINUOUS) {
+      // Special case for continuous joints, since the format is [sin(theta), cos(theta)].
+      const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
+      positions(q_idx) = std::cos(angle);
+      positions(q_idx + 1) = std::sin(angle);
+      q_idx += 2;
+    } else {
+      // Generic case.
+      for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+        ++q_idx;
+      }
     }
   }
+
+  // TODO: Set mimic relationships.
+
   return positions;
 }
 
@@ -213,15 +268,22 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
     os << joint_name << " ";
   }
   os << "\n";
-  os << "Joint limits:\n";
+  os << "Joint information:\n";
   for (const auto& joint_name : scene.joint_names_) {
-    const auto& limits = scene.joint_info_.at(joint_name).limits;
+    const auto& info = scene.joint_info_.at(joint_name);
     os << "  " << joint_name << ":\n";
-    os << "    min positions: " << limits.min_position.transpose() << "\n";
-    os << "    max positions: " << limits.max_position.transpose() << "\n";
-    os << "    max velocity: " << limits.max_velocity.transpose() << "\n";
-    os << "    max acceleration: " << limits.max_acceleration.transpose() << "\n";
-    os << "    max jerk: " << limits.max_jerk.transpose() << "\n";
+    if (info.mimic_info) {
+      os << "    mimics " << info.mimic_info->mimicked_joint_name << "\n";
+      os << "    scaling: " << info.mimic_info->scaling;
+      os << ", offset: " << info.mimic_info->offset << "\n";
+    } else {
+      const auto& limits = info.limits;
+      os << "    min positions: " << limits.min_position.transpose() << "\n";
+      os << "    max positions: " << limits.max_position.transpose() << "\n";
+      os << "    max velocity: " << limits.max_velocity.transpose() << "\n";
+      os << "    max acceleration: " << limits.max_acceleration.transpose() << "\n";
+      os << "    max jerk: " << limits.max_jerk.transpose() << "\n";
+    }
   }
   os << "State:\n";
   os << "  positions: " << scene.cur_state_.positions.transpose() << "\n";

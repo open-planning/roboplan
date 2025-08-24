@@ -58,7 +58,7 @@ def main(
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model = pin.buildModelFromXML(urdf_xml)
+    model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
     )
