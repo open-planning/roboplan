@@ -88,14 +88,7 @@ def test_create_frame_map(test_scene: Scene) -> None:
     model, _, _ = pin.buildModelsFromUrdf(
         urdf_path, package_dirs=package_paths
     )
-    assert test_scene.getFrameId("base_link") == model.getFrameId("base_link")
-    assert test_scene.getFrameId("shoulder_link") == model.getFrameId("shoulder_link")
-    assert test_scene.getFrameId("upper_arm_link") == model.getFrameId("upper_arm_link")
-    assert test_scene.getFrameId("forearm_link") == model.getFrameId("forearm_link")
-    assert test_scene.getFrameId("wrist_1_link") == model.getFrameId("wrist_1_link")
-    assert test_scene.getFrameId("wrist_2_link") == model.getFrameId("wrist_2_link")
-    assert test_scene.getFrameId("wrist_3_link") == model.getFrameId("wrist_3_link")
-    assert test_scene.getFrameId("ee_link") == model.getFrameId("ee_link")
-    assert test_scene.getFrameId("base") == model.getFrameId("base")
-    assert test_scene.getFrameId("tool0") == model.getFrameId("tool0")
-    assert test_scene.getFrameId("world") == model.getFrameId("world")  
+    for frame in model.frames:
+        if frame.name == "universe":
+            continue
+        assert test_scene.getFrameId(frame.name) == model.getFrameId(frame.name)

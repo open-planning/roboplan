@@ -104,7 +104,7 @@ public:
 
   /// @brief Helper function to get the pinocchio ID of a frame through its name.
   /// @param name The name of the frame to look up.
-  /// @return The pinocchio frame ID.
+  /// @return The pinocchio frame ID if successful, else a string describing the error.
   tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string &name) const;
 
 private:

@@ -107,17 +107,11 @@ TEST_F(RoboPlanSceneTest, GetFrameMapReturnsCorrectMapping) {
   pinocchio::Model model = scene_->getModel();
   
   // Verify the frame IDs are correct
-  EXPECT_EQ(scene_->getFrameId("base_link"), model.getFrameId("base_link"));
-  EXPECT_EQ(scene_->getFrameId("shoulder_link"), model.getFrameId("shoulder_link"));
-  EXPECT_EQ(scene_->getFrameId("upper_arm_link"), model.getFrameId("upper_arm_link"));
-  EXPECT_EQ(scene_->getFrameId("forearm_link"), model.getFrameId("forearm_link"));
-  EXPECT_EQ(scene_->getFrameId("wrist_1_link"), model.getFrameId("wrist_1_link"));
-  EXPECT_EQ(scene_->getFrameId("wrist_2_link"), model.getFrameId("wrist_2_link"));
-  EXPECT_EQ(scene_->getFrameId("wrist_3_link"), model.getFrameId("wrist_3_link"));
-  EXPECT_EQ(scene_->getFrameId("ee_link"), model.getFrameId("ee_link"));
-  EXPECT_EQ(scene_->getFrameId("base"), model.getFrameId("base"));
-  EXPECT_EQ(scene_->getFrameId("tool0"), model.getFrameId("tool0"));
-  EXPECT_EQ(scene_->getFrameId("world"), model.getFrameId("world"));
+  for (const auto &frame : model.frames)
+  {
+    if (frame.name == "universe") continue;
+    EXPECT_EQ(scene_->getFrameId(frame.name), model.getFrameId(frame.name));
+  }
 }
 
 
