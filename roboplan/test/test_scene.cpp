@@ -19,15 +19,14 @@ using ::testing::Not;
 class RoboPlanSceneTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    const auto share_prefix = roboplan_example_models::get_package_share_dir();
+    const auto share_prefix = example_models::get_package_share_dir();
     const auto urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
     const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {share_prefix};
     const auto yaml_config_path = share_prefix / "ur_robot_model" / "ur5_config.yaml";
     scene_ = std::make_unique<Scene>("test_scene", urdf_path, srdf_path, package_paths,
                                      yaml_config_path);
-}
-
+  }
 
 public:
   // No default constructor, so must be a pointer.
@@ -101,7 +100,6 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
   EXPECT_TRUE(hasCollisionsAlongPath(*scene_, q_start_free, q_end_coll, 0.05));
 }
 
-// Testing the function for issue #26
 TEST_F(RoboPlanSceneTest, GetFrameMapReturnsCorrectMapping) {
   // Act
   pinocchio::Model model = scene_->getModel();

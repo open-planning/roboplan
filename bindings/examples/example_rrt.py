@@ -13,7 +13,8 @@ from roboplan import (
     RRTOptions,
     RRT,
 )
-from roboplan.viser_visualizer import ViserVisualizer, visualizePath, visualizeTree
+from roboplan.viser_visualizer import ViserVisualizer
+from roboplan.visualization import visualizePath, visualizeTree
 
 
 def main(
