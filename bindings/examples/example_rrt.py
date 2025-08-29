@@ -1,6 +1,5 @@
 import sys
 import time
-import tempfile
 import tyro
 import xacro
 
@@ -55,30 +54,18 @@ def main(
     model_data = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    # Create a temp file for Pinnochio to use
-    urdf_string = xacro.process_file(model_data.urdf_path).toxml()
-    srdf_string = xacro.process_file(model_data.srdf_path).toxml()
+    # Pre-process with xacro. This is not necessary for raw URDFs.
+    urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
+    srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
-    # Create temporary files for processed XML
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False) as temp_urdf_file:
-        temp_urdf_file.write(urdf)
-        urdf_path = temp_urdf_file.name
-
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.srdf', delete=False) as temp_srdf_file:
-        temp_srdf_file.write(srdf)
-        srdf_path = temp_srdf_file.name
-
-    scene = Scene("test_scene",
-                  urdf_path,
-                  srdf_path,
-                  package_paths,
-                  model_data.yaml_config_path)
+    # TODO: How can we identify the right constructor? Or are argument name differences good enough?
+    scene = Scene("test_scene", urdf=urdf_xml, srdf=srdf_xml, package_paths=package_paths, yaml_config_path=model_data.yaml_config_path)
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model, collision_model, visual_model = pin.buildModelsFromUrdf(
-        urdf_path, package_dirs=package_paths
-    )
+    model = pin.buildModelFromXML(urdf_xml)
+    collision_model = pin.buildGeomFromUrdfString(model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths)
+    visual_model = pin.buildGeomFromUrdfString(model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths)
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 

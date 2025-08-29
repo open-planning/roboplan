@@ -43,11 +43,12 @@ def main(
     model_data = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    # Create a temp file for Pinnochio to use
+    # Pre-process with xacro. This is not necessary for raw URDFs.
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
-    scene = Scene.from_xml("test_scene", urdf_xml, srdf_xml, package_paths, model_data.yaml_config_path)
+    # TODO: How can we identify the right constructor? Or are argument name differences good enough?
+    scene = Scene("test_scene", urdf=urdf_xml, srdf=srdf_xml, package_paths=package_paths, yaml_config_path=model_data.yaml_config_path)
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
