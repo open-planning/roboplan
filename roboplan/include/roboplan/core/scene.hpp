@@ -44,8 +44,7 @@ public:
   /// @param srdf XML String of the SRDF.
   /// @param package_paths A vector of package paths to look for packages.
   /// @param yaml_config_path Path to the YAML configuration file with additional information.
-  Scene(const std::string& name, const std::string& urdf,
-        const std::string& srdf,
+  Scene(const std::string& name, const std::string& urdf, const std::string& srdf,
         const std::vector<std::filesystem::path>& package_paths =
             std::vector<std::filesystem::path>(),
         const std::filesystem::path& yaml_config_path = std::filesystem::path());
@@ -118,7 +117,6 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
-
   /// @brief The name of the scene.
   std::string name_;
 

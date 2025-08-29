@@ -59,13 +59,23 @@ def main(
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
     # TODO: How can we identify the right constructor? Or are argument name differences good enough?
-    scene = Scene("test_scene", urdf=urdf_xml, srdf=srdf_xml, package_paths=package_paths, yaml_config_path=model_data.yaml_config_path)
+    scene = Scene(
+        "test_scene",
+        urdf=urdf_xml,
+        srdf=srdf_xml,
+        package_paths=package_paths,
+        yaml_config_path=model_data.yaml_config_path,
+    )
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
     model = pin.buildModelFromXML(urdf_xml)
-    collision_model = pin.buildGeomFromUrdfString(model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths)
-    visual_model = pin.buildGeomFromUrdfString(model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths)
+    collision_model = pin.buildGeomFromUrdfString(
+        model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
+    )
+    visual_model = pin.buildGeomFromUrdfString(
+        model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
+    )
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
@@ -106,7 +116,13 @@ def main(
         print("Shortcutted path:")
         print(shortcut_path)
         visualizePath(
-            viz, scene, shortcut_path, model_data.ee_name, 0.05, (0, 100, 0), "/rrt/shortcut_path"
+            viz,
+            scene,
+            shortcut_path,
+            model_data.ee_name,
+            0.05,
+            (0, 100, 0),
+            "/rrt/shortcut_path",
         )
         path = shortcut_path
 

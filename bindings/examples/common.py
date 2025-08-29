@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 from roboplan import get_package_share_dir
 
+
 @dataclass
 class RobotModelConfig:
     """
@@ -16,6 +17,7 @@ class RobotModelConfig:
       - The robot's base link.
       - The starting joint configuration of the robot.
     """
+
     urdf_path: Path
     srdf_path: Path
     yaml_config_path: Path
@@ -39,7 +41,9 @@ MODELS = {
     "franka": RobotModelConfig(
         urdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.urdf",
         srdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.srdf",
-        yaml_config_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3_config.yaml",
+        yaml_config_path=ROBOPLAN_EXAMPLES_DIR
+        / "franka_robot_model"
+        / "fr3_config.yaml",
         ee_name="fr3_hand",
         base_link="fr3_link0",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -47,7 +51,9 @@ MODELS = {
     "dual": RobotModelConfig(
         urdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3.urdf",
         srdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3.srdf",
-        yaml_config_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3_config.yaml",
+        yaml_config_path=ROBOPLAN_EXAMPLES_DIR
+        / "franka_robot_model"
+        / "dual_fr3_config.yaml",
         ee_name="left_fr3_hand",  # Default for convenience, but either tip is valid
         base_link="left_fr3_link0",
         starting_joint_config=[0.0] * 18,
