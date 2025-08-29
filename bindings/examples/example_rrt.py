@@ -1,6 +1,8 @@
 import sys
 import time
+import tempfile
 import tyro
+import xacro
 
 import matplotlib.pyplot as plt
 import pinocchio as pin
@@ -50,24 +52,27 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    urdf_path, srdf_path, yaml_config_path, ee_name, _, _, is_xacro = MODELS[model]
+    model_data = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    if is_xacro:
-        import xacro, tempfile
-        urdf = xacro.process_file(urdf_path).toxml()
-        srdf = xacro.process_file(srdf_path).toxml()
+    # Create a temp file for Pinnochio to use
+    urdf_string = xacro.process_file(model_data.urdf_path).toxml()
+    srdf_string = xacro.process_file(model_data.srdf_path).toxml()
 
-        # Create temporary files for processed XML
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False) as temp_urdf_file:
-            temp_urdf_file.write(urdf)
-            urdf_path = temp_urdf_file.name
+    # Create temporary files for processed XML
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False) as temp_urdf_file:
+        temp_urdf_file.write(urdf)
+        urdf_path = temp_urdf_file.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.srdf', delete=False) as temp_srdf_file:
-            temp_srdf_file.write(srdf)
-            srdf_path = temp_srdf_file.name
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.srdf', delete=False) as temp_srdf_file:
+        temp_srdf_file.write(srdf)
+        srdf_path = temp_srdf_file.name
 
-    scene = Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
+    scene = Scene("test_scene",
+                  urdf_path,
+                  srdf_path,
+                  package_paths,
+                  model_data.yaml_config_path)
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -107,14 +112,14 @@ def main(
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
-    visualizePath(viz, scene, path, ee_name, 0.05)
-    visualizeTree(viz, scene, rrt, ee_name, 0.05)
+    visualizePath(viz, scene, path, model_data.ee_name, 0.05)
+    visualizeTree(viz, scene, rrt, model_data.ee_name, 0.05)
 
     if include_shortcutting:
         print("Shortcutted path:")
         print(shortcut_path)
         visualizePath(
-            viz, scene, shortcut_path, ee_name, 0.05, (0, 100, 0), "/rrt/shortcut_path"
+            viz, scene, shortcut_path, model_data.ee_name, 0.05, (0, 100, 0), "/rrt/shortcut_path"
         )
         path = shortcut_path
 

@@ -1,6 +1,7 @@
 import sys
 import time
 import tyro
+import xacro
 
 import numpy as np
 import pinocchio as pin
@@ -39,30 +40,21 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    urdf_path, srdf_path, yaml_config_path, ee_name, base_link, q_start, is_xacro = MODELS[model]
+    model_data = MODELS[model]
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    if is_xacro:
-        import xacro, tempfile
-        urdf = xacro.process_file(urdf_path).toxml()
-        srdf = xacro.process_file(srdf_path).toxml()
+    # Create a temp file for Pinnochio to use
+    urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
+    srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
-        # Create temporary files for processed XML
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.urdf', delete=False) as temp_urdf_file:
-            temp_urdf_file.write(urdf)
-            urdf_path = temp_urdf_file.name
-
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.srdf', delete=False) as temp_srdf_file:
-            temp_srdf_file.write(srdf)
-            srdf_path = temp_srdf_file.name
-
-    scene = Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
+    scene = Scene.from_xml("test_scene", urdf_xml, srdf_xml, package_paths, model_data.yaml_config_path)
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model, collision_model, visual_model = pin.buildModelsFromUrdf(
-        urdf_path, package_dirs=package_paths
-    )
+    model = pin.buildModelFromXML(urdf_xml)
+    collision_model = pin.buildGeomFromUrdfString(model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths)
+    visual_model = pin.buildGeomFromUrdfString(model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths)
+
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
@@ -73,10 +65,10 @@ def main(
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()
-    start.positions = np.array(q_start)
+    start.positions = np.array(model_data.starting_joint_config)
     goal = CartesianConfiguration()
-    goal.base_frame = base_link
-    goal.tip_frame = ee_name
+    goal.base_frame = model_data.base_link
+    goal.tip_frame = model_data.ee_name
     solution = JointConfiguration()
 
     # Create an interactive marker.
