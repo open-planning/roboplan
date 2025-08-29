@@ -119,10 +119,6 @@ public:
 
 private:
 
-  /// @brief Private helper function to initialize a scene after loading a model.
-  /// @param yaml_config_path Path to the YAML configuration file with additional information.
-  void initialize(const std::filesystem::path& yaml_config_path);
-
   /// @brief The name of the scene.
   std::string name_;
 

@@ -39,19 +39,12 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
              const std::filesystem::path& srdf_path,
              const std::vector<std::filesystem::path>& package_paths,
              const std::filesystem::path& yaml_config_path)
-    : name_{name} {
-  // Load the URDF and SRDFs as strings
-  auto urdf_xml = slurp(urdf_path);
-  auto srdf_xml = slurp(srdf_path);
+  : Scene(name, slurp(urdf_path), slurp(srdf_path), package_paths, yaml_config_path) {}
 
-  Scene(name, urdf_xml, srdf_xml, package_paths, yaml_config_path);
-}
-
-Scene::Scene(const std::string& name,
-        const std::string& urdf,
-        const std::string& srdf,
-        const std::vector<std::filesystem::path>& package_paths,
-        const std::filesystem::path& yaml_config_path)
+Scene::Scene(const std::string& name, const std::string& urdf,
+             const std::string& srdf,
+             const std::vector<std::filesystem::path>& package_paths,
+             const std::filesystem::path& yaml_config_path)
     : name_{name} {
   // Convert the vector of package paths to string to be compatible with
   // Pinocchio.
@@ -68,11 +61,6 @@ Scene::Scene(const std::string& name,
                                     collision_model_, package_paths_str);
   collision_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
-
-  initialize(yaml_config_path);
-}
-
-void Scene::initialize(const std::filesystem::path& yaml_config_path) {
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
