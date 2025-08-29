@@ -106,15 +106,8 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
 
 TEST_F(RoboPlanSceneTest, TestLoadXMLStrings) {
   // Load the sample XMLs from file as strings.
-  std::ifstream urdf_file(urdf_path_);
-  std::string urdf_xml((std::istreambuf_iterator<char>(urdf_file)),
-                       std::istreambuf_iterator<char>());
-  urdf_file.close();
-
-  std::ifstream srdf_file(srdf_path_);
-  std::string srdf_xml((std::istreambuf_iterator<char>(srdf_file)),
-                       std::istreambuf_iterator<char>());
-  srdf_file.close();
+  auto urdf_xml = slurp(urdf_path_);
+  auto srdf_xml = slurp(srdf_path_);
 
   // Just make sure it is the same as when loading from file (the validation is above)
   auto scene_xml = std::make_unique<Scene>("test_scene", urdf_xml, srdf_xml, package_paths_, yaml_config_path_);

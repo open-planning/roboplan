@@ -24,28 +24,27 @@ const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
 
 namespace roboplan {
 
+std::string slurp(const std::filesystem::path& path) {
+  if (!std::filesystem::exists(path)) {
+      throw std::runtime_error("File not found: " + path.string());
+  }
+  auto size = std::filesystem::file_size(path);
+  std::string content(size, '\0');
+  std::ifstream in(path, std::ios::binary);
+  in.read(&content[0], size);
+  return content;
+}
+
 Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
              const std::filesystem::path& srdf_path,
              const std::vector<std::filesystem::path>& package_paths,
              const std::filesystem::path& yaml_config_path)
     : name_{name} {
-  // Convert the vector of package paths to string to be compatible with
-  // Pinocchio.
-  std::vector<std::string> package_paths_str;
-  package_paths_str.reserve(package_paths.size());
-  for (const auto& path : package_paths) {
-    package_paths_str.push_back(std::string(path));
-  }
+  // Load the URDF and SRDFs as strings
+  auto urdf_xml = slurp(urdf_path);
+  auto srdf_xml = slurp(srdf_path);
 
-  // Build the Pinocchio models and default data.
-  pinocchio::urdf::buildModel(urdf_path, model_);
-
-  pinocchio::urdf::buildGeom(model_, urdf_path, pinocchio::COLLISION, collision_model_,
-                             package_paths_str);
-  collision_model_.addAllCollisionPairs();
-  pinocchio::srdf::removeCollisionPairs(model_, collision_model_, srdf_path);
-
-  initialize(yaml_config_path);
+  Scene(name, urdf_xml, srdf_xml, package_paths, yaml_config_path);
 }
 
 Scene::Scene(const std::string& name,
