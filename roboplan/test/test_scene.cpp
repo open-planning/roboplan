@@ -19,13 +19,13 @@ using ::testing::Not;
 class RoboPlanSceneTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    const auto share_prefix = roboplan_example_models::get_package_share_dir();
-    urdf_path_ = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
-    srdf_path_ = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
-    package_paths_ = {share_prefix};
-    yaml_config_path_ = share_prefix / "ur_robot_model" / "ur5_config.yaml";
-    scene_ = std::make_unique<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
-                                     yaml_config_path_);
+    const auto share_prefix = example_models::get_package_share_dir();
+    const auto urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
+    const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
+    const std::vector<std::filesystem::path> package_paths = {share_prefix};
+    const auto yaml_config_path = share_prefix / "ur_robot_model" / "ur5_config.yaml";
+    scene_ = std::make_unique<Scene>("test_scene", urdf_path, srdf_path, package_paths,
+                                     yaml_config_path);
   }
 
 public:

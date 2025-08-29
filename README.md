@@ -1,6 +1,6 @@
 # roboplan
 
-Modern and performant robot motion planning library based on Pinocchio.
+Modern robot motion planning library based on Pinocchio.
 
 > [!WARNING]
 > This is an experimental, work-in-progress repository!
@@ -61,7 +61,14 @@ Source your favorite ROS distro and compile the package.
 ```bash
 source /opt/ros/rolling/setup.bash
 cd ~/roboplan_ws
+rosdep install --from-paths src -y --ignore-src
 colcon build
+```
+
+**NOTE:** To compile tests, you may also need to install GTest and GMock:
+
+```bash
+sudo apt install libgtest-dev libgmock-dev
 ```
 
 Now you should be able to run a basic example.

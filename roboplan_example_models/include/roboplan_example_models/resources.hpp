@@ -1,10 +1,8 @@
 #pragma once
 
-#include <dlfcn.h>
 #include <filesystem>
-#include <string>
 
-namespace roboplan_example_models {
+namespace roboplan::example_models {
 
 /// @brief Provides compile time access to the resources install directory.
 std::filesystem::path get_install_prefix();
@@ -13,4 +11,4 @@ std::filesystem::path get_install_prefix();
 /// accessing robot models or other resource files.
 std::filesystem::path get_package_share_dir();
 
-}  // namespace roboplan_example_models
+}  // namespace roboplan::example_models

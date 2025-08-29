@@ -12,7 +12,6 @@ ROBOPLAN_EXAMPLES_DIR = Path(get_package_share_dir())
 #     - The end-effector name.
 #     - The robot's base link.
 #     - The starting joint configuration of the robot.
-#     - If the model file is an xacro file.
 MODELS = {
     "ur5": [
         ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",

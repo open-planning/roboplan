@@ -1,6 +1,8 @@
+#include <dlfcn.h>
+
 #include <roboplan_example_models/resources.hpp>
 
-namespace roboplan_example_models {
+namespace roboplan::example_models {
 
 std::filesystem::path get_install_prefix() {
   // This would be a lot easier if it were an ament package, instead we use
@@ -19,4 +21,4 @@ std::filesystem::path get_package_share_dir() {
   return get_install_prefix() / "share" / "roboplan_example_models" / "models";
 }
 
-}  // namespace roboplan_example_models
+}  // namespace roboplan::example_models
