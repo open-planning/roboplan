@@ -21,7 +21,7 @@ namespace roboplan {
 
 /// @brief Returns the contents of a file as a string.
 /// @param name path The path to the file.
-std::string slurp(const std::filesystem::path& path);
+std::string readfile(const std::filesystem::path& path);
 
 /// @brief Primary scene representation for planning and control.
 class Scene {

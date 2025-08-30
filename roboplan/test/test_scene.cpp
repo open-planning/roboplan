@@ -106,8 +106,8 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
 
 TEST_F(RoboPlanSceneTest, TestLoadXMLStrings) {
   // Load the sample XMLs from file as strings.
-  auto urdf_xml = slurp(urdf_path_);
-  auto srdf_xml = slurp(srdf_path_);
+  auto urdf_xml = readfile(urdf_path_);
+  auto srdf_xml = readfile(srdf_path_);
 
   // Just make sure it is the same as when loading from file (the validation is above)
   auto scene_xml =
