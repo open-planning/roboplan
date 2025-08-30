@@ -59,7 +59,7 @@ def main(
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
     # TODO: How can we identify the right constructor? Or are argument name differences good enough?
-    scene = Scene(
+    scene = Scene.from_xml(
         "test_scene",
         urdf=urdf_xml,
         srdf=srdf_xml,

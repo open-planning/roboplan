@@ -3,6 +3,7 @@
 #include <nanobind/stl/filesystem.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/unique_ptr.h>
 #include <nanobind/stl/vector.h>
 
 #include <roboplan/core/path_utils.hpp>
@@ -95,6 +96,15 @@ void init_core_scene(nanobind::module_& m) {
                          const std::vector<std::filesystem::path>&, const std::filesystem::path&>(),
           "name"_a, "urdf"_a, "srdf"_a, "package_paths"_a = std::vector<std::filesystem::path>(),
           "yaml_config_path"_a = std::filesystem::path())
+      .def_static(
+          "from_xml",
+          [](const std::string& name, const std::string& urdf, const std::string& srdf,
+             const std::vector<std::filesystem::path>& package_paths,
+             const std::filesystem::path& yaml_config_path) -> std::unique_ptr<Scene> {
+            return std::make_unique<Scene>(name, urdf, srdf, package_paths, yaml_config_path);
+          },
+          "name"_a, "urdf"_a, "srdf"_a, "package_paths"_a = std::vector<std::filesystem::path>(),
+          "yaml_config_path"_a = std::filesystem::path(), nanobind::rv_policy::take_ownership)
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
       .def("getJointInfo", &Scene::getJointInfo)
