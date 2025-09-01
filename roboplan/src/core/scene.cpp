@@ -216,13 +216,7 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
 
 void Scene::createFrameMap(const pinocchio::Model& model) {
   frame_map_.clear();  // Clear existing map if needed
-
-  if (model.nframes <= 1) {
-    std::cout << "Warning: Model has no frames to process" << std::endl;
-    return;
-  }
-
-  for (size_t i = 1; i < model.frames.size(); ++i) {
+  for (size_t i = 1; i < model.nframes; ++i) {
     const auto& frame = model.frames[i];
     frame_map_[frame.name] = model.getFrameId(frame.name);
   }
