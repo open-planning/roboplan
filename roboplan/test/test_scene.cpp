@@ -101,8 +101,7 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
 }
 
 TEST_F(RoboPlanSceneTest, GetFrameMapReturnsCorrectMapping) {
-  // Act
-  pinocchio::Model model = scene_->getModel();
+  const auto model = scene_->getModel();
 
   // Verify the frame IDs are correct
   for (const auto& frame : model.frames) {

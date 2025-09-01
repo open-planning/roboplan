@@ -16,7 +16,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
   if (!frame_id_result) {
     throw std::runtime_error("Failed to get frame ID: " + frame_id_result.error());
   }
-  pinocchio::FrameIndex frame_id = frame_id_result.value();
+  auto frame_id = frame_id_result.value();
 
   const auto goal_tform = pinocchio::SE3(goal.tform);
   solution = start;

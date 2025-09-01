@@ -53,8 +53,6 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   YAML::Node yaml_config;
   if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
     yaml_config = YAML::LoadFile(yaml_config_path);
-
-    createFrameMap(model_);
   }
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
@@ -112,6 +110,8 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
     }
     joint_info_.emplace(joint_name, info);
   }
+
+  createFrameMap(model_);
 
   // Initialize the current state of the scene.
   cur_state_ = JointConfiguration{.joint_names = joint_names_,
@@ -182,8 +182,6 @@ Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::
 Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
                                          const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.
-  // TODO: I recently learned recently that Pinocchio's getFrameId() actually does a linear-time
-  // search! So we should put together a map.
   pinocchio::framesForwardKinematics(model_, model_data_, q);
   auto frame_id = getFrameId(frame_name);
   if (!frame_id) {
@@ -216,7 +214,7 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   return os;
 }
 
-void Scene::createFrameMap(pinocchio::Model model) {
+void Scene::createFrameMap(const pinocchio::Model& model) {
   frame_map_.clear();  // Clear existing map if needed
 
   if (model.nframes <= 1) {
@@ -232,7 +230,7 @@ void Scene::createFrameMap(pinocchio::Model model) {
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
   if (!frame_map_.contains(name)) {
-    return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_");
+    return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
   }
 
   return frame_map_.at(name);

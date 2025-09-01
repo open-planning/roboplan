@@ -7,8 +7,6 @@
 #include <stdexcept>
 #include <string>
 
-#include <tl/expected.hpp>
-
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/geometry.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
@@ -16,6 +14,7 @@
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/multibody/geometry.hpp>
 #include <pinocchio/multibody/model.hpp>
+#include <tl/expected.hpp>
 
 #include <roboplan/core/types.hpp>
 
@@ -137,12 +136,12 @@ private:
   /// @brief The current state of the model (used to fill in partial states).
   JointConfiguration cur_state_;
 
-  /// @brief Maps each frame name to each respective frame ID
+  /// @brief Maps each frame name to its respective Pinocchio frame ID.
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
 
-  /// @brief Helper function to create a map of the robot's frame IDs.
+  /// @brief Helper function to create a map of the robot's frame names to IDs.
   /// @param model The Pinocchio model.
-  void createFrameMap(pinocchio::Model model);
+  void createFrameMap(const pinocchio::Model& model);
 };
 
 }  // namespace roboplan
