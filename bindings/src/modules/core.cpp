@@ -99,12 +99,12 @@ void init_core_scene(nanobind::module_& m) {
       .def("isValidPose", &Scene::isValidPose)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
+      .def("getFrameId", unwrap_expected(&Scene::getFrameId))
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;
         return ss.str();
-      })
-      .def("getFrameId", unwrap_expected(&Scene::getFrameId));
+      });
 }
 
 void init_core_path_utils(nanobind::module_& m) {

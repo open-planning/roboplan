@@ -85,9 +85,7 @@ def test_create_frame_map(test_scene: Scene) -> None:
     roboplan_examples_dir = Path(get_package_share_dir())
     urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
     package_paths = [roboplan_examples_dir]
-    model, _, _ = pin.buildModelsFromUrdf(
-        urdf_path, package_dirs=package_paths
-    )
+    model, _, _ = pin.buildModelsFromUrdf(urdf_path, package_dirs=package_paths)
     for frame in model.frames:
         if frame.name == "universe":
             continue

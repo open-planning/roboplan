@@ -103,14 +103,13 @@ TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
 TEST_F(RoboPlanSceneTest, GetFrameMapReturnsCorrectMapping) {
   // Act
   pinocchio::Model model = scene_->getModel();
-  
+
   // Verify the frame IDs are correct
-  for (const auto &frame : model.frames)
-  {
-    if (frame.name == "universe") continue;
+  for (const auto& frame : model.frames) {
+    if (frame.name == "universe")
+      continue;
     EXPECT_EQ(scene_->getFrameId(frame.name), model.getFrameId(frame.name));
   }
 }
 
-
-} // namespace roboplan
+}  // namespace roboplan

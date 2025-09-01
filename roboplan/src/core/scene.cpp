@@ -54,8 +54,7 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
   if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
     yaml_config = YAML::LoadFile(yaml_config_path);
 
-  createFrameMap(model_);
-  
+    createFrameMap(model_);
   }
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
@@ -119,7 +118,6 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
-
 }
 
 double Scene::configurationDistance(const Eigen::VectorXd& q_start,
@@ -218,9 +216,9 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   return os;
 }
 
-void Scene::createFrameMap(pinocchio::Model model){
-  frame_map_.clear(); // Clear existing map if needed
-  
+void Scene::createFrameMap(pinocchio::Model model) {
+  frame_map_.clear();  // Clear existing map if needed
+
   if (model.nframes <= 1) {
     std::cout << "Warning: Model has no frames to process" << std::endl;
     return;
@@ -232,11 +230,11 @@ void Scene::createFrameMap(pinocchio::Model model){
   }
 }
 
-tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string &name) const {
+tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
   if (!frame_map_.contains(name)) {
     return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_");
   }
-  
+
   return frame_map_.at(name);
 }
 
