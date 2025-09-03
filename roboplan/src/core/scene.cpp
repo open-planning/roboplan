@@ -223,11 +223,12 @@ void Scene::createFrameMap(const pinocchio::Model& model) {
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
-  if (!frame_map_.contains(name)) {
+  auto it = frame_map_.find(name);
+  if (it == frame_map_.end()) {
     return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
   }
 
-  return frame_map_.at(name);
+  return it->second;
 }
 
 }  // namespace roboplan
