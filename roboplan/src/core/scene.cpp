@@ -26,7 +26,7 @@ const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
 
 namespace roboplan {
 
-std::string readfile(const std::filesystem::path& path) {
+std::string readFile(const std::filesystem::path& path) {
   if (!std::filesystem::exists(path)) {
     throw std::runtime_error("File not found: " + path.string());
   }
@@ -41,7 +41,7 @@ Scene::Scene(const std::string& name, const std::filesystem::path& urdf_path,
              const std::filesystem::path& srdf_path,
              const std::vector<std::filesystem::path>& package_paths,
              const std::filesystem::path& yaml_config_path)
-    : Scene(name, readfile(urdf_path), readfile(srdf_path), package_paths, yaml_config_path) {}
+    : Scene(name, readFile(urdf_path), readFile(srdf_path), package_paths, yaml_config_path) {}
 
 Scene::Scene(const std::string& name, const std::string& urdf, const std::string& srdf,
              const std::vector<std::filesystem::path>& package_paths,

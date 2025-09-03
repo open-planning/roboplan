@@ -1,4 +1,4 @@
-# RoboPlan configuration file for the Franka Research 3 (FR3) robot model.
+# RoboPlan configuration file for a model with two Franka Research 3 (FR3) robots.
 
 joint_limits:
   left_fr3_joint1:
