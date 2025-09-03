@@ -187,7 +187,7 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
   if (!frame_id) {
     throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
   }
-  return collision_model_data_.oMg[frame_id.value()];
+  return model_data_.oMf[frame_id.value()];
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
