@@ -1,5 +1,7 @@
 #include <stdexcept>
 
+#include <tl/expected.hpp>
+
 #include <pinocchio/collision/broadphase.hpp>
 #include <pinocchio/parsers/srdf.hpp>
 #include <pinocchio/parsers/urdf.hpp>
@@ -125,6 +127,8 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     joint_info_.emplace(joint_name, info);
   }
 
+  createFrameMap(model_);
+
   // Initialize the current state of the scene.
   cur_state_ = JointConfiguration{.joint_names = joint_names_,
                                   .positions = pinocchio::neutral(model_),
@@ -194,10 +198,12 @@ Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::
 Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
                                          const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.
-  // TODO: I recently learned recently that Pinocchio's getFrameId() actually does a linear-time
-  // search! So we should put together a map.
   pinocchio::framesForwardKinematics(model_, model_data_, q);
-  return model_data_.oMf[model_.getFrameId(frame_name)];
+  auto frame_id = getFrameId(frame_name);
+  if (!frame_id) {
+    throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
+  }
+  return collision_model_data_.oMg[frame_id.value()];
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -222,6 +228,22 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "  velocities: " << scene.cur_state_.velocities.transpose() << "\n";
   os << "  accelerations: " << scene.cur_state_.accelerations.transpose() << "\n";
   return os;
+}
+
+void Scene::createFrameMap(const pinocchio::Model& model) {
+  frame_map_.clear();  // Clear existing map if needed
+  for (size_t i = 1; i < model.nframes; ++i) {
+    const auto& frame = model.frames[i];
+    frame_map_[frame.name] = model.getFrameId(frame.name);
+  }
+}
+
+tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
+  if (!frame_map_.contains(name)) {
+    return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
+  }
+
+  return frame_map_.at(name);
 }
 
 }  // namespace roboplan

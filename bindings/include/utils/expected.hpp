@@ -32,6 +32,16 @@ auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...)) {
   };
 }
 
+/// @brief Wrapper function binding tl::expected return types in const class functions with
+/// nanobind.
+/// @return The unwrapped value, or throw a runtime_error.
+template <typename Class, typename Ret, typename Err, typename... Args>
+auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...) const) {
+  return [method](const Class& self, Args... args) -> Ret {
+    return handle_expected((self.*method)(args...));
+  };
+}
+
 /// @brief Wrapper function binding tl::expected return types in free functions with nanobind.
 /// @return The unwrapped value, or throw a runtime_error.
 template <typename Ret, typename Err, typename... Args>

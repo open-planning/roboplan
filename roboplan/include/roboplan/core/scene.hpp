@@ -14,6 +14,7 @@
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/multibody/geometry.hpp>
 #include <pinocchio/multibody/model.hpp>
+#include <tl/expected.hpp>
 
 #include <roboplan/core/types.hpp>
 
@@ -116,6 +117,11 @@ public:
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
+  /// @brief Helper function to get the pinocchio ID of a frame through its name.
+  /// @param name The name of the frame to look up.
+  /// @return The pinocchio frame ID if successful, else a string describing the error.
+  tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string& name) const;
+
 private:
   /// @brief The name of the scene.
   std::string name_;
@@ -145,6 +151,13 @@ private:
 
   /// @brief The current state of the model (used to fill in partial states).
   JointConfiguration cur_state_;
+
+  /// @brief Maps each frame name to its respective Pinocchio frame ID.
+  std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
+
+  /// @brief Helper function to create a map of the robot's frame names to IDs.
+  /// @param model The Pinocchio model.
+  void createFrameMap(const pinocchio::Model& model);
 };
 
 }  // namespace roboplan

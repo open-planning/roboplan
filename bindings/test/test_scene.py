@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 import numpy as np
+import pinocchio as pin
 
 from roboplan import get_package_share_dir, hasCollisionsAlongPath, JointType, Scene
 
@@ -78,3 +79,14 @@ def test_collision_check_along_path(test_scene: Scene) -> None:
     # In collision
     q_end_coll = np.array([0.0, -1.57, 3.0, 0.0, 0.0, 0.0])
     assert hasCollisionsAlongPath(test_scene, q_start_free, q_end_coll, 0.05)
+
+
+def test_create_frame_map(test_scene: Scene) -> None:
+    roboplan_examples_dir = Path(get_package_share_dir())
+    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
+    package_paths = [roboplan_examples_dir]
+    model, _, _ = pin.buildModelsFromUrdf(urdf_path, package_dirs=package_paths)
+    for frame in model.frames:
+        if frame.name == "universe":
+            continue
+        assert test_scene.getFrameId(frame.name) == model.getFrameId(frame.name)
