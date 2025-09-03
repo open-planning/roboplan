@@ -111,4 +111,18 @@ TEST_F(RoboPlanSceneTest, GetFrameMapReturnsCorrectMapping) {
   }
 }
 
+TEST_F(RoboPlanSceneTest, TestForwardKinematics) {
+  // Collision free
+  Eigen::VectorXd q(6);
+  q << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  const auto fk = scene_->forwardKinematics(q, "tool0");
+
+  // Expected transformation matrix for zero configuration for a UR5e
+  Eigen::Matrix4d expected;
+  expected << -1.0, 0.0, 0.0, 0.81725, 0.0, 0.0, 1.0, 0.19145, 0.0, 1.0, 0.0, -0.005491, 0.0, 0.0,
+      0.0, 1.0;
+
+  EXPECT_TRUE(fk.isApprox(expected, 1e-6));
+}
+
 }  // namespace roboplan
