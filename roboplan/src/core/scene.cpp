@@ -216,7 +216,7 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
 
 void Scene::createFrameMap(const pinocchio::Model& model) {
   frame_map_.clear();  // Clear existing map if needed
-  for (size_t i = 1; i < model.nframes; ++i) {
+  for (int i = 1; i < model.nframes; ++i) {
     const auto& frame = model.frames[i];
     frame_map_[frame.name] = model.getFrameId(frame.name);
   }
