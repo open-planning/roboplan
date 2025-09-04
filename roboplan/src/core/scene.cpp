@@ -203,7 +203,7 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
   if (!frame_id) {
     throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
   }
-  return collision_model_data_.oMg[frame_id.value()];
+  return model_data_.oMf[frame_id.value()];
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -232,18 +232,19 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
 
 void Scene::createFrameMap(const pinocchio::Model& model) {
   frame_map_.clear();  // Clear existing map if needed
-  for (size_t i = 1; i < model.nframes; ++i) {
+  for (int i = 1; i < model.nframes; ++i) {
     const auto& frame = model.frames[i];
     frame_map_[frame.name] = model.getFrameId(frame.name);
   }
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
-  if (!frame_map_.contains(name)) {
+  auto it = frame_map_.find(name);
+  if (it == frame_map_.end()) {
     return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
   }
 
-  return frame_map_.at(name);
+  return it->second;
 }
 
 }  // namespace roboplan
