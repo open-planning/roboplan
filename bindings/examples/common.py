@@ -21,7 +21,7 @@ class RobotModelConfig:
     urdf_path: Path
     srdf_path: Path
     yaml_config_path: Path
-    ee_name: str
+    ee_names: List[str]
     base_link: str
     starting_joint_config: List[float]
 
@@ -34,7 +34,7 @@ MODELS = {
         urdf_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",
         srdf_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.srdf",
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_config.yaml",
-        ee_name="tool0",
+        ee_names=["tool0"],
         base_link="base",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     ),
@@ -44,7 +44,7 @@ MODELS = {
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR
         / "franka_robot_model"
         / "fr3_config.yaml",
-        ee_name="fr3_hand",
+        ee_names=["fr3_hand"],
         base_link="fr3_link0",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     ),
@@ -54,7 +54,7 @@ MODELS = {
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR
         / "franka_robot_model"
         / "dual_fr3_config.yaml",
-        ee_name="left_fr3_hand",  # Default for convenience, but either tip is valid
+        ee_names=["left_fr3_hand", "right_fr3_hand"],
         base_link="left_fr3_link0",
         starting_joint_config=[0.0] * 18,
     ),

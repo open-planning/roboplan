@@ -47,7 +47,7 @@ def main(
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
-    # TODO: How can we identify the right constructor? Or are argument name differences good enough?
+    # Specify argument names to distinguish overloaded Scene constructors from python.
     scene = Scene(
         "test_scene",
         urdf=urdf_xml,
@@ -79,7 +79,7 @@ def main(
     start.positions = np.array(model_data.starting_joint_config)
     goal = CartesianConfiguration()
     goal.base_frame = model_data.base_link
-    goal.tip_frame = model_data.ee_name
+    goal.tip_frame = model_data.ee_names[0]
     solution = JointConfiguration()
 
     # Create an interactive marker.

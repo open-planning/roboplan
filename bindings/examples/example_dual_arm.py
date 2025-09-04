@@ -16,5 +16,8 @@ if __name__ == "__main__":
     urdf = xacro.process_file(urdf_path).toxml()
     srdf = xacro.process_file(srdf_path).toxml()
 
-    scene = roboplan.Scene.from_xml("dual_arm_scene", urdf, srdf, package_paths)
+    # Specify argument names to distinguish overloaded Scene constructors from python.
+    scene = roboplan.Scene(
+        "dual_arm_scene", urdf=urdf, srdf=srdf, package_paths=package_paths
+    )
     print(scene)

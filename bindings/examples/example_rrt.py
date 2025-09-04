@@ -58,8 +58,8 @@ def main(
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
-    # TODO: How can we identify the right constructor? Or are argument name differences good enough?
-    scene = Scene.from_xml(
+    # Specify argument names to distinguish overloaded Scene constructors from python.
+    scene = Scene(
         "test_scene",
         urdf=urdf_xml,
         srdf=srdf_xml,
@@ -109,8 +109,8 @@ def main(
     # Visualize the tree and path
     print(path)
     viz.display(start.positions)
-    visualizePath(viz, scene, path, model_data.ee_name, 0.05)
-    visualizeTree(viz, scene, rrt, model_data.ee_name, 0.05)
+    visualizePath(viz, scene, path, model_data.ee_names, 0.05)
+    visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
 
     if include_shortcutting:
         print("Shortcutted path:")
@@ -119,7 +119,7 @@ def main(
             viz,
             scene,
             shortcut_path,
-            model_data.ee_name,
+            model_data.ee_names,
             0.05,
             (0, 100, 0),
             "/rrt/shortcut_path",
