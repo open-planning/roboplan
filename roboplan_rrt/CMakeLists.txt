@@ -8,6 +8,12 @@ endif()
 # Find dependencies.
 find_package(roboplan REQUIRED)
 
+# Ament CMake is not immediately required, but we include it at the top so that
+# if it is found we can use it in build testing before requiring a
+# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion
+# issues with symlink installs.
+find_package(ament_cmake QUIET)
+
 # Add libraries
 add_library(roboplan_rrt SHARED
     src/rrt.cpp
@@ -84,7 +90,6 @@ if (BUILD_TESTING)
 endif()
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.
-find_package(ament_cmake QUIET)
 if ( ament_cmake_FOUND )
     message(STATUS "ament_cmake found. Exporting for ROS 2.")
     ament_package()
