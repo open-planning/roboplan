@@ -53,7 +53,7 @@ void init_core_types(nanobind::module_& m) {
       .def(nanobind::init<>())  // Default constructor
       .def_rw("mimicked_joint_name", &JointMimicInfo::mimicked_joint_name)
       .def_rw("scaling", &JointMimicInfo::scaling)
-      .def_ro("offset", &JointMimicInfo::offset);
+      .def_rw("offset", &JointMimicInfo::offset);
 
   nanobind::class_<JointInfo>(m, "JointInfo")
       .def(nanobind::init<const JointType>())
