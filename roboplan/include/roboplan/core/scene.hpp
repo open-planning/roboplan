@@ -101,6 +101,10 @@ public:
   /// @return True if the positions respect joint limits, else false.
   bool isValidPose(const Eigen::VectorXd& q) const;
 
+  /// @brief Applies mimic joint relationships to a position vector.
+  /// @param q The joint positions.
+  void applyMimics(Eigen::VectorXd& q) const;
+
   /// @brief Interpolates between two joint configurations.
   /// @param q_start The starting joint configuration.
   /// @param q_end The ending joint configuration.

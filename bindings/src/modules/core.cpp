@@ -34,6 +34,7 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("tform", &CartesianConfiguration::tform);
 
   nanobind::enum_<JointType>(m, "JointType")
+      .value("UNKNOWN", JointType::UNKNOWN)
       .value("PRISMATIC", JointType::PRISMATIC)
       .value("REVOLUTE", JointType::REVOLUTE)
       .value("CONTINUOUS", JointType::CONTINUOUS)
@@ -48,12 +49,19 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("max_acceleration", &JointLimits::max_acceleration)
       .def_rw("max_jerk", &JointLimits::max_jerk);
 
+  nanobind::class_<JointMimicInfo>(m, "JointMimicInfo")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("mimicked_joint_name", &JointMimicInfo::mimicked_joint_name)
+      .def_rw("scaling", &JointMimicInfo::scaling)
+      .def_ro("offset", &JointMimicInfo::offset);
+
   nanobind::class_<JointInfo>(m, "JointInfo")
       .def(nanobind::init<const JointType>())
       .def_ro("type", &JointInfo::type)
       .def_ro("num_position_dofs", &JointInfo::num_position_dofs)
       .def_ro("num_velocity_dofs", &JointInfo::num_velocity_dofs)
-      .def_ro("limits", &JointInfo::limits);
+      .def_ro("limits", &JointInfo::limits)
+      .def_ro("mimic_info", &JointInfo::mimic_info);
 
   nanobind::class_<JointPath>(m, "JointPath")
       .def(nanobind::init<>())  // Default constructor
@@ -105,6 +113,7 @@ void init_core_scene(nanobind::module_& m) {
            "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions)
       .def("isValidPose", &Scene::isValidPose)
+      .def("applyMimics", &Scene::applyMimics)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
       .def("getFrameId", unwrap_expected(&Scene::getFrameId))

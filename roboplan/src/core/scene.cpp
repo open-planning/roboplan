@@ -208,8 +208,7 @@ Eigen::VectorXd Scene::randomPositions() {
     }
   }
 
-  // TODO: Set mimic relationships.
-
+  applyMimics(positions);
   return positions;
 }
 
@@ -243,6 +242,29 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
     }
   }
   return true;
+}
+
+void Scene::applyMimics(Eigen::VectorXd& q) const {
+  const auto num_mimics = model_.mimicked_joints.size();
+  for (size_t idx = 0; idx < num_mimics; ++idx) {
+    const auto mimicking_idx = model_.mimicking_joints[idx];
+    const auto mimicking_idx_q = model_.idx_qs[mimicking_idx];
+    const auto& mimicking_joint_name = model_.names[mimicking_idx];
+
+    const auto mimicked_idx = model_.mimicked_joints[idx];
+    const auto mimicked_idx_q = model_.idx_qs[mimicked_idx];
+
+    const auto& joint_info = joint_info_.at(mimicking_joint_name);
+    const auto& mimic_info = joint_info.mimic_info.value();
+    if (joint_info.type == JointType::CONTINUOUS) {
+      const auto mimicked_angle = std::atan2(q(mimicked_idx_q + 1), q(mimicked_idx_q));
+      const auto mimicking_angle = mimicked_angle * mimic_info.scaling + mimic_info.offset;
+      q(mimicked_idx_q) = std::cos(mimicking_angle);
+      q(mimicked_idx_q + 1) = std::sin(mimicking_angle);
+    } else {  // Prismatic or revolute, which are single-DOF.
+      q(mimicked_idx_q) = q(mimicking_idx_q) * mimic_info.scaling + mimic_info.offset;
+    }
+  }
 }
 
 Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
