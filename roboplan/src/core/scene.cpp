@@ -86,8 +86,9 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   size_t q_idx = 0;
   size_t v_idx = 0;
   joint_names_.reserve(model_.njoints - 1);
+  actuated_joint_names_.reserve(model_.njoints - model_.mimicking_joints.size() - 1);
   for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
-    const auto joint_name = model_.names.at(idx);
+    const auto& joint_name = model_.names.at(idx);
     joint_names_.push_back(joint_name);
 
     const auto& joint = model_.joints.at(idx);
@@ -96,6 +97,8 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       // The information will be extracted later.
       continue;
     }
+    actuated_joint_names_.push_back(joint_name);
+
     if (!kPinocchioJointTypeMap.contains(joint.shortname())) {
       throw std::runtime_error("Joint '" + joint_name + "' was parsed as a joint of type '" +
                                joint.shortname() + "' but this is not in the RoboPlan joint map.");
@@ -182,15 +185,8 @@ void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 Eigen::VectorXd Scene::randomPositions() {
   Eigen::VectorXd positions(model_.nq);
   int q_idx = 0;
-  for (const auto& joint_name : joint_names_) {
+  for (const auto& joint_name : actuated_joint_names_) {
     const auto& info = joint_info_.at(joint_name);
-
-    // Mimic joints will get updated later.
-    if (info.mimic_info) {
-      q_idx += info.num_position_dofs;
-      continue;
-    }
-
     if (info.type == JointType::CONTINUOUS) {
       // Special case for continuous joints, since the format is [sin(theta), cos(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
@@ -207,8 +203,6 @@ Eigen::VectorXd Scene::randomPositions() {
       }
     }
   }
-
-  applyMimics(positions);
   return positions;
 }
 
@@ -230,15 +224,22 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
 
 bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   size_t q_idx = 0;
-  for (const auto& joint_name : joint_names_) {
+  for (const auto& joint_name : actuated_joint_names_) {
     const auto& info = joint_info_.at(joint_name);
-    for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-      const auto& lo = info.limits.min_position[idx];
-      const auto& hi = info.limits.max_position[idx];
-      if (q(q_idx) < lo || q(q_idx) > hi) {
-        return false;
+    switch (info.type) {
+    // TODO: Validate multi-DOF joints.
+    case JointType::CONTINUOUS:
+      q_idx += 2;  // Unbounded so always valid.
+      break;
+    default:
+      for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        if (q(q_idx) < lo || q(q_idx) > hi) {
+          return false;
+        }
+        ++q_idx;
       }
-      ++q_idx;
     }
   }
   return true;
@@ -259,12 +260,34 @@ void Scene::applyMimics(Eigen::VectorXd& q) const {
     if (joint_info.type == JointType::CONTINUOUS) {
       const auto mimicked_angle = std::atan2(q(mimicked_idx_q + 1), q(mimicked_idx_q));
       const auto mimicking_angle = mimicked_angle * mimic_info.scaling + mimic_info.offset;
-      q(mimicked_idx_q) = std::cos(mimicking_angle);
-      q(mimicked_idx_q + 1) = std::sin(mimicking_angle);
+      q(mimicking_idx_q) = std::cos(mimicking_angle);
+      q(mimicking_idx_q + 1) = std::sin(mimicking_angle);
     } else {  // Prismatic or revolute, which are single-DOF.
-      q(mimicked_idx_q) = q(mimicking_idx_q) * mimic_info.scaling + mimic_info.offset;
+      q(mimicking_idx_q) = q(mimicked_idx_q) * mimic_info.scaling + mimic_info.offset;
     }
   }
+}
+
+Eigen::VectorXd Scene::toFullJointPositions(const std::vector<std::string>& joint_names,
+                                            const Eigen::VectorXd& q) const {
+  Eigen::VectorXd q_out = Eigen::VectorXd::Zero(model_.nq);
+
+  size_t q_idx = 0;
+  for (const auto& joint_name : joint_names) {
+    const auto maybe_joint_idx = getFrameId(joint_name);
+    if (!maybe_joint_idx) {
+      throw std::runtime_error("Failed to find joint name: " + joint_name);
+    }
+    const auto& joint_idx = maybe_joint_idx.value();
+    const auto& info = joint_info_.at(joint_name);  // already validated
+    for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
+      q_out(model_.idx_qs.at(joint_idx) + idx) = q(q_idx);
+      ++q_idx;
+    }
+  }
+
+  applyMimics(q_out);
+  return q_out;
 }
 
 Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
@@ -281,6 +304,23 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
     throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
   }
   return model_data_.oMf[frame_id.value()];
+}
+
+void Scene::createFrameMap(const pinocchio::Model& model) {
+  frame_map_.clear();  // Clear existing map if needed
+  for (int i = 1; i < model.nframes; ++i) {
+    const auto& frame = model.frames[i];
+    frame_map_[frame.name] = model.getFrameId(frame.name);
+  }
+}
+
+tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
+  auto it = frame_map_.find(name);
+  if (it == frame_map_.end()) {
+    return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
+  }
+
+  return it->second;
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -312,23 +352,6 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "  velocities: " << scene.cur_state_.velocities.transpose() << "\n";
   os << "  accelerations: " << scene.cur_state_.accelerations.transpose() << "\n";
   return os;
-}
-
-void Scene::createFrameMap(const pinocchio::Model& model) {
-  frame_map_.clear();  // Clear existing map if needed
-  for (int i = 1; i < model.nframes; ++i) {
-    const auto& frame = model.frames[i];
-    frame_map_[frame.name] = model.getFrameId(frame.name);
-  }
-}
-
-tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
-  auto it = frame_map_.find(name);
-  if (it == frame_map_.end()) {
-    return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
-  }
-
-  return it->second;
 }
 
 }  // namespace roboplan

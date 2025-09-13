@@ -11,25 +11,34 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     : scene_{scene}, options_{options} {
 
   // Get the state space info and set bounds from the robot's joints.
-  // TODO: Support other joint types besides prismatic and revolute.
-  size_t concurrent_one_dof_joints = 0;
   Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
   Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
-  for (const auto& joint_name : scene_->getJointNames()) {
+
+  const auto joint_names = scene_->getActuatedJointNames();
+  std::vector<std::string> state_space_names;
+  state_space_names.reserve(joint_names.size());
+
+  size_t num_one_dof_joints = 0;
+  for (const auto& joint_name : joint_names) {
     const auto& joint_info = scene_->getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::FLOATING:
     case JointType::PLANAR:
       throw std::runtime_error("Multi-DOF joints not yet supported by RRT.");
     case JointType::CONTINUOUS:
-      throw std::runtime_error("Continuous joints not yet supported by RRT.");
+      // TODO: Use "SO2" state space instead.
+      // The solution should be to squash the position vectors so continuous
+      // joints are also represented as single-DOF.
+      state_space_names.push_back("Rn:2");
+      break;
     default:  // Prismatic or revolute, which are single-DOF.
-      lower_bounds(concurrent_one_dof_joints) = joint_info.limits.min_position[0];
-      upper_bounds(concurrent_one_dof_joints) = joint_info.limits.max_position[0];
-      ++concurrent_one_dof_joints;
+      state_space_names.push_back("Rn:1");
+      lower_bounds(num_one_dof_joints) = joint_info.limits.min_position[0];
+      upper_bounds(num_one_dof_joints) = joint_info.limits.max_position[0];
+      ++num_one_dof_joints;
     }
   }
-  state_space_ = CombinedStateSpace({"Rn:" + std::to_string(concurrent_one_dof_joints)});
+  state_space_ = CombinedStateSpace(state_space_names);
   state_space_.set_bounds(lower_bounds, upper_bounds);
 };
 
@@ -51,7 +60,8 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
-    return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
+    return JointPath{.joint_names = scene_->getActuatedJointNames(),
+                     .positions = {q_start, q_goal}};
   }
 
   // Initialize the trees for searching.
@@ -220,7 +230,7 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
 
 JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
   JointPath path;
-  path.joint_names = scene_->getJointNames();
+  path.joint_names = scene_->getActuatedJointNames();
   auto cur_node = &end_node;
   path.positions.push_back(cur_node->config);
   while (true) {
