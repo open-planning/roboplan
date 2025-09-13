@@ -186,8 +186,12 @@ void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 Eigen::VectorXd Scene::randomPositions() {
   Eigen::VectorXd positions(model_.nq);
-  for (const auto& joint_name : actuated_joint_names_) {
+  for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_.at(joint_name);
+    if (info.mimic_info) {
+      continue;  // Skip mimic joints as they are set later.
+    }
+
     const auto q_idx = model_.idx_qs[model_.getJointId(joint_name)];
     if (info.type == JointType::CONTINUOUS) {
       // Special case for continuous joints, since the format is [sin(theta), cos(theta)].
@@ -226,8 +230,13 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
 
 bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   size_t q_idx = 0;
-  for (const auto& joint_name : actuated_joint_names_) {
+  for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_.at(joint_name);
+    if (info.mimic_info) {
+      ++q_idx;
+      continue;  // Skip over mimic joints since we validate their parent.
+    }
+
     switch (info.type) {
     // TODO: Validate multi-DOF joints.
     case JointType::CONTINUOUS:
