@@ -21,7 +21,7 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   acc_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
   acc_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
 
-  joint_names_ = scene->getActuatedJointNames();
+  joint_names_ = scene->getJointNames();
   size_t q_idx = 0;
   for (const auto& joint_name : joint_names_) {
     const auto& joint_info = scene->getJointInfo(joint_name);

@@ -14,7 +14,7 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
   Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
 
-  const auto joint_names = scene_->getActuatedJointNames();
+  const auto joint_names = scene_->getJointNames();
   std::vector<std::string> state_space_names;
   state_space_names.reserve(joint_names.size());
 
@@ -60,8 +60,7 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
-    return JointPath{.joint_names = scene_->getActuatedJointNames(),
-                     .positions = {q_start, q_goal}};
+    return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
   }
 
   // Initialize the trees for searching.
@@ -230,7 +229,7 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
 
 JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
   JointPath path;
-  path.joint_names = scene_->getActuatedJointNames();
+  path.joint_names = scene_->getJointNames();
   auto cur_node = &end_node;
   path.positions.push_back(cur_node->config);
   while (true) {

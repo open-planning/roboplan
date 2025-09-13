@@ -61,16 +61,9 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     package_paths_str.push_back(std::string(path));
   }
 
-  // Build the Pinocchio models and default data from XML strings.
-  pinocchio::urdf::buildModelFromXML(urdf, model_, /*verbose*/ false, /*mimic*/ true);
-
-  pinocchio::urdf::buildGeom(model_, std::istringstream(urdf), pinocchio::COLLISION,
-                             collision_model_, package_paths_str);
-  collision_model_.addAllCollisionPairs();
-  pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
-
-  model_data_ = pinocchio::Data(model_);
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  // Start by creating a Pinocchio model with mimic support to parse all the relationships.
+  pinocchio::Model mimic_model;
+  pinocchio::urdf::buildModelFromXML(urdf, mimic_model, /*verbose*/ false, /*mimic*/ true);
 
   YAML::Node yaml_config;
   if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
@@ -85,13 +78,13 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   // Create additional robot information.
   size_t q_idx = 0;
   size_t v_idx = 0;
-  joint_names_.reserve(model_.njoints - 1);
-  actuated_joint_names_.reserve(model_.njoints - model_.mimicking_joints.size() - 1);
-  for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
-    const auto& joint_name = model_.names.at(idx);
+  joint_names_.reserve(mimic_model.njoints - 1);
+  actuated_joint_names_.reserve(mimic_model.njoints - mimic_model.mimicking_joints.size() - 1);
+  for (int idx = 1; idx < mimic_model.njoints; ++idx) {  // omits "universe" joint.
+    const auto& joint_name = mimic_model.names.at(idx);
     joint_names_.push_back(joint_name);
 
-    const auto& joint = model_.joints.at(idx);
+    const auto& joint = mimic_model.joints.at(idx);
     if (joint.shortname() == "JointModelMimic") {
       // If the joint is a mimic joint, do nothing for now.
       // The information will be extracted later.
@@ -105,8 +98,8 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
     for (int idx = 0; idx < joint.nq(); ++idx) {
-      info.limits.min_position[idx] = model_.lowerPositionLimit(q_idx);
-      info.limits.max_position[idx] = model_.upperPositionLimit(q_idx);
+      info.limits.min_position[idx] = mimic_model.lowerPositionLimit(q_idx);
+      info.limits.max_position[idx] = mimic_model.upperPositionLimit(q_idx);
       ++q_idx;
     }
     std::optional<YAML::Node> maybe_acc_limits;
@@ -133,7 +126,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       }
     }
     for (int idx = 0; idx < joint.nv(); ++idx) {
-      info.limits.max_velocity[idx] = model_.velocityLimit(v_idx);
+      info.limits.max_velocity[idx] = mimic_model.velocityLimit(v_idx);
       if (maybe_acc_limits) {
         info.limits.max_acceleration[idx] = maybe_acc_limits.value()[idx].as<double>();
       }
@@ -146,14 +139,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   }
 
   // Add the mimic joint information once all the other joints have been parsed.
-  const auto num_mimics = model_.mimicked_joints.size();
+  const auto num_mimics = mimic_model.mimicked_joints.size();
   for (size_t idx = 0; idx < num_mimics; ++idx) {
-    const auto mimicking_idx = model_.mimicking_joints[idx];
-    const auto& mimicking_joint_name = model_.names[mimicking_idx];
-    const auto& mimicking_joint = model_.joints[mimicking_idx];
+    const auto mimicking_idx = mimic_model.mimicking_joints[idx];
+    const auto& mimicking_joint_name = mimic_model.names[mimicking_idx];
+    const auto& mimicking_joint = mimic_model.joints[mimicking_idx];
 
-    const auto mimicked_idx = model_.mimicked_joints[idx];
-    const auto& mimicked_joint_name = model_.names[mimicked_idx];
+    const auto mimicked_idx = mimic_model.mimicked_joints[idx];
+    const auto& mimicked_joint_name = mimic_model.names[mimicked_idx];
 
     auto* mimic_joint = boost::get<pinocchio::JointModelMimic>(&mimicking_joint);
     const auto mimicked_joint_type = joint_info_.at(mimicked_joint_name).type;
@@ -166,7 +159,16 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     joint_info_.emplace(mimicking_joint_name, info);
   }
 
+  // Replace the model with its non-mimic version.
+  pinocchio::urdf::buildModelFromXML(urdf, model_);
+  pinocchio::urdf::buildGeom(model_, std::istringstream(urdf), pinocchio::COLLISION,
+                             collision_model_, package_paths_str);
+  collision_model_.addAllCollisionPairs();
+  pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
   createFrameMap(model_);
+
+  model_data_ = pinocchio::Data(model_);
+  collision_model_data_ = pinocchio::GeometryData(collision_model_);
 
   // Initialize the current state of the scene.
   cur_state_ = JointConfiguration{.joint_names = joint_names_,
@@ -184,25 +186,25 @@ void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 Eigen::VectorXd Scene::randomPositions() {
   Eigen::VectorXd positions(model_.nq);
-  int q_idx = 0;
   for (const auto& joint_name : actuated_joint_names_) {
     const auto& info = joint_info_.at(joint_name);
+    const auto q_idx = model_.idx_qs[model_.getJointId(joint_name)];
     if (info.type == JointType::CONTINUOUS) {
       // Special case for continuous joints, since the format is [sin(theta), cos(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx) = std::cos(angle);
       positions(q_idx + 1) = std::sin(angle);
-      q_idx += 2;
     } else {
       // Generic case.
       for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
         positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
-        ++q_idx;
       }
     }
   }
+
+  applyMimics(positions);
   return positions;
 }
 
@@ -246,17 +248,18 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
 }
 
 void Scene::applyMimics(Eigen::VectorXd& q) const {
-  const auto num_mimics = model_.mimicked_joints.size();
-  for (size_t idx = 0; idx < num_mimics; ++idx) {
-    const auto mimicking_idx = model_.mimicking_joints[idx];
-    const auto mimicking_idx_q = model_.idx_qs[mimicking_idx];
-    const auto& mimicking_joint_name = model_.names[mimicking_idx];
+  for (const auto& [joint_name, joint_info] : joint_info_) {
+    if (!joint_info.mimic_info) {
+      continue;
+    }
+    const auto& mimic_info = joint_info.mimic_info.value();
 
-    const auto mimicked_idx = model_.mimicked_joints[idx];
+    const auto mimicking_idx = model_.getJointId(joint_name);
+    const auto mimicking_idx_q = model_.idx_qs[mimicking_idx];
+
+    const auto mimicked_idx = model_.getJointId(mimic_info.mimicked_joint_name);
     const auto mimicked_idx_q = model_.idx_qs[mimicked_idx];
 
-    const auto& joint_info = joint_info_.at(mimicking_joint_name);
-    const auto& mimic_info = joint_info.mimic_info.value();
     if (joint_info.type == JointType::CONTINUOUS) {
       const auto mimicked_angle = std::atan2(q(mimicked_idx_q + 1), q(mimicked_idx_q));
       const auto mimicking_angle = mimicked_angle * mimic_info.scaling + mimic_info.offset;
