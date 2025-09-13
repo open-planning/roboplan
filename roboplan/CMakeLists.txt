@@ -23,9 +23,15 @@ target_include_directories(expected
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+add_library(tinyxml2 SHARED
+    include/tinyxml2/tinyxml2.cpp
+    include/tinyxml2/tinyxml2.h)
+add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+
 add_library(roboplan SHARED
     src/core/path_utils.cpp
     src/core/scene.cpp
+    src/core/scene_utils.cpp
     src/core/types.cpp
 )
 target_include_directories(roboplan PUBLIC
@@ -36,6 +42,7 @@ target_link_libraries(roboplan
     PUBLIC
     Eigen3::Eigen
     pinocchio::pinocchio
+    tinyxml2::tinyxml2
 )
 if (yaml-cpp_VERSION VERSION_LESS "0.8")  # for Ubuntu 22.04
     target_link_libraries(roboplan PRIVATE yaml-cpp)
@@ -47,6 +54,7 @@ set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 install(
   TARGETS
   expected
+  tinyxml2
   roboplan
   EXPORT roboplan-targets
   LIBRARY DESTINATION lib

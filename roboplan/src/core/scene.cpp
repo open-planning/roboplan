@@ -8,6 +8,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_utils.hpp>
 
 namespace {
 
@@ -170,7 +171,10 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                              collision_model_, package_paths_str);
   collision_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
-  createFrameMap(model_);
+
+  // Create auxiliary model info
+  frame_map_ = createFrameMap(model_);
+  joint_group_info_ = createJointGroupInfo(model_, srdf);
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
@@ -325,14 +329,6 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
     throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
   }
   return model_data_.oMf[frame_id.value()];
-}
-
-void Scene::createFrameMap(const pinocchio::Model& model) {
-  frame_map_.clear();  // Clear existing map if needed
-  for (int i = 1; i < model.nframes; ++i) {
-    const auto& frame = model.frames[i];
-    frame_map_[frame.name] = model.getFrameId(frame.name);
-  }
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {

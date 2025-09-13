@@ -129,13 +129,13 @@ public:
   /// @return The 4x4 matrix denoting the transform of the specified frame.
   Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) const;
 
-  /// @brief Prints basic information about the scene.
-  friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
-
   /// @brief Helper function to get the pinocchio ID of a frame through its name.
   /// @param name The name of the frame to look up.
   /// @return The pinocchio frame ID if successful, else a string describing the error.
   tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string& name) const;
+
+  /// @brief Prints basic information about the scene.
+  friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
   /// @brief The name of the scene.
@@ -164,6 +164,9 @@ private:
   /// @brief Map from joint names to their corresponding information.
   std::map<std::string, JointInfo> joint_info_;
 
+  /// @brief Map from joint group names to their corresponding information.
+  std::map<std::string, JointGroupInfo> joint_group_info_;
+
   /// @brief A random number generator for the scene.
   std::mt19937 rng_gen_;
 
@@ -172,10 +175,6 @@ private:
 
   /// @brief Maps each frame name to its respective Pinocchio frame ID.
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
-
-  /// @brief Helper function to create a map of the robot's frame names to IDs.
-  /// @param model The Pinocchio model.
-  void createFrameMap(const pinocchio::Model& model);
 };
 
 }  // namespace roboplan
