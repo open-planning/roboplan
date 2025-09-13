@@ -18,7 +18,7 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   std::vector<std::string> state_space_names;
   state_space_names.reserve(joint_names.size());
 
-  size_t num_one_dof_joints = 0;
+  size_t q_idx = 0;
   for (const auto& joint_name : joint_names) {
     const auto& joint_info = scene_->getJointInfo(joint_name);
     switch (joint_info.type) {
@@ -30,12 +30,17 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
       // The solution should be to squash the position vectors so continuous
       // joints are also represented as single-DOF.
       state_space_names.push_back("Rn:2");
+      lower_bounds(q_idx) = -1.0;
+      lower_bounds(q_idx + 1) = -1.0;
+      upper_bounds(q_idx) = 1.0;
+      upper_bounds(q_idx + 1) = 1.0;
+      q_idx += 2;
       break;
     default:  // Prismatic or revolute, which are single-DOF.
       state_space_names.push_back("Rn:1");
-      lower_bounds(num_one_dof_joints) = joint_info.limits.min_position[0];
-      upper_bounds(num_one_dof_joints) = joint_info.limits.max_position[0];
-      ++num_one_dof_joints;
+      lower_bounds(q_idx) = joint_info.limits.min_position[0];
+      upper_bounds(q_idx) = joint_info.limits.max_position[0];
+      ++q_idx;
     }
   }
   state_space_ = CombinedStateSpace(state_space_names);
