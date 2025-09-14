@@ -11,6 +11,7 @@
 
 namespace {
 
+/// @brief Map from Pinocchio joint model short names to RoboPlan joint type enums.
 const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
     {"JointModelPX", roboplan::JointType::PRISMATIC},
     {"JointModelPY", roboplan::JointType::PRISMATIC},
@@ -27,6 +28,10 @@ const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
     {"JointModelFreeFlyer", roboplan::JointType::FLOATING},
     {"JointModelMimic", roboplan::JointType::UNKNOWN},
 };
+
+/// @brief Tolerance for the norm of continuous joint values (in the form cos(theta), sin(theta))
+/// to be on the unit circle.
+constexpr double kUnitCircleTol = 1.0e-6;
 
 }  // namespace
 
@@ -240,7 +245,11 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
     switch (info.type) {
     // TODO: Validate multi-DOF joints.
     case JointType::CONTINUOUS:
-      q_idx += 2;  // Unbounded so always valid.
+      // Unbounded so always valid, but check whether the representation is on the unit circle.
+      if (std::abs(std::pow(q(q_idx), 2) + std::pow(q(q_idx + 1), 2) - 1.0) > kUnitCircleTol) {
+        return false;
+      }
+      q_idx += 2;
       break;
     default:
       for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {

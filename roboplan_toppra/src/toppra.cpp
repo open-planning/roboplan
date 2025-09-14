@@ -30,21 +30,8 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
     case JointType::PLANAR:
       throw std::runtime_error("Multi-DOF joints not yet supported by TOPP-RA.");
     case JointType::CONTINUOUS:
-      // TODO: Should convert to single-DOF limit.
-      // Basically, right now continuous joint velocity limits are wrong.
-      // The solution should be to squash the position vectors so continuous
-      // joints are also represented as single-DOF.
-      vel_lower_limits_(q_idx) = -joint_info.limits.max_velocity[0];
-      vel_lower_limits_(q_idx + 1) = -joint_info.limits.max_velocity[0];
-      vel_upper_limits_(q_idx) = joint_info.limits.max_velocity[0];
-      vel_upper_limits_(q_idx + 1) = joint_info.limits.max_velocity[0];
-      acc_lower_limits_(q_idx) = -joint_info.limits.max_acceleration[0];
-      acc_lower_limits_(q_idx + 1) = -joint_info.limits.max_acceleration[0];
-      acc_upper_limits_(q_idx) = joint_info.limits.max_acceleration[0];
-      acc_upper_limits_(q_idx + 1) = joint_info.limits.max_acceleration[0];
-      q_idx += 2;
-      break;
-    default:  // Prismatic, revolute, or continuous, which are single-DOF.
+      throw std::runtime_error("Continuous joints not yet supported by TOPP-RA.");
+    default:  // Prismatic or revolute, which are single-DOF.
       if (joint_info.limits.max_velocity.size() == 0) {
         throw std::runtime_error("Velocity limit must be defined for joint '" + joint_name + "'.");
       }
