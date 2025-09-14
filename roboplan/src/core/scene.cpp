@@ -194,7 +194,7 @@ Eigen::VectorXd Scene::randomPositions() {
 
     const auto q_idx = model_.idx_qs[model_.getJointId(joint_name)];
     if (info.type == JointType::CONTINUOUS) {
-      // Special case for continuous joints, since the format is [sin(theta), cos(theta)].
+      // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx) = std::cos(angle);
       positions(q_idx + 1) = std::sin(angle);
