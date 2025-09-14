@@ -1,0 +1,24 @@
+# RoboPlan configuration file for the Kinova + Robotiq 2F-85 robot model.
+
+joint_limits:
+  joint_1:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  joint_2:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  joint_3:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  joint_4:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  joint_5:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  joint_6:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  joint_7:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]

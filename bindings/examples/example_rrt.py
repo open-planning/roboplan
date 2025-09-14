@@ -131,12 +131,17 @@ def main(
     toppra = PathParameterizerTOPPRA(scene)
     traj = toppra.generate(path, dt)
 
+    # TODO: Make this a reusable function
     plt.ion()
     plt.plot(traj.times, traj.positions)
     plt.xlabel("Time")
     plt.ylabel("Joint positions")
     plt.title("Time-parameterized trajectory")
-    plt.legend([f"joint{idx+1}" for idx in range(len(traj.positions[0]))])
+    dof_names = []
+    for name in scene.getJointNames():
+        for idx in range(scene.getJointInfo(name).num_position_dofs):
+            dof_names.append(f"{name}:{idx}")
+    plt.legend(dof_names)
     plt.show()
 
     # Animate the trajectory

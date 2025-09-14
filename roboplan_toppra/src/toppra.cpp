@@ -15,15 +15,15 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
 
   // Extract joint velocity + acceleration limits from scene.
   // TODO: Extract only for specified joint group.
-  const auto num_joints = scene->getModel().nq;
-  vel_lower_limits_ = Eigen::VectorXd::Zero(num_joints);
-  vel_upper_limits_ = Eigen::VectorXd::Zero(num_joints);
-  acc_lower_limits_ = Eigen::VectorXd::Zero(num_joints);
-  acc_upper_limits_ = Eigen::VectorXd::Zero(num_joints);
+  const auto num_dofs = scene->getModel().nq;
+  vel_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
+  vel_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
+  acc_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
+  acc_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
 
   joint_names_ = scene->getJointNames();
-  for (size_t idx = 0; idx < joint_names_.size(); ++idx) {
-    const auto& joint_name = joint_names_.at(idx);
+  size_t q_idx = 0;
+  for (const auto& joint_name : joint_names_) {
     const auto& joint_info = scene->getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::FLOATING:
@@ -31,7 +31,7 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
       throw std::runtime_error("Multi-DOF joints not yet supported by TOPP-RA.");
     case JointType::CONTINUOUS:
       throw std::runtime_error("Continuous joints not yet supported by TOPP-RA.");
-    default:  // Prismatic, revolute, or continuous, which are single-DOF.
+    default:  // Prismatic or revolute, which are single-DOF.
       if (joint_info.limits.max_velocity.size() == 0) {
         throw std::runtime_error("Velocity limit must be defined for joint '" + joint_name + "'.");
       }
@@ -40,11 +40,12 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
                                  "'.");
       }
       const auto& max_vel = joint_info.limits.max_velocity[0];
-      vel_lower_limits_(idx) = -max_vel;
-      vel_upper_limits_(idx) = max_vel;
+      vel_lower_limits_(q_idx) = -max_vel;
+      vel_upper_limits_(q_idx) = max_vel;
       const auto& max_acc = joint_info.limits.max_acceleration[0];
-      acc_lower_limits_(idx) = -max_acc;
-      acc_upper_limits_(idx) = max_acc;
+      acc_lower_limits_(q_idx) = -max_acc;
+      acc_upper_limits_(q_idx) = max_acc;
+      ++q_idx;
     }
   }
 }

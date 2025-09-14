@@ -44,6 +44,9 @@ private:
 
   /// @brief The struct containing IK solver options.
   SimpleIkOptions options_;
+
+  /// @brief Pinocchio data for the IK solver.
+  pinocchio::Data data_;
 };
 
 }  // namespace roboplan
