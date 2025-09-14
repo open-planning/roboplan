@@ -23,10 +23,15 @@ target_include_directories(expected
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-add_library(tinyxml2 SHARED
-    include/tinyxml2/tinyxml2.cpp
-    include/tinyxml2/tinyxml2.h)
-add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+# ROS already has a TinyXML2 vendor, so add this only in non-ROS contexts.
+find_package(tinyxml2_vendor QUIET)
+find_package(TinyXML2 REQUIRED)
+if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
+    add_library(tinyxml2
+        include/tinyxml2/tinyxml2.cpp
+        include/tinyxml2/tinyxml2.h)
+    add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+endif()
 
 add_library(roboplan SHARED
     src/core/path_utils.cpp
@@ -51,11 +56,15 @@ else()
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
+if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
+    set(ROBOPLAN_TARGETS expected tinyxml2 roboplan)
+else()
+    set(ROBOPLAN_TARGETS expected roboplan)
+endif()
+
 install(
   TARGETS
-  expected
-  tinyxml2
-  roboplan
+  ${ROBOPLAN_TARGETS}
   EXPORT roboplan-targets
   LIBRARY DESTINATION lib
   INCLUDES DESTINATION include
