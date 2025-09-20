@@ -109,7 +109,7 @@ struct JointInfo {
 /// @brief Contains information about a named group of joints.
 struct JointGroupInfo {
   /// @brief The joint names that make up the group.
-  std::vector<std::string>& joint_names;
+  std::vector<std::string> joint_names;
 
   /// @brief The joint indices in the group.
   std::vector<size_t> joint_indices;
