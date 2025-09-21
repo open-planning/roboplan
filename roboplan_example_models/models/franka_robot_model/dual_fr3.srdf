@@ -162,4 +162,10 @@
   <disable_collisions link1="right_fr3_link6" link2="right_fr3_rightfinger" reason="Never"/>
   <disable_collisions link1="right_fr3_link7" link2="right_fr3_rightfinger" reason="Never"/>
   <disable_collisions link1="right_fr3_link8" link2="right_fr3_rightfinger" reason="Never"/>
+
+  <!-- Dual arm-->
+  <group name="dual_fr3_arm">
+    <group name="left_fr3_arm"/>
+    <group name="right_fr3_arm"/>
+  </group>
 </robot>

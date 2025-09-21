@@ -33,7 +33,6 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
        group = group->NextSiblingElement("group")) {
     const char* name;
     group->QueryStringAttribute("name", &name);  // TODO: Check success
-    std::cout << "Found group " << name << "\n";
 
     JointGroupInfo group_info;
 
@@ -45,9 +44,12 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         // The joint case is straightforward; just add the joint name.
         const char* joint_name;
         child->QueryStringAttribute("name", &joint_name);
-        std::cout << "  found a joint name " << joint_name << "\n";
+        const auto joint_id = model.getJointId(joint_name);
+        if (joint_id >= model.njoints) {
+          continue;
+        }
         group_info.joint_names.push_back(joint_name);
-        group_info.joint_indices.push_back(model.getJointId(joint_name));  // TODO: validate
+        group_info.joint_indices.push_back(joint_id);
       } else if (elem_name == "chain") {
         // In the chain case, we must recurse from the specified tip frame all the way
         // up to the base frame, collecting all joints along the way.
@@ -55,22 +57,18 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         child->QueryStringAttribute("base_link", &base_link);
         const char* tip_link;
         child->QueryStringAttribute("tip_link", &tip_link);
-        std::cout << "  found a chain from " << base_link << " to " << tip_link << "\n";
 
         auto cur_frame_id = model.getFrameId(tip_link);
         const auto base_frame_id = model.getFrameId(base_link);
         std::vector<int> joint_indices;
         while (true) {
           const auto& frame = model.frames.at(cur_frame_id);
-          std::cout << "    cur frame: " << frame.name << "\n";
           const auto parent_joint_id = frame.parentJoint;
           const auto& parent_joint_name = model.names.at(parent_joint_id);
-          std::cout << "      parent joint: " << parent_joint_name << "\n";
           // group_info.joint_names.push_back(parent_joint_name);
           joint_indices.push_back(parent_joint_id);
           cur_frame_id = model.frames.at(model.getFrameId(parent_joint_name)).parentFrame;
           if (cur_frame_id == base_frame_id) {
-            std::cout << "Found base frame ID\n";
             break;
           }
           if (cur_frame_id == 0) {
@@ -88,7 +86,6 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         // The parent group must be defined first in the SRDF file!
         const char* group_name;
         child->QueryStringAttribute("name", &group_name);
-        std::cout << "  found a group name " << group_name << "\n";
         const auto& subgroup_info = joint_group_map.at(group_name);  // TODO validate
         group_info.joint_names.insert(group_info.joint_names.end(),
                                       subgroup_info.joint_names.begin(),

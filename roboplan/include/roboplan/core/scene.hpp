@@ -139,6 +139,10 @@ public:
   /// @return The joint group information if successful, else a string describing the error.
   tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
 
+  /// @brief Get the current joint positions for the full robot state.
+  /// @return The current joint position vector.
+  Eigen::VectorXd getCurrentJointPositions() const { return cur_state_.positions; }
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 

@@ -13,6 +13,7 @@ class RobotModelConfig:
       - The URDF path.
       - The SRDF path.
       - The YAML config file path.
+      - The default joint group name.
       - The end-effector name.
       - The robot's base link.
       - The starting joint configuration of the robot.
@@ -21,6 +22,7 @@ class RobotModelConfig:
     urdf_path: Path
     srdf_path: Path
     yaml_config_path: Path
+    default_joint_group: str
     ee_names: List[str]
     base_link: str
     starting_joint_config: List[float]
@@ -34,6 +36,7 @@ MODELS = {
         urdf_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",
         srdf_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.srdf",
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_config.yaml",
+        default_joint_group="arm",
         ee_names=["tool0"],
         base_link="base",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -44,6 +47,7 @@ MODELS = {
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR
         / "franka_robot_model"
         / "fr3_config.yaml",
+        default_joint_group="fr3_arm",
         ee_names=["fr3_hand"],
         base_link="fr3_link0",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -54,6 +58,7 @@ MODELS = {
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR
         / "franka_robot_model"
         / "dual_fr3_config.yaml",
+        default_joint_group="dual_fr3_arm",
         ee_names=["left_fr3_hand", "right_fr3_hand"],
         base_link="left_fr3_link0",
         starting_joint_config=[0.0] * 18,
@@ -64,6 +69,7 @@ MODELS = {
         yaml_config_path=ROBOPLAN_EXAMPLES_DIR
         / "kinova_robot_model"
         / "kinova_robotiq_config.yaml",
+        default_joint_group="manipulator",
         ee_names=["robotiq_85_base_link"],
         base_link="base_link",
         starting_joint_config=[

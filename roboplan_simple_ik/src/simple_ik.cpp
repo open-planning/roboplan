@@ -5,11 +5,24 @@ namespace roboplan {
 SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& options)
     : scene_{scene}, options_{options} {
   data_ = pinocchio::Data(scene_->getModel());
+
+  // Validate the joint group.
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(options.group_name);
+  if (!maybe_joint_group_info) {
+    throw std::runtime_error("Could not initialize IK solver: " + maybe_joint_group_info.error());
+  }
+  joint_group_info_ = maybe_joint_group_info.value();
+
+  // Initialize matrices and vectors
+  const auto& model = scene_->getModel();
+  full_jacobian_ = Eigen::MatrixXd(6, model.nv);
+  jacobian_ = Eigen::MatrixXd(6, joint_group_info_.v_indices.size());
+  jjt_ = Eigen::MatrixXd(6, 6);
+  vel_ = Eigen::VectorXd::Zero(model.nv);
 };
 
 bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfiguration& start,
                        JointConfiguration& solution) {
-
   size_t iter = 0;
   bool result = false;
   const auto& model = scene_->getModel();
@@ -19,12 +32,21 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
   }
   auto frame_id = frame_id_result.value();
 
+  const auto& q_indices = joint_group_info_.q_indices;
+  const auto& v_indices = joint_group_info_.v_indices;
+
   const auto goal_tform = pinocchio::SE3(goal.tform);
   solution = start;
-  auto q = start.positions;
-  Eigen::MatrixXd jacobian(6, model.nv);
-  Eigen::MatrixXd jjt(6, 6);
-  Eigen::VectorXd vel(model.nv);
+  auto q = scene_->getCurrentJointPositions();
+  if (start.positions.size() == model.nq) {
+    q = start.positions;  // full joint positions
+  } else if (start.positions.size() == q_indices.size()) {
+    q(q_indices) = start.positions;  // group joint positions
+  } else {
+    throw std::runtime_error(
+        "Start positions is size " + std::to_string(start.positions.size()) +
+        " which is incompatible with the selected group or full Pinocchio model.");
+  }
 
   while (iter < options_.max_iters) {
     pinocchio::forwardKinematics(model, data_, q);
@@ -38,18 +60,18 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
     }
 
     pinocchio::computeFrameJacobian(model, data_, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
-                                    jacobian);
+                                    full_jacobian_);
+    jacobian_ = full_jacobian_(Eigen::placeholders::all, v_indices);
 
-    jjt.noalias() = jacobian * jacobian.transpose();
-    jjt.diagonal().array() += options_.damping;
-    vel.noalias() = -jacobian.transpose() * jjt.ldlt().solve(error);
+    jjt_.noalias() = jacobian_ * jacobian_.transpose();
+    jjt_.diagonal().array() += options_.damping;
+    vel_(v_indices) = -jacobian_.transpose() * jjt_.ldlt().solve(error);
 
-    if (vel.hasNaN()) {
+    if (vel_.hasNaN()) {
       break;
     }
 
-    q = pinocchio::integrate(model, q, vel * options_.step_size);
-
+    q = pinocchio::integrate(model, q, vel_ * options_.step_size);
     ++iter;
   }
 

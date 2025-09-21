@@ -71,6 +71,7 @@ def main(
 
     # Set up an IK solver
     options = SimpleIkOptions()
+    options.group_name = model_data.default_joint_group
     options.max_iters = max_iters
     options.step_size = step_size
     ik_solver = SimpleIk(scene, options)
