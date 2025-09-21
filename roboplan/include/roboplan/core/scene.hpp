@@ -129,10 +129,15 @@ public:
   /// @return The 4x4 matrix denoting the transform of the specified frame.
   Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) const;
 
-  /// @brief Helper function to get the pinocchio ID of a frame through its name.
+  /// @brief Get the Pinocchio model ID of a frame by its name.
   /// @param name The name of the frame to look up.
-  /// @return The pinocchio frame ID if successful, else a string describing the error.
+  /// @return The Pinocchio frame ID if successful, else a string describing the error.
   tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string& name) const;
+
+  /// @brief Get the joint group information of a scene by its name.
+  /// @param name The name of the joint group to look up.
+  /// @return The joint group information if successful, else a string describing the error.
+  tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
 
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);

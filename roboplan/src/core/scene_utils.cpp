@@ -100,16 +100,26 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
     }
 
     // Once we've defined all joint names in the group, compute the position and velocity indices.
+    std::vector<int> q_indices;
+    std::vector<int> v_indices;
     for (const auto jid : group_info.joint_indices) {
       const auto& joint = model.joints.at(jid);
       const auto& q_idx = model.idx_qs.at(jid);
       for (int dof = 0; dof < joint.nq(); ++dof) {
-        group_info.q_indices.push_back(q_idx + dof);
+        q_indices.push_back(q_idx + dof);
       }
       const auto& v_idx = model.idx_vs.at(jid);
       for (int dof = 0; dof < joint.nv(); ++dof) {
-        group_info.v_indices.push_back(v_idx + dof);
+        v_indices.push_back(v_idx + dof);
       }
+    }
+    group_info.q_indices.resize(q_indices.size());
+    for (size_t idx = 0; idx < q_indices.size(); ++idx) {
+      group_info.q_indices(idx) = q_indices.at(idx);
+    }
+    group_info.v_indices.resize(v_indices.size());
+    for (size_t idx = 0; idx < v_indices.size(); ++idx) {
+      group_info.v_indices(idx) = v_indices.at(idx);
     }
 
     joint_group_map[name] = group_info;

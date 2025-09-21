@@ -48,16 +48,8 @@ std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info) {
     std::cout << " " << name;
   }
   os << "\n";
-  os << "  q indices:";
-  for (const auto q_idx : info.q_indices) {
-    std::cout << " " << q_idx;
-  }
-  os << "\n";
-  os << "  v indices:";
-  for (const auto v_idx : info.v_indices) {
-    std::cout << " " << v_idx;
-  }
-  os << "\n";
+  os << "  q indices: " << info.q_indices.transpose() << "\n";
+  os << "  v indices: " << info.v_indices.transpose() << "\n";
   return os;
 }
 

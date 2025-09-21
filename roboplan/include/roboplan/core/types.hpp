@@ -115,10 +115,10 @@ struct JointGroupInfo {
   std::vector<size_t> joint_indices;
 
   /// @brief The position vector indices in the group.
-  std::vector<size_t> q_indices;
+  Eigen::VectorXi q_indices;
 
   /// @brief The velocity vector indices in the group.
-  std::vector<size_t> v_indices;
+  Eigen::VectorXi v_indices;
 
   /// @brief Prints basic information about the joint group.
   friend std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info);

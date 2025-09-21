@@ -336,7 +336,14 @@ tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::st
   if (it == frame_map_.end()) {
     return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
   }
+  return it->second;
+}
 
+tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::string& name) const {
+  auto it = joint_group_info_.find(name);
+  if (it == joint_group_info_.end()) {
+    return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_.");
+  }
   return it->second;
 }
 
