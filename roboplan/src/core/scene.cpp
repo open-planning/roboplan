@@ -364,6 +364,10 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
       os << "    max jerk: " << limits.max_jerk.transpose() << "\n";
     }
   }
+  os << "Joint group information:\n";
+  for (const auto& [group_name, group_info] : scene.joint_group_info_) {
+    os << "  [" << group_name << "] " << group_info;
+  }
   os << "State:\n";
   os << "  positions: " << scene.cur_state_.positions.transpose() << "\n";
   os << "  velocities: " << scene.cur_state_.velocities.transpose() << "\n";

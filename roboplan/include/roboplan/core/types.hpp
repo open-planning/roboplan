@@ -119,6 +119,9 @@ struct JointGroupInfo {
 
   /// @brief The velocity vector indices in the group.
   std::vector<size_t> v_indices;
+
+  /// @brief Prints basic information about the joint group.
+  friend std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info);
 };
 
 /// @brief Contains a path of joint configurations.

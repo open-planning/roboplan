@@ -47,6 +47,7 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         child->QueryStringAttribute("name", &joint_name);
         std::cout << "  found a joint name " << joint_name << "\n";
         group_info.joint_names.push_back(joint_name);
+        group_info.joint_indices.push_back(model.getJointId(joint_name));  // TODO: validate
       } else if (elem_name == "chain") {
         // In the chain case, we must recurse from the specified tip frame all the way
         // up to the base frame, collecting all joints along the way.
@@ -58,13 +59,15 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
 
         auto cur_frame_id = model.getFrameId(tip_link);
         const auto base_frame_id = model.getFrameId(base_link);
+        std::vector<int> joint_indices;
         while (true) {
           const auto& frame = model.frames.at(cur_frame_id);
           std::cout << "    cur frame: " << frame.name << "\n";
           const auto parent_joint_id = frame.parentJoint;
           const auto& parent_joint_name = model.names.at(parent_joint_id);
           std::cout << "      parent joint: " << parent_joint_name << "\n";
-          group_info.joint_names.push_back(parent_joint_name);
+          // group_info.joint_names.push_back(parent_joint_name);
+          joint_indices.push_back(parent_joint_id);
           cur_frame_id = model.frames.at(model.getFrameId(parent_joint_name)).parentFrame;
           if (cur_frame_id == base_frame_id) {
             std::cout << "Found base frame ID\n";
@@ -74,6 +77,11 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
             throw std::runtime_error(
                 "Recursed the whole robot model and did not find the base frame!");
           }
+        }
+        // Add the joint information in the reverse order.
+        for (auto it = joint_indices.rbegin(); it != joint_indices.rend(); ++it) {
+          group_info.joint_names.push_back(model.names.at(*it));
+          group_info.joint_indices.push_back(*it);
         }
       } else if (elem_name == "group") {
         // In the group case, just add the joints from the parent group.
@@ -85,11 +93,24 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         group_info.joint_names.insert(group_info.joint_names.end(),
                                       subgroup_info.joint_names.begin(),
                                       subgroup_info.joint_names.end());
+        group_info.joint_indices.insert(group_info.joint_indices.end(),
+                                        subgroup_info.joint_indices.begin(),
+                                        subgroup_info.joint_indices.end());
       }
     }
 
-    // TODO: Once we've defined all the joint names in the group, compute the position and velocity
-    // indices.
+    // Once we've defined all joint names in the group, compute the position and velocity indices.
+    for (const auto jid : group_info.joint_indices) {
+      const auto& joint = model.joints.at(jid);
+      const auto& q_idx = model.idx_qs.at(jid);
+      for (int dof = 0; dof < joint.nq(); ++dof) {
+        group_info.q_indices.push_back(q_idx + dof);
+      }
+      const auto& v_idx = model.idx_vs.at(jid);
+      for (int dof = 0; dof < joint.nv(); ++dof) {
+        group_info.v_indices.push_back(v_idx + dof);
+      }
+    }
 
     joint_group_map[name] = group_info;
   }
