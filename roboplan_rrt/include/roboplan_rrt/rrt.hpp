@@ -3,13 +3,15 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <string>
 #include <vector>
 
 #include <dynotree/KDTree.h>
+#include <tl/expected.hpp>
+
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 #include <roboplan_rrt/graph.hpp>
-#include <tl/expected.hpp>
 
 namespace roboplan {
 
@@ -17,6 +19,9 @@ using CombinedStateSpace = dynotree::Combined<double>;
 using KdTree = dynotree::KDTree<int, -1, 32, double, CombinedStateSpace>;
 
 struct RRTOptions {
+  /// @brief The joint group name to be used by the planner.
+  std::string group_name = "";
+
   /// @brief The maximum number of nodes to sample.
   size_t max_nodes = 1000;
 
@@ -43,7 +48,7 @@ public:
   /// @brief Constructor.
   /// @param scene A pointer to the scene to use for motion planning.
   /// @param options A struct containing RRT options.
-  RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options = RRTOptions());
+  RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options);
 
   /// @brief Plan a path from start to goal.
   /// @param start The starting joint configuration.
@@ -108,6 +113,9 @@ private:
 
   /// @brief The struct containing IK solver options.
   RRTOptions options_;
+
+  /// @brief The joint group into for the IK solver.
+  JointGroupInfo joint_group_info_;
 
   /// @brief A state space for the k-d tree for nearest neighbor lookup.
   CombinedStateSpace state_space_;

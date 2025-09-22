@@ -10,16 +10,24 @@ namespace roboplan {
 RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     : scene_{scene}, options_{options} {
 
-  // Get the state space info and set bounds from the robot's joints.
-  Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
-  Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(scene_->getModel().nq);
+  // Validate the joint group.
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(options.group_name);
+  if (!maybe_joint_group_info) {
+    throw std::runtime_error("Could not initialize IK solver: " + maybe_joint_group_info.error());
+  }
+  joint_group_info_ = maybe_joint_group_info.value();
+
+  // Get the state space info and set bounds from the group's joints.
+  const auto nq = joint_group_info_.q_indices.size();
+  Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(nq);
+  Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(nq);
 
   const auto joint_names = scene_->getJointNames();
   std::vector<std::string> state_space_names;
   state_space_names.reserve(joint_names.size());
 
   size_t q_idx = 0;
-  for (const auto& joint_name : joint_names) {
+  for (const auto& joint_name : joint_group_info_.joint_names) {
     const auto& joint_info = scene_->getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::FLOATING:
@@ -51,8 +59,30 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
                                                const JointConfiguration& goal) {
   std::cout << "Planning...\n";
 
-  const auto& q_start = start.positions;
-  const auto& q_goal = goal.positions;
+  const auto& model = scene_->getModel();
+  const auto& q_indices = joint_group_info_.q_indices;
+
+  auto q_start = scene_->getCurrentJointPositions();
+  if (start.positions.size() == model.nq) {
+    q_start = start.positions;  // full joint positions
+  } else if (start.positions.size() == q_indices.size()) {
+    q_start(q_indices) = start.positions;  // group joint positions
+  } else {
+    throw std::runtime_error(
+        "Start positions is size " + std::to_string(start.positions.size()) +
+        " which is incompatible with the selected group or full Pinocchio model.");
+  }
+
+  auto q_goal = scene_->getCurrentJointPositions();
+  if (goal.positions.size() == model.nq) {
+    q_goal = goal.positions;  // full joint positions
+  } else if (goal.positions.size() == q_indices.size()) {
+    q_goal(q_indices) = goal.positions;  // group joint positions
+  } else {
+    throw std::runtime_error(
+        "Goal positions is size " + std::to_string(goal.positions.size()) +
+        " which is incompatible with the selected group or full Pinocchio model.");
+  }
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
@@ -142,7 +172,8 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::Ve
                          size_t max_size) {
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
-  tree.addPoint(q_init, 0);
+  const auto& q_indices = joint_group_info_.q_indices;
+  tree.addPoint(q_init(q_indices), 0);
 
   nodes.clear();
   nodes.reserve(max_size);
@@ -151,9 +182,10 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::Ve
 
 bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample) {
   bool grew_tree = false;
+  const auto& q_indices = joint_group_info_.q_indices;
 
   // Extend from the nearest neighbor to max connection distance.
-  const auto& nn = kd_tree.search(q_sample);
+  const auto& nn = kd_tree.search(q_sample(q_indices));
   const auto& q_nearest = nodes.at(nn.id).config;
 
   int parent_id = nn.id;
@@ -170,7 +202,7 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
 
     grew_tree = true;
     auto new_id = nodes.size();
-    kd_tree.addPoint(q_extend, new_id);
+    kd_tree.addPoint(q_extend(q_indices), new_id);
     nodes.emplace_back(q_extend, parent_id);
 
     // Only one iteration if we are not using RRT-Connect.
@@ -199,7 +231,8 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   const auto& q_last_added = last_added_node.config;
 
   // Find the nearest node in the target tree.
-  const auto& nn = target_tree.search(q_last_added);
+  const auto& q_indices = joint_group_info_.q_indices;
+  const auto& nn = target_tree.search(q_last_added(q_indices));
   const auto& nearest_node = target_nodes.at(nn.id);
   const auto& q_nearest = nearest_node.config;
 

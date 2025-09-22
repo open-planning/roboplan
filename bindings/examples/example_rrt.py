@@ -81,6 +81,7 @@ def main(
 
     # Set up an RRT and perform path planning.
     options = RRTOptions()
+    options.group_name = model_data.default_joint_group
     options.max_connection_distance = max_connection_distance
     options.collision_check_step_size = collision_check_step_size
     options.goal_biasing_probability = goal_biasing_probability
