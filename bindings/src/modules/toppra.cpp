@@ -1,5 +1,6 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_toppra/toppra.hpp>
@@ -13,7 +14,7 @@ using namespace nanobind::literals;
 
 void init_toppra(nanobind::module_& m) {
   nanobind::class_<PathParameterizerTOPPRA>(m, "PathParameterizerTOPPRA")
-      .def(nanobind::init<const std::shared_ptr<Scene>>())
+      .def(nanobind::init<const std::shared_ptr<Scene>, std::string>())
       .def("generate", unwrap_expected(&PathParameterizerTOPPRA::generate), "path"_a, "dt"_a,
            "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0);
 }

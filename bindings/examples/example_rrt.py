@@ -129,7 +129,7 @@ def main(
 
     # Set up TOPP-RA path parameterization
     dt = 0.01
-    toppra = PathParameterizerTOPPRA(scene)
+    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
     traj = toppra.generate(path, dt)
 
     # TODO: Make this a reusable function
@@ -147,8 +147,11 @@ def main(
 
     # Animate the trajectory
     input("Press 'Enter' to animate the trajectory.")
+    q_full = scene.getCurrentJointPositions()
+    q_indices = scene.getJointPositionIndices(traj.joint_names)
     for q in traj.positions:
-        viz.display(q)
+        q_full[q_indices] = q
+        viz.display(q_full)
         time.sleep(dt)
 
     try:

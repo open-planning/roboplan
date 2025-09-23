@@ -347,6 +347,18 @@ tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::st
   return it->second;
 }
 
+Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
+  std::vector<int> q_indices;
+  for (const auto& joint_name : joint_names) {
+    const auto joint_id = model_.getJointId(joint_name);
+    const auto idx_start = model_.idx_qs[joint_id];
+    for (int dof = 0; dof < model_.joints[joint_id].nq(); ++dof) {
+      q_indices.push_back(idx_start + dof);
+    }
+  }
+  return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
+}
+
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "Scene: " << scene.name_ << "\n";
   os << "Joint names: ";

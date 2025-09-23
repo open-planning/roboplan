@@ -114,7 +114,7 @@ private:
   /// @brief The struct containing IK solver options.
   RRTOptions options_;
 
-  /// @brief The joint group into for the IK solver.
+  /// @brief The joint group info for the IK solver.
   JointGroupInfo joint_group_info_;
 
   /// @brief A state space for the k-d tree for nearest neighbor lookup.

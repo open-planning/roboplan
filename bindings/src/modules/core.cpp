@@ -63,6 +63,18 @@ void init_core_types(nanobind::module_& m) {
       .def_ro("limits", &JointInfo::limits)
       .def_ro("mimic_info", &JointInfo::mimic_info);
 
+  nanobind::class_<JointGroupInfo>(m, "JointGroupInfo")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("joint_names", &JointGroupInfo::joint_names)
+      .def_rw("joint_indices", &JointGroupInfo::joint_indices)
+      .def_rw("q_indices", &JointGroupInfo::q_indices)
+      .def_rw("v_indices", &JointGroupInfo::v_indices)
+      .def("__repr__", [](const JointGroupInfo& info) {
+        std::stringstream ss;
+        ss << info;
+        return ss.str();
+      });
+
   nanobind::class_<JointPath>(m, "JointPath")
       .def(nanobind::init<>())  // Default constructor
       .def_rw("joint_names", &JointPath::joint_names)
@@ -119,6 +131,9 @@ void init_core_scene(nanobind::module_& m) {
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
       .def("getFrameId", unwrap_expected(&Scene::getFrameId))
+      .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo))
+      .def("getCurrentJointPositions", &Scene::getCurrentJointPositions)
+      .def("getJointPositionIndices", &Scene::getJointPositionIndices)
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;

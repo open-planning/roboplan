@@ -116,7 +116,7 @@ TEST_F(RoboPlanToppraTest, EmptyPath) {
   JointPath path;
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_);
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "Path must have at least 2 points.");
@@ -126,7 +126,7 @@ TEST_F(RoboPlanToppraTest, NegativeDt) {
   auto path = createTestPathShort();
   double dt = -0.1;
 
-  auto toppra = PathParameterizerTOPPRA(scene_);
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "dt must be strictly positive.");
@@ -136,7 +136,7 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_);
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
 
   for (const auto& vel_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
     auto result = toppra.generate(path, dt, vel_scale);
@@ -156,7 +156,7 @@ TEST_F(RoboPlanToppraTest, BadJointNames) {
   path.joint_names = {"fr3_joint1", "fr3_joint2"};
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_);
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "Path joint names do not match the scene joint names.");
@@ -166,7 +166,7 @@ TEST_F(RoboPlanToppraTest, ShortPath) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_);
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_TRUE(result.has_value());
 }
@@ -175,7 +175,7 @@ TEST_F(RoboPlanToppraTest, LongPath) {
   auto path = createTestPathLong();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_);
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_TRUE(result.has_value());
 }

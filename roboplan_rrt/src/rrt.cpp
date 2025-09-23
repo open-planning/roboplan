@@ -13,7 +13,7 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   // Validate the joint group.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(options.group_name);
   if (!maybe_joint_group_info) {
-    throw std::runtime_error("Could not initialize IK solver: " + maybe_joint_group_info.error());
+    throw std::runtime_error("Could not initialize RRT planner: " + maybe_joint_group_info.error());
   }
   joint_group_info_ = maybe_joint_group_info.value();
 
@@ -95,7 +95,8 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
     std::cout << "Can directly connect start and goal!\n";
-    return JointPath{.joint_names = scene_->getJointNames(), .positions = {q_start, q_goal}};
+    return JointPath{.joint_names = joint_group_info_.joint_names,
+                     .positions = {q_start(q_indices), q_goal(q_indices)}};
   }
 
   // Initialize the trees for searching.
@@ -267,16 +268,17 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
 
 JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
   JointPath path;
-  path.joint_names = scene_->getJointNames();
+  path.joint_names = joint_group_info_.joint_names;
+  const auto& q_indices = joint_group_info_.q_indices;
   auto cur_node = &end_node;
-  path.positions.push_back(cur_node->config);
+  path.positions.push_back(cur_node->config(q_indices));
   while (true) {
     auto cur_idx = cur_node->parent_id;
     if (cur_idx < 0) {
       break;
     }
     cur_node = &nodes.at(cur_idx);
-    path.positions.push_back(cur_node->config);
+    path.positions.push_back(cur_node->config(q_indices));
   }
   return path;
 }

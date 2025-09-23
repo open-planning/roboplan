@@ -51,7 +51,7 @@ private:
   /// @brief Pinocchio data for the IK solver.
   pinocchio::Data data_;
 
-  /// @brief The joint group into for the IK solver.
+  /// @brief The joint group info for the IK solver.
   JointGroupInfo joint_group_info_;
 
   /// @brief The full model Jacobian (for allocating memory once).

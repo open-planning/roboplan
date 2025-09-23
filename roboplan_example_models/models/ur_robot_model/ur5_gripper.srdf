@@ -14,16 +14,6 @@
   <group name="arm">
     <chain base_link="base_link" tip_link="tool0"/>
   </group>
-  <!-- TODO: Delete these test groups once done. -->
-  <group name="wrist">
-    <joint name="wrist_1_joint"/>
-    <joint name="wrist_2_joint"/>
-    <joint name="wrist_3_joint"/>
-  </group>
-  <group name="wrist_and_elbow">
-    <group name="wrist"/>
-    <joint name="elbow_joint"/>
-  </group>
 
   <disable_collisions link1="base_link" link2="shoulder_link"/>
   <disable_collisions link1="base_link" link2="upper_arm_link"/>
