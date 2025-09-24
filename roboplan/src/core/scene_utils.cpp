@@ -45,7 +45,7 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         const char* joint_name;
         child->QueryStringAttribute("name", &joint_name);
         const auto joint_id = model.getJointId(joint_name);
-        if (joint_id >= model.njoints) {
+        if (joint_id >= static_cast<size_t>(model.njoints)) {
           continue;
         }
         group_info.joint_names.push_back(joint_name);
@@ -121,6 +121,15 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
 
     joint_group_map[name] = group_info;
   }
+
+  // Create a default empty group with all the indices.
+  std::vector<size_t> all_joint_indices(model.njoints - 1);
+  std::iota(all_joint_indices.begin(), all_joint_indices.end(), 0);
+  joint_group_map[""] = JointGroupInfo{
+      .joint_names = std::vector<std::string>(model.names.begin() + 1, model.names.end()),
+      .joint_indices = all_joint_indices,
+      .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
+      .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1)};
 
   return joint_group_map;
 }

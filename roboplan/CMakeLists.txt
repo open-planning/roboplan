@@ -25,7 +25,7 @@ target_include_directories(expected
 
 # ROS already has a TinyXML2 vendor, so add this only in non-ROS contexts.
 find_package(tinyxml2_vendor QUIET)
-find_package(TinyXML2 REQUIRED)
+find_package(TinyXML2 QUIET)
 if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
     add_library(tinyxml2
         include/tinyxml2/tinyxml2.cpp
