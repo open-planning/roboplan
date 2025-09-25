@@ -95,17 +95,32 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
       continue;
     }
 
-    // Check if the sampled segment is collision free. If it is, shortcut the path by updating
-    // the configs vector in place. We connect the low and high configurations directly, and
-    // erase the intermediate nodes (if any).
-    if (!hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
-      path_configs[idx_low] = q_low;
-      path_configs[idx_high] = q_high;
-      if (idx_high > idx_low + 1) {
-        path_configs.erase(path_configs.begin() + idx_low + 1, path_configs.begin() + idx_high);
-      }
-      path_changed = true;
+    // Ensure the lower index can be connected to the path, assuming it's not the first point.
+    if (idx_low > 0 &&
+        hasCollisionsAlongPath(scene, path_configs[idx_low - 1], q_low, max_step_size)) {
+      continue;
     }
+
+    // Ensure the higher index can be connected to the path, assuming it's not the last point.
+    if (idx_high < path_configs.size() &&
+        hasCollisionsAlongPath(scene, q_high, path_configs[idx_high + 1], max_step_size)) {
+      continue;
+    }
+
+    // Ensure that the lower and higher indexes are directly connecteable
+    if (hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
+      continue;
+    }
+
+    // Everything is collision free, so shortcut the path by updating the configs vector in place.
+    // We connect the low and high configurations directly, and erase the intermediate nodes (if
+    // any).
+    path_configs[idx_low] = q_low;
+    path_configs[idx_high] = q_high;
+    if (idx_high > idx_low + 1) {
+      path_configs.erase(path_configs.begin() + idx_low + 1, path_configs.begin() + idx_high);
+    }
+    path_changed = true;
   }
 
   return shortened_path;
