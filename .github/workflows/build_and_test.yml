@@ -113,6 +113,8 @@ jobs:
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
           frozen: true
           manifest-path: pixi.toml
+          # TODO: Remove this when we do not have self-hosted runners in the public repo
+          pixi-bin-path: ~/actions-runner/.pixi/bin/pixi
       - name: Build and test
         run: |
           pixi run install_all
