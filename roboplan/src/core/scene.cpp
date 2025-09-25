@@ -232,6 +232,8 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
 }
 
 bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
+  pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
+                                      q);
   return pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_,
                                       q,
                                       /* stop_at_first_collision*/ true);

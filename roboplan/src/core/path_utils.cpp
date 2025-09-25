@@ -34,10 +34,10 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
   }
 
   // In the general case, check the first and last points, then all the intermediate ones.
-  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
   if (collision_at_endpoints) {
     return true;
   }
+  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
   for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
     const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
     if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
