@@ -95,6 +95,11 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
       continue;
     }
 
+    // Ensure that the lower and higher indexes are directly connecteable.
+    if (hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
+      continue;
+    }
+
     // Ensure the lower index can be connected to the path, assuming it's not the first point.
     if (idx_low > 0 &&
         hasCollisionsAlongPath(scene, path_configs[idx_low - 1], q_low, max_step_size)) {
@@ -102,13 +107,8 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     }
 
     // Ensure the higher index can be connected to the path, assuming it's not the last point.
-    if (idx_high < path_configs.size() &&
+    if (idx_high < path_configs.size() - 1 &&
         hasCollisionsAlongPath(scene, q_high, path_configs[idx_high + 1], max_step_size)) {
-      continue;
-    }
-
-    // Ensure that the lower and higher indexes are directly connecteable
-    if (hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
       continue;
     }
 
