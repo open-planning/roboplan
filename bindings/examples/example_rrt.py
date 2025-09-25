@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import pinocchio as pin
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
-    shortcutPath,
     JointConfiguration,
     PathParameterizerTOPPRA,
+    PathShortcutter,
     Scene,
     RRTOptions,
     RRT,
@@ -98,13 +98,15 @@ def main(
     goal.positions = scene.randomCollisionFreePositions()
     assert goal.positions is not None
 
+    scene.setJointPositions(start.positions)
     path = rrt.plan(start, goal)
     assert path is not None
 
     # Optionally include path shortening
     if include_shortcutting:
-        shortcut_path = shortcutPath(
-            scene, path, options.collision_check_step_size, 1000
+        shortcutter = PathShortcutter(scene, model_data.default_joint_group)
+        shortened_path = shortcutter.shortcut(
+            path, options.collision_check_step_size, 1000
         )
 
     # Visualize the tree and path
@@ -115,17 +117,17 @@ def main(
 
     if include_shortcutting:
         print("Shortcutted path:")
-        print(shortcut_path)
+        print(shortened_path)
         visualizePath(
             viz,
             scene,
-            shortcut_path,
+            shortened_path,
             model_data.ee_names,
             0.05,
             (0, 100, 0),
             "/rrt/shortcut_path",
         )
-        path = shortcut_path
+        path = shortened_path
 
     # Set up TOPP-RA path parameterization
     dt = 0.01

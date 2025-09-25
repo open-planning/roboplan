@@ -143,6 +143,10 @@ public:
   /// @return The current joint position vector.
   Eigen::VectorXd getCurrentJointPositions() const { return cur_state_.positions; }
 
+  /// @brief Set the joint positions for the full robot state.
+  /// @return The desired joint position vector.
+  void setJointPositions(const Eigen::VectorXd& positions) { cur_state_.positions = positions; }
+
   /// @brief Get the joint position indices for a set of joint names.
   /// @param joint_names The joint names for which to look up position indices.
   /// @return The corresponding joint position indices.

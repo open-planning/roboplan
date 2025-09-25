@@ -2,6 +2,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
 #include <nanobind/stl/optional.h>
+#include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
@@ -133,6 +134,7 @@ void init_core_scene(nanobind::module_& m) {
       .def("getFrameId", unwrap_expected(&Scene::getFrameId))
       .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo))
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions)
+      .def("setJointPositions", &Scene::setJointPositions)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices)
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
@@ -144,11 +146,15 @@ void init_core_scene(nanobind::module_& m) {
 void init_core_path_utils(nanobind::module_& m) {
   m.def("computeFramePath", &computeFramePath);
   m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath);
-  m.def("shortcutPath", &shortcutPath, "scene"_a, "path"_a, "max_step_size"_a, "max_iters"_a = 100,
-        "seed"_a = 0);
-  m.def("getPathLengths", unwrap_expected(&getPathLengths));
-  m.def("getNormalizedPathScaling", unwrap_expected(&getNormalizedPathScaling));
-  m.def("getConfigurationFromNormalizedPathScaling", &getConfigurationFromNormalizedPathScaling);
+
+  nanobind::class_<PathShortcutter>(m, "PathShortcutter")
+      .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&>())
+      .def("shortcut", &PathShortcutter::shortcut, "path"_a, "max_step_size"_a, "max_iters"_a = 100,
+           "seed"_a = 0)
+      .def("getPathLengths", unwrap_expected(&PathShortcutter::getPathLengths))
+      .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling))
+      .def("getConfigurationfromNormalizedPathScaling",
+           &PathShortcutter::getConfigurationFromNormalizedPathScaling);
 }
 
 }  // namespace roboplan

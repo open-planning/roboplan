@@ -101,6 +101,7 @@ def main(
         if result:
             viz.display(solution.positions)
             start.positions = solution.positions
+            scene.setJointPositions(start.positions)
 
     # Create a marker reset button.
     reset_button = viz.viewer.gui.add_button("Reset Marker")
@@ -116,6 +117,7 @@ def main(
     @random_button.on_click
     def randomize_position(_):
         start.positions = scene.randomCollisionFreePositions()
+        scene.setJointPositions(start.positions)
         viz.display(start.positions)
         reset_position(_)
 

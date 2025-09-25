@@ -1,10 +1,6 @@
 from .roboplan_ext.core import (
     computeFramePath,
     hasCollisionsAlongPath,
-    shortcutPath,
-    getPathLengths,
-    getNormalizedPathScaling,
-    getConfigurationFromNormalizedPathScaling,
     CartesianConfiguration,
     JointConfiguration,
     JointInfo,
@@ -12,6 +8,7 @@ from .roboplan_ext.core import (
     JointPath,
     JointTrajectory,
     JointType,
+    PathShortcutter,
     Scene,
     __doc__,
 )
