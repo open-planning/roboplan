@@ -295,24 +295,23 @@ void Scene::applyMimics(Eigen::VectorXd& q) const {
   }
 }
 
-Eigen::VectorXd Scene::toFullJointPositions(const std::vector<std::string>& joint_names,
+Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name,
                                             const Eigen::VectorXd& q) const {
-  Eigen::VectorXd q_out = Eigen::VectorXd::Zero(model_.nq);
+  Eigen::VectorXd q_out = cur_state_.positions;
 
-  size_t q_idx = 0;
-  for (const auto& joint_name : joint_names) {
-    const auto maybe_joint_idx = getFrameId(joint_name);
-    if (!maybe_joint_idx) {
-      throw std::runtime_error("Failed to find joint name: " + joint_name);
-    }
-    const auto& joint_idx = maybe_joint_idx.value();
-    const auto& info = joint_info_.at(joint_name);  // already validated
-    for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-      q_out(model_.idx_qs.at(joint_idx) + idx) = q(q_idx);
-      ++q_idx;
-    }
+  const auto maybe_group_info = getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    throw std::runtime_error("Failed to get full joint positions: " + maybe_group_info.error());
+  }
+  const auto& q_indices = maybe_group_info.value().q_indices;
+  if (q_indices.size() != q.size()) {
+    throw std::runtime_error("Failed to get full joint positions: Joint group '" + group_name +
+                             "' has nq=" + std::to_string(q_indices.size()) +
+                             " but the input positions is of size " + std::to_string(q.size()) +
+                             ".");
   }
 
+  q_out(q_indices) = q;
   applyMimics(q_out);
   return q_out;
 }
@@ -325,12 +324,15 @@ Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::
 Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
                                          const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.
-  pinocchio::framesForwardKinematics(model_, model_data_, q);
-  auto frame_id = getFrameId(frame_name);
-  if (!frame_id) {
-    throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
+  const auto maybe_frame_id = getFrameId(frame_name);
+  if (!maybe_frame_id) {
+    throw std::runtime_error("Failed to get frame ID: " + maybe_frame_id.error());
   }
-  return model_data_.oMf[frame_id.value()];
+  const auto frame_id = maybe_frame_id.value();
+
+  pinocchio::forwardKinematics(model_, model_data_, q);
+  pinocchio::updateFramePlacement(model_, model_data_, frame_id);
+  return model_data_.oMf.at(frame_id);
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {

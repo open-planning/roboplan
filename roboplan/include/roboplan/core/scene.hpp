@@ -111,9 +111,10 @@ public:
 
   /// @brief Converts partial joint positions to full joint positions.
   /// @details This includes adding new joints and applying mimic relationships.
+  /// @param group_name The name of the joint group.
   /// @param q The original (partial) joint positions.
   /// @return The full joint positions.
-  Eigen::VectorXd toFullJointPositions(const std::vector<std::string>& joint_names,
+  Eigen::VectorXd toFullJointPositions(const std::string& group_name,
                                        const Eigen::VectorXd& q) const;
 
   /// @brief Interpolates between two joint configurations.

@@ -66,6 +66,8 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
+    q_full = scene.getCurrentJointPositions()
+    q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -91,14 +93,15 @@ def main(
     rrt = RRT(scene, options)
 
     start = JointConfiguration()
-    start.positions = scene.randomCollisionFreePositions()
+    start.positions = scene.randomCollisionFreePositions()[q_indices]
     assert start.positions is not None
 
     goal = JointConfiguration()
-    goal.positions = scene.randomCollisionFreePositions()
+    goal.positions = scene.randomCollisionFreePositions()[q_indices]
     assert goal.positions is not None
 
-    scene.setJointPositions(start.positions)
+    q_full[q_indices] = start.positions
+    scene.setJointPositions(q_full)
     path = rrt.plan(start, goal)
     assert path is not None
 
@@ -111,7 +114,7 @@ def main(
 
     # Visualize the tree and path
     print(path)
-    viz.display(start.positions)
+    viz.display(q_full)
     visualizePath(viz, scene, path, model_data.ee_names, 0.05)
     visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
 
@@ -149,8 +152,6 @@ def main(
 
     # Animate the trajectory
     input("Press 'Enter' to animate the trajectory.")
-    q_full = scene.getCurrentJointPositions()
-    q_indices = scene.getJointPositionIndices(traj.joint_names)
     for q in traj.positions:
         q_full[q_indices] = q
         viz.display(q_full)

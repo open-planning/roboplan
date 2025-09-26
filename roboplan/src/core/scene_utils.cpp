@@ -32,7 +32,9 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
   for (tinyxml2::XMLElement* group = robot->FirstChildElement("group"); group != nullptr;
        group = group->NextSiblingElement("group")) {
     const char* name;
-    group->QueryStringAttribute("name", &name);  // TODO: Check success
+    if (group->QueryStringAttribute("name", &name) != tinyxml2::XML_SUCCESS) {
+      throw std::runtime_error("Found an invalid group with no name in the SRDF!");
+    }
 
     JointGroupInfo group_info;
 
@@ -43,7 +45,10 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
       if (elem_name == "joint") {
         // The joint case is straightforward; just add the joint name.
         const char* joint_name;
-        child->QueryStringAttribute("name", &joint_name);
+        if (child->QueryStringAttribute("name", &joint_name) != tinyxml2::XML_SUCCESS) {
+          throw std::runtime_error("Group '" + std::string(name) +
+                                   "' specifies a joint with no name in the SRDF!");
+        }
         const auto joint_id = model.getJointId(joint_name);
         if (joint_id >= static_cast<size_t>(model.njoints)) {
           continue;
@@ -54,9 +59,15 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         // In the chain case, we must recurse from the specified tip frame all the way
         // up to the base frame, collecting all joints along the way.
         const char* base_link;
-        child->QueryStringAttribute("base_link", &base_link);
+        if (child->QueryStringAttribute("base_link", &base_link) != tinyxml2::XML_SUCCESS) {
+          throw std::runtime_error("Group '" + std::string(name) +
+                                   "' chain specifies no 'base_link' attribute in the SRDF!");
+        }
         const char* tip_link;
-        child->QueryStringAttribute("tip_link", &tip_link);
+        if (child->QueryStringAttribute("tip_link", &tip_link) != tinyxml2::XML_SUCCESS) {
+          throw std::runtime_error("Group '" + std::string(name) +
+                                   "' chain specifies no 'tip_link' attribute in the SRDF!");
+        }
 
         auto cur_frame_id = model.getFrameId(tip_link);
         const auto base_frame_id = model.getFrameId(base_link);
@@ -85,7 +96,10 @@ std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Mode
         // In the group case, just add the joints from the parent group.
         // The parent group must be defined first in the SRDF file!
         const char* group_name;
-        child->QueryStringAttribute("name", &group_name);
+        if (child->QueryStringAttribute("name", &group_name) != tinyxml2::XML_SUCCESS) {
+          throw std::runtime_error("Group '" + std::string(name) +
+                                   "' specifies a subgroup with no name in the SRDF!");
+        }
         const auto& subgroup_info = joint_group_map.at(group_name);  // TODO validate
         group_info.joint_names.insert(group_info.joint_names.end(),
                                       subgroup_info.joint_names.begin(),

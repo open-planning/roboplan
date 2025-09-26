@@ -37,16 +37,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
 
   const auto goal_tform = pinocchio::SE3(goal.tform);
   solution = start;
-  auto q = scene_->getCurrentJointPositions();
-  if (start.positions.size() == model.nq) {
-    q = start.positions;  // full joint positions
-  } else if (start.positions.size() == q_indices.size()) {
-    q(q_indices) = start.positions;  // group joint positions
-  } else {
-    throw std::runtime_error(
-        "Start positions is size " + std::to_string(start.positions.size()) +
-        " which is incompatible with the selected group or full Pinocchio model.");
-  }
+  auto q = scene_->toFullJointPositions(options_.group_name, start.positions);
 
   while (iter < options_.max_iters) {
     pinocchio::forwardKinematics(model, data_, q);
@@ -55,7 +46,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
     const auto error = pinocchio::log6(goal_tform.actInv(data_.oMf[frame_id])).toVector();
 
     if (error.norm() <= options_.max_error_norm) {
-      solution.positions = q;
+      solution.positions = q(q_indices);
       return true;
     }
 

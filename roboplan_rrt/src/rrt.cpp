@@ -61,28 +61,8 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
 
   const auto& model = scene_->getModel();
   const auto& q_indices = joint_group_info_.q_indices;
-
-  auto q_start = scene_->getCurrentJointPositions();
-  if (start.positions.size() == model.nq) {
-    q_start = start.positions;  // full joint positions
-  } else if (start.positions.size() == q_indices.size()) {
-    q_start(q_indices) = start.positions;  // group joint positions
-  } else {
-    throw std::runtime_error(
-        "Start positions is size " + std::to_string(start.positions.size()) +
-        " which is incompatible with the selected group or full Pinocchio model.");
-  }
-
-  auto q_goal = scene_->getCurrentJointPositions();
-  if (goal.positions.size() == model.nq) {
-    q_goal = goal.positions;  // full joint positions
-  } else if (goal.positions.size() == q_indices.size()) {
-    q_goal(q_indices) = goal.positions;  // group joint positions
-  } else {
-    throw std::runtime_error(
-        "Goal positions is size " + std::to_string(goal.positions.size()) +
-        " which is incompatible with the selected group or full Pinocchio model.");
-  }
+  auto q_start = scene_->toFullJointPositions(options_.group_name, start.positions);
+  auto q_goal = scene_->toFullJointPositions(options_.group_name, goal.positions);
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {

@@ -55,6 +55,8 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
+    q_full = scene.getCurrentJointPositions()
+    q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -77,7 +79,8 @@ def main(
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()
-    start.positions = np.array(model_data.starting_joint_config)
+    start.positions = np.array(model_data.starting_joint_config)[q_indices]
+
     goal = CartesianConfiguration()
     goal.base_frame = model_data.base_link
     goal.tip_frame = model_data.ee_names[0]
@@ -99,16 +102,19 @@ def main(
         ).homogeneous
         result = ik_solver.solveIk(goal, start, solution)
         if result:
-            viz.display(solution.positions)
+            q_full[q_indices] = solution.positions
+            viz.display(q_full)
+            scene.setJointPositions(q_full)
             start.positions = solution.positions
-            scene.setJointPositions(start.positions)
 
     # Create a marker reset button.
     reset_button = viz.viewer.gui.add_button("Reset Marker")
 
     @reset_button.on_click
     def reset_position(_):
-        fk_tform = scene.forwardKinematics(start.positions, goal.tip_frame)
+        fk_tform = scene.forwardKinematics(
+            scene.getCurrentJointPositions(), goal.tip_frame
+        )
         controls.position = fk_tform[:3, 3]
         controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
 
@@ -116,9 +122,12 @@ def main(
 
     @random_button.on_click
     def randomize_position(_):
-        start.positions = scene.randomCollisionFreePositions()
-        scene.setJointPositions(start.positions)
-        viz.display(start.positions)
+        q_full = scene.getCurrentJointPositions()
+        q_rand = scene.randomCollisionFreePositions()[q_indices]
+        q_full[q_indices] = q_rand
+        scene.setJointPositions(q_full)
+        viz.display(q_full)
+        start.positions = q_rand
         reset_position(_)
 
     # Display the arm and marker at the starting position, then sleep forever.
