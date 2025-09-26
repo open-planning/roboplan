@@ -33,8 +33,8 @@ public:
     Eigen::VectorXd q4(6);
     q1 << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
     q2 << 0.5, 0.0, 0.0, 0.0, 0.0, 0.0;
-    q3 << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-    q4 << 1.5, 0.0, 0.0, 0.0, 0.0, 0.0;
+    q3 << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0;  // Shortcuttable point
+    q4 << 0.5, 0.0, 0.0, 0.0, 0.0, 0.0;
 
     if (num_points >= 1)
       test_path.positions.push_back(q1);
@@ -48,6 +48,16 @@ public:
     return test_path;
   }
 };
+
+TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
+  JointPath path = getTestPath(2);
+  const auto path_lengths_maybe = getPathLengths(*scene_, path);
+  ASSERT_TRUE(path_lengths_maybe.has_value());
+
+  const auto path_lengths = path_lengths_maybe.value();
+  EXPECT_DOUBLE_EQ(path_lengths[0], 0.0);
+  EXPECT_DOUBLE_EQ(path_lengths[1], 0.5);
+}
 
 TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
 
@@ -92,13 +102,15 @@ TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
+  // This path can actually be made shorter
   auto test_path = getTestPath(4);
   auto shortcut_path =
       shortcutPath(*scene_, test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
 
-  ASSERT_EQ(shortcut_path.positions.size(), 2);
-  ASSERT_EQ(shortcut_path.positions[0], test_path.positions[0]);
-  ASSERT_EQ(shortcut_path.positions[1], test_path.positions[3]);
+  // Verify the shortcut path length is strictly less than the original.
+  const auto og_path_lengths = getPathLengths(*scene_, test_path).value();
+  const auto new_path_lengths = getPathLengths(*scene_, shortcut_path).value();
+  ASSERT_GT(og_path_lengths.tail(1)(0), new_path_lengths.tail(1)(0));
 }
 
 }  // namespace roboplan

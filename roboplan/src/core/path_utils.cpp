@@ -93,12 +93,13 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     // If the indexes are adjacent then we will be adding a segment to the path which will increase
     // the number of configurations in the path, and could could potentially increase the overall
     // path length. To ensure that it is worth adding the additional point, we must check that it is
-    // a valid shortcut.
+    // a valid shortcut. For now, this means that the shortcut must be at least a 10% improvement
+    // over the existing segment. This helps to ensure "pointless" shortcuts are not taken.
     if (idx_high == idx_low + 1) {
-      const auto original_distance = scene.configurationDistance(q_low, path_configs[idx_low]) +
-                                     scene.configurationDistance(path_configs[idx_low], q_high);
+      const auto low_to_existing = scene.configurationDistance(q_low, path_configs[idx_low]);
+      const auto existing_to_high = scene.configurationDistance(path_configs[idx_low], q_high);
       const auto new_distance = scene.configurationDistance(q_low, q_high);
-      if (original_distance < new_distance) {
+      if (low_to_existing + existing_to_high < new_distance * 1.1) {
         continue;
       }
     }
