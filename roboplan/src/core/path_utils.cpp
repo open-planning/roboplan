@@ -59,22 +59,14 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
   std::mt19937 gen(seed < 0 ? seed : rd());
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
-  bool path_changed = true;
   for (unsigned int i = 0; i < max_iters; ++i) {
     if (path_configs.size() < 3) {
       // The path is at maximum shortcutted-ness
       return shortened_path;
-    } else if (path_changed && (path_configs.size() == 3)) {
-      // If the path has exactly 3 points, exclusively try to bypass the middle one
-      if (!hasCollisionsAlongPath(scene, path_configs[0], path_configs[2], max_step_size)) {
-        path_configs.erase(path_configs.begin() + 1);
-        return shortened_path;
-      }
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can
     // assume we are done (the path is at maximum shortness).
-    path_changed = false;
     const auto path_scalings_maybe = getNormalizedPathScaling(scene, shortened_path);
     if (!path_scalings_maybe.has_value()) {
       return shortened_path;
@@ -92,43 +84,41 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     const auto [q_high, idx_high] =
         getConfigurationFromNormalizedPathScaling(scene, shortened_path, path_scalings, high);
 
-    // TODO: There's an issue with adjacent shortcutting in path reconstruction that needs to be
-    // resolved
-    if (idx_high <= idx_low + 1) {
+    // If the indexes are the same then they are on the same path segment so shortening would have
+    // no effect.
+    if (idx_high == idx_low) {
       continue;
+    }
+
+    // If the indexes are adjacent then we will be adding a segment to the path which will increase
+    // the number of configurations in the path, and could could potentially increase the overall
+    // path length. To ensure that it is worth adding the additional point, we must check that it is
+    // a valid shortcut.
+    if (idx_high == idx_low + 1) {
+      const auto original_distance = scene.configurationDistance(q_low, path_configs[idx_low]) +
+                                     scene.configurationDistance(path_configs[idx_low], q_high);
+      const auto new_distance = scene.configurationDistance(q_low, q_high);
+      if (original_distance < new_distance) {
+        continue;
+      }
     }
 
     // We want the new path to be:
     //
     // path_configs[idx_low - 1] - > q_low -> q_high -> path_configs[idx_high]
     //
-    // Because q_low and q_high should be on the valid paths path_configs[idx_low - 1] ->
+    // Because q_low and q_high should be on the valid paths: path_configs[idx_low - 1] ->
     // path_configs[idx_low] and path_configs[idx_high - 1] -> path_configs[idx_high], we shouldn't
     // need to check those connections! Assuming that q_low and q_high are directly connectable, we
     // _should_ just be able to construct a new shorter path.
-
-    // Ensure that the lower and higher indexes are directly connecteable.
     if (hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
       continue;
     }
 
-    // TODO: We should never see these so remove them!
-    if (idx_low > 0 &&
-        hasCollisionsAlongPath(scene, path_configs[idx_low - 1], q_low, max_step_size)) {
-      std::cout << "ERH Temp: Found collision in low!!!" << std::endl;
-      continue;
-    }
-    if (hasCollisionsAlongPath(scene, q_high, path_configs[idx_high], max_step_size)) {
-      std::cout << "ERH Temp: Found collision in high!!!" << std::endl;
-      continue;
-    }
-
     // Erase elements from idx_low to idx_high (exclusive), then insert the shortcutted connection.
-    // TODO: Handle idx_high == idx_low + 1
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
     path_configs.insert(path_configs.begin() + idx_low, q_high);
     path_configs.insert(path_configs.begin() + idx_low, q_low);
-    path_changed = true;
   }
 
   return shortened_path;
