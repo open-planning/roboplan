@@ -84,8 +84,7 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     const auto [q_high, idx_high] =
         getConfigurationFromNormalizedPathScaling(scene, shortened_path, path_scalings, high);
 
-    // If the indexes are the same then they are on the same path segment so shortening would have
-    // no effect.
+    // Samples are on the same segment so shortening would have no effect.
     if (idx_high == idx_low) {
       continue;
     }
@@ -108,10 +107,13 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     //
     // path_configs[idx_low - 1] - > q_low -> q_high -> path_configs[idx_high]
     //
-    // Because q_low and q_high should be on the valid paths: path_configs[idx_low - 1] ->
-    // path_configs[idx_low] and path_configs[idx_high - 1] -> path_configs[idx_high], we shouldn't
-    // need to check those connections! Assuming that q_low and q_high are directly connectable, we
-    // _should_ just be able to construct a new shorter path.
+    // Because q_low and q_high should be on the previously checked segments:
+    //
+    // path_configs[idx_low - 1] -> path_configs[idx_low]
+    // path_configs[idx_high - 1] -> path_configs[idx_high]
+    //
+    // we do not need to check those connections! We only need to ensure that q_low and q_high
+    // are directly connectable. If they are, drop them into the path.
     if (hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
       continue;
     }
