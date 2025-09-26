@@ -66,7 +66,6 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
-    q_full = scene.getCurrentJointPositions()
     q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
 
     # Create a redundant Pinocchio model just for visualization.
@@ -92,16 +91,17 @@ def main(
     options.rrt_connect = rrt_connect
     rrt = RRT(scene, options)
 
+    q_full = scene.randomCollisionFreePositions()
+    scene.setJointPositions(q_full)
+
     start = JointConfiguration()
-    start.positions = scene.randomCollisionFreePositions()[q_indices]
+    start.positions = q_full[q_indices]
     assert start.positions is not None
 
     goal = JointConfiguration()
     goal.positions = scene.randomCollisionFreePositions()[q_indices]
     assert goal.positions is not None
 
-    q_full[q_indices] = start.positions
-    scene.setJointPositions(q_full)
     path = rrt.plan(start, goal)
     assert path is not None
 
