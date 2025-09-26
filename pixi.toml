@@ -173,7 +173,12 @@ test = { cmd = "ctest -V --test-dir build/{{ package_name }}", args = [
 ], env = { GTEST_COLOR = "YES" } }
 
 test_py  = { cmd = "python3 -m pytest --capture=no", cwd = "bindings" }
-test_cpp = { depends-on = [{ task = "test", args = ["roboplan"] }, { task = "test", args = ["roboplan_rrt"] }] }
+test_cpp = { depends-on = [
+  { task = "test", args = ["roboplan"] },
+  { task = "test", args = ["roboplan_rrt"] },
+  { task = "test", args = ["roboplan_simple_ik"] },
+  { task = "test", args = ["roboplan_toppra"] },
+] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
 
 

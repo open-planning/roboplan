@@ -89,7 +89,7 @@ Make sure to install [pixi](https://pixi.sh/latest/#installation).
 ```bash
 git clone https://github.com/open-planning/roboplan.git
 cd roboplan
-# Build all packages
+# Build all packages, including Python bindings
 pixi run build_all
 # Install all packages
 pixi run install_all
