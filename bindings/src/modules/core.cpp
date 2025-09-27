@@ -150,7 +150,7 @@ void init_core_path_utils(nanobind::module_& m) {
   nanobind::class_<PathShortcutter>(m, "PathShortcutter")
       .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&>())
       .def("shortcut", &PathShortcutter::shortcut, "path"_a, "max_step_size"_a, "max_iters"_a = 100,
-           "seed"_a = 0)
+           "min_shorten_fraction"_a = 0.9, "seed"_a = 0)
       .def("getPathLengths", unwrap_expected(&PathShortcutter::getPathLengths))
       .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling))
       .def("getConfigurationfromNormalizedPathScaling",

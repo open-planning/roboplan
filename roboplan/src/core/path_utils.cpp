@@ -62,7 +62,12 @@ PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::
 }
 
 JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
-                                    unsigned int max_iters, int seed) {
+                                    unsigned int max_iters, double min_shorten_fraction, int seed) {
+  // Validate inputs
+  if (min_shorten_fraction <= 0.0 || min_shorten_fraction > 1.0) {
+    throw std::runtime_error(
+        "min_shorten_fraction must be greater than 0 and less than or equal to 1.");
+  }
 
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
@@ -117,17 +122,18 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
       continue;
     }
 
-    // If the indice are adjacent, then we will be adding a segment to the path which will increase
-    // the number of configurations in the path, and could potentially increase the overall
-    // path length. To ensure that it is worth adding the additional point, we must check that it is
-    // a valid shortcut. For now, this means that the shortcut must be at least a 10% improvement
-    // over the existing segment. This helps to ensure "pointless" shortcuts are not taken.
+    // If the indices are adjacent, then we will be adding a segment to the path which will increase
+    // the number of configurations in the path, and could potentially increase the overall path
+    // length. To ensure that it is worth adding the additional point, we must check that it is a
+    // valid shortcut. For now, this means that the shortcut must be an improvement over the
+    // existing segment by a factor of `min_shorten_fraction`.
+    // This helps to ensure "pointless" shortcuts are not taken.
     if (idx_high == idx_low + 1) {
       q_full_(q_indices) = path_configs[idx_low];
       const auto low_to_existing = scene_->configurationDistance(q_low, q_full_);
       const auto existing_to_high = scene_->configurationDistance(q_full_, q_high);
       const auto new_distance = scene_->configurationDistance(q_low, q_high);
-      if (low_to_existing + existing_to_high < new_distance * 1.1) {  // TODO: Make parameter
+      if (new_distance > (low_to_existing + existing_to_high) * min_shorten_fraction) {
         continue;
       }
     }

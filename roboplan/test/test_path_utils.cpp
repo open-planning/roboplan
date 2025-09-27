@@ -111,8 +111,8 @@ TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
 
   // This path can actually be made shorter
   auto test_path = getTestPath(4);
-  auto shortened_path =
-      shortcutter.shortcut(test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
+  auto shortened_path = shortcutter.shortcut(test_path, 0.25, /* max_iters */ 100,
+                                             /* min_shorten_fraction */ 0.9, /* seed */ 11235);
 
   // Verify the shortcut path length is strictly less than the original.
   const auto orig_path_lengths = shortcutter.getPathLengths(test_path).value();
