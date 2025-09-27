@@ -112,7 +112,6 @@ def main(
             path,
             max_step_size=options.collision_check_step_size,
             max_iters=1000,
-            min_shorten_fraction=0.9,
         )
 
     # Visualize the tree and path
