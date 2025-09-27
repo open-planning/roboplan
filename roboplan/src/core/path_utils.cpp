@@ -62,12 +62,7 @@ PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::
 }
 
 JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
-                                    unsigned int max_iters, double min_shorten_fraction, int seed) {
-  // Validate inputs
-  if (min_shorten_fraction <= 0.0 || min_shorten_fraction > 1.0) {
-    throw std::runtime_error(
-        "min_shorten_fraction must be greater than 0 and less than or equal to 1.");
-  }
+                                    unsigned int max_iters, int seed) {
 
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
@@ -79,27 +74,15 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   q_full_ = scene_->getCurrentJointPositions();
-  bool path_changed = true;
   const auto& q_indices = joint_group_info_.q_indices;
   for (unsigned int i = 0; i < max_iters; ++i) {
     if (path_configs.size() < 3) {
       // The path is at maximum shortcutted-ness
       return shortened_path;
-    } else if (path_changed && (path_configs.size() == 3)) {
-      // If the path has exactly 3 points, exclusively try to bypass the middle one
-      auto q_start = q_full_;
-      q_start(q_indices) = path_configs[0];
-      auto q_end = q_full_;
-      q_end(q_indices) = path_configs[2];
-      if (!hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size)) {
-        path_configs.erase(path_configs.begin() + 1);
-        return shortened_path;
-      }
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can
     // assume we are done (the path is at maximum shortness).
-    path_changed = false;
     const auto path_scalings_maybe = getNormalizedPathScaling(shortened_path);
     if (!path_scalings_maybe.has_value()) {
       return shortened_path;
@@ -112,9 +95,9 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     if (low > high) {
       std::swap(low, high);
     }
-    const auto [q_low, idx_low] =
+    auto [q_low, idx_low] =
         getConfigurationFromNormalizedPathScaling(shortened_path, path_scalings, low);
-    const auto [q_high, idx_high] =
+    auto [q_high, idx_high] =
         getConfigurationFromNormalizedPathScaling(shortened_path, path_scalings, high);
 
     // Samples are on the same segment so shortening would have no effect.
@@ -122,38 +105,32 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
       continue;
     }
 
-    // If the indices are adjacent, then we will be adding a segment to the path which will increase
-    // the number of configurations in the path, and could potentially increase the overall path
-    // length. To ensure that it is worth adding the additional point, we must check that it is a
-    // valid shortcut. For now, this means that the shortcut must be an improvement over the
-    // existing segment by a factor of `min_shorten_fraction`.
-    // This helps to ensure "pointless" shortcuts are not taken.
-    if (idx_high == idx_low + 1) {
-      q_full_(q_indices) = path_configs[idx_low];
-      const auto low_to_existing = scene_->configurationDistance(q_low, q_full_);
-      const auto existing_to_high = scene_->configurationDistance(q_full_, q_high);
-      const auto new_distance = scene_->configurationDistance(q_low, q_high);
-      if (new_distance > (low_to_existing + existing_to_high) * min_shorten_fraction) {
-        continue;
-      }
+    // We generally want the new path to be:
+    //
+    // q_start - > q_low -> q_high -> q_end
+    //
+    // Because q_low and q_high exist on valid segments, we do not need to check the preceding
+    // and following connections. We ONLY need to ensure that q_low and q_high are directly
+    // connectable!
+    auto q_start = q_full_;
+    q_start(q_indices) = path_configs[idx_low - 1];
+    if (scene_->configurationDistance(q_start, q_low) < max_step_size) {
+      q_low = q_start;
+      idx_low--;  // Remove the existing configuration
     }
 
-    // We want the new path to be:
-    //
-    // path_configs[idx_low - 1] - > q_low -> q_high -> path_configs[idx_high]
-    //
-    // Because q_low and q_high should be on the previously checked segments:
-    //
-    // path_configs[idx_low - 1] -> path_configs[idx_low]
-    // path_configs[idx_high - 1] -> path_configs[idx_high]
-    //
-    // we do not need to check those connections! We only need to ensure that q_low and q_high
-    // are directly connectable. If they are, drop them into the path.
+    auto q_end = q_full_;
+    q_end(q_indices) = path_configs[idx_high];
+    if (scene_->configurationDistance(q_high, q_end) < max_step_size) {
+      q_high = q_end;
+      idx_high++;  // Remove the existing configuration
+    }
+
     if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size)) {
       continue;
     }
 
-    // Erase elements from idx_low to idx_high (exclusive), then insert the shortcutted connection.
+    // Erase elements from idx_low to idx_high (exclusive).
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
     path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices));
     path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices));
