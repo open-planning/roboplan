@@ -112,6 +112,10 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     // Because q_low and q_high exist on valid segments, we do not need to check the preceding
     // and following connections. We ONLY need to ensure that q_low and q_high are directly
     // connectable!
+    //
+    // However, if  `q_start` and `q_low` or `q_high` and `q_end` are very close to each other,
+    // it doesn't make sense to add new configurations. If this is the case, use the existing
+    // configuration as the sample.
     auto q_start = q_full_;
     q_start(q_indices) = path_configs[idx_low - 1];
     if (scene_->configurationDistance(q_start, q_low) < max_step_size) {
@@ -126,6 +130,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
       idx_high++;  // Remove the existing configuration
     }
 
+    // Ensure the new connection is valid. If not, try again.
     if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size)) {
       continue;
     }
