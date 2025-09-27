@@ -41,22 +41,34 @@ JointInfo::JointInfo(JointType joint_type) : type{joint_type} {
       Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::max());
 };
 
+std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info) {
+  os << "Joint group with " << info.joint_names.size() << " joints:\n";
+  os << "  Names:";
+  for (const auto& name : info.joint_names) {
+    std::cout << " " << name;
+  }
+  os << "\n";
+  os << "  q indices: " << info.q_indices.transpose() << "\n";
+  os << "  v indices: " << info.v_indices.transpose() << "\n";
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const JointPath& path) {
-  std::cout << "Joint Path with " << path.positions.size() << " points:\n";
+  os << "Joint Path with " << path.positions.size() << " points:\n";
   for (size_t idx = 0; idx < path.positions.size(); ++idx) {
     const auto& pos = path.positions.at(idx);
-    std::cout << "  " << (idx + 1) << ": " << pos.transpose() << "\n";
+    os << "  " << (idx + 1) << ": " << pos.transpose() << "\n";
   }
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const JointTrajectory& traj) {
-  std::cout << "Joint Trajectory with " << traj.times.size() << " points:\n";
+  os << "Joint Trajectory with " << traj.times.size() << " points:\n";
   for (size_t idx = 0; idx < traj.times.size(); ++idx) {
     const auto& t = traj.times.at(idx);
     const auto& pos = traj.positions.at(idx);
-    std::cout << "  [t=" << t << "]\n"
-              << "    q: " << pos.transpose() << "\n";
+    os << "  [t=" << t << "]\n"
+       << "    q: " << pos.transpose() << "\n";
   }
   return os;
 }

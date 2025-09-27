@@ -21,6 +21,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   // Set up and solve IK
   SimpleIkOptions options;
+  options.group_name = "arm";
   options.step_size = 0.05;
   auto ik_solver = SimpleIk(scene, options);
 

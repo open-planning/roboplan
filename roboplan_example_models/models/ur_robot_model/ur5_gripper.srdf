@@ -11,6 +11,10 @@
 
   -->
 <robot name="ur5">
+  <group name="arm">
+    <chain base_link="base_link" tip_link="tool0"/>
+  </group>
+
   <disable_collisions link1="base_link" link2="shoulder_link"/>
   <disable_collisions link1="base_link" link2="upper_arm_link"/>
   <disable_collisions link1="shoulder_link" link2="upper_arm_link"/>

@@ -8,6 +8,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_utils.hpp>
 
 namespace {
 
@@ -170,7 +171,10 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                              collision_model_, package_paths_str);
   collision_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
-  createFrameMap(model_);
+
+  // Create auxiliary model info
+  frame_map_ = createFrameMap(model_);
+  joint_group_info_ = createJointGroupInfo(model_, srdf);
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
@@ -228,6 +232,8 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
 }
 
 bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
+  pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
+                                      q);
   return pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_,
                                       q,
                                       /* stop_at_first_collision*/ true);
@@ -289,24 +295,23 @@ void Scene::applyMimics(Eigen::VectorXd& q) const {
   }
 }
 
-Eigen::VectorXd Scene::toFullJointPositions(const std::vector<std::string>& joint_names,
+Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name,
                                             const Eigen::VectorXd& q) const {
-  Eigen::VectorXd q_out = Eigen::VectorXd::Zero(model_.nq);
+  Eigen::VectorXd q_out = cur_state_.positions;
 
-  size_t q_idx = 0;
-  for (const auto& joint_name : joint_names) {
-    const auto maybe_joint_idx = getFrameId(joint_name);
-    if (!maybe_joint_idx) {
-      throw std::runtime_error("Failed to find joint name: " + joint_name);
-    }
-    const auto& joint_idx = maybe_joint_idx.value();
-    const auto& info = joint_info_.at(joint_name);  // already validated
-    for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-      q_out(model_.idx_qs.at(joint_idx) + idx) = q(q_idx);
-      ++q_idx;
-    }
+  const auto maybe_group_info = getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    throw std::runtime_error("Failed to get full joint positions: " + maybe_group_info.error());
+  }
+  const auto& q_indices = maybe_group_info.value().q_indices;
+  if (q_indices.size() != q.size()) {
+    throw std::runtime_error("Failed to get full joint positions: Joint group '" + group_name +
+                             "' has nq=" + std::to_string(q_indices.size()) +
+                             " but the input positions is of size " + std::to_string(q.size()) +
+                             ".");
   }
 
+  q_out(q_indices) = q;
   applyMimics(q_out);
   return q_out;
 }
@@ -319,20 +324,15 @@ Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::
 Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
                                          const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.
-  pinocchio::framesForwardKinematics(model_, model_data_, q);
-  auto frame_id = getFrameId(frame_name);
-  if (!frame_id) {
-    throw std::runtime_error("Failed to get frame ID: " + frame_id.error());
+  const auto maybe_frame_id = getFrameId(frame_name);
+  if (!maybe_frame_id) {
+    throw std::runtime_error("Failed to get frame ID: " + maybe_frame_id.error());
   }
-  return model_data_.oMf[frame_id.value()];
-}
+  const auto frame_id = maybe_frame_id.value();
 
-void Scene::createFrameMap(const pinocchio::Model& model) {
-  frame_map_.clear();  // Clear existing map if needed
-  for (int i = 1; i < model.nframes; ++i) {
-    const auto& frame = model.frames[i];
-    frame_map_[frame.name] = model.getFrameId(frame.name);
-  }
+  pinocchio::forwardKinematics(model_, model_data_, q);
+  pinocchio::updateFramePlacement(model_, model_data_, frame_id);
+  return model_data_.oMf.at(frame_id);
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
@@ -340,8 +340,27 @@ tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::st
   if (it == frame_map_.end()) {
     return tl::make_unexpected("Frame name '" + name + "' not found in frame_map_.");
   }
-
   return it->second;
+}
+
+tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::string& name) const {
+  auto it = joint_group_info_.find(name);
+  if (it == joint_group_info_.end()) {
+    return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_.");
+  }
+  return it->second;
+}
+
+Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
+  std::vector<int> q_indices;
+  for (const auto& joint_name : joint_names) {
+    const auto joint_id = model_.getJointId(joint_name);
+    const auto idx_start = model_.idx_qs[joint_id];
+    for (int dof = 0; dof < model_.joints[joint_id].nq(); ++dof) {
+      q_indices.push_back(idx_start + dof);
+    }
+  }
+  return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -367,6 +386,10 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
       os << "    max acceleration: " << limits.max_acceleration.transpose() << "\n";
       os << "    max jerk: " << limits.max_jerk.transpose() << "\n";
     }
+  }
+  os << "Joint group information:\n";
+  for (const auto& [group_name, group_info] : scene.joint_group_info_) {
+    os << "  [" << group_name << "] " << group_info;
   }
   os << "State:\n";
   os << "  positions: " << scene.cur_state_.positions.transpose() << "\n";

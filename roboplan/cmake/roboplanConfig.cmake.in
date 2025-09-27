@@ -2,5 +2,7 @@
 
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(tinyxml2_vendor QUIET)
+find_package(TinyXML2 QUIET)
 
 include("${CMAKE_CURRENT_LIST_DIR}/roboplanTargets.cmake")

@@ -15,7 +15,8 @@ Several tools optimize their design for runtime configurability via YAML config 
 This library shall instead establish _standard data types_ for things like joint states, paths, and trajectories.
 It is strongly recommended that implementations use these data types in their interfaces as much as possible.
 
-This does mean that switching to different planners (for example) requires changing your code. But, grounded in a decade of experience developing runtime-configurable systems, we consider this worthwhile to keep the codebase simple and flexible.
+This does mean that switching to different planners (for example) requires changing your code.
+But, grounded in a decade of experience developing runtime-configurable systems, we consider this worthwhile to keep the codebase simple and flexible.
 
 ### Middleware is optional
 
@@ -34,8 +35,7 @@ Contributors are expected to implement new features in C++ and provide working P
 
 ## Packages list
 
-This is all still very much work in progress!
-Still debating whether this should be monorepo or multi-repo...
+The main packages found in this repo are as follows.
 
 - `roboplan` : The core C++ library.
 - `roboplan_simple_ik` : A simple inverse kinematics (IK) solver.
@@ -80,9 +80,11 @@ ros2 run roboplan_examples example_scene
 
 See the [bindings README](bindings/README.md) for instructions on building the Python bindings.
 
+---
+
 ## Build instructions (pixi)
 
-### Build instructions
+### Build packages
 
 Make sure to install [pixi](https://pixi.sh/latest/#installation).
 

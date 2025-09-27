@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
@@ -8,6 +9,8 @@
 namespace roboplan {
 
 struct SimpleIkOptions {
+  /// @brief The joint group name to be used by the solver.
+  std::string group_name = "";
 
   /// @brief Max iterations for one try of the solver.
   size_t max_iters = 1000;
@@ -47,6 +50,21 @@ private:
 
   /// @brief Pinocchio data for the IK solver.
   pinocchio::Data data_;
+
+  /// @brief The joint group info for the IK solver.
+  JointGroupInfo joint_group_info_;
+
+  /// @brief The full model Jacobian (for allocating memory once).
+  Eigen::MatrixXd full_jacobian_;
+
+  /// @brief The joint group's Jacobian (for allocating memory once).
+  Eigen::MatrixXd jacobian_;
+
+  /// @brief The Jacobian times Jacobian transpose (for allocating memory once).
+  Eigen::MatrixXd jjt_;
+
+  /// @brief The full joint velocity vector for integrating (for allocating memory once).
+  Eigen::VectorXd vel_;
 };
 
 }  // namespace roboplan

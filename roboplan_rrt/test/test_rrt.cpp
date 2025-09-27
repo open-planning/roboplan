@@ -24,7 +24,9 @@ public:
 };
 
 TEST_F(RoboPlanRRTTest, Plan) {
-  auto rrt = std::make_unique<RRT>(scene_);
+  RRTOptions options;
+  options.group_name = "arm";
+  auto rrt = std::make_unique<RRT>(scene_, options);
   rrt->setRngSeed(1234);
 
   const auto maybe_q_start = scene_->randomCollisionFreePositions();
@@ -49,6 +51,7 @@ TEST_F(RoboPlanRRTTest, Plan) {
 
 TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
   RRTOptions options;
+  options.group_name = "arm";
   options.rrt_connect = true;
   auto rrt = std::make_unique<RRT>(scene_, options);
   rrt->setRngSeed(1234);
@@ -74,7 +77,9 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
 }
 
 TEST_F(RoboPlanRRTTest, InvalidPoses) {
-  auto rrt = std::make_unique<RRT>(scene_);
+  RRTOptions options;
+  options.group_name = "arm";
+  auto rrt = std::make_unique<RRT>(scene_, options);
   rrt->setRngSeed(1234);
 
   const auto valid_pose = scene_->randomCollisionFreePositions().value();
@@ -93,6 +98,7 @@ TEST_F(RoboPlanRRTTest, InvalidPoses) {
 TEST_F(RoboPlanRRTTest, PlanningTimeout) {
   // Set planning timeout to be impossibly short.
   RRTOptions options;
+  options.group_name = "arm";
   options.max_planning_time = 1E-6;
   options.max_connection_distance = 0.1;
   auto rrt = std::make_unique<RRT>(scene_, options);
@@ -113,6 +119,7 @@ TEST_F(RoboPlanRRTTest, PlanningTimeout) {
 
 TEST_F(RoboPlanRRTTest, TestGrowTree) {
   RRTOptions options;
+  options.group_name = "arm";
   options.rrt_connect = false;
   options.max_connection_distance = 0.1;
   auto rrt = std::make_unique<RRT>(scene_, options);
@@ -145,6 +152,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
 
 TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   RRTOptions options;
+  options.group_name = "arm";
   options.rrt_connect = false;
   options.max_connection_distance = 0.1;
   auto rrt = std::make_unique<RRT>(scene_, options);

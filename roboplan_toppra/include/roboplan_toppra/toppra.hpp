@@ -16,7 +16,8 @@ class PathParameterizerTOPPRA {
 public:
   /// @brief Constructor.
   /// @param scene A pointer to the scene to use for path parameterization.
-  PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene);
+  /// @param group_name The name of the joint group to use.
+  PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene, const std::string& group_name);
 
   /// @brief Time-parameterizes a joint-space path using TOPP-RA.
   /// @param path The path to time parameterize.
@@ -29,8 +30,8 @@ public:
                                                       const double acceleration_scale = 1.0);
 
 private:
-  /// @brief The stored joint names to use for this path parameterizer.
-  std::vector<std::string> joint_names_;
+  /// @brief The joint group info for the path parameterizer.
+  JointGroupInfo joint_group_info_;
 
   /// @brief The stored velocity lower limits.
   toppra::Vector vel_lower_limits_;

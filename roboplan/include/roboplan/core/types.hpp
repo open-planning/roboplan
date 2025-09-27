@@ -106,6 +106,24 @@ struct JointInfo {
   std::optional<JointMimicInfo> mimic_info;
 };
 
+/// @brief Contains information about a named group of joints.
+struct JointGroupInfo {
+  /// @brief The joint names that make up the group.
+  std::vector<std::string> joint_names;
+
+  /// @brief The joint indices in the group.
+  std::vector<size_t> joint_indices;
+
+  /// @brief The position vector indices in the group.
+  Eigen::VectorXi q_indices;
+
+  /// @brief The velocity vector indices in the group.
+  Eigen::VectorXi v_indices;
+
+  /// @brief Prints basic information about the joint group.
+  friend std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info);
+};
+
 /// @brief Contains a path of joint configurations.
 struct JointPath {
   /// @brief The list of joint names.
