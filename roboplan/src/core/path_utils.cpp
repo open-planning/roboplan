@@ -74,6 +74,9 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   q_full_ = scene_->getCurrentJointPositions();
+  auto q_start = q_full_;
+  auto q_end = q_full_;
+
   const auto& q_indices = joint_group_info_.q_indices;
   for (unsigned int i = 0; i < max_iters; ++i) {
     if (path_configs.size() < 3) {
@@ -116,14 +119,12 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     // However, if  `q_start` and `q_low` or `q_high` and `q_end` are very close to each other,
     // it doesn't make sense to add new configurations. If this is the case, use the existing
     // configuration as the sample.
-    auto q_start = q_full_;
     q_start(q_indices) = path_configs[idx_low - 1];
     if (scene_->configurationDistance(q_start, q_low) < max_step_size) {
       q_low = q_start;
       idx_low--;  // Remove the existing configuration
     }
 
-    auto q_end = q_full_;
     q_end(q_indices) = path_configs[idx_high];
     if (scene_->configurationDistance(q_high, q_end) < max_step_size) {
       q_high = q_end;
