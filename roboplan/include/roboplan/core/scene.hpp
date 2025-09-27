@@ -111,9 +111,10 @@ public:
 
   /// @brief Converts partial joint positions to full joint positions.
   /// @details This includes adding new joints and applying mimic relationships.
+  /// @param group_name The name of the joint group.
   /// @param q The original (partial) joint positions.
   /// @return The full joint positions.
-  Eigen::VectorXd toFullJointPositions(const std::vector<std::string>& joint_names,
+  Eigen::VectorXd toFullJointPositions(const std::string& group_name,
                                        const Eigen::VectorXd& q) const;
 
   /// @brief Interpolates between two joint configurations.
@@ -129,13 +130,31 @@ public:
   /// @return The 4x4 matrix denoting the transform of the specified frame.
   Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) const;
 
+  /// @brief Get the Pinocchio model ID of a frame by its name.
+  /// @param name The name of the frame to look up.
+  /// @return The Pinocchio frame ID if successful, else a string describing the error.
+  tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string& name) const;
+
+  /// @brief Get the joint group information of a scene by its name.
+  /// @param name The name of the joint group to look up.
+  /// @return The joint group information if successful, else a string describing the error.
+  tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
+
+  /// @brief Get the current joint positions for the full robot state.
+  /// @return The current joint position vector.
+  Eigen::VectorXd getCurrentJointPositions() const { return cur_state_.positions; }
+
+  /// @brief Set the joint positions for the full robot state.
+  /// @return The desired joint position vector.
+  void setJointPositions(const Eigen::VectorXd& positions) { cur_state_.positions = positions; }
+
+  /// @brief Get the joint position indices for a set of joint names.
+  /// @param joint_names The joint names for which to look up position indices.
+  /// @return The corresponding joint position indices.
+  Eigen::VectorXi getJointPositionIndices(const std::vector<std::string>& joint_names) const;
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
-
-  /// @brief Helper function to get the pinocchio ID of a frame through its name.
-  /// @param name The name of the frame to look up.
-  /// @return The pinocchio frame ID if successful, else a string describing the error.
-  tl::expected<pinocchio::FrameIndex, std::string> getFrameId(const std::string& name) const;
 
 private:
   /// @brief The name of the scene.
@@ -164,6 +183,9 @@ private:
   /// @brief Map from joint names to their corresponding information.
   std::map<std::string, JointInfo> joint_info_;
 
+  /// @brief Map from joint group names to their corresponding information.
+  std::map<std::string, JointGroupInfo> joint_group_info_;
+
   /// @brief A random number generator for the scene.
   std::mt19937 rng_gen_;
 
@@ -172,10 +194,6 @@ private:
 
   /// @brief Maps each frame name to its respective Pinocchio frame ID.
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
-
-  /// @brief Helper function to create a map of the robot's frame names to IDs.
-  /// @param model The Pinocchio model.
-  void createFrameMap(const pinocchio::Model& model);
 };
 
 }  // namespace roboplan

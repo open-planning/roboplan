@@ -25,13 +25,15 @@ def visualizePath(
         color: The color of the rendered path.
         name: The name of the path in the vizer window.
     """
-
+    q_start = scene.getCurrentJointPositions()
+    q_end = scene.getCurrentJointPositions()
+    q_indices = scene.getJointPositionIndices(path.joint_names)
     path_segments = []
     if path is not None:
         for frame_name in frame_names:
             for idx in range(len(path.positions) - 1):
-                q_start = path.positions[idx]
-                q_end = path.positions[idx + 1]
+                q_start[q_indices] = path.positions[idx]
+                q_end[q_indices] = path.positions[idx + 1]
                 frame_path = computeFramePath(
                     scene, q_start, q_end, frame_name, max_step_size
                 )

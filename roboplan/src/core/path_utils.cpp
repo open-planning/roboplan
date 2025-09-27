@@ -34,10 +34,10 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
   }
 
   // In the general case, check the first and last points, then all the intermediate ones.
-  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
   if (collision_at_endpoints) {
     return true;
   }
+  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
   for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
     const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
     if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
@@ -47,8 +47,22 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
   return false;
 }
 
-JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_step_size,
-                       unsigned int max_iters, int seed) {
+PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name)
+    : scene_{scene} {
+
+  // Validate the joint group.
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name);
+  if (!maybe_joint_group_info) {
+    throw std::runtime_error("Could not initialize path shortcutter: " +
+                             maybe_joint_group_info.error());
+  }
+  joint_group_info_ = maybe_joint_group_info.value();
+
+  q_full_ = scene_->getCurrentJointPositions();
+}
+
+JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
+                                    unsigned int max_iters, int seed) {
 
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
@@ -59,15 +73,29 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
   std::mt19937 gen(seed < 0 ? seed : rd());
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
+  q_full_ = scene_->getCurrentJointPositions();
+  bool path_changed = true;
+  const auto& q_indices = joint_group_info_.q_indices;
   for (unsigned int i = 0; i < max_iters; ++i) {
     if (path_configs.size() < 3) {
       // The path is at maximum shortcutted-ness
       return shortened_path;
+    } else if (path_changed && (path_configs.size() == 3)) {
+      // If the path has exactly 3 points, exclusively try to bypass the middle one
+      auto q_start = q_full_;
+      q_start(q_indices) = path_configs[0];
+      auto q_end = q_full_;
+      q_end(q_indices) = path_configs[2];
+      if (!hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size)) {
+        path_configs.erase(path_configs.begin() + 1);
+        return shortened_path;
+      }
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can
     // assume we are done (the path is at maximum shortness).
-    const auto path_scalings_maybe = getNormalizedPathScaling(scene, shortened_path);
+    path_changed = false;
+    const auto path_scalings_maybe = getNormalizedPathScaling(shortened_path);
     if (!path_scalings_maybe.has_value()) {
       return shortened_path;
     }
@@ -80,25 +108,26 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
       std::swap(low, high);
     }
     const auto [q_low, idx_low] =
-        getConfigurationFromNormalizedPathScaling(scene, shortened_path, path_scalings, low);
+        getConfigurationFromNormalizedPathScaling(shortened_path, path_scalings, low);
     const auto [q_high, idx_high] =
-        getConfigurationFromNormalizedPathScaling(scene, shortened_path, path_scalings, high);
+        getConfigurationFromNormalizedPathScaling(shortened_path, path_scalings, high);
 
     // Samples are on the same segment so shortening would have no effect.
     if (idx_high == idx_low) {
       continue;
     }
 
-    // If the indexes are adjacent then we will be adding a segment to the path which will increase
-    // the number of configurations in the path, and could could potentially increase the overall
+    // If the indice are adjacent, then we will be adding a segment to the path which will increase
+    // the number of configurations in the path, and could potentially increase the overall
     // path length. To ensure that it is worth adding the additional point, we must check that it is
     // a valid shortcut. For now, this means that the shortcut must be at least a 10% improvement
     // over the existing segment. This helps to ensure "pointless" shortcuts are not taken.
     if (idx_high == idx_low + 1) {
-      const auto low_to_existing = scene.configurationDistance(q_low, path_configs[idx_low]);
-      const auto existing_to_high = scene.configurationDistance(path_configs[idx_low], q_high);
-      const auto new_distance = scene.configurationDistance(q_low, q_high);
-      if (low_to_existing + existing_to_high < new_distance * 1.1) {
+      q_full_(q_indices) = path_configs[idx_low];
+      const auto low_to_existing = scene_->configurationDistance(q_low, q_full_);
+      const auto existing_to_high = scene_->configurationDistance(q_full_, q_high);
+      const auto new_distance = scene_->configurationDistance(q_low, q_high);
+      if (low_to_existing + existing_to_high < new_distance * 1.1) {  // TODO: Make parameter
         continue;
       }
     }
@@ -114,42 +143,45 @@ JointPath shortcutPath(const Scene& scene, const JointPath& path, double max_ste
     //
     // we do not need to check those connections! We only need to ensure that q_low and q_high
     // are directly connectable. If they are, drop them into the path.
-    if (hasCollisionsAlongPath(scene, q_low, q_high, max_step_size)) {
+    if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size)) {
       continue;
     }
 
     // Erase elements from idx_low to idx_high (exclusive), then insert the shortcutted connection.
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
-    path_configs.insert(path_configs.begin() + idx_low, q_high);
-    path_configs.insert(path_configs.begin() + idx_low, q_low);
+    path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices));
+    path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices));
   }
 
   return shortened_path;
 }
 
-tl::expected<Eigen::VectorXd, std::string> getPathLengths(const Scene& scene,
-                                                          const JointPath& path) {
+tl::expected<Eigen::VectorXd, std::string> PathShortcutter::getPathLengths(const JointPath& path) {
   if (path.positions.size() < 2) {
     return tl::make_unexpected("Path must contain 2 or more points!");
   }
 
   Eigen::VectorXd path_length_list;
   path_length_list.resize(path.positions.size());
+  auto q_start = q_full_;
+  auto q_end = q_full_;
 
   // Iteratively compute path lengths from start to finish
   double path_length = 0.0;
   path_length_list(0) = path_length;
   for (size_t idx = 0; idx < path.positions.size() - 1; ++idx) {
-    path_length += scene.configurationDistance(path.positions[idx], path.positions[idx + 1]);
+    q_start(joint_group_info_.q_indices) = path.positions[idx];
+    q_end(joint_group_info_.q_indices) = path.positions[idx + 1];
+    path_length += scene_->configurationDistance(q_start, q_end);
     path_length_list(idx + 1) = path_length;
   }
 
   return path_length_list;
 }
 
-tl::expected<Eigen::VectorXd, std::string> getNormalizedPathScaling(const Scene& scene,
-                                                                    const JointPath& path) {
-  auto path_length_list_maybe = getPathLengths(scene, path);
+tl::expected<Eigen::VectorXd, std::string>
+PathShortcutter::getNormalizedPathScaling(const JointPath& path) {
+  auto path_length_list_maybe = getPathLengths(path);
   if (!path_length_list_maybe.has_value()) {
     return path_length_list_maybe;
   }
@@ -164,10 +196,10 @@ tl::expected<Eigen::VectorXd, std::string> getNormalizedPathScaling(const Scene&
   return path_length_list;
 }
 
-std::pair<Eigen::VectorXd, size_t>
-getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& path,
-                                          const Eigen::VectorXd& path_scalings, double value) {
-
+std::pair<Eigen::VectorXd, size_t> PathShortcutter::getConfigurationFromNormalizedPathScaling(
+    const JointPath& path, const Eigen::VectorXd& path_scalings, double value) {
+  auto q_start = q_full_;
+  auto q_end = q_full_;
   for (long idx = 1; idx < path_scalings.size() - 1; ++idx) {
     // Find the smallest index that is less than the provided value.
     if (value > path_scalings(idx)) {
@@ -177,14 +209,16 @@ getConfigurationFromNormalizedPathScaling(const Scene& scene, const JointPath& p
     // Interpolate to the joint configuration
     const double delta_scale =
         (value - path_scalings(idx - 1)) / (path_scalings(idx) - path_scalings(idx - 1));
-    const Eigen::VectorXd q_interp =
-        scene.interpolate(path.positions[idx - 1], path.positions[idx], delta_scale);
+    q_start(joint_group_info_.q_indices) = path.positions[idx - 1];
+    q_end(joint_group_info_.q_indices) = path.positions[idx];
+    const Eigen::VectorXd q_interp = scene_->interpolate(q_start, q_end, delta_scale);
 
     return {q_interp, idx};
   }
 
   // If we get here then the index is the end of the list and we should just return the goal pose.
-  return {path.positions.back(), path.positions.size() - 1};
+  q_end(joint_group_info_.q_indices) = path.positions.back();
+  return {q_end, path.positions.size() - 1};
 }
 
 }  // namespace roboplan

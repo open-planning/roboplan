@@ -2,6 +2,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
 #include <roboplan/core/scene.hpp>
@@ -22,6 +23,7 @@ void init_rrt(nanobind::module_& m) {
 
   nanobind::class_<RRTOptions>(m, "RRTOptions")
       .def(nanobind::init<>())  // Default constructor
+      .def_rw("group_name", &RRTOptions::group_name)
       .def_rw("max_nodes", &RRTOptions::max_nodes)
       .def_rw("max_connection_distance", &RRTOptions::max_connection_distance)
       .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size)

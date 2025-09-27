@@ -27,6 +27,7 @@ def test_scene() -> Scene:
 
 def test_plan(test_scene: Scene) -> None:
     options = RRTOptions()
+    options.group_name = "arm"
     options.max_connection_distance = 1.0
     options.collision_check_step_size = 0.05
 

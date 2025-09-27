@@ -23,9 +23,20 @@ target_include_directories(expected
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+# ROS already has a TinyXML2 vendor, so add this only in non-ROS contexts.
+find_package(tinyxml2_vendor QUIET)
+find_package(TinyXML2 QUIET)
+if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
+    add_library(tinyxml2
+        include/tinyxml2/tinyxml2.cpp
+        include/tinyxml2/tinyxml2.h)
+    add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+endif()
+
 add_library(roboplan SHARED
     src/core/path_utils.cpp
     src/core/scene.cpp
+    src/core/scene_utils.cpp
     src/core/types.cpp
 )
 target_include_directories(roboplan PUBLIC
@@ -36,6 +47,7 @@ target_link_libraries(roboplan
     PUBLIC
     Eigen3::Eigen
     pinocchio::pinocchio
+    tinyxml2::tinyxml2
 )
 if (yaml-cpp_VERSION VERSION_LESS "0.8")  # for Ubuntu 22.04
     target_link_libraries(roboplan PRIVATE yaml-cpp)
@@ -44,10 +56,15 @@ else()
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
+if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
+    set(ROBOPLAN_TARGETS expected tinyxml2 roboplan)
+else()
+    set(ROBOPLAN_TARGETS expected roboplan)
+endif()
+
 install(
   TARGETS
-  expected
-  roboplan
+  ${ROBOPLAN_TARGETS}
   EXPORT roboplan-targets
   LIBRARY DESTINATION lib
   INCLUDES DESTINATION include

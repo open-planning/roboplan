@@ -11,19 +11,25 @@
 
 namespace roboplan {
 
-PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene) {
+PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene,
+                                                 const std::string& group_name) {
+  // Extract the joint group information.
+  const auto maybe_joint_group_info = scene->getJointGroupInfo(group_name);
+  if (!maybe_joint_group_info) {
+    throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
+                             maybe_joint_group_info.error());
+  }
+  joint_group_info_ = maybe_joint_group_info.value();
 
   // Extract joint velocity + acceleration limits from scene.
-  // TODO: Extract only for specified joint group.
-  const auto num_dofs = scene->getModel().nq;
+  const auto num_dofs = joint_group_info_.q_indices.size();
   vel_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
   vel_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
   acc_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
   acc_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
 
-  joint_names_ = scene->getJointNames();
   size_t q_idx = 0;
-  for (const auto& joint_name : joint_names_) {
+  for (const auto& joint_name : joint_group_info_.joint_names) {
     const auto& joint_info = scene->getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::FLOATING:
@@ -66,10 +72,9 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
   if ((acceleration_scale <= 0.0) || (acceleration_scale > 1.0)) {
     return tl::make_unexpected("Acceleration scale must be greater than 0.0 and less than 1.0.");
   }
-
-  // // TODO: Check this based on the joint group.
-  if ((joint_names_.size() != path.joint_names.size()) ||
-      !std::equal(joint_names_.begin(), joint_names_.end(), path.joint_names.begin())) {
+  const auto& joint_names = joint_group_info_.joint_names;
+  if ((joint_names.size() != path.joint_names.size()) ||
+      !std::equal(joint_names.begin(), joint_names.end(), path.joint_names.begin())) {
     return tl::make_unexpected("Path joint names do not match the scene joint names.");
   }
 

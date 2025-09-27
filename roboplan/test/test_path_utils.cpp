@@ -50,8 +50,10 @@ public:
 };
 
 TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
+  auto shortcutter = PathShortcutter(scene_, "arm");
+
   JointPath path = getTestPath(2);
-  const auto path_lengths_maybe = getPathLengths(*scene_, path);
+  const auto path_lengths_maybe = shortcutter.getPathLengths(path);
   ASSERT_TRUE(path_lengths_maybe.has_value());
 
   const auto path_lengths = path_lengths_maybe.value();
@@ -60,20 +62,21 @@ TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
+  auto shortcutter = PathShortcutter(scene_, "arm");
 
   JointPath empty_path = getTestPath(0);
-  auto empty_scalings_maybe = getNormalizedPathScaling(*scene_, empty_path);
+  auto empty_scalings_maybe = shortcutter.getNormalizedPathScaling(empty_path);
   EXPECT_FALSE(empty_scalings_maybe.has_value());
 
   JointPath length_2_path = getTestPath(2);
-  auto length_2_path_scalings = getNormalizedPathScaling(*scene_, length_2_path).value();
+  auto length_2_path_scalings = shortcutter.getNormalizedPathScaling(length_2_path).value();
   ASSERT_EQ(length_2_path_scalings.size(), 2);
   EXPECT_DOUBLE_EQ(length_2_path_scalings(0), 0.0);
   EXPECT_DOUBLE_EQ(length_2_path_scalings(1), 1.0);
 
   // Path with 3 evenly spaced points
   auto test_path = getTestPath(3);
-  auto path_scalings = getNormalizedPathScaling(*scene_, test_path).value();
+  auto path_scalings = shortcutter.getNormalizedPathScaling(test_path).value();
 
   ASSERT_EQ(path_scalings.size(), 3);
   EXPECT_DOUBLE_EQ(path_scalings(0), 0.0);
@@ -82,35 +85,39 @@ TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
+  auto shortcutter = PathShortcutter(scene_, "arm");
+
   auto test_path = getTestPath(3);
-  auto path_scalings = getNormalizedPathScaling(*scene_, test_path).value();
+  auto path_scalings = shortcutter.getNormalizedPathScaling(test_path).value();
 
   auto [config, idx] =
-      getConfigurationFromNormalizedPathScaling(*scene_, test_path, path_scalings, 0.25);
+      shortcutter.getConfigurationFromNormalizedPathScaling(test_path, path_scalings, 0.25);
   ASSERT_EQ(idx, 1);
   ASSERT_EQ(config(0), 0.25);
 
   auto [config_end, idx_end] =
-      getConfigurationFromNormalizedPathScaling(*scene_, test_path, path_scalings, 0.95);
+      shortcutter.getConfigurationFromNormalizedPathScaling(test_path, path_scalings, 0.95);
   ASSERT_EQ(idx_end, 2);
   ASSERT_EQ(config_end(0), 1.0);
 
   auto [config_start, idx_start] =
-      getConfigurationFromNormalizedPathScaling(*scene_, test_path, path_scalings, 0.0);
+      shortcutter.getConfigurationFromNormalizedPathScaling(test_path, path_scalings, 0.0);
   ASSERT_EQ(idx_start, 1);
   ASSERT_EQ(config_start(0), 0.0);
 }
 
 TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
+  auto shortcutter = PathShortcutter(scene_, "arm");
+
   // This path can actually be made shorter
   auto test_path = getTestPath(4);
-  auto shortcut_path =
-      shortcutPath(*scene_, test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
+  auto shortened_path =
+      shortcutter.shortcut(test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
 
   // Verify the shortcut path length is strictly less than the original.
-  const auto og_path_lengths = getPathLengths(*scene_, test_path).value();
-  const auto new_path_lengths = getPathLengths(*scene_, shortcut_path).value();
-  ASSERT_GT(og_path_lengths.tail(1)(0), new_path_lengths.tail(1)(0));
+  const auto orig_path_lengths = shortcutter.getPathLengths(test_path).value();
+  const auto new_path_lengths = shortcutter.getPathLengths(shortened_path).value();
+  ASSERT_GT(orig_path_lengths.tail(1)(0), new_path_lengths.tail(1)(0));
 }
 
 }  // namespace roboplan

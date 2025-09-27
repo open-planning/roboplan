@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import pinocchio as pin
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
-    shortcutPath,
     JointConfiguration,
     PathParameterizerTOPPRA,
+    PathShortcutter,
     Scene,
     RRTOptions,
     RRT,
@@ -66,6 +66,7 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
+    q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -81,6 +82,7 @@ def main(
 
     # Set up an RRT and perform path planning.
     options = RRTOptions()
+    options.group_name = model_data.default_joint_group
     options.max_connection_distance = max_connection_distance
     options.collision_check_step_size = collision_check_step_size
     options.goal_biasing_probability = goal_biasing_probability
@@ -89,12 +91,15 @@ def main(
     options.rrt_connect = rrt_connect
     rrt = RRT(scene, options)
 
+    q_full = scene.randomCollisionFreePositions()
+    scene.setJointPositions(q_full)
+
     start = JointConfiguration()
-    start.positions = scene.randomCollisionFreePositions()
+    start.positions = q_full[q_indices]
     assert start.positions is not None
 
     goal = JointConfiguration()
-    goal.positions = scene.randomCollisionFreePositions()
+    goal.positions = scene.randomCollisionFreePositions()[q_indices]
     assert goal.positions is not None
 
     path = rrt.plan(start, goal)
@@ -102,33 +107,34 @@ def main(
 
     # Optionally include path shortening
     if include_shortcutting:
-        shortcut_path = shortcutPath(
-            scene, path, options.collision_check_step_size, 1000
+        shortcutter = PathShortcutter(scene, model_data.default_joint_group)
+        shortened_path = shortcutter.shortcut(
+            path, options.collision_check_step_size, 1000
         )
 
     # Visualize the tree and path
     print(path)
-    viz.display(start.positions)
+    viz.display(q_full)
     visualizePath(viz, scene, path, model_data.ee_names, 0.05)
     visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
 
     if include_shortcutting:
         print("Shortcutted path:")
-        print(shortcut_path)
+        print(shortened_path)
         visualizePath(
             viz,
             scene,
-            shortcut_path,
+            shortened_path,
             model_data.ee_names,
             0.05,
             (0, 100, 0),
             "/rrt/shortcut_path",
         )
-        path = shortcut_path
+        path = shortened_path
 
     # Set up TOPP-RA path parameterization
     dt = 0.01
-    toppra = PathParameterizerTOPPRA(scene)
+    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
     traj = toppra.generate(path, dt)
 
     # TODO: Make this a reusable function
@@ -147,7 +153,8 @@ def main(
     # Animate the trajectory
     input("Press 'Enter' to animate the trajectory.")
     for q in traj.positions:
-        viz.display(q)
+        q_full[q_indices] = q
+        viz.display(q_full)
         time.sleep(dt)
 
     try:
