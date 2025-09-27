@@ -7,14 +7,16 @@
 #include <toppra/parametrizer/const_accel.hpp>
 
 #include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/scene_utils.hpp>
 #include <roboplan_toppra/toppra.hpp>
 
 namespace roboplan {
 
 PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene,
-                                                 const std::string& group_name) {
+                                                 const std::string& group_name)
+    : scene_{scene}, group_name_{group_name} {
   // Extract the joint group information.
-  const auto maybe_joint_group_info = scene->getJointGroupInfo(group_name);
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name_);
   if (!maybe_joint_group_info) {
     throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
                              maybe_joint_group_info.error());
@@ -22,7 +24,12 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   joint_group_info_ = maybe_joint_group_info.value();
 
   // Extract joint velocity + acceleration limits from scene.
-  const auto num_dofs = joint_group_info_.q_indices.size();
+  const auto maybe_collapsed_pos = collapseContinuousJointPositions(
+      *scene_, group_name_, Eigen::VectorXd::Zero(joint_group_info_.q_indices.size()));
+  if (!maybe_collapsed_pos) {
+    throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_collapsed_pos.error());
+  }
+  const auto num_dofs = maybe_collapsed_pos->size();
   vel_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
   vel_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
   acc_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
@@ -30,14 +37,12 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
 
   size_t q_idx = 0;
   for (const auto& joint_name : joint_group_info_.joint_names) {
-    const auto& joint_info = scene->getJointInfo(joint_name);
+    const auto joint_info = scene_->getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::FLOATING:
     case JointType::PLANAR:
       throw std::runtime_error("Multi-DOF joints not yet supported by TOPP-RA.");
-    case JointType::CONTINUOUS:
-      throw std::runtime_error("Continuous joints not yet supported by TOPP-RA.");
-    default:  // Prismatic or revolute, which are single-DOF.
+    default:  // Prismatic, revolute, or continuous, which are single-DOF in tangent space.
       if (joint_info.limits.max_velocity.size() == 0) {
         throw std::runtime_error("Velocity limit must be defined for joint '" + joint_name + "'.");
       }
@@ -94,10 +99,16 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
   std::vector<double> steps;
   steps.reserve(num_pts);
   double s = 0.0;
-  for (const auto& pos : path.positions) {
-    path_pos_vecs.push_back(pos);
+  for (size_t idx = 0; idx < path.positions.size(); ++idx) {
+    const auto& pos = path.positions.at(idx);
+    const auto maybe_collapsed_pos = collapseContinuousJointPositions(*scene_, group_name_, pos);
+    if (!maybe_collapsed_pos) {
+      return tl::make_unexpected("Failed to compute path parameterization: " +
+                                 maybe_collapsed_pos.error());
+    }
+    path_pos_vecs.push_back(maybe_collapsed_pos.value());
     // TODO: Support nonzero endpoint velocities?
-    path_vel_vecs.push_back(Eigen::VectorXd::Zero(pos.size()));
+    path_vel_vecs.push_back(Eigen::VectorXd::Zero(maybe_collapsed_pos->size()));
     steps.push_back(s);
     s += 1.0;
   }
@@ -134,7 +145,12 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
   }
   Eigen::Map<Eigen::VectorXd> times_vec(traj.times.data(), traj.times.size());
   for (const auto& pos : const_acc->eval(times_vec, 0)) {
-    traj.positions.push_back(pos);
+    const auto maybe_expanded_pos = expandContinuousJointPositions(*scene_, group_name_, pos);
+    if (!maybe_expanded_pos) {
+      return tl::make_unexpected("Failed to compute path parameterization: " +
+                                 maybe_expanded_pos.error());
+    }
+    traj.positions.push_back(maybe_expanded_pos.value());
   }
   for (const auto& vel : const_acc->eval(times_vec, 1)) {
     traj.velocities.push_back(vel);

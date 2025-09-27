@@ -30,6 +30,12 @@ public:
                                                       const double acceleration_scale = 1.0);
 
 private:
+  /// @brief A pointer to the scene.
+  std::shared_ptr<Scene> scene_;
+
+  /// @brief The name of the joint group.
+  std::string group_name_;
+
   /// @brief The joint group info for the path parameterizer.
   JointGroupInfo joint_group_info_;
 

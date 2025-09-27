@@ -69,7 +69,7 @@ public:
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
   /// @return The joint information struct.
-  JointInfo getJointInfo(const std::string& joint_name) {
+  JointInfo getJointInfo(const std::string& joint_name) const {
     if (!joint_info_.contains(joint_name)) {
       throw std::runtime_error("Joint '" + joint_name + "' is not in the scene.");
     }

@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/scene_utils.hpp>
 #include <roboplan_rrt/rrt.hpp>
 
 namespace roboplan {
@@ -18,7 +19,12 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   joint_group_info_ = maybe_joint_group_info.value();
 
   // Get the state space info and set bounds from the group's joints.
-  const auto nq = joint_group_info_.q_indices.size();
+  const auto maybe_collapsed_pos = collapseContinuousJointPositions(
+      *scene_, options_.group_name, Eigen::VectorXd::Zero(joint_group_info_.q_indices.size()));
+  if (!maybe_collapsed_pos) {
+    throw std::runtime_error("Failed to instantiate RRT Planner: " + maybe_collapsed_pos.error());
+  }
+  const auto nq = maybe_collapsed_pos->size();
   Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(nq);
   Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(nq);
 
@@ -34,15 +40,11 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     case JointType::PLANAR:
       throw std::runtime_error("Multi-DOF joints not yet supported by RRT.");
     case JointType::CONTINUOUS:
-      // TODO: Use "SO2" state space instead.
-      // The solution should be to squash the position vectors so continuous
-      // joints are also represented as single-DOF.
-      state_space_names.push_back("Rn:2");
+      // The solution squashes the continuous position vectors to be used as an SO(2).
+      state_space_names.push_back("SO2");
       lower_bounds(q_idx) = -1.0;
-      lower_bounds(q_idx + 1) = -1.0;
       upper_bounds(q_idx) = 1.0;
-      upper_bounds(q_idx + 1) = 1.0;
-      q_idx += 2;
+      ++q_idx;
       break;
     default:  // Prismatic or revolute, which are single-DOF.
       state_space_names.push_back("Rn:1");
@@ -154,7 +156,14 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::Ve
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   const auto& q_indices = joint_group_info_.q_indices;
-  tree.addPoint(q_init(q_indices), 0);
+  const auto maybe_q_collapsed =
+      collapseContinuousJointPositions(*scene_, options_.group_name, q_init(q_indices));
+  if (!maybe_q_collapsed) {
+    // NOTE: We only validate here because once the trees are initialized, subsequent collapses
+    // should work.
+    throw std::runtime_error("Failed to initialize K-D Tree: " + maybe_q_collapsed.error());
+  }
+  tree.addPoint(maybe_q_collapsed.value(), 0);
 
   nodes.clear();
   nodes.reserve(max_size);
@@ -166,7 +175,9 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
   const auto& q_indices = joint_group_info_.q_indices;
 
   // Extend from the nearest neighbor to max connection distance.
-  const auto& nn = kd_tree.search(q_sample(q_indices));
+  auto q_collapsed =
+      collapseContinuousJointPositions(*scene_, options_.group_name, q_sample(q_indices));
+  const auto& nn = kd_tree.search(q_collapsed.value());  // Already validated
   const auto& q_nearest = nodes.at(nn.id).config;
 
   int parent_id = nn.id;
@@ -183,7 +194,9 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
 
     grew_tree = true;
     auto new_id = nodes.size();
-    kd_tree.addPoint(q_extend(q_indices), new_id);
+    q_collapsed =
+        collapseContinuousJointPositions(*scene_, options_.group_name, q_extend(q_indices));
+    kd_tree.addPoint(q_collapsed.value(), new_id);  // Already validated
     nodes.emplace_back(q_extend, parent_id);
 
     // Only one iteration if we are not using RRT-Connect.
