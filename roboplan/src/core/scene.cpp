@@ -186,6 +186,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
+tl::expected<JointInfo, std::string> Scene::getJointInfo(const std::string& joint_name) const {
+  auto it = joint_info_.find(joint_name);
+  if (it == joint_info_.end()) {
+    return tl::make_unexpected("Joint '" + joint_name + "' is not in the scene.");
+  }
+  return it->second;
+}
+
 double Scene::configurationDistance(const Eigen::VectorXd& q_start,
                                     const Eigen::VectorXd& q_end) const {
   return pinocchio::distance(model_, q_start, q_end);

@@ -68,13 +68,8 @@ public:
 
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
-  /// @return The joint information struct.
-  JointInfo getJointInfo(const std::string& joint_name) const {
-    if (!joint_info_.contains(joint_name)) {
-      throw std::runtime_error("Joint '" + joint_name + "' is not in the scene.");
-    }
-    return joint_info_.at(joint_name);
-  }
+  /// @return The joint information struct if successful, else a string describing the error.
+  tl::expected<JointInfo, std::string> getJointInfo(const std::string& joint_name) const;
 
   /// @brief Gets the distance between two joint configurations.
   /// @param q_start The starting joint positions.
@@ -181,10 +176,10 @@ private:
   std::vector<std::string> actuated_joint_names_;
 
   /// @brief Map from joint names to their corresponding information.
-  std::map<std::string, JointInfo> joint_info_;
+  std::unordered_map<std::string, JointInfo> joint_info_;
 
   /// @brief Map from joint group names to their corresponding information.
-  std::map<std::string, JointGroupInfo> joint_group_info_;
+  std::unordered_map<std::string, JointGroupInfo> joint_group_info_;
 
   /// @brief A random number generator for the scene.
   std::mt19937 rng_gen_;

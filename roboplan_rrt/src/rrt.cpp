@@ -22,7 +22,7 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   const auto maybe_collapsed_pos = collapseContinuousJointPositions(
       *scene_, options_.group_name, Eigen::VectorXd::Zero(joint_group_info_.q_indices.size()));
   if (!maybe_collapsed_pos) {
-    throw std::runtime_error("Failed to instantiate RRT Planner: " + maybe_collapsed_pos.error());
+    throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_collapsed_pos.error());
   }
   const auto nq = maybe_collapsed_pos->size();
   Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(nq);
@@ -34,7 +34,12 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
   size_t q_idx = 0;
   for (const auto& joint_name : joint_group_info_.joint_names) {
-    const auto& joint_info = scene_->getJointInfo(joint_name);
+    const auto maybe_joint_info = scene_->getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+
     switch (joint_info.type) {
     case JointType::FLOATING:
     case JointType::PLANAR:

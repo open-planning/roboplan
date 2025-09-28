@@ -16,9 +16,9 @@ createFrameMap(const pinocchio::Model& model) {
   return frame_map;
 }
 
-std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Model& model,
-                                                           const std::string& srdf) {
-  std::map<std::string, JointGroupInfo> joint_group_map;
+std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Model& model,
+                                                                     const std::string& srdf) {
+  std::unordered_map<std::string, JointGroupInfo> joint_group_map;
 
   // Parse the document with TinyXML2.
   tinyxml2::XMLDocument doc;
@@ -162,7 +162,7 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   size_t total_collapsed_nq = 0;
   size_t total_expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name);
+    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
     total_expanded_nq += joint_info.num_position_dofs;
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
@@ -190,7 +190,7 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   size_t orig_nq = 0;
   size_t collapsed_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name);
+    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
       // This translates to: theta = atan2(sin(theta), cos(theta))
@@ -224,7 +224,7 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   size_t total_collapsed_nq = 0;
   size_t total_expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name);
+    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
     total_expanded_nq += joint_info.num_position_dofs;
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
@@ -252,7 +252,7 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   size_t orig_nq = 0;
   size_t expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto& joint_info = scene.getJointInfo(joint_name);
+    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
       // This translates theta to [cos(theta), sin(theta)]

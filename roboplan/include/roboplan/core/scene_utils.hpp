@@ -20,8 +20,8 @@ createFrameMap(const pinocchio::Model& model);
 /// @param model The Pinocchio model.
 /// @param srdf_stream The SRDF file contents.
 /// @return The map of robot joint group names to group info.
-std::map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Model& model,
-                                                           const std::string& srdf);
+std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Model& model,
+                                                                     const std::string& srdf);
 
 /// @brief Collapses a joint position vector's continuous joints for downstream algorithms.
 /// @details That is, positions that are expressed as [cos(theta), sin(theta)] will be collapsed

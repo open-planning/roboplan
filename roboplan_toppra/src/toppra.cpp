@@ -37,7 +37,12 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
 
   size_t q_idx = 0;
   for (const auto& joint_name : joint_group_info_.joint_names) {
-    const auto joint_info = scene_->getJointInfo(joint_name);
+    const auto maybe_joint_info = scene_->getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+
     switch (joint_info.type) {
     case JointType::FLOATING:
     case JointType::PLANAR:
