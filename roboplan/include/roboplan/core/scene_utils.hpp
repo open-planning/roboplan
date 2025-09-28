@@ -10,6 +10,24 @@
 
 namespace roboplan {
 
+/// @brief Map from Pinocchio joint model short names to RoboPlan joint type enums.
+const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
+    {"JointModelPX", roboplan::JointType::PRISMATIC},
+    {"JointModelPY", roboplan::JointType::PRISMATIC},
+    {"JointModelPZ", roboplan::JointType::PRISMATIC},
+    {"JointModelRX", roboplan::JointType::REVOLUTE},
+    {"JointModelRY", roboplan::JointType::REVOLUTE},
+    {"JointModelRZ", roboplan::JointType::REVOLUTE},
+    {"JointModelRevoluteUnaligned", roboplan::JointType::REVOLUTE},
+    {"JointModelRUBX", roboplan::JointType::CONTINUOUS},
+    {"JointModelRUBY", roboplan::JointType::CONTINUOUS},
+    {"JointModelRUBZ", roboplan::JointType::CONTINUOUS},
+    {"JointModelRevoluteUnboundedUnaligned", roboplan::JointType::CONTINUOUS},
+    {"JointModelPlanar", roboplan::JointType::PLANAR},
+    {"JointModelFreeFlyer", roboplan::JointType::FLOATING},
+    {"JointModelMimic", roboplan::JointType::UNKNOWN},
+};
+
 /// @brief Creates a map of the robot's frame names to IDs.
 /// @param model The Pinocchio model.
 /// @return The map of robot frame names to IDs.

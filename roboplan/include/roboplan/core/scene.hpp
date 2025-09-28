@@ -176,10 +176,10 @@ private:
   std::vector<std::string> actuated_joint_names_;
 
   /// @brief Map from joint names to their corresponding information.
-  std::unordered_map<std::string, JointInfo> joint_info_;
+  std::unordered_map<std::string, JointInfo> joint_info_map_;
 
   /// @brief Map from joint group names to their corresponding information.
-  std::unordered_map<std::string, JointGroupInfo> joint_group_info_;
+  std::unordered_map<std::string, JointGroupInfo> joint_group_info_map_;
 
   /// @brief A random number generator for the scene.
   std::mt19937 rng_gen_;

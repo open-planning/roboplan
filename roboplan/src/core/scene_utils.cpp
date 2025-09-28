@@ -113,6 +113,7 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     // Once we've defined all joint names in the group, compute the position and velocity indices.
     std::vector<int> q_indices;
     std::vector<int> v_indices;
+    size_t num_joints_with_continuous_dofs = 0;
     for (const auto jid : group_info.joint_indices) {
       const auto& joint = model.joints.at(jid);
       const auto& q_idx = model.idx_qs.at(jid);
@@ -123,7 +124,18 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
       for (int dof = 0; dof < joint.nv(); ++dof) {
         v_indices.push_back(v_idx + dof);
       }
+
+      // Check for any continuous degrees of freedom.
+      const auto joint_type = kPinocchioJointTypeMap.at(joint.shortname());
+      if (joint_type == JointType::CONTINUOUS || joint_type == JointType::PLANAR) {
+        num_joints_with_continuous_dofs += 1;
+      }
     }
+    group_info.nq_collapsed = q_indices.size() - num_joints_with_continuous_dofs;
+    if (num_joints_with_continuous_dofs > 0) {
+      group_info.has_continuous_dofs = true;
+    }
+
     group_info.q_indices.resize(q_indices.size());
     for (size_t idx = 0; idx < q_indices.size(); ++idx) {
       group_info.q_indices(idx) = q_indices.at(idx);
@@ -143,7 +155,9 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
       .joint_names = std::vector<std::string>(model.names.begin() + 1, model.names.end()),
       .joint_indices = all_joint_indices,
       .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
-      .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1)};
+      .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1),
+      .has_continuous_dofs = false,
+      .nq_collapsed = static_cast<size_t>(model.nq)};
 
   return joint_group_map;
 }
@@ -153,44 +167,29 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
                                  const Eigen::VectorXd& q_orig) {
   const auto maybe_joint_group_info = scene.getJointGroupInfo(group_name);
   if (!maybe_joint_group_info) {
-    return tl::make_unexpected("Failed to collapse continuous joints: " +
+    return tl::make_unexpected("Failed to collapse continuous degrees of freedom: " +
                                maybe_joint_group_info.error());
   }
   const auto& joint_group_info = maybe_joint_group_info.value();
 
-  // Get the number of degrees of freedom
-  size_t total_collapsed_nq = 0;
-  size_t total_expanded_nq = 0;
-  for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
-    total_expanded_nq += joint_info.num_position_dofs;
-    switch (joint_info.type) {
-    case JointType::CONTINUOUS:
-      total_collapsed_nq += 1;
-      break;
-    case JointType::PLANAR:
-    case JointType::FLOATING:
-      return tl::make_unexpected("Failed to collapse continuous joints: planar and continuous "
-                                 "joints not yet supported.");
-    case JointType::UNKNOWN:
-      return tl::make_unexpected(
-          "Failed to collapse continuous joints: unknown joints not supported.");
-    default:  // Revolute and prismatic
-      total_collapsed_nq += joint_info.num_position_dofs;
-    }
+  // Return in the trivial case of no continuous degrees of freedom.
+  if (!joint_group_info.has_continuous_dofs) {
+    return q_orig;
   }
 
-  if (total_expanded_nq != static_cast<size_t>(q_orig.size())) {
-    return tl::make_unexpected("Size mismatch: Expected " + std::to_string(total_expanded_nq) +
+  // Validate the number of degrees of freedom.
+  if (q_orig.size() != joint_group_info.q_indices.size()) {
+    return tl::make_unexpected("Size mismatch: Expected " +
+                               std::to_string(joint_group_info.q_indices.size()) +
                                " elements but got " + std::to_string(q_orig.size()) + ".");
   }
-  Eigen::VectorXd q_collapsed = Eigen::VectorXd::Zero(total_collapsed_nq);
+  Eigen::VectorXd q_collapsed = Eigen::VectorXd::Zero(joint_group_info.nq_collapsed);
 
   // Now collapse the joints
   size_t orig_nq = 0;
   size_t collapsed_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
+    const auto joint_info = scene.getJointInfo(joint_name).value();
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
       // This translates to: theta = atan2(sin(theta), cos(theta))
@@ -215,44 +214,29 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
                                const Eigen::VectorXd& q_orig) {
   const auto maybe_joint_group_info = scene.getJointGroupInfo(group_name);
   if (!maybe_joint_group_info) {
-    return tl::make_unexpected("Failed to expand continuous joints: " +
+    return tl::make_unexpected("Failed to expand continuous degrees of freedom: " +
                                maybe_joint_group_info.error());
   }
   const auto& joint_group_info = maybe_joint_group_info.value();
 
-  // Get the number of degrees of freedom
-  size_t total_collapsed_nq = 0;
-  size_t total_expanded_nq = 0;
-  for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
-    total_expanded_nq += joint_info.num_position_dofs;
-    switch (joint_info.type) {
-    case JointType::CONTINUOUS:
-      total_collapsed_nq += 1;
-      break;
-    case JointType::PLANAR:
-    case JointType::FLOATING:
-      return tl::make_unexpected("Failed to expand continuous joints: planar and continuous "
-                                 "joints not yet supported.");
-    case JointType::UNKNOWN:
-      return tl::make_unexpected(
-          "Failed to expand continuous joints: unknown joints not supported.");
-    default:  // Revolute and prismatic
-      total_collapsed_nq += joint_info.num_position_dofs;
-    }
+  // Return in the trivial case of no continuous degrees of freedom.
+  if (!joint_group_info.has_continuous_dofs) {
+    return q_orig;
   }
 
-  if (total_collapsed_nq != static_cast<size_t>(q_orig.size())) {
-    return tl::make_unexpected("Size mismatch: Expected " + std::to_string(total_collapsed_nq) +
+  // Validate the number of degrees of freedom.
+  if (static_cast<size_t>(q_orig.size()) != joint_group_info.nq_collapsed) {
+    return tl::make_unexpected("Size mismatch: Expected " +
+                               std::to_string(joint_group_info.nq_collapsed) +
                                " elements but got " + std::to_string(q_orig.size()) + ".");
   }
-  Eigen::VectorXd q_expanded = Eigen::VectorXd::Zero(total_expanded_nq);
+  Eigen::VectorXd q_expanded = Eigen::VectorXd::Zero(joint_group_info.q_indices.size());
 
   // Now expand the joints
   size_t orig_nq = 0;
   size_t expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();  // TODO change
+    const auto joint_info = scene.getJointInfo(joint_name).value();
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
       // This translates theta to [cos(theta), sin(theta)]
