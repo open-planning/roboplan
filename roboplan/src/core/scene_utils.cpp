@@ -190,7 +190,7 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   size_t orig_nq = 0;
   size_t collapsed_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto& joint_info = scene.getJointInfo(joint_name);
+    const auto joint_info = scene.getJointInfo(joint_name);
     switch (joint_info.type) {
     case JointType::CONTINUOUS:
       // This translates to: theta = atan2(sin(theta), cos(theta))
@@ -270,7 +270,6 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
     }
   }
 
-  // std::cout << "expanded " << q_orig.transpose() << "\nto " << q_expanded.transpose() << "\n";
   return q_expanded;
 }
 
