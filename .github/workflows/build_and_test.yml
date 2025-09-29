@@ -120,3 +120,7 @@ jobs:
           pixi run install_all
           pixi run build_tests
           pixi run test_all
+      # TODO: Decide on a method for automated benchmark performance testing.
+      - name: Run benchmarks
+        run: |
+          pixi run test_benchmarks
