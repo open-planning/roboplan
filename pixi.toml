@@ -180,8 +180,6 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_toppra"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
-
-# TODO: Save output for CI?
 test_benchmarks = { cmd = "pytest benchmarks/" }
 
 [dependencies]

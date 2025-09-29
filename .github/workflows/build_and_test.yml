@@ -120,3 +120,16 @@ jobs:
           pixi run install_all
           pixi run build_tests
           pixi run test_all
+      - name: Run python benchmarks
+        run: pytest benchmarks/ --benchmark-json pytest_benchmarks.json
+      - name: Store benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Python Benchmark with pytest-benchmark
+          tool: 'pytest'
+          output-file-path: pytest_benchmarks.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '125%'
+          comment-on-alert: true
+          fail-on-alert: true
