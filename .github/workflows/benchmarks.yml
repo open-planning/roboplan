@@ -1,0 +1,73 @@
+name: benchmarks
+
+on:
+  # Run action on certain pull request events
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+  # Nightly job on default (main) branch
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Whenever certain branches are pushed
+  push:
+    branches: [main]
+
+  # On demand from github.com for testing
+  workflow_dispatch:
+
+# Ensures that only one workflow runs at a time for this branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pixi_run_benchmarks:
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    strategy:
+      fail-fast: false
+      # TODO: Re-enable when we do not have self-hosted runners in the public repo
+      # matrix:
+      #   ubuntu_version: [22.04, 24.04]
+
+    runs-on: self-hosted  #ubuntu-${{ matrix.ubuntu_version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      # Cache build directories and sccache
+      - name: Cache build directories and sccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.SCCACHE_DIR }}
+          key: ${{ runner.os }}-build-${{ github.sha }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ github.sha }}
+            ${{ runner.os }}-build
+      - uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          frozen: true
+          manifest-path: pixi.toml
+          # TODO: Remove this when we do not have self-hosted runners in the public repo
+          pixi-bin-path: ~/actions-runner/.pixi/bin/pixi
+      - name: Build and test
+        run: |
+          pixi run install_all
+      - name: Run python benchmarks
+        run: pytest benchmarks/ --benchmark-json pytest_benchmarks.json
+      - name: Store benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Python Benchmark with pytest-benchmark
+          tool: 'pytest'
+          output-file-path: pytest_benchmarks.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '125%'
+          comment-on-alert: true
+          fail-on-alert: true
