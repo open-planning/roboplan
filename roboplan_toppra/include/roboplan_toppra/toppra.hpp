@@ -17,7 +17,7 @@ public:
   /// @brief Constructor.
   /// @param scene A pointer to the scene to use for path parameterization.
   /// @param group_name The name of the joint group to use.
-  PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene, const std::string& group_name);
+  PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene, const std::string& group_name = "");
 
   /// @brief Time-parameterizes a joint-space path using TOPP-RA.
   /// @param path The path to time parameterize.

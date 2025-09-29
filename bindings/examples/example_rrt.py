@@ -108,6 +108,7 @@ def main(
 
     # Set up TOPP-RA path parameterization
     dt = 0.01
+    breakpoint()
     toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
 
     # Optionally include path shortening

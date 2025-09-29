@@ -29,6 +29,7 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
   }
 
   // Loop through all the "group" elements.
+  bool has_continuous_dofs = false;
   for (tinyxml2::XMLElement* group = robot->FirstChildElement("group"); group != nullptr;
        group = group->NextSiblingElement("group")) {
     const char* name;
@@ -133,6 +134,7 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     }
     group_info.nq_collapsed = q_indices.size() - num_joints_with_continuous_dofs;
     if (num_joints_with_continuous_dofs > 0) {
+      has_continuous_dofs |= true;
       group_info.has_continuous_dofs = true;
     }
 
@@ -156,7 +158,7 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
       .joint_indices = all_joint_indices,
       .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
       .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1),
-      .has_continuous_dofs = false,
+      .has_continuous_dofs = has_continuous_dofs,
       .nq_collapsed = static_cast<size_t>(model.nq)};
 
   return joint_group_map;
