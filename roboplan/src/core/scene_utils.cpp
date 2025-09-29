@@ -193,18 +193,30 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto joint_info = scene.getJointInfo(joint_name).value();
     switch (joint_info.type) {
-    case JointType::CONTINUOUS:
-      // This translates to: theta = atan2(sin(theta), cos(theta))
-      q_collapsed(collapsed_nq) = std::atan2(q_orig(orig_nq + 1), q_orig(orig_nq));
-      ++collapsed_nq;
-      orig_nq += 2;
-      break;
-    default:  // Revolute and prismatic
+    case JointType::REVOLUTE:
+    case JointType::PRISMATIC:
       for (size_t dof = 0; dof < joint_info.num_position_dofs; ++dof) {
         q_collapsed(collapsed_nq) = q_orig(orig_nq);
         ++orig_nq;
         ++collapsed_nq;
       }
+      break;
+    case JointType::CONTINUOUS:
+      // This translates to: theta = atan2(sin(theta), cos(theta))
+      q_collapsed(collapsed_nq) = std::atan2(q_orig(orig_nq + 1), q_orig(orig_nq));
+      orig_nq += 2;
+      ++collapsed_nq;
+      break;
+    case JointType::PLANAR:
+      q_collapsed(collapsed_nq) = q_orig(orig_nq);
+      q_collapsed(collapsed_nq + 1) = q_orig(orig_nq + 1);
+      // This translates to: theta = atan2(sin(theta), cos(theta))
+      q_collapsed(collapsed_nq + 2) = std::atan2(q_orig(orig_nq + 3), q_orig(orig_nq + 2));
+      orig_nq += 4;
+      collapsed_nq += 3;
+      break;
+    default:
+      throw std::runtime_error("Floating and unknown joints not supported.");
     }
   }
 
@@ -240,6 +252,14 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto joint_info = scene.getJointInfo(joint_name).value();
     switch (joint_info.type) {
+    case JointType::REVOLUTE:
+    case JointType::PRISMATIC:
+      for (size_t dof = 0; dof < joint_info.num_position_dofs; ++dof) {
+        q_expanded(expanded_nq) = q_orig(orig_nq);
+        ++orig_nq;
+        ++expanded_nq;
+      }
+      break;
     case JointType::CONTINUOUS:
       // This translates theta to [cos(theta), sin(theta)]
       q_expanded(expanded_nq) = std::cos(q_orig(orig_nq));
@@ -247,12 +267,17 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
       ++orig_nq;
       expanded_nq += 2;
       break;
-    default:  // Revolute and prismatic
-      for (size_t dof = 0; dof < joint_info.num_position_dofs; ++dof) {
-        q_expanded(expanded_nq) = q_orig(orig_nq);
-        ++orig_nq;
-        ++expanded_nq;
-      }
+    case JointType::PLANAR:
+      q_expanded(expanded_nq) = q_orig(orig_nq);
+      q_expanded(expanded_nq + 1) = q_orig(orig_nq + 1);
+      // This translates theta to [cos(theta), sin(theta)]
+      q_expanded(expanded_nq + 2) = std::cos(q_orig(orig_nq + 2));
+      q_expanded(expanded_nq + 3) = std::sin(q_orig(orig_nq + 2));
+      orig_nq += 3;
+      expanded_nq += 4;
+      break;
+    default:
+      throw std::runtime_error("Floating and unknown joints not supported.");
     }
   }
 

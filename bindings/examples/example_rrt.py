@@ -29,7 +29,7 @@ def main(
     include_shortcutting: bool = False,
     host: str = "localhost",
     port: str = "8000",
-    rng_seed: int = None,
+    rng_seed: int | None = None,
 ):
     """
     Run the RRT example with the provided parameters.
