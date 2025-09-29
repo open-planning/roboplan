@@ -29,6 +29,7 @@ def main(
     include_shortcutting: bool = False,
     host: str = "localhost",
     port: str = "8000",
+    rng_seed: int = None,
 ):
     """
     Run the RRT example with the provided parameters.
@@ -45,6 +46,7 @@ def main(
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
+        rng_seed: The seed for selecting random start and end poses.
     """
 
     if model not in MODELS:
@@ -91,6 +93,8 @@ def main(
     options.rrt_connect = rrt_connect
     rrt = RRT(scene, options)
 
+    if rng_seed:
+        scene.setRngSeed(rng_seed)
     q_full = scene.randomCollisionFreePositions()
     scene.setJointPositions(q_full)
 
