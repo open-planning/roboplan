@@ -180,7 +180,7 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_toppra"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
-test_benchmarks = { cmd = "pytest benchmarks/" }
+test_benchmarks = { cmd = "pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
 
 [dependencies]
 

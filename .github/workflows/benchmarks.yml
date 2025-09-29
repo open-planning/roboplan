@@ -55,11 +55,10 @@ jobs:
           manifest-path: pixi.toml
           # TODO: Remove this when we do not have self-hosted runners in the public repo
           pixi-bin-path: ~/actions-runner/.pixi/bin/pixi
-      - name: Build and test
+      - name: Build and benchmark
         run: |
           pixi run install_all
-      - name: Run python benchmarks
-        run: pytest benchmarks/ --benchmark-json pytest_benchmarks.json
+          pixi run test_benchmarks
       - name: Store benchmark results
         uses: benchmark-action/github-action-benchmark@v1
         with:

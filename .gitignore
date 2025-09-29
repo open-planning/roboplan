@@ -7,3 +7,6 @@
 # pixi environments
 .pixi
 *.egg-info
+
+# Benchmarking results
+pytest_benchmarks.json
