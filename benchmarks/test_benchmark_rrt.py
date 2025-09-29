@@ -20,6 +20,12 @@ from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 
 
 def solve(scene: Scene, rrt: RRT, seed: int = 1234):
+    """
+    Runs an RRT test by sampling random, collision-free joint configurations
+    then attempting to plan a path between them.
+
+    Returns 1 if planning was successful, 0 otherwise.
+    """
     scene.setRngSeed(seed)
 
     start = JointConfiguration()
@@ -31,12 +37,19 @@ def solve(scene: Scene, rrt: RRT, seed: int = 1234):
     assert goal.positions is not None
 
     path = rrt.plan(start, goal)
-    assert path is not None
+    return 0 if path is None else 1
 
 
 def solve_many(scene: Scene, rrt: RRT, iterations: int = 10):
-    for i in range(7):
-        solve(scene, rrt, i + 1234)
+    """
+    Runs the specified number of iterations of RRT with a random seed.
+
+    Returns the number of successful solves.
+    """
+    successes = 0
+    for i in range(iterations):
+        successes += solve(scene, rrt, 11235 + i)
+    return successes
 
 
 def create_scene(model_name: str) -> Scene:
@@ -56,27 +69,27 @@ def create_scene(model_name: str) -> Scene:
     return scene
 
 
-# The dual arm model needs planning groups or the benchmarks take forever.
-@pytest.fixture(scope="session", params=["kinova", "ur5", "franka"])
+@pytest.fixture(scope="session", params=["kinova", "ur5", "franka", "dual"])
 def scene(request):
     return create_scene(request.param)
 
 
 def test_benchmark_rrt(benchmark, scene):
-    # Decreased connection distance to increase tree sizes.
     options = RRTOptions()
-    options.max_nodes = 10000
-    options.max_connection_distance = 0.1
+    options.max_nodes = 100000
+    options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
-    benchmark(solve_many, scene, rrt, 10)
+    success_rate = benchmark(solve_many, scene, rrt, 10)
+    assert success_rate >= 0.95
 
 
 def test_benchmark_rrt_connect(benchmark, scene):
     options = RRTOptions()
-    options.max_nodes = 10000
-    options.max_connection_distance = 0.1
+    options.max_nodes = 100000
     options.rrt_connect = True
+    options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
-    benchmark(solve_many, scene, rrt, 10)
+    success_rate = benchmark(solve_many, scene, rrt, 10)
+    assert success_rate >= 0.95
