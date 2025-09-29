@@ -56,20 +56,14 @@ jobs:
           # TODO: Remove this when we do not have self-hosted runners in the public repo
           pixi-bin-path: ~/actions-runner/.pixi/bin/pixi
       - name: Build and benchmark
-        run: |
-          pixi run install_all
-          pixi run test_benchmarks
+        run: pixi run install_all
+      # TODO: Decide on a method for automated benchmark regression testing once the project
+      # is public
+      - name: Run benchmarks
+        run: pixi run test_benchmarks
       - name: Store benchmark results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Python Benchmark with pytest-benchmark
           tool: 'pytest'
           output-file-path: pytest_benchmarks.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          summary-always: true
-          # TODO: Enable tracking on gh-pages when this is public to support automated
-          # regression alerts.
-          alert-threshold: '200%'
-          auto-push: false
-          comment-on-alert: false
-          fail-on-alert: false
