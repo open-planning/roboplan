@@ -36,7 +36,8 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   acc_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
 
   size_t q_idx = 0;
-  for (const auto& joint_name : joint_group_info_.joint_names) {
+  for (size_t j_idx = 0; j_idx < joint_group_info_.joint_names.size(); ++j_idx) {
+    const auto& joint_name = joint_group_info_.joint_names.at(j_idx);
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_joint_info.error());
@@ -47,6 +48,9 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
     case JointType::FLOATING:
     case JointType::PLANAR:
       throw std::runtime_error("Multi-DOF joints not yet supported by TOPP-RA.");
+    case JointType::CONTINUOUS:
+      continuous_joint_indices_.push_back(j_idx);
+      [[fallthrough]];
     default:  // Prismatic, revolute, or continuous, which are single-DOF in tangent space.
       if (joint_info.limits.max_velocity.size() == 0) {
         throw std::runtime_error("Velocity limit must be defined for joint '" + joint_name + "'.");
@@ -113,24 +117,17 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
     }
     auto curr_collapsed = maybe_collapsed_pos.value();
 
-    // For continuous joints we have to ensure that we take "the short way round" in the spline
-    // below. So if the distance to the preview point is greater than PI, then we either add or
-    // subtract 2*PI to this point to ensure that we don't travel further than we need to.
+    // For continuous joints we have to ensure that we take "the short way around" in the spline.
+    // If the distance to the preview point is greater than PI, then we either add or subtract
+    // 2*PI to this point to ensure that we don't travel further than we need to.
     if (idx > 0) {
-      const auto& prev_collapsed = path_pos_vecs[idx - 1];
-      for (size_t j = 0; j < joint_group_info_.joint_names.size(); ++j) {
-        const auto maybe_joint_info = scene_->getJointInfo(joint_group_info_.joint_names[j]);
-        if (!maybe_joint_info) {
-          return tl::make_unexpected("Failed to get joint info: " + maybe_joint_info.error());
-        }
-        const auto& joint_info = maybe_joint_info.value();
-        if (joint_info.type == JointType::CONTINUOUS) {
-          double diff = curr_collapsed(j) - prev_collapsed(j);
-          if (diff > M_PI) {
-            curr_collapsed(j) -= 2 * M_PI;
-          } else if (diff < -M_PI) {
-            curr_collapsed(j) += 2 * M_PI;
-          }
+      const auto& prev_collapsed = path_pos_vecs.at(idx - 1);
+      for (auto j_idx : continuous_joint_indices_) {
+        const auto diff = curr_collapsed(j_idx) - prev_collapsed(j_idx);
+        if (diff > M_PI) {
+          curr_collapsed(j_idx) -= 2.0 * M_PI;
+        } else if (diff < -M_PI) {
+          curr_collapsed(j_idx) += 2.0 * M_PI;
         }
       }
     }

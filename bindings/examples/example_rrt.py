@@ -46,7 +46,7 @@ def main(
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
-        rng_seed: The seed for selecting random start and end poses.
+        rng_seed: The seed for selecting random start and end poses and solving RRT.
     """
 
     if model not in MODELS:
@@ -95,6 +95,8 @@ def main(
 
     if rng_seed:
         scene.setRngSeed(rng_seed)
+        rrt.setRngSeed(rng_seed)
+
     q_full = scene.randomCollisionFreePositions()
     scene.setJointPositions(q_full)
 
@@ -112,7 +114,6 @@ def main(
 
     # Set up TOPP-RA path parameterization
     dt = 0.01
-    breakpoint()
     toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
 
     # Optionally include path shortening

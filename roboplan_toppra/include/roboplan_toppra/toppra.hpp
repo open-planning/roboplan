@@ -50,6 +50,10 @@ private:
 
   /// @brief The stored acceleration upper limits.
   toppra::Vector acc_upper_limits_;
+
+  /// @brief A list of indices of joints with continuous degrees of freedom.
+  /// @details This is used to figure out which joints need to be wrapped.
+  std::vector<size_t> continuous_joint_indices_;
 };
 
 }  // namespace roboplan
