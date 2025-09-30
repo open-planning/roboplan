@@ -180,7 +180,7 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_toppra"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
-
+test_benchmarks = { cmd = "pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
 
 [dependencies]
 
@@ -227,6 +227,7 @@ compiler-rt = ">=19.1.7,<20"
 # Python test dependencies
 pytest = ">=6"
 matplotlib = ">=3.10.5,<4"
+pytest-benchmark = ">=5.1.0,<6"
 
 [pypi-dependencies]
 pycollada = ">=0.9.2, <0.10"
