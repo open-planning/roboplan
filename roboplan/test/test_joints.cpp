@@ -108,21 +108,19 @@ TEST_F(RoboPlanJointTest, ExpandCollapse) {
   // Collapse the continuous joint
   Eigen::VectorXd expected_collapsed(3);
   expected_collapsed << -0.785398, 0.5, 0.5;
-  const auto collapsed = collapseContinuousJointPositions(*scene_, "", pos);
-  ASSERT_TRUE(collapsed.has_value());
-  ASSERT_EQ(collapsed->size(), 3);
-  EXPECT_FLOAT_EQ((*collapsed)(0), expected_collapsed(0));
-  EXPECT_FLOAT_EQ((*collapsed)(1), expected_collapsed(1));
-  EXPECT_FLOAT_EQ((*collapsed)(2), expected_collapsed(2));
+  const auto collapsed = collapseContinuousJointPositions(*scene_, "", pos).value();
+  ASSERT_EQ(collapsed.size(), 3);
+  EXPECT_FLOAT_EQ(collapsed(0), expected_collapsed(0));
+  EXPECT_FLOAT_EQ(collapsed(1), expected_collapsed(1));
+  EXPECT_FLOAT_EQ(collapsed(2), expected_collapsed(2));
 
   // Expand and ensure we get back the original pose
-  const auto expanded = expandContinuousJointPositions(*scene_, "", *collapsed);
-  ASSERT_TRUE(expanded.has_value());
-  ASSERT_EQ(expanded->size(), 4);
-  EXPECT_FLOAT_EQ((*expanded)(0), pos(0));
-  EXPECT_FLOAT_EQ((*expanded)(1), pos(1));
-  EXPECT_FLOAT_EQ((*expanded)(2), pos(2));
-  EXPECT_FLOAT_EQ((*expanded)(3), pos(3));
+  const auto expanded = expandContinuousJointPositions(*scene_, "", collapsed).value();
+  ASSERT_EQ(expanded.size(), 4);
+  EXPECT_FLOAT_EQ(expanded(0), pos(0));
+  EXPECT_FLOAT_EQ(expanded(1), pos(1));
+  EXPECT_FLOAT_EQ(expanded(2), pos(2));
+  EXPECT_FLOAT_EQ(expanded(3), pos(3));
 }
 
 }  // namespace roboplan
