@@ -47,8 +47,8 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     case JointType::CONTINUOUS:
       // The solution squashes the continuous position vectors to be used as an SO(2).
       state_space_names.push_back("SO2");
-      lower_bounds(q_idx) = -1.0;
-      upper_bounds(q_idx) = 1.0;
+      lower_bounds(q_idx) = -M_PI;  // unused by dynotree
+      upper_bounds(q_idx) = M_PI;   // unused by dynotree
       ++q_idx;
       break;
     default:  // Prismatic or revolute, which are single-DOF.
