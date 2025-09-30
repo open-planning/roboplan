@@ -20,6 +20,15 @@ target_link_libraries(
   roboplan_example_models::roboplan_example_models
 )
 
+add_executable(test_joints test_joints.cpp)
+set_property(TARGET test_joints PROPERTY CXX_STANDARD 20)
+target_link_libraries(
+  test_joints
+  roboplan
+  GTest::gmock_main
+  GTest::gtest_main
+)
+
 add_executable(test_path_utils test_path_utils.cpp)
 set_property(TARGET test_path_utils PROPERTY CXX_STANDARD 20)
 target_link_libraries(
