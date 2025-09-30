@@ -12,24 +12,6 @@
 
 namespace {
 
-/// @brief Map from Pinocchio joint model short names to RoboPlan joint type enums.
-const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
-    {"JointModelPX", roboplan::JointType::PRISMATIC},
-    {"JointModelPY", roboplan::JointType::PRISMATIC},
-    {"JointModelPZ", roboplan::JointType::PRISMATIC},
-    {"JointModelRX", roboplan::JointType::REVOLUTE},
-    {"JointModelRY", roboplan::JointType::REVOLUTE},
-    {"JointModelRZ", roboplan::JointType::REVOLUTE},
-    {"JointModelRevoluteUnaligned", roboplan::JointType::REVOLUTE},
-    {"JointModelRUBX", roboplan::JointType::CONTINUOUS},
-    {"JointModelRUBY", roboplan::JointType::CONTINUOUS},
-    {"JointModelRUBZ", roboplan::JointType::CONTINUOUS},
-    {"JointModelRevoluteUnboundedUnaligned", roboplan::JointType::CONTINUOUS},
-    {"JointModelPlanar", roboplan::JointType::PLANAR},
-    {"JointModelFreeFlyer", roboplan::JointType::FLOATING},
-    {"JointModelMimic", roboplan::JointType::UNKNOWN},
-};
-
 /// @brief Tolerance for the norm of continuous joint values (in the form cos(theta), sin(theta))
 /// to be on the unit circle.
 constexpr double kUnitCircleTol = 1.0e-6;
@@ -76,8 +58,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     yaml_config = YAML::LoadFile(yaml_config_path);
   }
 
-  // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix
-  // this.
+  // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix this.
   std::random_device rd;
   rng_gen_ = std::mt19937(rd());
 
@@ -108,6 +89,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       info.limits.max_position[idx] = mimic_model.upperPositionLimit(q_idx);
       ++q_idx;
     }
+
     std::optional<YAML::Node> maybe_acc_limits;
     std::optional<YAML::Node> maybe_jerk_limits;
     if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
@@ -141,7 +123,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       }
       ++v_idx;
     }
-    joint_info_.emplace(joint_name, info);
+    joint_info_map_.emplace(joint_name, info);
   }
 
   // Add the mimic joint information once all the other joints have been parsed.
@@ -155,14 +137,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     const auto& mimicked_joint_name = mimic_model.names[mimicked_idx];
 
     auto* mimic_joint = boost::get<pinocchio::JointModelMimic>(&mimicking_joint);
-    const auto mimicked_joint_type = joint_info_.at(mimicked_joint_name).type;
+    const auto mimicked_joint_type = joint_info_map_.at(mimicked_joint_name).type;
     auto info = JointInfo(mimicked_joint_type);
     info.mimic_info = JointMimicInfo{
         .mimicked_joint_name = mimicked_joint_name,
         .scaling = mimic_joint->scaling(),
         .offset = mimic_joint->offset(),
     };
-    joint_info_.emplace(mimicking_joint_name, info);
+    joint_info_map_.emplace(mimicking_joint_name, info);
   }
 
   // Replace the model with its non-mimic version.
@@ -174,7 +156,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
 
   // Create auxiliary model info
   frame_map_ = createFrameMap(model_);
-  joint_group_info_ = createJointGroupInfo(model_, srdf);
+  joint_group_info_map_ = createJointGroupInfo(model_, srdf);
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
@@ -184,6 +166,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+}
+
+tl::expected<JointInfo, std::string> Scene::getJointInfo(const std::string& joint_name) const {
+  auto it = joint_info_map_.find(joint_name);
+  if (it == joint_info_map_.end()) {
+    return tl::make_unexpected("Joint '" + joint_name + "' is not in the scene.");
+  }
+  return it->second;
 }
 
 double Scene::configurationDistance(const Eigen::VectorXd& q_start,
@@ -196,7 +186,7 @@ void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 Eigen::VectorXd Scene::randomPositions() {
   Eigen::VectorXd positions(model_.nq);
   for (const auto& joint_name : joint_names_) {
-    const auto& info = joint_info_.at(joint_name);
+    const auto& info = joint_info_map_.at(joint_name);
     if (info.mimic_info) {
       continue;  // Skip mimic joints as they are set later.
     }
@@ -242,7 +232,7 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
 bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   size_t q_idx = 0;
   for (const auto& joint_name : joint_names_) {
-    const auto& info = joint_info_.at(joint_name);
+    const auto& info = joint_info_map_.at(joint_name);
     if (info.mimic_info) {
       ++q_idx;
       continue;  // Skip over mimic joints since we validate their parent.
@@ -272,7 +262,7 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
 }
 
 void Scene::applyMimics(Eigen::VectorXd& q) const {
-  for (const auto& [joint_name, joint_info] : joint_info_) {
+  for (const auto& [joint_name, joint_info] : joint_info_map_) {
     if (!joint_info.mimic_info) {
       continue;
     }
@@ -344,9 +334,9 @@ tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::st
 }
 
 tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::string& name) const {
-  auto it = joint_group_info_.find(name);
-  if (it == joint_group_info_.end()) {
-    return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_.");
+  auto it = joint_group_info_map_.find(name);
+  if (it == joint_group_info_map_.end()) {
+    return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_map_.");
   }
   return it->second;
 }
@@ -372,7 +362,7 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "\n";
   os << "Joint information:\n";
   for (const auto& joint_name : scene.joint_names_) {
-    const auto& info = scene.joint_info_.at(joint_name);
+    const auto& info = scene.joint_info_map_.at(joint_name);
     os << "  " << joint_name << ":\n";
     if (info.mimic_info) {
       os << "    mimics " << info.mimic_info->mimicked_joint_name << "\n";
@@ -388,7 +378,7 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
     }
   }
   os << "Joint group information:\n";
-  for (const auto& [group_name, group_info] : scene.joint_group_info_) {
+  for (const auto& [group_name, group_info] : scene.joint_group_info_map_) {
     os << "  [" << group_name << "] " << group_info;
   }
   os << "State:\n";

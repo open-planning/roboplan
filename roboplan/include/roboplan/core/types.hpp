@@ -120,6 +120,13 @@ struct JointGroupInfo {
   /// @brief The velocity vector indices in the group.
   Eigen::VectorXi v_indices;
 
+  /// @brief Whether the group has any continuous degrees of freedom.
+  bool has_continuous_dofs{false};
+
+  /// @brief The number of collapsed degrees of freedom.
+  /// @details To get the full (expanded) value, this is q_indices.size().
+  size_t nq_collapsed;
+
   /// @brief Prints basic information about the joint group.
   friend std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info);
 };

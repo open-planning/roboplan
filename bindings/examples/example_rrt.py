@@ -29,6 +29,7 @@ def main(
     include_shortcutting: bool = False,
     host: str = "localhost",
     port: str = "8000",
+    rng_seed: int | None = None,
 ):
     """
     Run the RRT example with the provided parameters.
@@ -45,6 +46,7 @@ def main(
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
+        rng_seed: The seed for selecting random start and end poses and solving RRT.
     """
 
     if model not in MODELS:
@@ -91,6 +93,10 @@ def main(
     options.rrt_connect = rrt_connect
     rrt = RRT(scene, options)
 
+    if rng_seed:
+        scene.setRngSeed(rng_seed)
+        rrt.setRngSeed(rng_seed)
+
     q_full = scene.randomCollisionFreePositions()
     scene.setJointPositions(q_full)
 
@@ -104,6 +110,11 @@ def main(
 
     path = rrt.plan(start, goal)
     assert path is not None
+    print(path)
+
+    # Set up TOPP-RA path parameterization
+    dt = 0.01
+    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
 
     # Optionally include path shortening
     if include_shortcutting:
@@ -113,31 +124,28 @@ def main(
             max_step_size=options.collision_check_step_size,
             max_iters=1000,
         )
-
-    # Visualize the tree and path
-    print(path)
-    viz.display(q_full)
-    visualizePath(viz, scene, path, model_data.ee_names, 0.05)
-    visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
-
-    if include_shortcutting:
         print("Shortcutted path:")
         print(shortened_path)
+        traj = toppra.generate(shortened_path, dt)
+    else:
+        traj = toppra.generate(path, dt)
+
+    # Visualize the tree and path
+    viz.display(q_full)
+    visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
+    if include_shortcutting:
+        visualizePath(viz, scene, path, model_data.ee_names, 0.05)
         visualizePath(
             viz,
             scene,
-            shortened_path,
+            traj,
             model_data.ee_names,
             0.05,
             (0, 100, 0),
             "/rrt/shortcut_path",
         )
-        path = shortened_path
-
-    # Set up TOPP-RA path parameterization
-    dt = 0.01
-    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
-    traj = toppra.generate(path, dt)
+    else:
+        visualizePath(viz, scene, traj, model_data.ee_names, 0.05)
 
     # TODO: Make this a reusable function
     plt.ion()

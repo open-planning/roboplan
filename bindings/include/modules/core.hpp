@@ -16,4 +16,8 @@ void init_core_scene(nanobind::module_& m);
 /// @param m The nanobind core module.
 void init_core_path_utils(nanobind::module_& m);
 
+/// @brief Initializes Python bindings for core scene utilities.
+/// @param m The nanobind core module.
+void init_core_scene_utils(nanobind::module_& m);
+
 }  // namespace roboplan

@@ -8,6 +8,7 @@
 
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_utils.hpp>
 #include <roboplan/core/types.hpp>
 
 #include <modules/core.hpp>
@@ -119,7 +120,7 @@ void init_core_scene(nanobind::module_& m) {
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
       .def("getActuatedJointNames", &Scene::getActuatedJointNames)
-      .def("getJointInfo", &Scene::getJointInfo)
+      .def("getJointInfo", unwrap_expected(&Scene::getJointInfo))
       .def("configurationDistance", &Scene::configurationDistance)
       .def("setRngSeed", &Scene::setRngSeed)
       .def("randomPositions", &Scene::randomPositions)
@@ -155,6 +156,11 @@ void init_core_path_utils(nanobind::module_& m) {
       .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling))
       .def("getConfigurationfromNormalizedPathScaling",
            &PathShortcutter::getConfigurationFromNormalizedPathScaling);
+}
+
+void init_core_scene_utils(nanobind::module_& m) {
+  m.def("collapseContinuousJointPositions", unwrap_expected(&collapseContinuousJointPositions));
+  m.def("expandContinuousJointPositions", unwrap_expected(&expandContinuousJointPositions));
 }
 
 }  // namespace roboplan

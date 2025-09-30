@@ -17,6 +17,7 @@ NB_MODULE(roboplan_ext, m) {
   init_core_types(m_core);
   init_core_scene(m_core);
   init_core_path_utils(m_core);
+  init_core_scene_utils(m_core);
 
   /// Example models module
   nanobind::module_ m_example_models = m.def_submodule("example_models", "Example models");

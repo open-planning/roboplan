@@ -45,7 +45,7 @@ std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info) {
   os << "Joint group with " << info.joint_names.size() << " joints:\n";
   os << "  Names:";
   for (const auto& name : info.joint_names) {
-    std::cout << " " << name;
+    os << " " << name;
   }
   os << "\n";
   os << "  q indices: " << info.q_indices.transpose() << "\n";

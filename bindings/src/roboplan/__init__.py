@@ -1,6 +1,8 @@
 from .roboplan_ext.core import (
     computeFramePath,
     hasCollisionsAlongPath,
+    collapseContinuousJointPositions,
+    expandContinuousJointPositions,
     CartesianConfiguration,
     JointConfiguration,
     JointInfo,

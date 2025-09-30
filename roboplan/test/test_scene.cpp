@@ -45,7 +45,9 @@ TEST_F(RoboPlanSceneTest, SceneProperties) {
                                                    "elbow_joint", "wrist_1_joint", "wrist_2_joint",
                                                    "wrist_3_joint"}));
 
-  const auto joint_info = scene_->getJointInfo("shoulder_pan_joint");
+  const auto maybe_joint_info = scene_->getJointInfo("shoulder_pan_joint");
+  ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
+  const auto& joint_info = maybe_joint_info.value();
   EXPECT_EQ(joint_info.type, JointType::REVOLUTE);
   EXPECT_EQ(joint_info.num_position_dofs, 1u);
   EXPECT_EQ(joint_info.num_velocity_dofs, 1u);
