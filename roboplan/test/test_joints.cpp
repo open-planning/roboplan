@@ -108,14 +108,18 @@ TEST_F(RoboPlanJointTest, ExpandCollapse) {
   // Collapse the continuous joint
   Eigen::VectorXd expected_collapsed(3);
   expected_collapsed << -0.785398, 0.5, 0.5;
-  const auto collapsed = collapseContinuousJointPositions(*scene_, "", pos).value();
+  const auto maybe_collapsed = collapseContinuousJointPositions(*scene_, "", pos);
+  ASSERT_TRUE(maybe_collapsed.has_value()) << maybe_collapsed.error();
+  const auto& collapsed = maybe_collapsed.value();
   ASSERT_EQ(collapsed.size(), 3);
   EXPECT_FLOAT_EQ(collapsed(0), expected_collapsed(0));
   EXPECT_FLOAT_EQ(collapsed(1), expected_collapsed(1));
   EXPECT_FLOAT_EQ(collapsed(2), expected_collapsed(2));
 
   // Expand and ensure we get back the original pose
-  const auto expanded = expandContinuousJointPositions(*scene_, "", collapsed).value();
+  const auto maybe_expanded = expandContinuousJointPositions(*scene_, "", collapsed);
+  ASSERT_TRUE(maybe_expanded.has_value()) << maybe_expanded.error();
+  const auto& expanded = maybe_expanded.value();
   ASSERT_EQ(expanded.size(), 4);
   EXPECT_FLOAT_EQ(expanded(0), pos(0));
   EXPECT_FLOAT_EQ(expanded(1), pos(1));
