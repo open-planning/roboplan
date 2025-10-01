@@ -20,6 +20,15 @@ target_link_libraries(
   roboplan_example_models::roboplan_example_models
 )
 
+add_executable(test_joints test_joints.cpp)
+set_property(TARGET test_joints PROPERTY CXX_STANDARD 20)
+target_link_libraries(
+  test_joints
+  roboplan
+  GTest::gmock_main
+  GTest::gtest_main
+)
+
 add_executable(test_path_utils test_path_utils.cpp)
 set_property(TARGET test_path_utils PROPERTY CXX_STANDARD 20)
 target_link_libraries(
@@ -36,8 +45,12 @@ find_package(ament_cmake_gtest QUIET)
 if ( ament_cmake_gtest_FOUND )
     ament_add_gtest_test(test_types)
     ament_add_gtest_test(test_scene)
+    ament_add_gtest_test(test_joints)
     ament_add_gtest_test(test_path_utils)
 else()
     include(GoogleTest)
-    gtest_discover_tests(test_types test_scene test_path_utils)
+    gtest_discover_tests(test_types)
+    gtest_discover_tests(test_scene)
+    gtest_discover_tests(test_joints)
+    gtest_discover_tests(test_path_utils)
 endif()

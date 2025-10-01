@@ -29,7 +29,6 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
   }
 
   // Loop through all the "group" elements.
-  bool has_continuous_dofs = false;
   for (tinyxml2::XMLElement* group = robot->FirstChildElement("group"); group != nullptr;
        group = group->NextSiblingElement("group")) {
     const char* name;
@@ -134,7 +133,6 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     }
     group_info.nq_collapsed = q_indices.size() - num_joints_with_continuous_dofs;
     if (num_joints_with_continuous_dofs > 0) {
-      has_continuous_dofs |= true;
       group_info.has_continuous_dofs = true;
     }
 
@@ -153,13 +151,27 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
   // Create a default empty group with all the indices.
   std::vector<size_t> all_joint_indices(model.njoints - 1);
   std::iota(all_joint_indices.begin(), all_joint_indices.end(), 0);
+
+  // It is possible for a robot to have continuous joints that are not in any group. So check
+  // again to be sure.
+  bool default_group_has_continuous_dofs = false;
+  size_t default_group_num_continuous_dofs = 0;
+  for (size_t jid = 1; jid < static_cast<size_t>(model.njoints); ++jid) {
+    const auto& joint = model.joints.at(jid);
+    const auto joint_type = kPinocchioJointTypeMap.at(joint.shortname());
+    if (joint_type == JointType::CONTINUOUS || joint_type == JointType::PLANAR) {
+      default_group_has_continuous_dofs = true;
+      default_group_num_continuous_dofs += 1;
+    }
+  }
+
   joint_group_map[""] = JointGroupInfo{
       .joint_names = std::vector<std::string>(model.names.begin() + 1, model.names.end()),
       .joint_indices = all_joint_indices,
       .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
       .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1),
-      .has_continuous_dofs = has_continuous_dofs,
-      .nq_collapsed = static_cast<size_t>(model.nq)};
+      .has_continuous_dofs = default_group_has_continuous_dofs,
+      .nq_collapsed = static_cast<size_t>(model.nq) - default_group_num_continuous_dofs};
 
   return joint_group_map;
 }
