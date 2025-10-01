@@ -70,34 +70,22 @@ set(ROBOPLAN_EXT_SOURCES
   src/modules/toppra.cpp
 )
 
-# Compile the extension module
-if(AMENT_BUILD)
-  nanobind_add_module(
-    roboplan_ext_target
-    NB_STATIC
-    ${ROBOPLAN_EXT_SOURCES}
-  )
-  set_target_properties(roboplan_ext_target PROPERTIES
-    OUTPUT_NAME roboplan_ext
-  )
-  set(EXT_TARGET roboplan_ext_target)
-else()
-  nanobind_add_module(
-    roboplan_ext
-    STABLE_ABI
-    NB_STATIC
-    ${ROBOPLAN_EXT_SOURCES}
-  )
-  set(EXT_TARGET roboplan_ext)
-endif()
+# Compile the extension module, we use STABLE_ABI even for ament, though that
+# may be unnecessary.
+nanobind_add_module(
+  roboplan_ext
+  STABLE_ABI
+  NB_STATIC
+  ${ROBOPLAN_EXT_SOURCES}
+)
 
 # Configure the extension module
-target_include_directories(${EXT_TARGET} PUBLIC
+target_include_directories(roboplan_ext PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-set_property(TARGET ${EXT_TARGET} PROPERTY CXX_STANDARD 20)
-target_link_libraries(${EXT_TARGET} PRIVATE
+set_property(TARGET roboplan_ext PROPERTY CXX_STANDARD 20)
+target_link_libraries(roboplan_ext PRIVATE
   roboplan::expected
   roboplan::roboplan
   roboplan_example_models::roboplan_example_models
@@ -108,7 +96,7 @@ target_link_libraries(${EXT_TARGET} PRIVATE
 
 if(AMENT_BUILD)
   ament_get_python_install_dir(PYTHON_INSTALL_DIR)
-  install(TARGETS ${EXT_TARGET}
+  install(TARGETS roboplan_ext
     LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
   )
   ament_python_install_package(roboplan
@@ -116,5 +104,5 @@ if(AMENT_BUILD)
   )
   ament_package()
 else()
-  install(TARGETS ${EXT_TARGET} LIBRARY DESTINATION roboplan)
+  install(TARGETS roboplan_ext LIBRARY DESTINATION roboplan)
 endif()
