@@ -78,7 +78,18 @@ source install/setup.bash
 ros2 run roboplan_examples example_scene
 ```
 
-See the [bindings README](bindings/README.md) for instructions on building the Python bindings.
+At this point, you should also be able to use `roboplan` as a Python package!
+
+```bash
+python3
+>>> import roboplan
+```
+
+... or run one of the examples.
+
+```bash
+python3 bindings/examples/example_scene.py
+```
 
 ---
 
@@ -89,7 +100,7 @@ See the [bindings README](bindings/README.md) for instructions on building the P
 Make sure to install [pixi](https://pixi.sh/latest/#installation).
 
 ```bash
-git clone https://github.com/open-planning/roboplan.git
+git clone --recursive https://github.com/open-planning/roboplan.git
 cd roboplan
 # Build all packages, including Python bindings
 pixi run build_all
