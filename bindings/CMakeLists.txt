@@ -111,7 +111,10 @@ if(AMENT_BUILD)
   install(TARGETS ${EXT_TARGET}
     LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
   )
-  ament_python_install_package(roboplan)
+  install(DIRECTORY src/roboplan/
+    DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
+    FILES_MATCHING PATTERN "*.py"
+  )
   ament_package()
 else()
   install(TARGETS ${EXT_TARGET} LIBRARY DESTINATION roboplan)
