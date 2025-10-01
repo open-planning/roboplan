@@ -9,7 +9,14 @@ SHELL ["/bin/bash", "-c"]
 RUN apt update -y \
     && apt upgrade -y \
     && apt install -y libgmock-dev python3-pip
-RUN pip3 install nanobind
+RUN pip3 install \
+        nanobind \
+        matplotlib \
+        "numpy<2.0.0" \
+        opencv-contrib-python-headless \
+        typing_extensions==4.10.0 \
+        tyro \
+        "viser>=1.0.1"
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /workspace/roboplan_ws/src/roboplan
