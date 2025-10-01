@@ -111,6 +111,8 @@ if(AMENT_BUILD)
   install(TARGETS ${EXT_TARGET}
     LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
   )
+  # TODO: There are some shenanigans with the ament install here because of
+  # where the `__init__.py` file lives, need to fix those.
   install(DIRECTORY src/roboplan/
     DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
     FILES_MATCHING PATTERN "*.py"
