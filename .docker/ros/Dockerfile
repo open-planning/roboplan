@@ -19,7 +19,7 @@ COPY . src/roboplan
 # Install dependencies and build RoboPlan.
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
-    && colcon build --cmake-args -DBUILD_TESTING=opencv
+    && colcon build --cmake-args -DBUILD_TESTING=ON
 
 # Set up entrypoint and working folder.
 WORKDIR /workspace/roboplan_ws
