@@ -99,6 +99,8 @@ def main(
 
     q_full = scene.randomCollisionFreePositions()
     scene.setJointPositions(q_full)
+    viz.display(q_full)
+    time.sleep(0.1)
 
     start = JointConfiguration()
     start.positions = q_full[q_indices]
@@ -108,27 +110,27 @@ def main(
     goal.positions = scene.randomCollisionFreePositions()[q_indices]
     assert goal.positions is not None
 
+    print("Planning...")
     path = rrt.plan(start, goal)
     assert path is not None
-    print(path)
-
-    # Set up TOPP-RA path parameterization
-    dt = 0.01
-    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
+    print(f"Found a path:\n{path}")
 
     # Optionally include path shortening
     if include_shortcutting:
+        print("Shortcutting path...")
         shortcutter = PathShortcutter(scene, model_data.default_joint_group)
         shortened_path = shortcutter.shortcut(
             path,
             max_step_size=options.collision_check_step_size,
             max_iters=1000,
         )
-        print("Shortcutted path:")
-        print(shortened_path)
-        traj = toppra.generate(shortened_path, dt)
-    else:
-        traj = toppra.generate(path, dt)
+        print(f"Shortcutted path:\n{shortened_path}")
+
+    # Set up TOPP-RA path parameterization
+    print("Generating trajectory...")
+    dt = 0.01
+    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
+    traj = toppra.generate(shortened_path if include_shortcutting else path, dt)
 
     # Visualize the tree and path
     viz.display(q_full)
