@@ -9,6 +9,12 @@ SHELL ["/bin/bash", "-c"]
 RUN apt update -y \
     && apt upgrade -y \
     && apt install -y libgmock-dev python3-pip
+
+# Install Python dependencies needed for bindings.
+# Note that since Pinocchio in ROS is built with Numpy 1.x, we must preserve this by
+# pinning a bunch of other versions. These pins are ROS specific, and at odds with
+# non-ROS workflows, so we cannot put these as requirements in the `pyproject.toml`.
+# As/if this package matures, a possible solution is to apply patches for ROS release.
 RUN pip3 install \
         nanobind \
         matplotlib \
