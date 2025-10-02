@@ -5,6 +5,7 @@
   <version>0.0.0</version>
   <description>Python bindings for the roboplan library built with nanobind.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
+  <maintainer email="eholum@gmail.com">Erik Holum</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
