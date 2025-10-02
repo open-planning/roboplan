@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>roboplan_bindings</name>
+  <version>0.0.0</version>
+  <description>Python bindings for the roboplan library built with nanobind.</description>
+  <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
+  <maintainer email="eholum@gmail.com">Erik Holum</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>roboplan</depend>
+  <depend>roboplan_example_models</depend>
+  <depend>roboplan_rrt</depend>
+  <depend>roboplan_simple_ik</depend>
+  <depend>roboplan_toppra</depend>
+
+  <test_depend>roboplan_example_models</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

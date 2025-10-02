@@ -48,7 +48,7 @@ Running Python tests...
 =======================
 "
 pushd "${SCRIPT_DIR}/../bindings" >> /dev/null || exit
-python3 -m pytest . || EXIT_CODE=$?
+python3 -m pytest test/ || EXIT_CODE=$?
 popd > /dev/null || exit
 
 echo "

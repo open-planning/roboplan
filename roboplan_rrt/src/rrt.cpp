@@ -1,5 +1,4 @@
 #include <chrono>
-#include <sstream>
 #include <stdexcept>
 
 #include <roboplan/core/path_utils.hpp>
@@ -64,8 +63,6 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
 tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
                                                const JointConfiguration& goal) {
-  std::cout << "Planning...\n";
-
   const auto& model = scene_->getModel();
   const auto& q_indices = joint_group_info_.q_indices;
   auto q_start = scene_->toFullJointPositions(options_.group_name, start.positions);
@@ -73,15 +70,12 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    const auto msg = "Invalid poses requested, cannot plan!";
-    std::cout << msg << "\n";
-    return tl::make_unexpected(msg);
+    return tl::make_unexpected("Invalid poses requested, cannot plan!");
   }
 
   // Check whether direct connection between the start and goal are possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
-    std::cout << "Can directly connect start and goal!\n";
     return JointPath{.joint_names = joint_group_info_.joint_names,
                      .positions = {q_start(q_indices), q_goal(q_indices)}};
   }
@@ -106,18 +100,14 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
     auto elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
     if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
-      std::stringstream ss;
-      ss << "RRT timed out after " << options_.max_planning_time << " seconds.";
-      std::cout << ss.str() << "\n";
-      return tl::make_unexpected(ss.str());
+      return tl::make_unexpected("RRT timed out after " +
+                                 std::to_string(options_.max_planning_time) + " seconds.");
     }
 
     // Check loop termination criteria.
     if (start_nodes_.size() + goal_nodes_.size() >= options_.max_nodes) {
-      std::stringstream ss;
-      ss << "Added maximum number of nodes (" << options_.max_nodes << ").";
-      std::cout << ss.str() << "\n";
-      return tl::make_unexpected(ss.str());
+      return tl::make_unexpected("Added maximum number of nodes (" +
+                                 std::to_string(options_.max_nodes) + ").");
     }
 
     // Set grow and target tree for this loop iteration.
@@ -142,8 +132,6 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
     // Check if the trees can be connected from the latest added node. If so we are done.
     auto maybe_path = joinTrees(nodes, target_tree, target_nodes, grow_start_tree);
     if (maybe_path.has_value()) {
-      std::cout << " Found goal with " << start_nodes_.size() + goal_nodes_.size()
-                << " sampled nodes!\n";
       return maybe_path.value();
     }
 

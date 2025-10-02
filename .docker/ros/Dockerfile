@@ -9,7 +9,20 @@ SHELL ["/bin/bash", "-c"]
 RUN apt update -y \
     && apt upgrade -y \
     && apt install -y libgmock-dev python3-pip
-RUN pip3 install nanobind scikit-build-core
+
+# Install Python dependencies needed for bindings.
+# Note that since Pinocchio in ROS is built with Numpy 1.x, we must preserve this by
+# pinning a bunch of other versions. These pins are ROS specific, and at odds with
+# non-ROS workflows, so we cannot put these as requirements in the `pyproject.toml`.
+# As/if this package matures, a possible solution is to apply patches for ROS release.
+RUN pip3 install \
+        nanobind \
+        matplotlib \
+        "numpy<2.0.0" \
+        opencv-contrib-python-headless \
+        typing_extensions==4.10.0 \
+        tyro \
+        "viser>=1.0.1"
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /workspace/roboplan_ws/src/roboplan
@@ -20,23 +33,6 @@ COPY . src/roboplan
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
     && colcon build --cmake-args -DBUILD_TESTING=ON
-
-# Install the Python bindings.
-# Also, since Pinocchio in ROS is built with Numpy 1.x, we must preserve this by pinning a bunch of other versions.
-# Note that these pins are ROS specific, and at odds with non-ROS workflows,
-# so we cannot put these as requirements in the `pyproject.toml`.
-# As/if this package matures, a possible solution is to apply patches for ROS release.
-WORKDIR /workspace/roboplan_ws/src/roboplan/bindings
-RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    && pip3 install \
-        matplotlib \
-        "numpy<2.0.0" \
-        opencv-contrib-python-headless \
-        typing_extensions==4.10.0 \
-        tyro \
-        "viser>=1.0.1" \
-    && source /workspace/roboplan_ws/install/setup.bash \
-    && pip3 install --no-build-isolation -ve .
 
 # Set up entrypoint and working folder.
 WORKDIR /workspace/roboplan_ws
