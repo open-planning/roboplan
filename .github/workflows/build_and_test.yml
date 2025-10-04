@@ -40,6 +40,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: .docker/ubuntu/Dockerfile
           tags: roboplan_ubuntu:${{ github.head_ref || github.ref_name }}
           build-args: |
@@ -48,9 +49,13 @@ jobs:
           load: true
       - name: Run tests
         run: |
-          docker run \
+          docker run --rm \
             roboplan_ubuntu:${{ github.head_ref || github.ref_name }} \
             /bin/bash -c './scripts/run_tests.bash'
+      # Always remove images to save disk space, may not be necessary when using GH runners.
+      - name: Clean up Docker image
+        if: always()
+        run: docker rmi roboplan_ubuntu:${{ github.head_ref || github.ref_name }} || true
 
   # Build ROS docker images and run tests.
   ros_build_and_test:
