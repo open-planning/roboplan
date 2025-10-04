@@ -85,7 +85,7 @@ jobs:
       # Always remove images to save disk space, may not be necessary when using GH runners.
       - name: Clean up Docker image
         if: always()
-        run: docker rmi roboplan_ros:${{ matrix.ros_distro }}-${{ github.sha }} || true
+        run: docker rmi roboplan_ros:${{ github.head_ref || github.ref_name }} || true
 
   pixi_build_and_test:
     env:
