@@ -13,6 +13,8 @@
   <depend>roboplan_example_models</depend>
   <depend>roboplan_simple_ik</depend>
 
+  <exec_depend>xacro</exec_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
