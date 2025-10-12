@@ -3,13 +3,10 @@ import time
 import tyro
 import xacro
 
-import hppfcl
 import matplotlib.pyplot as plt
-import numpy as np
 import pinocchio as pin
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
-    Box,
     JointConfiguration,
     PathParameterizerTOPPRA,
     PathShortcutter,
@@ -27,12 +24,13 @@ def main(
     collision_check_step_size: float = 0.05,
     goal_biasing_probability: float = 0.15,
     max_nodes: int = 1000,
-    max_planning_time: float = 3.0,
+    max_planning_time: float = 5.0,
     rrt_connect: bool = False,
     include_shortcutting: bool = False,
     host: str = "localhost",
     port: str = "8000",
     rng_seed: int | None = None,
+    include_obstacles: bool = False,
 ):
     """
     Run the RRT example with the provided parameters.
@@ -50,6 +48,7 @@ def main(
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
         rng_seed: The seed for selecting random start and end poses and solving RRT.
+        include_obstacles: Whether or not to include additional obstacles in the scene.
     """
 
     if model not in MODELS:
@@ -72,15 +71,6 @@ def main(
         yaml_config_path=model_data.yaml_config_path,
     )
     q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
-    tform = np.eye(4)
-    tform[2, 3] = 1.0
-    scene.addBoxGeometry(
-        "test_box",
-        "universe",
-        Box(1.0, 1.0, 0.5),
-        tform,
-        np.array([0.0, 0.0, 1.0, 1.0]),
-    )
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -92,16 +82,11 @@ def main(
         model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
     )
 
-    # Create a redundant obstacle too.
-    test_box = pin.GeometryObject(
-        "test_box",
-        0,
-        pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.0])),
-        hppfcl.Box(1.0, 1.0, 0.5),
-    )
-    test_box.meshColor = np.array([0.0, 0.0, 1.0, 1.0])
-    visual_model.addGeometryObject(test_box)
-    collision_model.addGeometryObject(test_box)
+    # Optionally add obstacles
+    if include_obstacles:
+        for obstacle in model_data.obstacles:
+            obstacle.addToScene(scene)
+            obstacle.addToPinocchioModels(model, collision_model, visual_model)
 
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
