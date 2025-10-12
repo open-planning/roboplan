@@ -18,4 +18,13 @@ struct Box {
   std::shared_ptr<hpp::fcl::Box> geom_ptr;
 };
 
+struct Sphere {
+  /// @brief Construct a Sphere object wrapper
+  /// @param radius The radius of the sphere.
+  Sphere(double radius) { geom_ptr = std::make_shared<hpp::fcl::Sphere>(radius); };
+
+  /// @brief The underlying Coal sphere geometry.
+  std::shared_ptr<hpp::fcl::Sphere> geom_ptr;
+};
+
 }  // namespace roboplan

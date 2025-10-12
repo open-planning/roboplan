@@ -154,24 +154,47 @@ public:
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param box The box geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
-  /// @param color The color of the box, in RGBA vector format.
+  /// @param color The color of the geometry, in RGBA vector format.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> addBoxGeometry(const std::string& name,
                                                  const std::string& parent_frame, const Box& box,
                                                  const Eigen::Matrix4d& tform,
                                                  const Eigen::Vector4d& color);
 
-  /// @brief Prints basic information about the scene.
-  friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
+  /// @brief Adds a sphere geometry to the scene.
+  /// @param name The name of the object to add.
+  /// @param parent_frame The name of the parent frame to add the object to.
+  /// @param sphere The sphere geometry instance to add.
+  /// @param tform The transform between the parent frame and the geometry.
+  /// @param color The color of the geometry, in RGBA vector format.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string>
+  addSphereGeometry(const std::string& name, const std::string& parent_frame, const Sphere& sphere,
+                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
 
-private:
   /// @brief Adds a Pinocchio geometry object to the scene.
-  /// @details This is private for now, but can be made the sole public entrypoint once
+  /// @details This can be made the sole public entrypoint to add a geometry once
   /// Pinocchio and Coal have working nanobind bindings compatible with this library.
   /// @param geom_obj The geometry object instance to add.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj);
 
+  /// @brief Updates the placement of an object geometry in the scene.
+  /// @param name The name of the object to update.
+  /// @param parent_frame The parent frame of the transformation.
+  /// @param tform The transform between the parent frame and the geometry.
+  tl::expected<void, std::string> updateGeometryPlacement(const std::string& name,
+                                                          const std::string& parent_frame,
+                                                          Eigen::Matrix4d& tform);
+
+  /// @brief Removes a geometry from the scene.
+  /// @param name The name of the object to remove.
+  tl::expected<void, std::string> removeGeometry(const std::string& name);
+
+  /// @brief Prints basic information about the scene.
+  friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
+
+private:
   /// @brief The name of the scene.
   std::string name_;
 
@@ -209,6 +232,9 @@ private:
 
   /// @brief Maps each frame name to its respective Pinocchio frame ID.
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
+
+  /// @brief Maps each added collision geometry to its respective Pinocchio geometry ID.
+  std::unordered_map<std::string, pinocchio::FrameIndex> collision_geometry_map_;
 };
 
 }  // namespace roboplan

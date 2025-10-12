@@ -105,6 +105,7 @@ void init_core_types(nanobind::module_& m) {
 void init_core_geometry_wrappers(nanobind::module_& m) {
   nanobind::class_<Box>(m, "Box").def(nanobind::init<const double, const double, const double>(),
                                       "x"_a, "y"_a, "z"_a);
+  nanobind::class_<Sphere>(m, "Sphere").def(nanobind::init<const double>(), "radius"_a);
 }
 
 void init_core_scene(nanobind::module_& m) {
@@ -144,6 +145,9 @@ void init_core_scene(nanobind::module_& m) {
       .def("setJointPositions", &Scene::setJointPositions)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices)
       .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry))
+      .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry))
+      .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement))
+      .def("removeGeometry", unwrap_expected(&Scene::removeGeometry))
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;

@@ -104,7 +104,7 @@ def main(
     collision_model.addGeometryObject(test_box)
 
     viz = ViserVisualizer(model, collision_model, visual_model)
-    viz.initViewer(open=True, loadModel=True, host=host, port=port)
+    # viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     # Set up an RRT and perform path planning.
     options = RRTOptions()
@@ -121,6 +121,7 @@ def main(
         scene.setRngSeed(rng_seed)
         rrt.setRngSeed(rng_seed)
 
+    breakpoint()
     q_full = scene.randomCollisionFreePositions()
     scene.setJointPositions(q_full)
     viz.display(q_full)
