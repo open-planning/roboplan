@@ -15,6 +15,7 @@ NB_MODULE(roboplan_ext, m) {
   /// Core module
   nanobind::module_ m_core = m.def_submodule("core", "Core roboplan module");
   init_core_types(m_core);
+  init_core_geometry_wrappers(m_core);
   init_core_scene(m_core);
   init_core_path_utils(m_core);
   init_core_scene_utils(m_core);

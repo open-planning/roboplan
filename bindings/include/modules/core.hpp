@@ -8,6 +8,10 @@ namespace roboplan {
 /// @param m The nanobind core module.
 void init_core_types(nanobind::module_& m);
 
+/// @brief Initializes Python bindings for core geometry wrappers.
+/// @param m The nanobind core module.
+void init_core_geometry_wrappers(nanobind::module_& m);
+
 /// @brief Initializes Python bindings for the main scene representation of roboplan.
 /// @param m The nanobind core module.
 void init_core_scene(nanobind::module_& m);

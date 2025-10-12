@@ -6,6 +6,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_utils.hpp>
@@ -101,6 +102,11 @@ void init_core_types(nanobind::module_& m) {
       });
 }
 
+void init_core_geometry_wrappers(nanobind::module_& m) {
+  nanobind::class_<Box>(m, "Box").def(nanobind::init<const double, const double, const double>(),
+                                      "x"_a, "y"_a, "z"_a);
+}
+
 void init_core_scene(nanobind::module_& m) {
   nanobind::class_<Scene>(m, "Scene")
       .def(nanobind::init<const std::string&, const std::filesystem::path&,
@@ -137,6 +143,7 @@ void init_core_scene(nanobind::module_& m) {
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions)
       .def("setJointPositions", &Scene::setJointPositions)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices)
+      .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry))
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;

@@ -3,6 +3,7 @@ from .roboplan_ext.core import (
     hasCollisionsAlongPath,
     collapseContinuousJointPositions,
     expandContinuousJointPositions,
+    Box,
     CartesianConfiguration,
     JointConfiguration,
     JointInfo,

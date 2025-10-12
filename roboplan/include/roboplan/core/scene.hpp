@@ -16,6 +16,7 @@
 #include <pinocchio/multibody/model.hpp>
 #include <tl/expected.hpp>
 
+#include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/types.hpp>
 
 namespace roboplan {
@@ -148,10 +149,29 @@ public:
   /// @return The corresponding joint position indices.
   Eigen::VectorXi getJointPositionIndices(const std::vector<std::string>& joint_names) const;
 
+  /// @brief Adds a box geometry to the scene.
+  /// @param name The name of the object to add.
+  /// @param parent_frame The name of the parent frame to add the object to.
+  /// @param box The box geometry instance to add.
+  /// @param tform The transform between the parent frame and the geometry.
+  /// @param color The color of the box, in RGBA vector format.
+  /// @return True if successful, else a string describing the error.
+  tl::expected<bool, std::string> addBoxGeometry(const std::string& name,
+                                                 const std::string& parent_frame, const Box& box,
+                                                 const Eigen::Matrix4d& tform,
+                                                 const Eigen::Vector4d& color);
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
+  /// @brief Adds a Pinocchio geometry object to the scene.
+  /// @details This is private for now, but can be made the sole public entrypoint once
+  /// Pinocchio and Coal have working nanobind bindings compatible with this library.
+  /// @param geom_obj The geometry object instance to add.
+  /// @return True if successful, else a string describing the error.
+  tl::expected<bool, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj);
+
   /// @brief The name of the scene.
   std::string name_;
 

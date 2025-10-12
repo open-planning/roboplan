@@ -353,6 +353,38 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
   return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
 }
 
+tl::expected<bool, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
+  const auto collision_geom_idx = collision_model_.addGeometryObject(geom_obj, model_);
+
+  // Add all collision pairs
+  // TODO: Allow specifying filtered geometries
+  for (size_t idx = 0; idx < collision_model_.ngeoms; ++idx) {
+    if (idx == collision_geom_idx) {
+      continue;  // Don't add a self-collision pair.
+    }
+    collision_model_.addCollisionPair(pinocchio::CollisionPair(idx, collision_geom_idx));
+  }
+
+  model_data_ = pinocchio::Data(model_);
+  collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  return {};
+}
+
+tl::expected<bool, std::string> Scene::addBoxGeometry(const std::string& name,
+                                                      const std::string& parent_frame,
+                                                      const Box& box, const Eigen::Matrix4d& tform,
+                                                      const Eigen::Vector4d& color) {
+  const auto parent_frame_id = getFrameId(parent_frame);
+  if (!parent_frame_id) {
+    return tl::make_unexpected("Failed to add box: " + parent_frame_id.error());
+  }
+
+  pinocchio::GeometryObject geom_obj{name, parent_frame_id.value(), pinocchio::SE3(tform),
+                                     box.geom_ptr};
+  geom_obj.meshColor = color;
+  return addGeometry(geom_obj);
+}
+
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
   os << "Scene: " << scene.name_ << "\n";
   os << "Joint names: ";

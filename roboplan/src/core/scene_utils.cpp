@@ -9,8 +9,7 @@ namespace roboplan {
 std::unordered_map<std::string, pinocchio::FrameIndex>
 createFrameMap(const pinocchio::Model& model) {
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map;
-  for (int i = 1; i < model.nframes; ++i) {
-    const auto& frame = model.frames[i];
+  for (const auto& frame : model.frames) {
     frame_map[frame.name] = model.getFrameId(frame.name);
   }
   return frame_map;

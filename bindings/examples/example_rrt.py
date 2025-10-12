@@ -3,10 +3,13 @@ import time
 import tyro
 import xacro
 
+import hppfcl
 import matplotlib.pyplot as plt
+import numpy as np
 import pinocchio as pin
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan import (
+    Box,
     JointConfiguration,
     PathParameterizerTOPPRA,
     PathShortcutter,
@@ -69,6 +72,15 @@ def main(
         yaml_config_path=model_data.yaml_config_path,
     )
     q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
+    tform = np.eye(4)
+    tform[2, 3] = 1.0
+    scene.addBoxGeometry(
+        "test_box",
+        "universe",
+        Box(1.0, 1.0, 0.5),
+        tform,
+        np.array([0.0, 0.0, 1.0, 1.0]),
+    )
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -79,6 +91,18 @@ def main(
     visual_model = pin.buildGeomFromUrdfString(
         model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
     )
+
+    # Create a redundant obstacle too.
+    test_box = pin.GeometryObject(
+        "test_box",
+        0,
+        pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.0])),
+        hppfcl.Box(1.0, 1.0, 0.5),
+    )
+    test_box.meshColor = np.array([0.0, 0.0, 1.0, 1.0])
+    visual_model.addGeometryObject(test_box)
+    collision_model.addGeometryObject(test_box)
+
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
