@@ -12,7 +12,11 @@
 /// @throw std::runtime_error if the result is an error.
 template <typename Expected> typename Expected::value_type handle_expected(Expected&& result) {
   if (result.has_value()) {
-    return result.value();
+    if constexpr (std::is_void_v<typename Expected::value_type>) {
+      return;  // Return nothing since it's a void type
+    } else {
+      return result.value();
+    }
   } else {
     // TODO: Consider wrapping with a streamable option.
     if constexpr (std::is_convertible_v<typename Expected::error_type, std::string>) {

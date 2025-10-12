@@ -155,8 +155,8 @@ public:
   /// @param box The box geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the box, in RGBA vector format.
-  /// @return True if successful, else a string describing the error.
-  tl::expected<bool, std::string> addBoxGeometry(const std::string& name,
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string> addBoxGeometry(const std::string& name,
                                                  const std::string& parent_frame, const Box& box,
                                                  const Eigen::Matrix4d& tform,
                                                  const Eigen::Vector4d& color);
@@ -169,8 +169,8 @@ private:
   /// @details This is private for now, but can be made the sole public entrypoint once
   /// Pinocchio and Coal have working nanobind bindings compatible with this library.
   /// @param geom_obj The geometry object instance to add.
-  /// @return True if successful, else a string describing the error.
-  tl::expected<bool, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj);
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj);
 
   /// @brief The name of the scene.
   std::string name_;

@@ -353,7 +353,7 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
   return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
 }
 
-tl::expected<bool, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
+tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
   const auto collision_geom_idx = collision_model_.addGeometryObject(geom_obj, model_);
 
   // Add all collision pairs
@@ -370,7 +370,7 @@ tl::expected<bool, std::string> Scene::addGeometry(const pinocchio::GeometryObje
   return {};
 }
 
-tl::expected<bool, std::string> Scene::addBoxGeometry(const std::string& name,
+tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
                                                       const std::string& parent_frame,
                                                       const Box& box, const Eigen::Matrix4d& tform,
                                                       const Eigen::Vector4d& color) {
