@@ -3,7 +3,6 @@
 #include <memory>
 #include <vector>
 
-#include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
