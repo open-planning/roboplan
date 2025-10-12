@@ -8,7 +8,14 @@ import pytest
 import numpy as np
 import pinocchio as pin
 
-from roboplan import get_package_share_dir, hasCollisionsAlongPath, JointType, Scene
+from roboplan import (
+    get_package_share_dir,
+    hasCollisionsAlongPath,
+    Box,
+    JointType,
+    Scene,
+    Sphere,
+)
 
 
 @pytest.fixture
@@ -90,3 +97,34 @@ def test_create_frame_map(test_scene: Scene) -> None:
         if frame.name == "universe":
             continue
         assert test_scene.getFrameId(frame.name) == model.getFrameId(frame.name)
+
+
+def test_collision_geometry(test_scene: Scene) -> None:
+    # Nominally, this configuration is collision free
+    q = np.zeros(6)
+    assert not test_scene.hasCollisions(q)
+
+    # Add some collision objects
+    color = np.array([0.5, 0.5, 0.5, 0.5])
+    box_tform = np.eye(4)
+    box_tform[2, 3] = 1.0  # z position
+    test_scene.addBoxGeometry(
+        "test_box", "universe", Box(1.0, 1.0, 0.5), box_tform, color
+    )
+
+    sphere_tform = np.eye(4)
+    sphere_tform[0, 3] = 3.0  # x position
+    test_scene.addSphereGeometry(
+        "test_sphere", "universe", Sphere(0.5), sphere_tform, color
+    )
+
+    assert not test_scene.hasCollisions(q)  # should still be collision free
+
+    # Now move one of the collision objects to be in collision.
+    sphere_tform[0, 3] = 0.0
+    test_scene.updateGeometryPlacement("test_sphere", "universe", sphere_tform)
+    assert test_scene.hasCollisions(q)
+
+    # Remove the collision object and verify that the robot is no longer in collision.
+    test_scene.removeGeometry("test_sphere")
+    assert not test_scene.hasCollisions(q)

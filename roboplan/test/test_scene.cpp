@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -144,6 +145,42 @@ TEST_F(RoboPlanSceneTest, TestLoadXMLStrings) {
 
   const auto seeded_positions = scene_xml->randomPositions();
   EXPECT_EQ(seeded_positions.size(), 6);
+}
+
+TEST_F(RoboPlanSceneTest, TestCollisionGeometry) {
+  // Nominally, this configuration is collision free.
+  Eigen::VectorXd q(6);
+  q << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  ASSERT_FALSE(scene_->hasCollisions(q));
+
+  // Add some collision objects
+  const auto color = Eigen::Vector4d(0.5, 0.5, 0.5, 0.5);
+
+  Eigen::Matrix4d box_tform = Eigen::Matrix4d::Identity();
+  box_tform(2, 3) = 1.0;  // z position
+  const auto add_box_result =
+      scene_->addBoxGeometry("test_box", "universe", Box(1.0, 1.0, 0.5), box_tform, color);
+  ASSERT_TRUE(add_box_result.has_value()) << add_box_result.error();
+
+  Eigen::Matrix4d sphere_tform = Eigen::Matrix4d::Identity();
+  sphere_tform(0, 3) = 3.0;  // x position
+  const auto add_sphere_result =
+      scene_->addSphereGeometry("test_sphere", "universe", Sphere(0.5), sphere_tform, color);
+  ASSERT_TRUE(add_sphere_result.has_value()) << add_sphere_result.error();
+
+  ASSERT_FALSE(scene_->hasCollisions(q));  // should still be collision free
+
+  // Now move one of the collision objects to be in collision.
+  sphere_tform(0, 3) = 0.0;
+  const auto move_sphere_result =
+      scene_->updateGeometryPlacement("test_sphere", "universe", sphere_tform);
+  ASSERT_TRUE(move_sphere_result.has_value()) << move_sphere_result.error();
+  ASSERT_TRUE(scene_->hasCollisions(q));
+
+  // Remove the collision object and verify that the robot is no longer in collision.
+  const auto remove_sphere_result = scene_->removeGeometry("test_sphere");
+  ASSERT_TRUE(remove_sphere_result.has_value()) << remove_sphere_result.error();
+  ASSERT_FALSE(scene_->hasCollisions(q));
 }
 
 }  // namespace roboplan

@@ -375,12 +375,14 @@ tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name
                                                          const Sphere& sphere,
                                                          const Eigen::Matrix4d& tform,
                                                          const Eigen::Vector4d& color) {
-  const auto parent_frame_id = getFrameId(parent_frame);
-  if (!parent_frame_id) {
-    return tl::make_unexpected("Failed to add sphere: " + parent_frame_id.error());
+  const auto maybe_parent_frame_id = getFrameId(parent_frame);
+  if (!maybe_parent_frame_id) {
+    return tl::make_unexpected("Failed to add sphere: " + maybe_parent_frame_id.error());
   }
+  const auto& parent_frame_id = maybe_parent_frame_id.value();
+  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
 
-  pinocchio::GeometryObject geom_obj{name, parent_frame_id.value(), pinocchio::SE3(tform),
+  pinocchio::GeometryObject geom_obj{name, parent_frame_id, parent_joint_id, pinocchio::SE3(tform),
                                      sphere.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
