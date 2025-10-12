@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
-from roboplan import get_package_share_dir
+from roboplan import get_install_prefix
 
 
 @dataclass
@@ -29,33 +29,32 @@ class RobotModelConfig:
 
 
 # Base directory for all robot models
-ROBOPLAN_EXAMPLES_DIR = Path(get_package_share_dir())
+ROBOPLAN_EXAMPLES_DIR = Path(get_install_prefix()) / "share"
+ROBOPLAN_MODELS_DIR = ROBOPLAN_EXAMPLES_DIR / "roboplan_example_models" / "models"
 
 MODELS = {
     "ur5": RobotModelConfig(
-        urdf_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.urdf",
-        srdf_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_gripper.srdf",
-        yaml_config_path=ROBOPLAN_EXAMPLES_DIR / "ur_robot_model" / "ur5_config.yaml",
+        urdf_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_gripper.urdf",
+        srdf_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_gripper.srdf",
+        yaml_config_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_config.yaml",
         default_joint_group="arm",
         ee_names=["tool0"],
         base_link="base",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     ),
     "franka": RobotModelConfig(
-        urdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.urdf",
-        srdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "fr3.srdf",
-        yaml_config_path=ROBOPLAN_EXAMPLES_DIR
-        / "franka_robot_model"
-        / "fr3_config.yaml",
+        urdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3.urdf",
+        srdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3.srdf",
+        yaml_config_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3_config.yaml",
         default_joint_group="fr3_arm",
         ee_names=["fr3_hand"],
         base_link="fr3_link0",
         starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     ),
     "dual": RobotModelConfig(
-        urdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3.urdf",
-        srdf_path=ROBOPLAN_EXAMPLES_DIR / "franka_robot_model" / "dual_fr3.srdf",
-        yaml_config_path=ROBOPLAN_EXAMPLES_DIR
+        urdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "dual_fr3.urdf",
+        srdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "dual_fr3.srdf",
+        yaml_config_path=ROBOPLAN_MODELS_DIR
         / "franka_robot_model"
         / "dual_fr3_config.yaml",
         default_joint_group="dual_fr3_arm",
@@ -64,9 +63,9 @@ MODELS = {
         starting_joint_config=[0.0] * 18,
     ),
     "kinova": RobotModelConfig(
-        urdf_path=ROBOPLAN_EXAMPLES_DIR / "kinova_robot_model" / "kinova_robotiq.urdf",
-        srdf_path=ROBOPLAN_EXAMPLES_DIR / "kinova_robot_model" / "kinova_robotiq.srdf",
-        yaml_config_path=ROBOPLAN_EXAMPLES_DIR
+        urdf_path=ROBOPLAN_MODELS_DIR / "kinova_robot_model" / "kinova_robotiq.urdf",
+        srdf_path=ROBOPLAN_MODELS_DIR / "kinova_robot_model" / "kinova_robotiq.srdf",
+        yaml_config_path=ROBOPLAN_MODELS_DIR
         / "kinova_robot_model"
         / "kinova_robotiq_config.yaml",
         default_joint_group="manipulator",

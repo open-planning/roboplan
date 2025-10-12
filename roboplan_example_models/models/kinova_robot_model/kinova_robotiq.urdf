@@ -20,7 +20,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/base_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/base_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -29,7 +29,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/base_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/base_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -42,7 +42,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/shoulder_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/shoulder_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -51,7 +51,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/shoulder_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/shoulder_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -71,7 +71,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/half_arm_1_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/half_arm_1_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -80,7 +80,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/half_arm_1_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/half_arm_1_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -100,7 +100,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/half_arm_2_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/half_arm_2_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -109,7 +109,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/half_arm_2_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/half_arm_2_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -129,7 +129,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/forearm_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/forearm_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -138,7 +138,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/forearm_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/forearm_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -158,7 +158,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/spherical_wrist_1_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/spherical_wrist_1_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -167,7 +167,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/spherical_wrist_1_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/spherical_wrist_1_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -187,7 +187,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/spherical_wrist_2_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/spherical_wrist_2_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -196,7 +196,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/spherical_wrist_2_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/spherical_wrist_2_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -216,7 +216,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/bracelet_no_vision_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/bracelet_no_vision_link.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -225,7 +225,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/bracelet_no_vision_link.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/bracelet_no_vision_link.dae"/>
       </geometry>
     </collision>
   </link>
@@ -246,12 +246,12 @@
   <link name="robotiq_85_base_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/robotiq_base.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/robotiq_base.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/robotiq_base.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/robotiq_base.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -263,12 +263,12 @@
   <link name="robotiq_85_left_knuckle_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/left_knuckle.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/left_knuckle.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/left_knuckle.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/left_knuckle.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -280,12 +280,12 @@
   <link name="robotiq_85_right_knuckle_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/right_knuckle.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/right_knuckle.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/right_knuckle.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/right_knuckle.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -297,12 +297,12 @@
   <link name="robotiq_85_left_finger_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/left_finger.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/left_finger.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/left_finger.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/left_finger.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -314,12 +314,12 @@
   <link name="robotiq_85_right_finger_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/right_finger.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/right_finger.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/right_finger.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/right_finger.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -331,12 +331,12 @@
   <link name="robotiq_85_left_inner_knuckle_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/left_inner_knuckle.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/left_inner_knuckle.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/left_inner_knuckle.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/left_inner_knuckle.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -348,12 +348,12 @@
   <link name="robotiq_85_right_inner_knuckle_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/right_inner_knuckle.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/right_inner_knuckle.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/right_inner_knuckle.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/right_inner_knuckle.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -365,12 +365,12 @@
   <link name="robotiq_85_left_finger_tip_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/left_finger_tip.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/left_finger_tip.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/left_finger_tip.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/left_finger_tip.stl"/>
       </geometry>
       <surface>
         <friction>
@@ -400,12 +400,12 @@
   <link name="robotiq_85_right_finger_tip_link">
     <visual>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/visual/right_finger_tip.dae"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/visual/right_finger_tip.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://kinova_robot_model/meshes/collision/right_finger_tip.stl"/>
+        <mesh filename="package://roboplan_example_models/models/kinova_robot_model/meshes/collision/right_finger_tip.stl"/>
       </geometry>
       <surface>
         <friction>
