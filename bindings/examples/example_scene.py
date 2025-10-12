@@ -1,7 +1,6 @@
-from pathlib import Path
-
 import numpy as np
 
+from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 import roboplan
 from roboplan import get_package_share_dir
 
@@ -16,10 +15,11 @@ if __name__ == "__main__":
     print(f"Config positions: {jc.positions}")
     print("")
 
-    roboplan_examples_dir = Path(get_package_share_dir())
-    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
-    srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
-    package_paths = [roboplan_examples_dir]
+    model = "ur5"
+    model_data = MODELS[model]
+    package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
-    scene = roboplan.Scene("test_scene", urdf_path, srdf_path, package_paths)
+    scene = roboplan.Scene(
+        "test_scene", model_data.urdf_path, model_data.srdf_path, package_paths
+    )
     print(scene)
