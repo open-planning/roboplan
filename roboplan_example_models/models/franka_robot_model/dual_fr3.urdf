@@ -4,7 +4,7 @@
   <xacro:include filename="fr3.xacro"/>
 
   <link name="world"/>
-  <xacro:fr3_robot prefix="left_" parent_link="world" xyz="0 0.25 0" rpy="0 0 0"/>
-  <xacro:fr3_robot prefix="right_" parent_link="world" xyz="0 -0.25 0" rpy="0 0 0"/>
+  <xacro:fr3_robot prefix="left_" parent_link="world" xyz="0 0.3 0" rpy="0 0 0"/>
+  <xacro:fr3_robot prefix="right_" parent_link="world" xyz="0 -0.3 0" rpy="0 0 0"/>
 
 </robot>

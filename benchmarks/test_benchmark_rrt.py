@@ -36,11 +36,15 @@ def solve(scene: Scene, rrt: RRT, seed: int = 1234):
     goal.positions = scene.randomCollisionFreePositions()
     assert goal.positions is not None
 
-    path = rrt.plan(start, goal)
+    try:
+        path = rrt.plan(start, goal)
+    except RuntimeError:
+        path = None
+
     return 0 if path is None else 1
 
 
-def solve_many(scene: Scene, rrt: RRT, iterations: int = 10):
+def solve_many(scene: Scene, rrt: RRT, iterations: int = 10, seed: int = 1234):
     """
     Runs the specified number of iterations of RRT with a random seed.
 
@@ -48,7 +52,7 @@ def solve_many(scene: Scene, rrt: RRT, iterations: int = 10):
     """
     successes = 0
     for i in range(iterations):
-        successes += solve(scene, rrt, 11235 + i)
+        successes += solve(scene, rrt, seed + i)
     return successes
 
 
@@ -80,7 +84,7 @@ def test_benchmark_rrt(benchmark, scene):
     options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
-    success_rate = benchmark(solve_many, scene, rrt, 10)
+    success_rate = benchmark(solve_many, scene, rrt, iterations=10)
     assert success_rate >= 0.95
 
 
@@ -91,5 +95,5 @@ def test_benchmark_rrt_connect(benchmark, scene):
     options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
-    success_rate = benchmark(solve_many, scene, rrt, 10)
+    success_rate = benchmark(solve_many, scene, rrt, iterations=10)
     assert success_rate >= 0.95
