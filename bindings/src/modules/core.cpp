@@ -6,7 +6,6 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
-#include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_utils.hpp>
