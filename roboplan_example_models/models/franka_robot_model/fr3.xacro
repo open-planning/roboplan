@@ -15,12 +15,12 @@
     <link name="${prefix}fr3_link0">
       <visual name="${prefix}fr3_link0_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link0.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link0.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link0_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link0.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link0.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -33,12 +33,12 @@
     <link name="${prefix}fr3_link1">
       <visual name="${prefix}fr3_link1_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link1.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link1.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link1_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link1.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link1.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -61,12 +61,12 @@
     <link name="${prefix}fr3_link2">
       <visual name="${prefix}fr3_link2_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link2.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link2.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link2_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link2.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link2.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -89,12 +89,12 @@
     <link name="${prefix}fr3_link3">
       <visual name="${prefix}fr3_link3_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link3.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link3.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link3_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link3.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link3.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -117,12 +117,12 @@
     <link name="${prefix}fr3_link4">
       <visual name="${prefix}fr3_link4_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link4.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link4.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link4_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link4.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link4.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -145,12 +145,12 @@
     <link name="${prefix}fr3_link5">
       <visual name="${prefix}fr3_link5_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link5.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link5.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link5_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link5.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link5.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -173,12 +173,12 @@
     <link name="${prefix}fr3_link6">
       <visual name="${prefix}fr3_link6_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link6.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link6.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link6_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link6.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link6.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -201,12 +201,12 @@
     <link name="${prefix}fr3_link7">
       <visual name="${prefix}fr3_link7_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/link7.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/link7.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_link7_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/link7.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/link7.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -243,12 +243,12 @@
     <link name="${prefix}fr3_hand">
       <visual name="${prefix}fr3_hand_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/hand.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/hand.dae"/>
         </geometry>
       </visual>
       <collision name="${prefix}fr3_hand_collision">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/collision/hand.stl"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/collision/hand.stl"/>
         </geometry>
       </collision>
       <inertial>
@@ -270,7 +270,7 @@
     <link name="${prefix}fr3_leftfinger">
       <visual name="${prefix}fr3_leftfinger_visual">
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/finger.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/finger.dae"/>
         </geometry>
       </visual>
       <!-- screw mount -->
@@ -312,7 +312,7 @@
       <visual name="${prefix}fr3_rightfinger_visual">
         <origin rpy="0 0 0" xyz="0 0 0"/>
         <geometry>
-          <mesh filename="package://franka_robot_model/meshes/visual/finger.dae"/>
+          <mesh filename="package://roboplan_example_models/models/franka_robot_model/meshes/visual/finger.dae"/>
         </geometry>
       </visual>
       <!-- screw mount -->

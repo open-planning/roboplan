@@ -9,7 +9,7 @@ import numpy as np
 import pinocchio as pin
 
 from roboplan import (
-    get_package_share_dir,
+    get_install_prefix,
     hasCollisionsAlongPath,
     Box,
     JointType,
@@ -20,11 +20,12 @@ from roboplan import (
 
 @pytest.fixture
 def test_scene() -> Scene:
-    roboplan_examples_dir = Path(get_package_share_dir())
-    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
-    srdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.srdf"
+    roboplan_examples_dir = Path(get_install_prefix()) / "share"
+    roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
+    urdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.urdf"
+    srdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.srdf"
     package_paths = [roboplan_examples_dir]
-    yaml_config_path = roboplan_examples_dir / "ur_robot_model" / "ur5_config.yaml"
+    yaml_config_path = roboplan_models_dir / "ur_robot_model" / "ur5_config.yaml"
 
     return Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
 
@@ -89,8 +90,9 @@ def test_collision_check_along_path(test_scene: Scene) -> None:
 
 
 def test_create_frame_map(test_scene: Scene) -> None:
-    roboplan_examples_dir = Path(get_package_share_dir())
-    urdf_path = roboplan_examples_dir / "ur_robot_model" / "ur5_gripper.urdf"
+    roboplan_examples_dir = Path(get_install_prefix()) / "share"
+    roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
+    urdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.urdf"
     package_paths = [roboplan_examples_dir]
     model, _, _ = pin.buildModelsFromUrdf(urdf_path, package_dirs=package_paths)
     for frame in model.frames:
