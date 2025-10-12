@@ -9,9 +9,10 @@ namespace roboplan {
 class RoboPlanPathUtilsTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    const auto share_prefix = example_models::get_package_share_dir();
-    const auto urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
-    const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
+    const auto share_prefix = example_models::get_install_prefix() / "share";
+    const auto model_prefix = share_prefix / "roboplan_example_models" / "models";
+    const auto urdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.urdf";
+    const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {share_prefix};
     scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
   }
