@@ -82,7 +82,9 @@ def main(
         model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
     )
 
-    # Optionally add obstacles
+    # Optionally add obstacles.
+    # Again, until Pinocchio 4.x releases nanobind bindings, we need to add the obstacles separately
+    # to the scene and to the Pinocchio models used for visualization.
     if include_obstacles:
         for obstacle in model_data.obstacles:
             obstacle.addToScene(scene)
