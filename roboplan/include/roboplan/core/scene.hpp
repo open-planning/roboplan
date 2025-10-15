@@ -93,8 +93,10 @@ public:
 
   /// @brief Checks collisions at specified joint positions.
   /// @param q The joint positions.
+  /// @param debug If true, prints debug information and does not stop at first collision.
+  /// This parameter is disabled by default.
   /// @return True if there are collisions, else false.
-  bool hasCollisions(const Eigen::VectorXd& q) const;
+  bool hasCollisions(const Eigen::VectorXd& q, const bool debug = false) const;
 
   /// @brief Checks if the specified joint positions are valid with respect to joint limits.
   /// @param q The joint positions.
@@ -191,6 +193,23 @@ public:
   /// @param name The name of the object to remove.
   tl::expected<void, std::string> removeGeometry(const std::string& name);
 
+  /// @brief Gets a list of collision geometry IDs corresponding to a specified body.
+  /// @details The body name can either be a model frame name or a collision model geometry name.
+  /// @param body The name of the body.
+  /// @return A std::vector of collision geometry indices for the body if successful,
+  /// else a string describing the error.
+  tl::expected<std::vector<pinocchio::GeomIndex>, std::string>
+  getCollisionGeometryIds(const std::string& body);
+
+  /// @brief Sets the allowable collisions for a pair of bodies in the model.
+  /// @details The body names can either be model frame names or collision model geometry names.
+  /// @param body1 The name of the first body.
+  /// @param body2 The name of the second body.
+  /// @param enable If true, enables the collision; if false, disables it.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string> setCollisions(const std::string& body1, const std::string& body2,
+                                                const bool enable);
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
@@ -234,7 +253,7 @@ private:
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map_;
 
   /// @brief Maps each added collision geometry to its respective Pinocchio geometry ID.
-  std::unordered_map<std::string, pinocchio::FrameIndex> collision_geometry_map_;
+  std::unordered_map<std::string, pinocchio::GeomIndex> collision_geometry_map_;
 };
 
 }  // namespace roboplan

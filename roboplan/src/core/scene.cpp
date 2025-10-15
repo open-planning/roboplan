@@ -221,12 +221,26 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
   return std::nullopt;
 }
 
-bool Scene::hasCollisions(const Eigen::VectorXd& q) const {
+bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
   pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
                                       q);
-  return pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_,
-                                      q,
-                                      /* stop_at_first_collision*/ true);
+  const auto result =
+      pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_, q,
+                                   /* stop_at_first_collision*/ !debug);
+
+  if (debug) {
+    for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
+      const auto& cp = collision_model_.collisionPairs.at(k);
+      const auto& cr = collision_model_data_.collisionResults.at(k);
+      if (cr.isCollision()) {
+        const auto& body1 = collision_model_.geometryObjects.at(cp.first).name;
+        const auto& body2 = collision_model_.geometryObjects.at(cp.second).name;
+        std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
+      }
+    }
+  }
+
+  return result;
 }
 
 bool Scene::isValidPose(const Eigen::VectorXd& q) const {
@@ -438,6 +452,62 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
   }
   collision_model_.removeGeometryObject(name);
   collision_geometry_map_.erase(name);
+  collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  return {};
+}
+
+tl::expected<std::vector<pinocchio::GeomIndex>, std::string>
+Scene::getCollisionGeometryIds(const std::string& body) {
+  // First look for the body in the list of external collision geometries.
+  auto it = collision_geometry_map_.find(body);
+  if (it != collision_geometry_map_.end()) {
+    return std::vector<pinocchio::GeomIndex>{it->second};
+  }
+
+  // Otherwise, look through the Pinocchio model itself.
+  const auto maybe_body_frame_id = getFrameId(body);
+  if (!maybe_body_frame_id) {
+    return tl::make_unexpected("Could not get collision geometry IDs: " +
+                               maybe_body_frame_id.error());
+  }
+  const auto& body_frame_id = maybe_body_frame_id.value();
+
+  std::vector<pinocchio::GeomIndex> collision_geom_ids;
+  for (size_t idx = 0; idx < static_cast<size_t>(collision_model_.ngeoms); ++idx) {
+    if (collision_model_.geometryObjects.at(idx).parentFrame == body_frame_id) {
+      collision_geom_ids.push_back(idx);
+    }
+  }
+  return collision_geom_ids;
+}
+
+tl::expected<void, std::string> Scene::setCollisions(const std::string& body1,
+                                                     const std::string& body2, const bool enable) {
+
+  const auto maybe_body1_collision_geom_ids = getCollisionGeometryIds(body1);
+  if (!maybe_body1_collision_geom_ids) {
+    return tl::make_unexpected("Could not set collisions: " +
+                               maybe_body1_collision_geom_ids.error());
+  }
+  const auto& body1_collision_geom_ids = maybe_body1_collision_geom_ids.value();
+
+  const auto maybe_body2_collision_geom_ids = getCollisionGeometryIds(body2);
+  if (!maybe_body2_collision_geom_ids) {
+    return tl::make_unexpected("Could not set collisions: " +
+                               maybe_body2_collision_geom_ids.error());
+  }
+  const auto& body2_collision_geom_ids = maybe_body2_collision_geom_ids.value();
+
+  for (const auto& body1_id : body1_collision_geom_ids) {
+    for (const auto& body2_id : body2_collision_geom_ids) {
+      const auto pair = pinocchio::CollisionPair(body1_id, body2_id);
+      if (enable) {
+        collision_model_.addCollisionPair(pair);
+      } else {
+        collision_model_.removeCollisionPair(pair);
+      }
+    }
+  }
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
   return {};
 }

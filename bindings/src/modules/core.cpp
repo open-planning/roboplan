@@ -132,7 +132,7 @@ void init_core_scene(nanobind::module_& m) {
       .def("randomPositions", &Scene::randomPositions)
       .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
            "max_samples"_a = 1000)
-      .def("hasCollisions", &Scene::hasCollisions)
+      .def("hasCollisions", &Scene::hasCollisions, "q"_a, "debug"_a = false)
       .def("isValidPose", &Scene::isValidPose)
       .def("applyMimics", &Scene::applyMimics)
       .def("toFullJointPositions", &Scene::toFullJointPositions)
@@ -147,6 +147,8 @@ void init_core_scene(nanobind::module_& m) {
       .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry))
       .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement))
       .def("removeGeometry", unwrap_expected(&Scene::removeGeometry))
+      .def("getCollisionGeometryIDs", unwrap_expected(&Scene::getCollisionGeometryIds))
+      .def("setCollisions", unwrap_expected(&Scene::setCollisions))
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;

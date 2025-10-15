@@ -19,6 +19,9 @@ class ObstacleConfig:
     parent_frame: str  # The name of the parent frame.
     tform: NDArray  # The transform from parent frame to the geometry.
     color: NDArray  # The geometry color.
+    disabled_collisions: list[str] | None = (
+        None  # Optional list of disabled collision bodies.
+    )
 
     def addToScene(self, scene: Scene) -> None:
         """Helper function to add the obstacle to the scene."""
@@ -41,6 +44,10 @@ class ObstacleConfig:
             )
         else:
             raise TypeError(f"Unsupported geometry type: {type(self.geom)}")
+
+        if self.disabled_collisions is not None:
+            for body in self.disabled_collisions:
+                scene.setCollisions(self.name, body, False)
 
     def addToPinocchioModels(
         self,
@@ -101,17 +108,26 @@ MODELS = {
         obstacles=[
             ObstacleConfig(
                 name="test_box",
-                geom=hppfcl.Box(1.0, 1.0, 0.5),
+                geom=hppfcl.Box(0.5, 0.5, 0.5),
                 parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.0])).homogeneous,
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
                 color=np.array([0.0, 0.0, 1.0, 0.5]),
             ),
             ObstacleConfig(
                 name="test_sphere",
-                geom=hppfcl.Sphere(0.5),
+                geom=hppfcl.Sphere(0.3),
                 parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.0])).homogeneous,
+                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
                 color=np.array([1.0, 0.0, 0.0, 0.5]),
+                disabled_collisions=["test_box"],
+            ),
+            ObstacleConfig(
+                name="ground_plane",
+                geom=hppfcl.Box(1.5, 1.5, 0.2),
+                parent_frame="universe",
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                color=np.array([0.5, 0.5, 0.5, 0.5]),
+                disabled_collisions=["base_link", "test_box", "test_sphere"],
             ),
         ],
     ),
@@ -133,10 +149,19 @@ MODELS = {
             ),
             ObstacleConfig(
                 name="test_sphere",
-                geom=hppfcl.Sphere(0.5),
+                geom=hppfcl.Sphere(0.3),
                 parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.0])).homogeneous,
+                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
                 color=np.array([1.0, 0.0, 0.0, 0.5]),
+                disabled_collisions=["test_box"],
+            ),
+            ObstacleConfig(
+                name="ground_plane",
+                geom=hppfcl.Box(1.5, 1.5, 0.2),
+                parent_frame="universe",
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                color=np.array([0.5, 0.5, 0.5, 0.5]),
+                disabled_collisions=["fr3_link0", "test_box", "test_sphere"],
             ),
         ],
     ),
@@ -157,6 +182,14 @@ MODELS = {
                 parent_frame="universe",
                 tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
                 color=np.array([0.0, 0.0, 1.0, 0.5]),
+            ),
+            ObstacleConfig(
+                name="ground_plane",
+                geom=hppfcl.Box(2.0, 2.0, 0.2),
+                parent_frame="universe",
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                color=np.array([0.5, 0.5, 0.5, 0.5]),
+                disabled_collisions=["left_fr3_link0", "right_fr3_link0", "test_box"],
             ),
         ],
     ),
@@ -193,15 +226,24 @@ MODELS = {
                 name="test_box",
                 geom=hppfcl.Box(1.0, 1.0, 0.5),
                 parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.0])).homogeneous,
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
                 color=np.array([0.0, 0.0, 1.0, 0.5]),
             ),
             ObstacleConfig(
                 name="test_sphere",
-                geom=hppfcl.Sphere(0.5),
+                geom=hppfcl.Sphere(0.3),
                 parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.0])).homogeneous,
+                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
                 color=np.array([1.0, 0.0, 0.0, 0.5]),
+                disabled_collisions=["test_box"],
+            ),
+            ObstacleConfig(
+                name="ground_plane",
+                geom=hppfcl.Box(1.5, 1.5, 0.2),
+                parent_frame="universe",
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                color=np.array([0.5, 0.5, 0.5, 0.5]),
+                disabled_collisions=["base_link", "test_box", "test_sphere"],
             ),
         ],
     ),
