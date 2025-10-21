@@ -13,7 +13,13 @@ struct SimpleIkOptions {
   std::string group_name = "";
 
   /// @brief Max iterations for one try of the solver.
-  size_t max_iters = 1000;
+  size_t max_iters = 100;
+
+  /// @brief Max total computation time, in seconds.
+  double max_time = 0.01;
+
+  /// @brief Maximum number of restarts until success.
+  size_t max_restarts = 2;
 
   /// @brief The integration step for the solver.
   double step_size = 0.01;
@@ -24,6 +30,9 @@ struct SimpleIkOptions {
   /// @brief The maximum error norm.
   /// TODO: Separate into linear and angular?
   double max_error_norm = 0.001;
+
+  /// @brief Whether to check collisions.
+  bool check_collisions = true;
 };
 
 class SimpleIk {

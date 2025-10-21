@@ -17,9 +17,12 @@ void init_simple_ik(nanobind::module_& m) {
       .def(nanobind::init<>())  // Default constructor
       .def_rw("group_name", &SimpleIkOptions::group_name)
       .def_rw("max_iters", &SimpleIkOptions::max_iters)
+      .def_rw("max_time", &SimpleIkOptions::max_time)
+      .def_rw("max_restarts", &SimpleIkOptions::max_restarts)
       .def_rw("step_size", &SimpleIkOptions::step_size)
       .def_rw("damping", &SimpleIkOptions::damping)
-      .def_rw("max_error_norm", &SimpleIkOptions::max_error_norm);
+      .def_rw("max_error_norm", &SimpleIkOptions::max_error_norm)
+      .def_rw("check_collisions", &SimpleIkOptions::check_collisions);
 
   nanobind::class_<SimpleIk>(m, "SimpleIk")
       .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>())

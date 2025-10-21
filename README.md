@@ -35,7 +35,7 @@ Contributors are expected to implement new features in C++ and provide working P
 
 ## Packages list
 
-The main packages found in this repo are as follows.
+The main folders found in this repo are as follows.
 
 - `roboplan` : The core C++ library.
 - `roboplan_simple_ik` : A simple inverse kinematics (IK) solver.
@@ -43,6 +43,7 @@ The main packages found in this repo are as follows.
 - `roboplan_toppra` : A wrapper around the TOPP-RA algorithm for trajectory timing.
 - `roboplan_example_models` : Contains robot models used for testing and examples.
 - `roboplan_examples` : Basic examples with real robot models.
+- `bindings` : Python bindings, with accompanying examples and tests.
 
 ---
 

@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
@@ -23,7 +25,9 @@ SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& op
 
 bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfiguration& start,
                        JointConfiguration& solution) {
-  size_t iter = 0;
+  const auto start_time = std::chrono::steady_clock::now();
+  const std::chrono::duration<double> timeout(options_.max_time);
+
   bool result = false;
   const auto& model = scene_->getModel();
   const auto frame_id_result = scene_->getFrameId(goal.tip_frame);
@@ -39,31 +43,51 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
   solution = start;
   auto q = scene_->toFullJointPositions(options_.group_name, start.positions);
 
-  while (iter < options_.max_iters) {
-    pinocchio::forwardKinematics(model, data_, q);
-    pinocchio::updateFramePlacement(model, data_, frame_id);
-
-    const auto error = pinocchio::log6(goal_tform.actInv(data_.oMf[frame_id])).toVector();
-
-    if (error.norm() <= options_.max_error_norm) {
-      solution.positions = q(q_indices);
-      return true;
+  size_t attempt = 0;
+  while (attempt <= options_.max_restarts) {
+    if (attempt > 0) {
+      const auto maybe_q_random = scene_->randomCollisionFreePositions();
+      if (!maybe_q_random) {
+        throw std::runtime_error("Failed to generate random collision free positions for IK.");
+      }
+      q = maybe_q_random.value();
     }
 
-    pinocchio::computeFrameJacobian(model, data_, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
-                                    full_jacobian_);
-    jacobian_ = full_jacobian_(Eigen::placeholders::all, v_indices);
+    size_t iter = 0;
+    while (iter < options_.max_iters) {
+      pinocchio::forwardKinematics(model, data_, q);
+      pinocchio::updateFramePlacement(model, data_, frame_id);
 
-    jjt_.noalias() = jacobian_ * jacobian_.transpose();
-    jjt_.diagonal().array() += options_.damping;
-    vel_(v_indices) = -jacobian_.transpose() * jjt_.ldlt().solve(error);
+      const auto error = pinocchio::log6(goal_tform.actInv(data_.oMf[frame_id])).toVector();
 
-    if (vel_.hasNaN()) {
-      break;
+      if (error.norm() <= options_.max_error_norm) {
+        if (options_.check_collisions && !scene_->hasCollisions(q)) {
+          solution.positions = q(q_indices);
+        }
+        return true;
+      }
+
+      pinocchio::computeFrameJacobian(model, data_, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
+                                      full_jacobian_);
+      jacobian_ = full_jacobian_(Eigen::placeholders::all, v_indices);
+
+      jjt_.noalias() = jacobian_ * jacobian_.transpose();
+      jjt_.diagonal().array() += options_.damping;
+      vel_(v_indices) = -jacobian_.transpose() * jjt_.ldlt().solve(error);
+
+      if (vel_.hasNaN()) {
+        break;
+      }
+
+      q = pinocchio::integrate(model, q, vel_ * options_.step_size);
+      ++iter;
+
+      // Check for timeouts.
+      if (std::chrono::steady_clock::now() - start_time > timeout) {
+        return result;
+      }
     }
-
-    q = pinocchio::integrate(model, q, vel_ * options_.step_size);
-    ++iter;
+    ++attempt;
   }
 
   return result;
