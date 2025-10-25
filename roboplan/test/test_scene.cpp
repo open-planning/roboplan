@@ -183,4 +183,36 @@ TEST_F(RoboPlanSceneTest, TestCollisionGeometry) {
   ASSERT_FALSE(scene_->hasCollisions(q));
 }
 
+TEST_F(RoboPlanSceneTest, TestSetCollisions) {
+  // Nominally, this configuration is collision free.
+  Eigen::VectorXd q(6);
+  q << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  ASSERT_FALSE(scene_->hasCollisions(q));
+
+  // Add a collision object such that the configuration is in collision.
+  Eigen::Matrix4d sphere_tform = Eigen::Matrix4d::Identity();
+  sphere_tform(0, 3) = 0.6;  // x position, enough to collide with forearm_link.
+  const auto add_sphere_result = scene_->addSphereGeometry(
+      "test_sphere", "universe", Sphere(0.1), sphere_tform, Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(scene_->hasCollisions(q));
+
+  // Disable the collision pair for the offending bodies.
+  const auto remove_collision_result = scene_->setCollisions("forearm_link", "test_sphere", false);
+  ASSERT_TRUE(remove_collision_result.has_value()) << remove_collision_result.error();
+  ASSERT_FALSE(scene_->hasCollisions(q));
+
+  // Now re-add the collision pair, which should re-enable collision.
+  const auto add_collision_result = scene_->setCollisions("test_sphere", "forearm_link", true);
+  ASSERT_TRUE(add_collision_result.has_value()) << add_collision_result.error();
+  ASSERT_TRUE(scene_->hasCollisions(q));
+
+  // Add an invalid collision pair and check for errors.
+  const auto bad_set_collision_result =
+      scene_->setCollisions("nonexistent_link", "test_sphere", true);
+  ASSERT_FALSE(bad_set_collision_result.has_value());
+  ASSERT_EQ(bad_set_collision_result.error(),
+            "Could not set collisions: Could not get collision geometry IDs: Frame name "
+            "'nonexistent_link' not found in frame_map_.");
+}
+
 }  // namespace roboplan

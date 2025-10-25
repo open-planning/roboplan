@@ -130,3 +130,38 @@ def test_collision_geometry(test_scene: Scene) -> None:
     # Remove the collision object and verify that the robot is no longer in collision.
     test_scene.removeGeometry("test_sphere")
     assert not test_scene.hasCollisions(q)
+
+
+def test_set_collisions(test_scene: Scene) -> None:
+    # Nominally, this configuration is collision free
+    q = np.zeros(6)
+    assert not test_scene.hasCollisions(q)
+
+    # Add a collision object such that the configuration is in collision.
+    sphere_tform = np.eye(4)
+    sphere_tform[0, 3] = 0.6
+    test_scene.addSphereGeometry(
+        "test_sphere",
+        "universe",
+        Sphere(0.1),
+        sphere_tform,
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+    assert test_scene.hasCollisions(q)
+
+    # Use the frame names, which should automatically look up the corresponding collision geometries.
+    test_scene.setCollisions("forearm_link", "test_sphere", False)
+    assert not test_scene.hasCollisions(q)
+
+    # Now re-add the collision pair, which should re-enable collision.
+    test_scene.setCollisions("test_sphere", "forearm_link", True)
+    assert test_scene.hasCollisions(q)
+
+    # Add an invalid collision pair for check for errors.
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.setCollisions("nonexistent_link", "test_sphere", True)
+    expected_error = (
+        "Could not set collisions: Could not get collision geometry IDs: "
+        "Frame name 'nonexistent_link' not found in frame_map_."
+    )
+    assert str(exc_info.value) == expected_error
