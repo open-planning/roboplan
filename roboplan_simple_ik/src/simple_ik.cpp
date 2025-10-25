@@ -61,7 +61,7 @@ bool SimpleIk::solveIk(const CartesianConfiguration& goal, const JointConfigurat
       const auto error = pinocchio::log6(goal_tform.actInv(data_.oMf[frame_id])).toVector();
 
       if (error.norm() <= options_.max_error_norm) {
-        if (options_.check_collisions && !scene_->hasCollisions(q)) {
+        if (!options_.check_collisions || !scene_->hasCollisions(q)) {
           solution.positions = q(q_indices);
         }
         return true;

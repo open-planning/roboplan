@@ -21,6 +21,7 @@ def main(
     model: str = "ur5",
     max_iters: int = 100,
     step_size: float = 0.25,
+    check_collisions: bool = True,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -32,6 +33,7 @@ def main(
         model: The name of the model to user (ur5, franka, or dual).
         max_iters: Maximum number of iterations for the IK solver.
         step_size: Integration step size for the IK solver.
+        check_collisions: Whether to check for collisions when solving IK.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -76,6 +78,7 @@ def main(
     options.group_name = model_data.default_joint_group
     options.max_iters = max_iters
     options.step_size = step_size
+    options.check_collisions = check_collisions
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()
