@@ -211,6 +211,8 @@ def test_set_collisions(test_scene: Scene) -> None:
 
 
 def test_mimics() -> None:
+    # Equivalend to the C++ test, but the updated joint state is returned as a new
+    # object rather than updated in place.
     test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
     q = np.zeros(4)
     q[2] = 1.0
