@@ -93,6 +93,15 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   ASSERT_FALSE(arm_group_info.has_continuous_dofs);
 }
 
+TEST_F(RoboPlanJointTest, VerifyMimics) {
+  // Given a vector with a mimc in place, apply the mimics and verify the correct
+  // index is updated.
+  Eigen::VectorXd q(4);
+  q << 0.0, 0.0, 1.0, 0.0;
+  scene_->applyMimics(q);
+  EXPECT_DOUBLE_EQ(q[3], 1.0);
+}
+
 TEST_F(RoboPlanJointTest, RandomPositions) {
   // Generate a random pose for each continuous joint, which are represented as
   // [cos(theta), sin(theta)] in Pinocchio. Ensure mimic joint is matched.

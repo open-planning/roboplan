@@ -18,6 +18,49 @@ from roboplan import (
 )
 
 
+URDF = """
+<robot name="robot">
+  <link name="base_link"/>
+  <link name="link1" />
+  <link name="link2" />
+  <link name="link3" />
+  <joint name="continuous_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="revolute_joint" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="1.0"/>
+  </joint>
+  <joint name="mimic_joint" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="100" velocity="1.0"/>
+    <mimic joint="revolute_joint" multiplier="1.0" offset="0.0"/>
+  </joint>
+</robot>
+"""
+
+SRDF = """
+<robot name="robot">
+  <group name="arm">
+    <joint name="revolute_joint"/>
+    <joint name="mimic_joint"/>
+  </group>
+  <disable_collisions link1="base_link" link2="link1" reason="Adjacent"/>
+  <disable_collisions link1="link1" link2="link2" reason="Adjacent"/>
+  <disable_collisions link1="link2" link2="link3" reason="Adjacent"/>
+</robot>
+"""
+
+
 @pytest.fixture
 def test_scene() -> Scene:
     roboplan_examples_dir = Path(get_install_prefix()) / "share"
@@ -165,3 +208,11 @@ def test_set_collisions(test_scene: Scene) -> None:
         "Frame name 'nonexistent_link' not found in frame_map_."
     )
     assert str(exc_info.value) == expected_error
+
+
+def test_mimics() -> None:
+    test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
+    q = np.zeros(4)
+    q[2] = 1.0
+    s = test_scene.applyMimics(q)
+    assert s[3] == 1.0
