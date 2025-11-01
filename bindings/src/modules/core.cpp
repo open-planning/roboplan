@@ -134,7 +134,13 @@ void init_core_scene(nanobind::module_& m) {
            "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions, "q"_a, "debug"_a = false)
       .def("isValidPose", &Scene::isValidPose)
-      .def("applyMimics", &Scene::applyMimics)
+      .def("applyMimics",
+            [](const Scene& self, const Eigen::VectorXd& q) -> Eigen::VectorXd {
+                Eigen::VectorXd q_copy = q;
+                self.applyMimics(q_copy);
+                return q_copy;
+            },
+            "q"_a)
       .def("toFullJointPositions", &Scene::toFullJointPositions)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
