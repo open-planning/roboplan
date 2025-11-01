@@ -137,13 +137,14 @@ void init_core_scene(nanobind::module_& m) {
       // Modification is not guaranteed to be done in place for python objects, as they
       // may be copied by nanobind. To guarantee values are correctly updated, we use
       // a lambda function to copy and return a reference to the changed value.
-      .def("applyMimics",
-            [](const Scene& self, const Eigen::VectorXd& q) -> Eigen::VectorXd {
-                Eigen::VectorXd q_updated = q;
-                self.applyMimics(q_updated);
-                return q_updated;
-            },
-            "q"_a)
+      .def(
+          "applyMimics",
+          [](const Scene& self, const Eigen::VectorXd& q) -> Eigen::VectorXd {
+            Eigen::VectorXd q_updated = q;
+            self.applyMimics(q_updated);
+            return q_updated;
+          },
+          "q"_a)
       .def("toFullJointPositions", &Scene::toFullJointPositions)
       .def("interpolate", &Scene::interpolate)
       .def("forwardKinematics", &Scene::forwardKinematics)
