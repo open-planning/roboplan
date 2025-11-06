@@ -1,3 +1,3 @@
 [submodule "external/toppra"]
 	path = external/toppra
-	url = https://github.com/sea-bass/toppra.git
+	url = https://github.com/open-planning/toppra.git
