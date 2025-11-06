@@ -11,7 +11,7 @@ RUN apt update -y \
     && apt upgrade -y \
     && apt install -y \
         cmake libeigen3-dev libgmock-dev liburdfdom-dev libyaml-cpp-dev python3-pip
-RUN pip3 install nanobind pytest scikit-build-core
+RUN pip3 install nanobind pybind11 pytest scikit-build-core
 
 # Install pinocchio with pip as it supports additional CPU architectures.
 # Also install additional dependencies for examples.

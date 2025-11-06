@@ -228,6 +228,7 @@ compiler-rt = ">=19.1.7,<20"
 pytest = ">=6"
 matplotlib = ">=3.10.5,<4"
 pytest-benchmark = ">=5.1.0,<6"
+pybind11 = ">=3.0.1,<4"
 
 [pypi-dependencies]
 pycollada = ">=0.9.2, <0.10"
