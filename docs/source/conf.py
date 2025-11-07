@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+import subprocess
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -35,6 +39,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx_rtd_theme",
     "sphinx_copybutton",
+    "breathe",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -55,3 +60,24 @@ autodoc_mock_imports = []
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+
+
+# -- Options for breathe -----------------------------------------------------
+# Generate XML
+# TODO: Do this for all packages if it works well
+subprocess.call("cd ../../roboplan/docs; doxygen", shell=True)
+
+# Configure breathe
+# TODO: Do this for all packages if it works well
+breathe_projects = {
+    "roboplan": os.path.abspath("../../roboplan/docs/xml"),
+}
+breathe_default_project = "roboplan"
+
+roboplan_path = Path(os.path.abspath("../../roboplan/include/roboplan"))
+breathe_projects_source = {
+    "roboplan": (
+        roboplan_path.as_posix(),
+        [f for f in roboplan_path.rglob("*.hpp")],
+    )
+}
