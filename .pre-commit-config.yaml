@@ -64,7 +64,7 @@ repos:
           [
             "--no-warnings",
             "--config-data",
-            "{extends: default, rules: {line-length: disable, braces: {max-spaces-inside: 1}}}",
+            "{extends: default, rules: {line-length: disable, braces: {max-spaces-inside: 1}, indentation: {spaces: 2}}}",
           ]
         types: [text]
         files: \.(yml|yaml)$
