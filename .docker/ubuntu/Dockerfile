@@ -20,7 +20,8 @@ RUN pip3 install \
     pin==${PINOCCHIO_VERSION} \
     opencv-contrib-python-headless \
     tyro \
-    "viser>=1.0.1"
+    "viser>=1.0.1" \
+    xacro
 
 # Find the location of the relevant pip installed packages and ensure they are available to
 # cmake and LD. This will cause build warnings with system installed packages.

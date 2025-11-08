@@ -13,7 +13,7 @@
 
 services:
   ubuntu:
-    image: roboplan_ros:${UBUNTU_VERSION:-24.04}
+    image: roboplan_ubuntu:${UBUNTU_VERSION:-24.04}
     build:
       context: .
       dockerfile: .docker/ubuntu/Dockerfile

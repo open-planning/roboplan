@@ -68,21 +68,24 @@ autodoc_typehints = "description"
 html_theme = "sphinx_rtd_theme"
 
 # -- Options for breathe -----------------------------------------------------
-# Generate XML
-# TODO: Do this for all packages if it works well
-subprocess.call("cd ../../roboplan/docs; doxygen", shell=True)
-
-# Configure breathe
-# TODO: Do this for all packages if it works well
-breathe_projects = {
-    "roboplan": os.path.abspath("../../roboplan/docs/xml"),
-}
 breathe_default_project = "roboplan"
+breathe_projects = {}
+breathe_projects_source = {}
 
-roboplan_path = Path(os.path.abspath("../../roboplan/include/roboplan"))
-breathe_projects_source = {
-    "roboplan": (
-        roboplan_path.as_posix(),
-        [f for f in roboplan_path.rglob("*.hpp")],
+for package in [
+    "roboplan",
+    "roboplan_rrt",
+    "roboplan_simple_ik",
+    "roboplan_toppra",
+    "roboplan_example_models",
+]:
+    # Generate Doxygen XML and add it to the breathe projects.
+    subprocess.call(f"cd ../../{package}/docs; rm -rf html/ xml/; doxygen", shell=True)
+    breathe_projects[package] = (os.path.abspath(f"../../{package}/docs/xml"),)
+
+    # Add the package files to the breathe projects sources list.
+    package_path = Path(os.path.abspath(f"../../{package}/include/{package}"))
+    breathe_projects_source[package] = (
+        package_path.as_posix(),
+        [f for f in package_path.rglob("*.hpp")],
     )
-}
