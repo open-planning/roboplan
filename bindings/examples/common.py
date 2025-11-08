@@ -7,7 +7,8 @@ import numpy as np
 from numpy.typing import NDArray
 import pinocchio as pin
 
-from roboplan import get_install_prefix, Box, Scene, Sphere
+from roboplan.core import Box, Scene, Sphere
+from roboplan.example_models import get_install_prefix
 
 
 @dataclass

@@ -1,7 +1,7 @@
 import xacro
 
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
-import roboplan
+from roboplan.core import Scene
 
 
 if __name__ == "__main__":
@@ -14,7 +14,5 @@ if __name__ == "__main__":
     package_paths = [ROBOPLAN_EXAMPLES_DIR]
 
     # Specify argument names to distinguish overloaded Scene constructors from python.
-    scene = roboplan.Scene(
-        "dual_arm_scene", urdf=urdf, srdf=srdf, package_paths=package_paths
-    )
+    scene = Scene("dual_arm_scene", urdf=urdf, srdf=srdf, package_paths=package_paths)
     print(scene)

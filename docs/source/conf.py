@@ -53,14 +53,12 @@ exclude_patterns: list[str] = []
 # Mock imports for external dependencies.
 autodoc_mock_imports = []
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
-
 
 # -- Options for breathe -----------------------------------------------------
 # Generate XML

@@ -6,13 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from roboplan import (
-    get_install_prefix,
-    JointConfiguration,
-    Scene,
-    RRTOptions,
-    RRT,
-)
+from roboplan.core import JointConfiguration, Scene
+from roboplan.example_models import get_install_prefix
+from roboplan.rrt import RRTOptions, RRT
 
 
 @pytest.fixture

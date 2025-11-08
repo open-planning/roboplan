@@ -1,6 +1,7 @@
 import numpy as np
 
-from roboplan import Scene, RRT, computeFramePath, JointPath
+from roboplan.core import Scene, computeFramePath, JointPath
+from roboplan.rrt import RRT
 from roboplan.viser_visualizer import ViserVisualizer
 
 

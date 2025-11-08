@@ -8,14 +8,14 @@ import pytest
 import numpy as np
 import pinocchio as pin
 
-from roboplan import (
-    get_install_prefix,
+from roboplan.core import (
     hasCollisionsAlongPath,
     Box,
     JointType,
     Scene,
     Sphere,
 )
+from roboplan.example_models import get_install_prefix
 
 
 URDF = """

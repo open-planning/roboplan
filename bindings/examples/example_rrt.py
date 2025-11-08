@@ -6,14 +6,9 @@ import xacro
 import matplotlib.pyplot as plt
 import pinocchio as pin
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
-from roboplan import (
-    JointConfiguration,
-    PathParameterizerTOPPRA,
-    PathShortcutter,
-    Scene,
-    RRTOptions,
-    RRT,
-)
+from roboplan.core import JointConfiguration, PathShortcutter, Scene
+from roboplan.rrt import RRTOptions, RRT
+from roboplan.toppra import PathParameterizerTOPPRA
 from roboplan.viser_visualizer import ViserVisualizer
 from roboplan.visualization import visualizePath, visualizeTree
 
@@ -34,7 +29,6 @@ def main(
 ):
     """
     Run the RRT example with the provided parameters.
-
 
     Parameters:
         model: The name of the model to user (ur5 or franka).

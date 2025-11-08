@@ -7,13 +7,8 @@ import numpy as np
 import pinocchio as pin
 
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
-from roboplan import (
-    Scene,
-    JointConfiguration,
-    CartesianConfiguration,
-    SimpleIkOptions,
-    SimpleIk,
-)
+from roboplan.core import Scene, JointConfiguration, CartesianConfiguration
+from roboplan.simple_ik import SimpleIkOptions, SimpleIk
 from roboplan.viser_visualizer import ViserVisualizer
 
 

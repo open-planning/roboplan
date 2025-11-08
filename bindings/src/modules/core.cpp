@@ -22,7 +22,8 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<JointConfiguration>(m, "JointConfiguration")
       .def(nanobind::init<>())  // Default constructor
-      .def(nanobind::init<const std::vector<std::string>&, const Eigen::VectorXd&>())
+      .def(nanobind::init<const std::vector<std::string>&, const Eigen::VectorXd&>(),
+           "joint_names"_a, "positions"_a)
       .def_rw("joint_names", &JointConfiguration::joint_names)
       .def_rw("positions", &JointConfiguration::positions)
       .def_rw("velocities", &JointConfiguration::velocities)
@@ -30,7 +31,8 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<CartesianConfiguration>(m, "CartesianConfiguration")
       .def(nanobind::init<>())  // Default constructor
-      .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>())
+      .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>(),
+           "base_frame"_a, "tip_frame"_a, "tform"_a)
       .def_rw("base_frame", &CartesianConfiguration::base_frame)
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame)
       .def_rw("tform", &CartesianConfiguration::tform);
