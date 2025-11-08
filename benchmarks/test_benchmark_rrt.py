@@ -2,12 +2,8 @@ import pytest
 import sys
 import xacro
 
-from roboplan import (
-    JointConfiguration,
-    Scene,
-    RRTOptions,
-    RRT,
-)
+from roboplan.core import JointConfiguration, Scene
+from roboplan.rrt import RRTOptions, RRT
 
 # We don't build the bindings examples, so we just include the relative
 # directory manually.
