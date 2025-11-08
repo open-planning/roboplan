@@ -2,6 +2,8 @@
 
 # Helper script that builds all the packages using vanilla CMake.
 
+set -e  # Needed to ensure cmake failures propagate up
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_ROOT_DIR="${SCRIPT_DIR}/.."
 pushd ${REPO_ROOT_DIR} || exit
@@ -35,7 +37,7 @@ cmake roboplan_rrt/CMakeLists.txt -Bbuild/roboplan_rrt
 cmake --build build/roboplan_rrt
 cmake --install build/roboplan_rrt --prefix ${PWD}/install/roboplan_rrt
 
-cmake external/toppra/cpp/CMakeLists.txt -Bbuild/toppra -DBUILD_TESTS=OFF
+cmake external/toppra/cpp/CMakeLists.txt -Bbuild/toppra -DBUILD_TESTS=OFF -DPYTHON_BINDINGS=OFF
 cmake --build build/toppra
 cmake --install build/toppra --prefix ${PWD}/install/toppra
 
