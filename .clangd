@@ -29,6 +29,12 @@ If:
   - roboplan_example_models/.*
 ---
 CompileFlags:
+  CompilationDatabase: build/roboplan_toppra/
+If:
+  PathMatch:
+  - roboplan_toppra/.*
+---
+CompileFlags:
   CompilationDatabase: build/bindings/
 If:
   PathMatch:

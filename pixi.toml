@@ -19,7 +19,6 @@ configure = { cmd = [
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
   "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
   "-DBUILD_TESTING=ON",
-  "-DPYTHON_BINDINGS=OFF",
   # Use clang as the compiler
   "-DCMAKE_C_COMPILER=clang",
   "-DCMAKE_CXX_COMPILER=clang++",
@@ -35,6 +34,7 @@ configure = { cmd = [
   # Compiler flags
   "{{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }}",
   "{{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }}",
+  "{{ extra_flags }}",
   # Disable warnings about unused command line arguments
   "--no-warn-unused-cli",
   "-S",
@@ -45,6 +45,7 @@ configure = { cmd = [
   { arg = "package_name" },
   { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
 ] }
 build = { cmd = [
   "cmake",
@@ -55,11 +56,13 @@ build = { cmd = [
     "{{ package_name }}",
     "{{ package_path }}",
     "{{ cxx_flags }}",
+    "{{ extra_flags }}",
   ] },
 ], args = [
   { arg = "package_name" },
   { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
 ] }
 install = { cmd = [
   "cmake",
@@ -72,19 +75,21 @@ install = { cmd = [
     "{{ package_name }}",
     "{{ package_path }}",
     "{{ cxx_flags }}",
+    "{{ extra_flags }}",
   ] },
 ], args = [
   { arg = "package_name" },
   { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
 ] }
 build_bindings = "pip install -e bindings --no-build-isolation"
 build_all = { depends-on = [
-  { task = "install", args = ["roboplan_example_models", "roboplan_example_models",] },
+  { task = "install", args = ["roboplan_example_models", "roboplan_example_models"] },
   { task = "install", args = ["roboplan", "roboplan"] },
   { task = "install", args = ["roboplan_simple_ik", "roboplan_simple_ik"] },
   { task = "install", args = ["roboplan_rrt", "roboplan_rrt"] },
-  { task = "install", args = ["toppra", "external/toppra/cpp"] },
+  { task = "install", args = ["toppra", "external/toppra/cpp", "", "-DPYTHON_BINDINGS=OFF"] },
   { task = "install", args = ["roboplan_toppra", "roboplan_toppra"] },
   { task = "build", args = ["roboplan_examples", "roboplan_examples"] },
   "build_bindings",
