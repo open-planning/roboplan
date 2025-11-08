@@ -1,4 +1,6 @@
 import pathlib
 
+
 def get_install_prefix() -> pathlib.Path: ...
+
 def get_package_share_dir() -> pathlib.Path: ...
