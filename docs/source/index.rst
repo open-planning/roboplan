@@ -9,4 +9,5 @@ This is the RoboPlan docs!
    :caption: Contents:
 
    setup
-   api
+   api_cpp
+   api_py

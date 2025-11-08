@@ -1,13 +1,3 @@
-API Reference (C++)
-===================
-
-Core Library
-------------
-
-.. autodoxygenindex::
-    :project: roboplan
-
-
 API Reference (Python)
 ======================
 
