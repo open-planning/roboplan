@@ -33,18 +33,17 @@ RUN mkdir -p /roboplan_ws
 WORKDIR /roboplan_ws
 COPY . /roboplan_ws
 
-# Build RoboPlan from source and add it to the cmake path
+# Build RoboPlan from source and add it to the cmake and LD library paths.
 RUN . /roboplan_env.sh && ./scripts/build_cmake.bash
 RUN echo "export CMAKE_PREFIX_PATH=/roboplan_ws/install/:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh
+RUN for PACKAGE in /roboplan_ws/install/*/lib; do \
+        echo "export LD_LIBRARY_PATH=${PACKAGE}:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh; \
+    done
 
 # Install the Python bindings.
 RUN . /roboplan_env.sh && \
     cd bindings && \
     pip3 install --no-build-isolation -ve .
-
-RUN for PACKAGE in /roboplan_ws/install/*/lib; do \
-        echo "export LD_LIBRARY_PATH=${PACKAGE}:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh; \
-    done
 
 # Set up entrypoint.
 COPY .docker/ubuntu/entrypoint.sh /entrypoint.sh
