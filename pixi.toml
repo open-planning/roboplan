@@ -209,6 +209,7 @@ pinocchio = ">=3.7.0,<4"
 
 # Python binding dependencies
 python            = ">=3.11,<3.12"
+nanobind          = ">=2.8.0,<3"
 scikit-build-core = ">=0.11.5,<0.12"
 numpy             = "*"
 viser             = ">=1.0.1,<2"
@@ -233,7 +234,6 @@ compiler-rt = ">=19.1.7,<20"
 pytest = ">=6"
 matplotlib = ">=3.10.5,<4"
 pytest-benchmark = ">=5.1.0,<6"
-nanobind = ">=2.9.2,<3"
 
 [pypi-dependencies]
 pycollada = ">=0.9.2, <0.10"

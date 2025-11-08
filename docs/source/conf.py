@@ -15,9 +15,9 @@ import subprocess
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 # import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import sys
 
+sys.path.insert(0, os.path.abspath("../../bindings/src"))
 
 # -- Project information -----------------------------------------------------
 
@@ -35,7 +35,10 @@ version = release = "0.0.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "autoapi.extension",
     "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx_autodoc_typehints",
     "sphinx.ext.autosummary",
     "sphinx_rtd_theme",
     "sphinx_copybutton",
@@ -51,7 +54,11 @@ extensions = [
 exclude_patterns: list[str] = []
 
 # Mock imports for external dependencies.
-autodoc_mock_imports = []
+autodoc_mock_imports = ["roboplan.roboplan_ext"]
+autoapi_type = "python"
+autoapi_add_toctree_entry = False
+autoapi_dirs = ["../../bindings/src"]
+autodoc_typehints = "description"
 
 # -- Options for HTML output -------------------------------------------------
 

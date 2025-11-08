@@ -1,0 +1,413 @@
+from collections.abc import Sequence
+import enum
+import os
+from typing import Annotated, overload
+
+import numpy
+from numpy.typing import NDArray
+
+class JointConfiguration:
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(
+        self,
+        joint_names: Sequence[str],
+        positions: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    ) -> None: ...
+    @property
+    def joint_names(self) -> list[str]: ...
+    @joint_names.setter
+    def joint_names(self, arg: Sequence[str], /) -> None: ...
+    @property
+    def positions(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @positions.setter
+    def positions(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def velocities(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @velocities.setter
+    def velocities(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def accelerations(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @accelerations.setter
+    def accelerations(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+
+class CartesianConfiguration:
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(
+        self,
+        base_frame: str,
+        tip_frame: str,
+        tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")],
+    ) -> None: ...
+    @property
+    def base_frame(self) -> str: ...
+    @base_frame.setter
+    def base_frame(self, arg: str, /) -> None: ...
+    @property
+    def tip_frame(self) -> str: ...
+    @tip_frame.setter
+    def tip_frame(self, arg: str, /) -> None: ...
+    @property
+    def tform(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")]: ...
+    @tform.setter
+    def tform(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")], /
+    ) -> None: ...
+
+class JointType(enum.Enum):
+    UNKNOWN = 0
+
+    PRISMATIC = 1
+
+    REVOLUTE = 2
+
+    CONTINUOUS = 3
+
+    PLANAR = 4
+
+    FLOATING = 5
+
+class JointLimits:
+    def __init__(self) -> None: ...
+    @property
+    def min_position(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @min_position.setter
+    def min_position(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def max_position(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @max_position.setter
+    def max_position(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def max_velocity(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @max_velocity.setter
+    def max_velocity(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def max_acceleration(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @max_acceleration.setter
+    def max_acceleration(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def max_jerk(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    @max_jerk.setter
+    def max_jerk(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+
+class JointMimicInfo:
+    def __init__(self) -> None: ...
+    @property
+    def mimicked_joint_name(self) -> str: ...
+    @mimicked_joint_name.setter
+    def mimicked_joint_name(self, arg: str, /) -> None: ...
+    @property
+    def scaling(self) -> float: ...
+    @scaling.setter
+    def scaling(self, arg: float, /) -> None: ...
+    @property
+    def offset(self) -> float: ...
+    @offset.setter
+    def offset(self, arg: float, /) -> None: ...
+
+class JointInfo:
+    def __init__(self, arg: JointType, /) -> None: ...
+    @property
+    def type(self) -> JointType: ...
+    @property
+    def num_position_dofs(self) -> int: ...
+    @property
+    def num_velocity_dofs(self) -> int: ...
+    @property
+    def limits(self) -> JointLimits: ...
+    @property
+    def mimic_info(self) -> JointMimicInfo | None: ...
+
+class JointGroupInfo:
+    def __init__(self) -> None: ...
+    @property
+    def joint_names(self) -> list[str]: ...
+    @joint_names.setter
+    def joint_names(self, arg: Sequence[str], /) -> None: ...
+    @property
+    def joint_indices(self) -> list[int]: ...
+    @joint_indices.setter
+    def joint_indices(self, arg: Sequence[int], /) -> None: ...
+    @property
+    def q_indices(
+        self,
+    ) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order="C")]: ...
+    @q_indices.setter
+    def q_indices(
+        self, arg: Annotated[NDArray[numpy.int32], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    @property
+    def v_indices(
+        self,
+    ) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order="C")]: ...
+    @v_indices.setter
+    def v_indices(
+        self, arg: Annotated[NDArray[numpy.int32], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    def __repr__(self) -> str: ...
+
+class JointPath:
+    def __init__(self) -> None: ...
+    @property
+    def joint_names(self) -> list[str]: ...
+    @joint_names.setter
+    def joint_names(self, arg: Sequence[str], /) -> None: ...
+    @property
+    def positions(
+        self,
+    ) -> list[Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]]: ...
+    @positions.setter
+    def positions(
+        self,
+        arg: Sequence[
+            Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]
+        ],
+        /,
+    ) -> None: ...
+    def __repr__(self) -> str: ...
+
+class JointTrajectory:
+    def __init__(self) -> None: ...
+    @property
+    def joint_names(self) -> list[str]: ...
+    @joint_names.setter
+    def joint_names(self, arg: Sequence[str], /) -> None: ...
+    @property
+    def times(self) -> list[float]: ...
+    @times.setter
+    def times(self, arg: Sequence[float], /) -> None: ...
+    @property
+    def positions(
+        self,
+    ) -> list[Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]]: ...
+    @positions.setter
+    def positions(
+        self,
+        arg: Sequence[
+            Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]
+        ],
+        /,
+    ) -> None: ...
+    @property
+    def velocities(
+        self,
+    ) -> list[Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]]: ...
+    @velocities.setter
+    def velocities(
+        self,
+        arg: Sequence[
+            Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]
+        ],
+        /,
+    ) -> None: ...
+    @property
+    def accelerations(
+        self,
+    ) -> list[Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]]: ...
+    @accelerations.setter
+    def accelerations(
+        self,
+        arg: Sequence[
+            Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]
+        ],
+        /,
+    ) -> None: ...
+    def __repr__(self) -> str: ...
+
+class Box:
+    def __init__(self, x: float, y: float, z: float) -> None: ...
+
+class Sphere:
+    def __init__(self, radius: float) -> None: ...
+
+class Scene:
+    @overload
+    def __init__(
+        self,
+        name: str,
+        urdf_path: str | os.PathLike,
+        srdf_path: str | os.PathLike,
+        package_paths: Sequence[str | os.PathLike] = [],
+        yaml_config_path: str | os.PathLike = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        name: str,
+        urdf: str,
+        srdf: str,
+        package_paths: Sequence[str | os.PathLike] = [],
+        yaml_config_path: str | os.PathLike = ...,
+    ) -> None: ...
+    def getName(self) -> str: ...
+    def getJointNames(self) -> list[str]: ...
+    def getActuatedJointNames(self) -> list[str]: ...
+    def getJointInfo(self, arg: str, /) -> JointInfo: ...
+    def configurationDistance(
+        self,
+        arg0: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        arg1: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        /,
+    ) -> float: ...
+    def setRngSeed(self, arg: int, /) -> None: ...
+    def randomPositions(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def randomCollisionFreePositions(
+        self, max_samples: int = 1000
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")] | None: ...
+    def hasCollisions(
+        self,
+        q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        debug: bool = False,
+    ) -> bool: ...
+    def isValidPose(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> bool: ...
+    def applyMimics(
+        self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def toFullJointPositions(
+        self,
+        arg0: str,
+        arg1: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        /,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def interpolate(
+        self,
+        arg0: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        arg1: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        arg2: float,
+        /,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def forwardKinematics(
+        self,
+        arg0: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        arg1: str,
+        /,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")]: ...
+    def getFrameId(self, arg: str, /) -> int: ...
+    def getJointGroupInfo(self, arg: str, /) -> JointGroupInfo: ...
+    def getCurrentJointPositions(
+        self,
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def setJointPositions(
+        self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")], /
+    ) -> None: ...
+    def getJointPositionIndices(
+        self, arg: Sequence[str], /
+    ) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order="C")]: ...
+    def addBoxGeometry(
+        self,
+        arg0: str,
+        arg1: str,
+        arg2: Box,
+        arg3: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")],
+        arg4: Annotated[NDArray[numpy.float64], dict(shape=(4), order="C")],
+        /,
+    ) -> None: ...
+    def addSphereGeometry(
+        self,
+        arg0: str,
+        arg1: str,
+        arg2: Sphere,
+        arg3: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")],
+        arg4: Annotated[NDArray[numpy.float64], dict(shape=(4), order="C")],
+        /,
+    ) -> None: ...
+    def updateGeometryPlacement(
+        self,
+        arg0: str,
+        arg1: str,
+        arg2: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")],
+        /,
+    ) -> None: ...
+    def removeGeometry(self, arg: str, /) -> None: ...
+    def getCollisionGeometryIDs(self, arg: str, /) -> list[int]: ...
+    def setCollisions(self, arg0: str, arg1: str, arg2: bool, /) -> None: ...
+    def __repr__(self) -> str: ...
+
+def computeFramePath(
+    arg0: Scene,
+    arg1: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    arg2: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    arg3: str,
+    arg4: float,
+    /,
+) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order="F")]]: ...
+def hasCollisionsAlongPath(
+    arg0: Scene,
+    arg1: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    arg2: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    arg3: float,
+    /,
+) -> bool: ...
+
+class PathShortcutter:
+    def __init__(self, arg0: Scene, arg1: str, /) -> None: ...
+    def shortcut(
+        self, path: JointPath, max_step_size: float, max_iters: int = 100, seed: int = 0
+    ) -> JointPath: ...
+    def getPathLengths(
+        self, arg: JointPath, /
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def getNormalizedPathScaling(
+        self, arg: JointPath, /
+    ) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+    def getConfigurationfromNormalizedPathScaling(
+        self,
+        arg0: JointPath,
+        arg1: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+        arg2: float,
+        /,
+    ) -> "std::pair<Eigen::Matrix<double, -1, 1, 0, -1, 1>, unsigned long>": ...
+
+def collapseContinuousJointPositions(
+    arg0: Scene,
+    arg1: str,
+    arg2: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    /,
+) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
+def expandContinuousJointPositions(
+    arg0: Scene,
+    arg1: str,
+    arg2: Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")],
+    /,
+) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order="C")]: ...
