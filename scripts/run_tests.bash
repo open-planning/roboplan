@@ -39,17 +39,16 @@ Running C++ tests...
         popd > /dev/null || exit
     done
     popd > /dev/null || exit
-fi
 
-
-echo "
+    echo "
 =======================
 Running Python tests...
 =======================
 "
-pushd "${SCRIPT_DIR}/../bindings" >> /dev/null || exit
-python3 -m pytest test/ || EXIT_CODE=$?
-popd > /dev/null || exit
+    pushd "${SCRIPT_DIR}/../bindings" >> /dev/null || exit
+    python3 -m pytest test/ || EXIT_CODE=$?
+    popd > /dev/null || exit
+fi
 
 echo "
 =======================
