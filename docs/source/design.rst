@@ -1,7 +1,7 @@
 Design Philosophy
 =================
 
-RoboPlan is a motion planning framework, similarly to tools like `MoveIt <https://github.com/moveit/moveit2>`_.
+RoboPlan is a motion planning framework, similar to tools like `MoveIt <https://github.com/moveit/moveit2>`_.
 
 The key idea is the use of the `Pinocchio <https://github.com/stack-of-tasks/pinocchio>`_ library to represent robots.
 Pinocchio's strength is loading robot models from standard formats such as URDF and MJCF, and being able to represent rigid-body kinematics and dynamics.

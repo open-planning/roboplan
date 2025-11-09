@@ -19,7 +19,7 @@ Vanilla CMake
 
 One of the design points of this library is that it should be portable, and therefore compiles with "vanilla" CMake.
 
-__We do not recommend using this workflow;__ it's more of an exercise in making sure the software can compile without any dependencies that lock it into a particular ecosystem.
+**We do not recommend using this workflow;** it's more of an exercise in making sure the software can compile without any dependencies that lock it into a particular ecosystem.
 
 If you do want to use regular CMake, you should take a look at the Dockerfile under ``.docker/ubuntu``.
 Alternatively, you can try it for yourself.
