@@ -53,19 +53,19 @@ public:
 
   /// @brief Gets the scene's name.
   /// @return The scene name.
-  std::string getName() { return name_; };
+  const std::string& getName() const { return name_; };
 
   /// @brief Gets the scene's internal Pinocchio model.
   /// @return The Pinocchio model.
-  pinocchio::Model getModel() { return model_; };
+  const pinocchio::Model& getModel() const { return model_; };
 
   /// @brief Gets the scene's full joint names, including mimic joints.
   /// @return A vector of joint names.
-  std::vector<std::string> getJointNames() const { return joint_names_; };
+  const std::vector<std::string>& getJointNames() const { return joint_names_; };
 
   /// @brief Gets the scene's actuated (non-mimic) joint names.
   /// @return A vector of joint names.
-  std::vector<std::string> getActuatedJointNames() const { return actuated_joint_names_; };
+  const std::vector<std::string>& getActuatedJointNames() const { return actuated_joint_names_; };
 
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
@@ -140,7 +140,7 @@ public:
 
   /// @brief Get the current joint positions for the full robot state.
   /// @return The current joint position vector.
-  Eigen::VectorXd getCurrentJointPositions() const { return cur_state_.positions; }
+  const Eigen::VectorXd& getCurrentJointPositions() const { return cur_state_.positions; }
 
   /// @brief Set the joint positions for the full robot state.
   /// @return The desired joint position vector.
