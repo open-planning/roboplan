@@ -117,6 +117,22 @@ if(AMENT_BUILD)
   ament_python_install_package(roboplan
     PACKAGE_DIR src/roboplan
   )
+
+  if(BUILD_TESTING)
+    find_package(ament_cmake_pytest REQUIRED)
+    set(BINDINGS_TESTS_PY
+      test_import
+      test_rrt
+      test_scene
+    )
+    foreach(test_name ${BINDINGS_TESTS_PY})
+      ament_add_pytest_test(${test_name} test/${test_name}.py
+        APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}
+        TIMEOUT 300
+      )
+    endforeach()
+  endif()
+
   ament_package()
 else()
   install(TARGETS roboplan_ext LIBRARY DESTINATION roboplan)
