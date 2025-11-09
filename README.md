@@ -21,3 +21,9 @@ The main folders found in this repo are as follows.
 - `roboplan_examples` : Basic examples with real robot models.
 - `bindings` : Python bindings, with accompanying examples and tests.
 - `docs` : The documentation source.
+
+---
+
+![Interactive inverse kinematics (IK) with Kinova Gen3 arm.](docs/source/media/kinova_ik.gif)
+
+![Rapidly-exploring random tree (RRT) with dual Franka FR3 arms.](docs/source/media/dual_franka_rrt.gif)

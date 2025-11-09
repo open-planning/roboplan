@@ -66,6 +66,7 @@ autodoc_typehints = "description"
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+master_doc = "index"
 
 # -- Options for breathe -----------------------------------------------------
 breathe_default_project = "roboplan"
