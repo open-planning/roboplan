@@ -66,7 +66,8 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
-    q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
+    group_info = scene.getJointGroupInfo(model_data.default_joint_group)
+    q_indices = group_info.q_indices
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -163,7 +164,7 @@ def main(
     plt.ylabel("Joint positions")
     plt.title("Time-parameterized trajectory")
     dof_names = []
-    for name in scene.getJointNames():
+    for name in group_info.joint_names:
         for idx in range(scene.getJointInfo(name).num_position_dofs):
             dof_names.append(f"{name}:{idx}")
     plt.legend(dof_names)
