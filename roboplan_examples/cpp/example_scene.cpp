@@ -16,7 +16,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
-  auto scene = Scene("test_scene", urdf_path, srdf_path, package_paths);
+  auto scene = Scene("example_scene", urdf_path, srdf_path, package_paths);
   std::cout << scene;
 
   // Generate a random state

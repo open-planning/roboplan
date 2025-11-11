@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import time
 import tyro
@@ -131,7 +133,7 @@ def main(
         )
         print(f"Shortcutted path:\n{shortened_path}")
 
-    # Set up TOPP-RA path parameterization
+    # Set up TOPP-RA to time-parameterize the path
     print("Generating trajectory...")
     dt = 0.01
     toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)

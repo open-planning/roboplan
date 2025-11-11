@@ -17,7 +17,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
-  auto scene = std::make_shared<Scene>("test_ik_scene", urdf_path, srdf_path, package_paths);
+  auto scene = std::make_shared<Scene>("example_ik_scene", urdf_path, srdf_path, package_paths);
 
   // Set up and solve IK
   SimpleIkOptions options;
