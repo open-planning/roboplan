@@ -7,11 +7,12 @@ import xacro
 
 import matplotlib.pyplot as plt
 import pinocchio as pin
+from pinocchio.visualize import ViserVisualizer
+
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
 from roboplan.rrt import RRTOptions, RRT
 from roboplan.toppra import PathParameterizerTOPPRA
-from roboplan.viser_visualizer import ViserVisualizer
 from roboplan.visualization import visualizePath, visualizeTree
 
 

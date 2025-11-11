@@ -205,7 +205,7 @@ yaml-cpp    = ">=0.8.0,<0.9"
 
 # Core dependencies
 eigen     = ">=3.4.0,<4"
-pinocchio = ">=3.7.0,<4"
+pinocchio = ">=3.8.0,<4"
 
 # Python binding dependencies
 python            = ">=3.11,<3.12"
