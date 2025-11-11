@@ -1,8 +1,8 @@
 import numpy as np
+from pinocchio.visualize import ViserVisualizer
 
 from roboplan.core import Scene, computeFramePath, JointPath
 from roboplan.rrt import RRT
-from roboplan.viser_visualizer import ViserVisualizer
 
 
 def visualizePath(
