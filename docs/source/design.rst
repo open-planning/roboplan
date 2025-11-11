@@ -27,7 +27,7 @@ Middleware is optional
 ----------------------
 
 The core library is standalone.
-Middleware such as ROS, and all its specific tools (message definitions, pub/sub, parameters, etc.) shall be available as _optional_, lightweight wrappers around the core... in a separate repository.
+Middleware such as ROS, and all its specific tools (message definitions, pub/sub, parameters, etc.) shall be available as *optional*, lightweight wrappers around the core... in a separate repository.
 
 Consequently, community contributors can leverage the core library in any project as-is and can consider middleware connections tailored to their use-cases.
 
@@ -35,6 +35,6 @@ Consequently, community contributors can leverage the core library in any projec
 Bindings are top priority
 -------------------------
 
-Users should be able to `pip install` the Python bindings and get to hacking, debugging, and visualizing as easily as possible.
+Users should be able to ``pip install`` the Python bindings and get to hacking, debugging, and visualizing as easily as possible.
 New users can develop directly using Python, whereas intermediate/advanced users can directly use C++ for performance.
 Contributors are expected to implement new features in C++ and provide working Python bindings.

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import xacro
 
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR

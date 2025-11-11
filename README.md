@@ -19,7 +19,7 @@ The main folders found in this repo are as follows.
 - `roboplan_toppra` : A wrapper around the TOPP-RA algorithm for trajectory timing.
 - `roboplan_example_models` : Contains robot models used for testing and examples.
 - `roboplan_examples` : Basic examples with real robot models.
-- `bindings` : Python bindings, with accompanying examples and tests.
+- `bindings` : The Python bindings and accompanying tests.
 - `docs` : The documentation source.
 
 ---

@@ -40,7 +40,7 @@ Inside the shell, you can try different commands, such as.
 ::
 
     ./build/roboplan_examples/example_scene
-    python3 bindings/examples/example_ik.py
+    python3 roboplan_examples/python/example_ik.py
 
 To run the unit tests, you can do:
 
@@ -79,7 +79,7 @@ Once built, you can use the Pixi shell to run specific examples.
 
     pixi shell
     ./build/roboplan_examples/example_scene
-    python3 bindings/examples/example_ik.py
+    python3 roboplan_examples/python/example_ik.py
 
 
 To run the unit tests:
@@ -140,6 +140,7 @@ Now you should be able to run a basic example.
 
     source install/setup.bash
     ros2 run roboplan_examples example_scene
+    ros2 run roboplan_examples example_ik.py
 
 At this point, you should also be able to use `roboplan` as a Python package!
 
@@ -147,12 +148,6 @@ At this point, you should also be able to use `roboplan` as a Python package!
 
     python3
     >>> import roboplan
-
-... or run one of the examples.
-
-::
-
-    python3 bindings/examples/example_ik.py
 
 To run the unit tests, you can simply use ``colcon``:
 
