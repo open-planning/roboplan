@@ -9,7 +9,7 @@ from roboplan.rrt import RRTOptions, RRT
 # directory manually.
 from pathlib import Path
 
-examples_dir = Path(__file__).parent.parent / "bindings" / "examples"
+examples_dir = Path(__file__).parent.parent / "roboplan_examples" / "python"
 sys.path.insert(0, str(examples_dir))
 
 from common import MODELS, ROBOPLAN_EXAMPLES_DIR
