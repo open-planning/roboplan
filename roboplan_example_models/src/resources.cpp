@@ -1,5 +1,5 @@
 #include <dlfcn.h>
-#include <iostream>
+
 #include <roboplan_example_models/resources.hpp>
 
 namespace roboplan::example_models {
