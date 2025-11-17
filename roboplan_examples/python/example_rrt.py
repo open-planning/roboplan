@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import time
 import tyro
@@ -5,8 +7,10 @@ import xacro
 
 import matplotlib.pyplot as plt
 import pinocchio as pin
-from common import MODELS, ROBOPLAN_EXAMPLES_DIR
+
+from common import MODELS
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
+from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 from roboplan.toppra import PathParameterizerTOPPRA
 from roboplan.viser_visualizer import ViserVisualizer
@@ -50,7 +54,7 @@ def main(
         sys.exit(1)
 
     model_data = MODELS[model]
-    package_paths = [ROBOPLAN_EXAMPLES_DIR]
+    package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
@@ -64,7 +68,8 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
-    q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
+    group_info = scene.getJointGroupInfo(model_data.default_joint_group)
+    q_indices = group_info.q_indices
 
     # Create a redundant Pinocchio model just for visualization.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
@@ -131,7 +136,7 @@ def main(
         )
         print(f"Shortcutted path:\n{shortened_path}")
 
-    # Set up TOPP-RA path parameterization
+    # Set up TOPP-RA to time-parameterize the path
     print("Generating trajectory...")
     dt = 0.01
     toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
@@ -161,7 +166,7 @@ def main(
     plt.ylabel("Joint positions")
     plt.title("Time-parameterized trajectory")
     dof_names = []
-    for name in scene.getJointNames():
+    for name in group_info.joint_names:
         for idx in range(scene.getJointInfo(name).num_position_dofs):
             dof_names.append(f"{name}:{idx}")
     plt.legend(dof_names)

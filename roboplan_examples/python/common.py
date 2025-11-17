@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 import pinocchio as pin
 
 from roboplan.core import Box, Scene, Sphere
-from roboplan.example_models import get_install_prefix
+from roboplan.example_models import get_package_models_dir
 
 
 @dataclass
@@ -94,8 +94,7 @@ class RobotModelConfig:
 
 
 # Base directory for all robot models
-ROBOPLAN_EXAMPLES_DIR = Path(get_install_prefix()) / "share"
-ROBOPLAN_MODELS_DIR = ROBOPLAN_EXAMPLES_DIR / "roboplan_example_models" / "models"
+ROBOPLAN_MODELS_DIR = get_package_models_dir()
 
 MODELS = {
     "ur5": RobotModelConfig(

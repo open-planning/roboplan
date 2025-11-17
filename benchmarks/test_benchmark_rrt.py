@@ -3,16 +3,17 @@ import sys
 import xacro
 
 from roboplan.core import JointConfiguration, Scene
+from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 
 # We don't build the bindings examples, so we just include the relative
 # directory manually.
 from pathlib import Path
 
-examples_dir = Path(__file__).parent.parent / "bindings" / "examples"
+examples_dir = Path(__file__).parent.parent / "roboplan_examples" / "python"
 sys.path.insert(0, str(examples_dir))
 
-from common import MODELS, ROBOPLAN_EXAMPLES_DIR
+from common import MODELS
 
 
 def solve(scene: Scene, rrt: RRT, seed: int = 1234):
@@ -54,7 +55,7 @@ def solve_many(scene: Scene, rrt: RRT, iterations: int = 10, seed: int = 1234):
 
 def create_scene(model_name: str) -> Scene:
     model_data = MODELS[model_name]
-    package_paths = [ROBOPLAN_EXAMPLES_DIR]
+    package_paths = [get_package_share_dir()]
 
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()

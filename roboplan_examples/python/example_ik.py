@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import time
 import tyro
@@ -6,8 +8,9 @@ import xacro
 import numpy as np
 import pinocchio as pin
 
-from common import MODELS, ROBOPLAN_EXAMPLES_DIR
+from common import MODELS
 from roboplan.core import Scene, JointConfiguration, CartesianConfiguration
+from roboplan.example_models import get_package_share_dir
 from roboplan.simple_ik import SimpleIkOptions, SimpleIk
 from roboplan.viser_visualizer import ViserVisualizer
 
@@ -38,7 +41,7 @@ def main(
         sys.exit(1)
 
     model_data = MODELS[model]
-    package_paths = [ROBOPLAN_EXAMPLES_DIR]
+    package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()

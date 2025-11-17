@@ -7,8 +7,10 @@ endif()
 
 # Find dependencies.
 find_package(roboplan REQUIRED)
-find_package(roboplan_simple_ik REQUIRED)
 find_package(roboplan_example_models REQUIRED)
+find_package(roboplan_simple_ik REQUIRED)
+find_package(roboplan_rrt REQUIRED)
+find_package(roboplan_toppra REQUIRED)
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
@@ -17,35 +19,8 @@ find_package(roboplan_example_models REQUIRED)
 find_package(ament_cmake QUIET)
 
 # Build and install the examples.
-add_executable(example_scene examples/example_scene.cpp)
-target_link_libraries(example_scene
-    roboplan::roboplan
-    roboplan_example_models::roboplan_example_models
-)
-set_property(TARGET example_scene PROPERTY CXX_STANDARD 20)
-target_include_directories(example_scene PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_executable(example_ik examples/example_ik.cpp)
-target_link_libraries(example_ik
-    roboplan::roboplan
-    roboplan_simple_ik::roboplan_simple_ik
-    roboplan_example_models::roboplan_example_models
-)
-set_property(TARGET example_ik PROPERTY CXX_STANDARD 20)
-target_include_directories(example_ik PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-install(
-  TARGETS
-  example_scene
-  example_ik
-  DESTINATION lib/roboplan_examples
-)
+add_subdirectory(cpp)
+add_subdirectory(python)
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 if ( ament_cmake_FOUND )

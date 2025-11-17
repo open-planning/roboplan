@@ -63,7 +63,6 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
 tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
                                                const JointConfiguration& goal) {
-  const auto& model = scene_->getModel();
   const auto& q_indices = joint_group_info_.q_indices;
   auto q_start = scene_->toFullJointPositions(options_.group_name, start.positions);
   auto q_goal = scene_->toFullJointPositions(options_.group_name, goal.positions);
