@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
 from roboplan.core import Scene, computeFramePath, JointPath
@@ -120,3 +121,30 @@ def visualizeTree(
             colors=goal_tree_color,
             line_width=1.0,
         )
+
+
+def visualizeJointTrajectory(trajectory, scene: Scene, plot_titel: str = "Trajectory"):
+    """
+    Visualize a joint trajectory as a plot of joint positions over time.
+
+    Args
+        trajectory: The trajectory object to be visualized.
+        scene: The Scene object used to get joint information.
+
+    Returns
+        The matplotlib figure object. Use plt.show() to display it.
+    """
+    plt.ion()
+    plt.plot(trajectory.times, trajectory.positions)
+    plt.xlabel("Time")
+    plt.ylabel("Joint positions")
+    plt.title(plot_titel)
+
+    dof_names = []
+    for name in trajectory.joint_names:
+        for idx in range(scene.getJointInfo(name).num_position_dofs):
+            dof_names.append(f"{name}:{idx}")
+
+    plt.legend(dof_names)
+
+    return plt.gcf()

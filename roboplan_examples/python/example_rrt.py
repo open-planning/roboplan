@@ -14,7 +14,11 @@ from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 from roboplan.toppra import PathParameterizerTOPPRA
 from roboplan.viser_visualizer import ViserVisualizer
-from roboplan.visualization import visualizePath, visualizeTree
+from roboplan.visualization import (
+    visualizePath,
+    visualizeJointTrajectory,
+    visualizeTree,
+)
 
 
 def main(
@@ -159,17 +163,7 @@ def main(
     else:
         visualizePath(viz, scene, traj, model_data.ee_names, 0.05)
 
-    # TODO: Make this a reusable function
-    plt.ion()
-    plt.plot(traj.times, traj.positions)
-    plt.xlabel("Time")
-    plt.ylabel("Joint positions")
-    plt.title("Time-parameterized trajectory")
-    dof_names = []
-    for name in group_info.joint_names:
-        for idx in range(scene.getJointInfo(name).num_position_dofs):
-            dof_names.append(f"{name}:{idx}")
-    plt.legend(dof_names)
+    visualizeJointTrajectory(traj, scene)
     plt.show()
 
     # Animate the trajectory
