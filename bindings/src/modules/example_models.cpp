@@ -15,6 +15,7 @@ void init_example_models(nanobind::module_& m) {
 
   m.def("get_install_prefix", &example_models::get_install_prefix);
   m.def("get_package_share_dir", &example_models::get_package_share_dir);
+  m.def("get_package_models_dir", &example_models::get_package_models_dir);
 }
 
 }  // namespace roboplan

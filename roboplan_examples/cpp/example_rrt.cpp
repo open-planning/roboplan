@@ -11,15 +11,13 @@
 using namespace roboplan;
 
 int main(int /*argc*/, char* /*argv*/[]) {
-
-  const auto share_prefix = example_models::get_package_share_dir();
-
   // Set up the scene
-  const auto urdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.urdf";
-  const auto srdf_path = share_prefix / "ur_robot_model" / "ur5_gripper.srdf";
-  const auto yaml_config_path = share_prefix / "ur_robot_model" / "ur5_config.yaml";
+  const auto share_prefix = example_models::get_package_share_dir();
+  const auto model_prefix = share_prefix / "roboplan_example_models" / "models";
+  const auto urdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.urdf";
+  const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
-
+  const auto yaml_config_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
   auto scene = std::make_shared<Scene>("example_rrt_scene", urdf_path, srdf_path, package_paths,
                                        yaml_config_path);
 

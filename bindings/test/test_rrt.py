@@ -7,17 +7,16 @@ from pathlib import Path
 import pytest
 
 from roboplan.core import JointConfiguration, Scene
-from roboplan.example_models import get_install_prefix
+from roboplan.example_models import get_package_models_dir, get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 
 
 @pytest.fixture
 def test_scene() -> Scene:
-    roboplan_examples_dir = Path(get_install_prefix()) / "share"
-    roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
+    roboplan_models_dir = get_package_models_dir()
     urdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.urdf"
     srdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.srdf"
-    package_paths = [roboplan_examples_dir]
+    package_paths = [get_package_share_dir()]
 
     return Scene("test_scene", urdf_path, srdf_path, package_paths)
 

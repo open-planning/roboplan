@@ -17,8 +17,9 @@ std::filesystem::path get_install_prefix() {
   return lib_path.parent_path().parent_path();
 }
 
-std::filesystem::path get_package_share_dir() {
-  return get_install_prefix() / "share" / "roboplan_example_models" / "models";
-}
+std::filesystem::path get_package_share_dir() { return get_install_prefix() / "share"; }
 
+std::filesystem::path get_package_models_dir() {
+  return get_package_share_dir() / "roboplan_example_models" / "models";
+}
 }  // namespace roboplan::example_models

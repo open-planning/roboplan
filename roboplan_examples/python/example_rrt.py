@@ -7,12 +7,13 @@ import xacro
 
 import matplotlib.pyplot as plt
 import pinocchio as pin
-from pinocchio.visualize import ViserVisualizer
 
-from common import MODELS, ROBOPLAN_EXAMPLES_DIR
+from common import MODELS
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
+from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 from roboplan.toppra import PathParameterizerTOPPRA
+from roboplan.viser_visualizer import ViserVisualizer
 from roboplan.visualization import visualizePath, visualizeTree
 
 
@@ -53,7 +54,7 @@ def main(
         sys.exit(1)
 
     model_data = MODELS[model]
-    package_paths = [ROBOPLAN_EXAMPLES_DIR]
+    package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
