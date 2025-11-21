@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from roboplan.core import Scene, computeFramePath, JointPath
+from roboplan.core import Scene, computeFramePath, JointPath, JointTrajectory
 from roboplan.rrt import RRT
 from roboplan.viser_visualizer import ViserVisualizer
 
@@ -123,13 +123,16 @@ def visualizeTree(
         )
 
 
-def visualizeJointTrajectory(trajectory, scene: Scene, plot_titel: str = "Trajectory"):
+def visualizeJointTrajectory(
+    trajectory: JointTrajectory, scene: Scene, plot_title: str = "Trajectory"
+):
     """
     Visualize a joint trajectory as a plot of joint positions over time.
 
     Args
         trajectory: The trajectory object to be visualized.
         scene: The Scene object used to get joint information.
+        plot_title: The title of the plot.
 
     Returns
         The matplotlib figure object. Use plt.show() to display it.
@@ -138,12 +141,15 @@ def visualizeJointTrajectory(trajectory, scene: Scene, plot_titel: str = "Trajec
     plt.plot(trajectory.times, trajectory.positions)
     plt.xlabel("Time")
     plt.ylabel("Joint positions")
-    plt.title(plot_titel)
+    plt.title(plot_title)
 
     dof_names = []
     for name in trajectory.joint_names:
         for idx in range(scene.getJointInfo(name).num_position_dofs):
-            dof_names.append(f"{name}:{idx}")
+            if idx > 0:
+                dof_names.append(f"{name}:{idx}")
+            else:
+                dof_names.append(name)
 
     plt.legend(dof_names)
 
