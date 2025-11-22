@@ -1,10 +1,10 @@
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
+from pinocchio.visualize import ViserVisualizer
 
 from roboplan.core import Scene, computeFramePath, JointPath, JointTrajectory
 from roboplan.rrt import RRT
-from roboplan.viser_visualizer import ViserVisualizer
 
 
 def visualizePath(
