@@ -1,3 +1,4 @@
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -124,8 +125,8 @@ def visualizeTree(
 
 
 def visualizeJointTrajectory(
-    trajectory: JointTrajectory, scene: Scene, plot_title: str = "Trajectory"
-):
+    trajectory: JointTrajectory, scene: Scene, plot_title: str = "Joint Trajectory"
+) -> Figure:
     """
     Visualize a joint trajectory as a plot of joint positions over time.
 
@@ -145,11 +146,11 @@ def visualizeJointTrajectory(
 
     dof_names = []
     for name in trajectory.joint_names:
-        for idx in range(scene.getJointInfo(name).num_position_dofs):
-            if idx > 0:
-                dof_names.append(f"{name}:{idx}")
-            else:
-                dof_names.append(name)
+        nq = scene.getJointInfo(name).num_position_dofs
+        if nq == 1:
+            dof_names.append(name)
+        else:
+            dof_names.extend(f"{name}:{idx}" for idx in range(nq))
 
     plt.legend(dof_names)
 
