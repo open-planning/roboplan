@@ -60,6 +60,41 @@ find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 find_package(roboplan_toppra REQUIRED)
 
+# Interface library for the utility functions
+add_library(roboplan_bindings_utils INTERFACE)
+target_include_directories(roboplan_bindings_utils INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+install(DIRECTORY include/utils
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.hpp"
+)
+install(TARGETS roboplan_bindings_utils
+  EXPORT roboplan_bindings_utilsTargets
+)
+if(AMENT_BUILD)
+  ament_export_targets(roboplan_bindings_utilsTargets HAS_LIBRARY_TARGET)
+  ament_export_dependencies()
+else()
+  include(CMakePackageConfigHelpers)
+
+  install(EXPORT roboplan_bindings_utilsTargets
+    FILE roboplan_bindings_utilsTargets.cmake
+    NAMESPACE roboplan_bindings::
+    DESTINATION lib/cmake/roboplan_bindings_utils
+  )
+  configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/roboplan_bindings_utilsConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/roboplan_bindings_utilsConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/roboplan_bindings_utils
+  )
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/roboplan_bindings_utilsConfig.cmake"
+    DESTINATION lib/cmake/roboplan_bindings_utils
+  )
+endif()
+
 # Roboplan binding sources
 set(ROBOPLAN_EXT_SOURCES
   src/roboplan_ext.cpp
