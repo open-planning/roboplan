@@ -247,4 +247,32 @@ MODELS = {
             ),
         ],
     ),
+    "so101": RobotModelConfig(
+        urdf_path=ROBOPLAN_MODELS_DIR / "so101_robot_model" / "so101.urdf",
+        srdf_path=ROBOPLAN_MODELS_DIR / "so101_robot_model" / "so101.srdf",
+        yaml_config_path=ROBOPLAN_MODELS_DIR
+        / "so101_robot_model"
+        / "so101_config.yaml",
+        default_joint_group="arm",
+        ee_names=["gripper_link"],
+        base_link="base_link",
+        starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        obstacles=[
+            ObstacleConfig(
+                name="test_box",
+                geom=hppfcl.Box(0.25, 0.25, 0.25),
+                parent_frame="universe",
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.5])).homogeneous,
+                color=np.array([0.0, 0.0, 1.0, 0.5]),
+            ),
+            ObstacleConfig(
+                name="ground_plane",
+                geom=hppfcl.Box(0.5, 0.5, 0.1),
+                parent_frame="universe",
+                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.05])).homogeneous,
+                color=np.array([0.5, 0.5, 0.5, 0.5]),
+                disabled_collisions=["base_link", "test_box"],
+            ),
+        ],
+    ),
 }

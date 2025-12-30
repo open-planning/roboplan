@@ -28,7 +28,7 @@ def main(
 
 
     Parameters:
-        model: The name of the model to user (ur5, franka, or dual).
+        model: The name of the model to use.
         max_iters: Maximum number of iterations for the IK solver.
         step_size: Integration step size for the IK solver.
         check_collisions: Whether to check for collisions when solving IK.

@@ -70,7 +70,7 @@ def create_scene(model_name: str) -> Scene:
     return scene
 
 
-@pytest.fixture(scope="session", params=["kinova", "ur5", "franka", "dual"])
+@pytest.fixture(scope="session", params=["so101", "kinova", "ur5", "franka", "dual"])
 def scene(request):
     return create_scene(request.param)
 

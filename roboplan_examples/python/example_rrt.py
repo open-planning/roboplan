@@ -39,7 +39,7 @@ def main(
     Run the RRT example with the provided parameters.
 
     Parameters:
-        model: The name of the model to user (ur5 or franka).
+        model: The name of the model to use.
         max_connection_distance: Maximum connection distance between two search nodes.
         collision_check_step_size: Configuration-space step size for collision checking along edges.
         goal_biasing_probability: Weighting of the goal node during random sampling.
