@@ -211,7 +211,7 @@ class ViserVisualizer(BaseVisualizer):
             )
         elif isinstance(geom, MESH_TYPES):
             mesh = trimesh.load(geometry_object.meshPath)
-            if color is None:
+            if color_override is None:
                 frame = self.viewer.scene.add_mesh_trimesh(name, mesh)
             else:
                 frame = self.viewer.scene.add_mesh_simple(
