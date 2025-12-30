@@ -39,7 +39,7 @@ Inside the shell, you can try different commands, such as.
 
 ::
 
-    ./build/roboplan_examples/src/example_scene
+    ./build/roboplan_examples/cpp/example_scene
     python3 roboplan_examples/python/example_ik.py
 
 To run the unit tests, you can do:
@@ -78,7 +78,7 @@ Once built, you can use the Pixi shell to run specific examples.
 ::
 
     pixi shell
-    ./build/roboplan_examples/src/example_scene
+    ./build/roboplan_examples/cpp/example_scene
     python3 roboplan_examples/python/example_ik.py
 
 
