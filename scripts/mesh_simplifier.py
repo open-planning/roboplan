@@ -35,6 +35,7 @@ DEFAULT_QUALITY_THRESHOLD: float = 0.5
 DEFAULT_BOUNDARY_WEIGHT: float = 1.0
 DEFAULT_PLANAR_WEIGHT: float = 0.001
 
+
 def _find_stl_files(directory: Path) -> list[Path]:
     """Find all STL files (case-insensitive)."""
     return list(directory.glob("**/*.[sS][tT][lL]"))
