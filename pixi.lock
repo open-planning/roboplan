@@ -270,6 +270,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openjpeg-2.5.3-h5fbd93e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openldap-2.6.10-he970967_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.5.1-h7b32b05_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/osqp-eigen-0.11.0-h12c67fd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/p11-kit-0.24.1-hc5aa10d_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-25.0-pyh29332c3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pango-1.56.4-hadf4263_0.conda
@@ -635,6 +636,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/openjpeg-2.5.3-h3f56577_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/openldap-2.6.10-h30c48ee_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/openssl-3.5.1-hd08dc88_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/osqp-eigen-0.11.0-hfb7dd51_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/p11-kit-0.24.1-h9f2702f_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-25.0-pyh29332c3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pango-1.56.4-he55ef5b_0.conda
@@ -7416,6 +7418,33 @@ packages:
   purls: []
   size: 3653877
   timestamp: 1751392052717
+- conda: https://conda.anaconda.org/conda-forge/linux-64/osqp-eigen-0.11.0-h12c67fd_0.conda
+  sha256: 944d877a40c4d44dd9fdb33811b70e20bfeb9be26688e56e73b206fe179d5663
+  md5: 1e1d3087e3fe1f9209e190bd50625dcf
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - eigen
+  - libgcc >=14
+  - libosqp >=1.0.0,<1.0.1.0a0
+  - libstdcxx >=14
+  license: BSD-3-Clause
+  license_family: BSD
+  purls: []
+  size: 38229
+  timestamp: 1760090008563
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/osqp-eigen-0.11.0-hfb7dd51_0.conda
+  sha256: 126413605a3f2a8755b5508722f76246810604dc002baf1ad7dfdf8a65d06931
+  md5: 1aba1b94f4212e3c7c2e6e74d6f0a426
+  depends:
+  - eigen
+  - libgcc >=14
+  - libosqp >=1.0.0,<1.0.1.0a0
+  - libstdcxx >=14
+  license: BSD-3-Clause
+  license_family: BSD
+  purls: []
+  size: 38120
+  timestamp: 1760090103121
 - conda: https://conda.anaconda.org/conda-forge/linux-64/p11-kit-0.24.1-hc5aa10d_0.tar.bz2
   sha256: aa8d3887b36557ad0c839e4876c0496e0d670afe843bf5bba4a87764b868196d
   md5: 56ee94e34b71742bbdfa832c974e47a8

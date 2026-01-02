@@ -21,6 +21,18 @@ target_include_directories(example_ik PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+add_executable(example_oink example_oink.cpp)
+target_link_libraries(example_oink
+    roboplan::roboplan
+    roboplan_example_models::roboplan_example_models
+    roboplan_oink::roboplan_oink
+)
+set_property(TARGET example_oink PROPERTY CXX_STANDARD 20)
+target_include_directories(example_oink PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 add_executable(example_rrt example_rrt.cpp)
 target_link_libraries(example_rrt
     roboplan::roboplan
@@ -38,6 +50,7 @@ install(
   TARGETS
   example_scene
   example_ik
+  example_oink
   example_rrt
   DESTINATION lib/roboplan_examples
 )

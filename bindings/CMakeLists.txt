@@ -58,6 +58,7 @@ endif()
 
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
+find_package(roboplan_oink REQUIRED)
 find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 find_package(roboplan_toppra REQUIRED)
@@ -102,6 +103,7 @@ set(ROBOPLAN_EXT_SOURCES
   src/roboplan_ext.cpp
   src/modules/core.cpp
   src/modules/example_models.cpp
+  src/modules/optimal_ik.cpp
   src/modules/rrt.cpp
   src/modules/simple_ik.cpp
   src/modules/toppra.cpp
@@ -137,6 +139,7 @@ target_link_libraries(roboplan_ext PRIVATE
   roboplan::expected
   roboplan::roboplan
   roboplan_example_models::roboplan_example_models
+  roboplan_oink::roboplan_oink
   roboplan_rrt::roboplan_rrt
   roboplan_simple_ik::roboplan_simple_ik
   roboplan_toppra::roboplan_toppra
