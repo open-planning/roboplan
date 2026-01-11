@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <dlfcn.h>
 
 #include <roboplan_example_models/resources.hpp>
@@ -5,6 +6,14 @@
 namespace roboplan::example_models {
 
 std::filesystem::path get_install_prefix() {
+  // If roboplan was installed using conda, get it from the prefix.
+  // Note that this will break in the event that you've built from source and are
+  // using conda yourself, but it's a better default than not supporting conda at all.
+  const auto conda_prefix = std::getenv("CONDA_PREFIX");
+  if (conda_prefix) {
+    return std::filesystem::path(conda_prefix);
+  }
+
   // This would be a lot easier if it were an ament package, instead we use
   // dynamic linking to get the filesystem path of the example resources shared
   // object file.
