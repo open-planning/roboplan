@@ -127,8 +127,8 @@ nanobind_add_stub(
 
 # Configure the extension module
 target_include_directories(roboplan_ext PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 set_property(TARGET roboplan_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(roboplan_ext PRIVATE

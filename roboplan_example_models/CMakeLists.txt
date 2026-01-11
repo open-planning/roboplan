@@ -76,7 +76,7 @@ install(TARGETS roboplan_example_models
 install(
   DIRECTORY
   models
-  DESTINATION share/roboplan_example_models
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/share/roboplan_example_models
 )
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.
