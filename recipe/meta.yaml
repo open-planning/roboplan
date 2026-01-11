@@ -1,0 +1,71 @@
+{% set name = "roboplan" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+
+outputs:
+  # Core RoboPlan library
+  - name: libroboplan
+    build:
+      run_exports:
+        - {{ pin_subpackage("libroboplan", max_pin="x.x.x") }}
+    script: build_cpp.sh  # [not win]
+    # script: build_cpp.bat  # [win]
+    requirements:
+      build:
+        - {{ compiler('cxx') }}
+        - cmake
+        - ninja
+        - gtest
+        - pinocchio
+      host:
+        - libstdcxx-ng  # linux
+        - pinocchio
+      run:
+        - libstdcxx-ng
+    test:
+      commands:
+        - test -f "${PREFIX}/lib/libroboplan${SHLIB_EXT}"
+        - test -f "${PREFIX}/lib/libroboplan_example_models${SHLIB_EXT}"
+        - test -f "${PREFIX}/lib/libroboplan_rrt${SHLIB_EXT}"
+        - test -f "${PREFIX}/lib/libroboplan_simple_ik${SHLIB_EXT}"
+        - test -f "${PREFIX}/lib/libroboplan_toppra${SHLIB_EXT}"
+
+  # Roboplan Python bindings
+  - name: roboplan-python
+    script: build_py.sh  # [not win]
+    # script: build_py.bat  # [win]
+    requirements:
+      build:
+        - {{ compiler('cxx') }}
+        - cmake
+        - ninja
+        - python >=3.10
+        - pip
+        - nanobind
+      host:
+        - python >=3.10
+        - scikit-build-core
+        - nanobind
+        - {{ pin_subpackage("libroboplan", exact=True) }}
+      run:
+        - python >=3.10
+        - matplotlib
+        - numpy
+        - pinocchio-python
+        - tyro
+        - viser >=1.0
+        - {{ pin_subpackage("libroboplan", exact=True) }}
+    test:
+      imports:
+        - roboplan
+      commands:
+        - python -c "import roboplan; print(roboplan)"
