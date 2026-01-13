@@ -14,7 +14,10 @@ endif()
 find_package(ament_cmake QUIET)
 
 # Build and install the library containing the resource paths.
-add_library(roboplan_example_models SHARED src/resources.cpp)
+add_library(roboplan_example_models SHARED
+    src/resources.cpp
+    src/anchor.cpp
+)
 target_include_directories(roboplan_example_models PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
