@@ -29,8 +29,10 @@ outputs:
       host:
         - libstdcxx-ng  # linux
         - pinocchio
+        - yaml-cpp
       run:
         - libstdcxx-ng
+        - yaml-cpp
     test:
       commands:
         - test -f "${PREFIX}/lib/libroboplan${SHLIB_EXT}"
@@ -48,16 +50,16 @@ outputs:
         - {{ compiler('cxx') }}
         - cmake
         - ninja
-        - python >=3.10
+        - python >=3.11,<3.12
         - pip
         - nanobind
       host:
-        - python >=3.10
+        - python >=3.11,<3.12
         - scikit-build-core
         - nanobind
         - {{ pin_subpackage("libroboplan", exact=True) }}
       run:
-        - python >=3.10
+        - python >=3.11,<3.12
         - matplotlib
         - numpy
         - pinocchio-python
