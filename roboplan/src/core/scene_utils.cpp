@@ -127,8 +127,7 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
       // Check for any continuous degrees of freedom.
       auto it = kPinocchioJointTypeMap.find(joint.shortname());
       if (it == kPinocchioJointTypeMap.end()) {
-        throw std::runtime_error(
-            "Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
+        throw std::runtime_error("Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
       }
       const auto joint_type = it->second;
 
@@ -165,8 +164,7 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     const auto& joint = model.joints.at(jid);
     auto it = kPinocchioJointTypeMap.find(joint.shortname());
     if (it == kPinocchioJointTypeMap.end()) {
-      throw std::runtime_error(
-          "Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
+      throw std::runtime_error("Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
     }
     const auto joint_type = it->second;
 
