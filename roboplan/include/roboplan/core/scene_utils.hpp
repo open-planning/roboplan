@@ -12,6 +12,7 @@ namespace roboplan {
 
 /// @brief Map from Pinocchio joint model short names to RoboPlan joint type enums.
 const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
+    {"JointModelPrismaticUnaligned", JointType::PRISMATIC},
     {"JointModelPX", roboplan::JointType::PRISMATIC},
     {"JointModelPY", roboplan::JointType::PRISMATIC},
     {"JointModelPZ", roboplan::JointType::PRISMATIC},
