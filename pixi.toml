@@ -16,6 +16,7 @@ ASAN_SYMBOLIZER_PATH = "$CONDA_PREFIX/bin/llvm-symbolizer"
 configure = { cmd = [
   "cmake",
   "-GNinja",
+  "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
   "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
   "-DBUILD_TESTING=ON",
@@ -68,8 +69,6 @@ install = { cmd = [
   "cmake",
   "--install",
   "build/{{ package_name }}",
-  "--prefix",
-  "$CONDA_PREFIX",
 ], depends-on = [
   { task = "build", args = [
     "{{ package_name }}",
