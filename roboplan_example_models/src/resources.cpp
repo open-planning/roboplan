@@ -1,6 +1,5 @@
 #include <cstdlib>
 #include <dlfcn.h>
-#include <iostream>
 
 #include <roboplan_example_models/resources.hpp>
 
