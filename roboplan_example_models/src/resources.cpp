@@ -7,7 +7,7 @@
 namespace roboplan::example_models {
 
 namespace anchor {
-  extern void example_models_location_anchor();
+extern void example_models_location_anchor();
 }
 
 std::filesystem::path get_install_prefix() {
