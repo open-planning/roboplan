@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <dlfcn.h>
+#include <iostream>
 
 #include <roboplan_example_models/resources.hpp>
 
@@ -15,7 +16,7 @@ std::filesystem::path get_install_prefix() {
   // object file.
   Dl_info dl_info;
   dladdr((void*)&anchor::example_models_location_anchor, &dl_info);
-  std::filesystem::path lib_path = std::filesystem::canonical(dl_info.dli_fname);
+  std::filesystem::path lib_path = dl_info.dli_fname;
 
   // Then we can just pull the relative path to the share directory
   // <install_directory>/lib/roboplan_example_models/<executable>
