@@ -10,7 +10,7 @@
 
 namespace roboplan {
 
-/// @brief Time-parameterizes a joint-space path using TOPP-RA.
+/// @brief Trajectory time parameterizer using the TOPP-RA algorithm.
 /// @details This directly uses https://github.com/hungpham2511/toppra.
 class PathParameterizerTOPPRA {
 public:

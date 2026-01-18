@@ -33,7 +33,7 @@ struct CartesianConfiguration {
   /// @brief The name of the base (or reference) frame.
   std::string base_frame;
 
-  /// @brief The name of the tip frame.
+  /// @brief The name of the tip (or target) frame.
   std::string tip_frame;
 
   /// @brief The transformation matrix from the base to the tip frame.
@@ -42,7 +42,7 @@ struct CartesianConfiguration {
   Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
 };
 
-/// @brief Describes different types of joints.
+/// @brief Enumeration that describes different types of joints.
 enum JointType {
   UNKNOWN = 0,
   PRISMATIC = 1,
@@ -97,12 +97,13 @@ struct JointInfo {
   size_t num_position_dofs;
 
   /// @brief The number of velocity degrees of freedom.
+  /// @details This also corresponds to higher derivatives like acceleration and jerk.
   size_t num_velocity_dofs;
 
   /// @brief The joint limit information for each degree of freedom.
   JointLimits limits;
 
-  /// @brief The joint mimic information
+  /// @brief The joint mimic information.
   std::optional<JointMimicInfo> mimic_info;
 };
 
@@ -153,13 +154,13 @@ struct JointTrajectory {
   /// @brief The list of times.
   std::vector<double> times;
 
-  /// @brief The list of joint configuration positions.
+  /// @brief The list of joint positions.
   std::vector<Eigen::VectorXd> positions;
 
-  /// @brief The list of joint configuration velocities.
+  /// @brief The list of joint velocities.
   std::vector<Eigen::VectorXd> velocities;
 
-  /// @brief The list of joint configuration accelerations.
+  /// @brief The list of joint accelerations.
   std::vector<Eigen::VectorXd> accelerations;
 
   /// @brief Prints basic information about the trajectory.
