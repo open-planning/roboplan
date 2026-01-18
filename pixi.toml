@@ -1,9 +1,9 @@
 [workspace]
-authors   = ["JafarAbdi <jafar.uruc@gmail.com>"]
+authors   = ["Sebastian Castro <sebas.a.castro@gmail.com>", "JafarAbdi <jafar.uruc@gmail.com>"]
 channels  = ["conda-forge"]
 name      = "roboplan"
 platforms = ["linux-64", "linux-aarch64"]
-version   = "0.0.0"
+version   = "0.1.0"
 
 [activation.env]
 CMAKE_INSTALL_MODE   = "SYMLINK"

@@ -22,11 +22,11 @@ sys.path.insert(0, os.path.abspath("../../bindings/src"))
 # -- Project information -----------------------------------------------------
 
 project = "roboplan"
-copyright = "2025, Open Planning"
+copyright = "2025-2026, Open Planning"
 author = "Sebastian Castro"
 
 # The full version, including alpha/beta/rc tags
-version = release = "0.0.0"
+version = release = "0.1.0"
 
 
 # -- General configuration ---------------------------------------------------

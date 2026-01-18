@@ -11,6 +11,8 @@ namespace roboplan {
 using namespace nanobind::literals;
 
 NB_MODULE(roboplan_ext, m) {
+  /// Define package version from a preprocessor definition.
+  m.attr("__version__") = ROBOPLAN_VERSION;
 
   /// Core module
   nanobind::module_ m_core = m.def_submodule("core", "Core roboplan module");

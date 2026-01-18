@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(roboplan_bindings LANGUAGES CXX)
+project(roboplan_bindings LANGUAGES CXX VERSION 0.1.0)
+
+add_compile_definitions(ROBOPLAN_VERSION="${PROJECT_VERSION}")
 
 # Determine if we are compiling with ament or scikit
 find_package(ament_cmake QUIET)

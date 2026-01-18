@@ -1,6 +1,7 @@
 # This permits the modules to be used as, e.g.,
 #    from roboplan.core import Box
 import sys
+from .roboplan_ext import __version__
 from .roboplan_ext import core as _core
 from .roboplan_ext import example_models as _example_models
 from .roboplan_ext import rrt as _rrt
