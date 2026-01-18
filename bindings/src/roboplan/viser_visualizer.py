@@ -1,6 +1,5 @@
 """
-TEMPORARY FILE: Can be removed when this PR is landed and released.
-https://github.com/stack-of-tasks/pinocchio/pull/2718
+TEMPORARY FILE: Can be removed when Pinocchio 3.9.0 is available on all platforms.
 """
 
 from pathlib import Path
