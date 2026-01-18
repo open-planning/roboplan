@@ -60,7 +60,7 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("offset", &JointMimicInfo::offset);
 
   nanobind::class_<JointInfo>(m, "JointInfo")
-      .def(nanobind::init<const JointType>())
+      .def(nanobind::init<const JointType>(), "joint_type"_a)
       .def_ro("type", &JointInfo::type)
       .def_ro("num_position_dofs", &JointInfo::num_position_dofs)
       .def_ro("num_velocity_dofs", &JointInfo::num_velocity_dofs)
@@ -128,14 +128,14 @@ void init_core_scene(nanobind::module_& m) {
       .def("getName", &Scene::getName)
       .def("getJointNames", &Scene::getJointNames)
       .def("getActuatedJointNames", &Scene::getActuatedJointNames)
-      .def("getJointInfo", unwrap_expected(&Scene::getJointInfo))
-      .def("configurationDistance", &Scene::configurationDistance)
-      .def("setRngSeed", &Scene::setRngSeed)
+      .def("getJointInfo", unwrap_expected(&Scene::getJointInfo), "joint_name"_a)
+      .def("configurationDistance", &Scene::configurationDistance, "q_start"_a, "q_end"_a)
+      .def("setRngSeed", &Scene::setRngSeed, "seed"_a)
       .def("randomPositions", &Scene::randomPositions)
       .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
            "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions, "q"_a, "debug"_a = false)
-      .def("isValidPose", &Scene::isValidPose)
+      .def("isValidPose", &Scene::isValidPose, "q"_a)
       // Modification is not guaranteed to be done in place for python objects, as they
       // may be copied by nanobind. To guarantee values are correctly updated, we use
       // a lambda function to return a reference to the changed value.
@@ -146,20 +146,24 @@ void init_core_scene(nanobind::module_& m) {
             return q;
           },
           "q"_a)
-      .def("toFullJointPositions", &Scene::toFullJointPositions)
-      .def("interpolate", &Scene::interpolate)
-      .def("forwardKinematics", &Scene::forwardKinematics)
-      .def("getFrameId", unwrap_expected(&Scene::getFrameId))
-      .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo))
+      .def("toFullJointPositions", &Scene::toFullJointPositions, "group_name"_a, "q"_a)
+      .def("interpolate", &Scene::interpolate, "q_start"_a, "q_end"_a, "fraction"_a)
+      .def("forwardKinematics", &Scene::forwardKinematics, "q"_a, "frame_name"_a)
+      .def("getFrameId", unwrap_expected(&Scene::getFrameId), "name"_a)
+      .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo), "name"_a)
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions)
-      .def("setJointPositions", &Scene::setJointPositions)
-      .def("getJointPositionIndices", &Scene::getJointPositionIndices)
-      .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry))
-      .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry))
-      .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement))
-      .def("removeGeometry", unwrap_expected(&Scene::removeGeometry))
-      .def("getCollisionGeometryIDs", unwrap_expected(&Scene::getCollisionGeometryIds))
-      .def("setCollisions", unwrap_expected(&Scene::setCollisions))
+      .def("setJointPositions", &Scene::setJointPositions, "positions"_a)
+      .def("getJointPositionIndices", &Scene::getJointPositionIndices, "joint_names"_a)
+      .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry), "name"_a, "parent_frame"_a,
+           "box"_a, "tform"_a, "color"_a)
+      .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry), "name"_a,
+           "parent_frame"_a, "sphere"_a, "tform"_a, "color"_a)
+      .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement), "name"_a,
+           "parent_frame"_a, "tform"_a)
+      .def("removeGeometry", unwrap_expected(&Scene::removeGeometry), "name"_a)
+      .def("getCollisionGeometryIDs", unwrap_expected(&Scene::getCollisionGeometryIds), "body"_a)
+      .def("setCollisions", unwrap_expected(&Scene::setCollisions), "body1"_a, "body2"_a,
+           "enable"_a)
       .def("__repr__", [](const Scene& scene) {
         std::stringstream ss;
         ss << scene;
@@ -168,22 +172,29 @@ void init_core_scene(nanobind::module_& m) {
 }
 
 void init_core_path_utils(nanobind::module_& m) {
-  m.def("computeFramePath", &computeFramePath);
-  m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath);
+  m.def("computeFramePath", &computeFramePath, "scene"_a, "q_start"_a, "q_end"_a, "frame_name"_a,
+        "max_step_size"_a);
+  m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath, "scene"_a, "q_start"_a, "q_end"_a,
+        "max_step_size"_a);
 
   nanobind::class_<PathShortcutter>(m, "PathShortcutter")
-      .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&>())
+      .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&>(), "scene"_a,
+           "group_name"_a)
       .def("shortcut", &PathShortcutter::shortcut, "path"_a, "max_step_size"_a, "max_iters"_a = 100,
            "seed"_a = 0)
-      .def("getPathLengths", unwrap_expected(&PathShortcutter::getPathLengths))
-      .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling))
+      .def("getPathLengths", unwrap_expected(&PathShortcutter::getPathLengths), "path"_a)
+      .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling),
+           "path"_a)
       .def("getConfigurationfromNormalizedPathScaling",
-           &PathShortcutter::getConfigurationFromNormalizedPathScaling);
+           &PathShortcutter::getConfigurationFromNormalizedPathScaling, "path"_a, "path_scalings"_a,
+           "value"_a);
 }
 
 void init_core_scene_utils(nanobind::module_& m) {
-  m.def("collapseContinuousJointPositions", unwrap_expected(&collapseContinuousJointPositions));
-  m.def("expandContinuousJointPositions", unwrap_expected(&expandContinuousJointPositions));
+  m.def("collapseContinuousJointPositions", unwrap_expected(&collapseContinuousJointPositions),
+        "scene"_a, "group_name"_a, "q_orig"_a);
+  m.def("expandContinuousJointPositions", unwrap_expected(&expandContinuousJointPositions),
+        "scene"_a, "group_name"_a, "q_orig"_a);
 }
 
 }  // namespace roboplan

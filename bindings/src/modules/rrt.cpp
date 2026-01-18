@@ -17,7 +17,7 @@ using namespace nanobind::literals;
 
 void init_rrt(nanobind::module_& m) {
   nanobind::class_<Node>(m, "Node")
-      .def(nanobind::init<const Eigen::VectorXd&, int>())
+      .def(nanobind::init<const Eigen::VectorXd&, int>(), "config"_a, "parent_id"_a)
       .def_ro("config", &Node::config)
       .def_ro("parent_id", &Node::parent_id);
 
@@ -32,9 +32,10 @@ void init_rrt(nanobind::module_& m) {
       .def_rw("rrt_connect", &RRTOptions::rrt_connect);
 
   nanobind::class_<RRT>(m, "RRT")
-      .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>())
-      .def("plan", unwrap_expected(&RRT::plan))
-      .def("setRngSeed", &RRT::setRngSeed)
+      .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>(), "scene"_a,
+           "options"_a)
+      .def("plan", unwrap_expected(&RRT::plan), "start"_a, "goal"_a)
+      .def("setRngSeed", &RRT::setRngSeed, "seed"_a)
       .def("getNodes", &RRT::getNodes);
 }
 

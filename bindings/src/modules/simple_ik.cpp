@@ -25,8 +25,9 @@ void init_simple_ik(nanobind::module_& m) {
       .def_rw("check_collisions", &SimpleIkOptions::check_collisions);
 
   nanobind::class_<SimpleIk>(m, "SimpleIk")
-      .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>())
-      .def("solveIk", &SimpleIk::solveIk);
+      .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>(), "scene"_a,
+           "options"_a)
+      .def("solveIk", &SimpleIk::solveIk, "goal"_a, "start"_a, "solution"_a);
 }
 
 }  // namespace roboplan
