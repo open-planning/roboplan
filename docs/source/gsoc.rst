@@ -62,7 +62,7 @@ The ROS ecosystem has a large space to explore, and many types of contributions 
 Robot Learning Application Examples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Mentors:** Sebastian Castro, Sebastian Jahr
+**Mentors:** Sebastian Castro, Jafar Uruç, Sebastian Jahr
 
 **Project size:** Large (350 hours)
 
