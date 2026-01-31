@@ -9,6 +9,8 @@ If you are interested, consider applying as a GSoC contributor to the Open Plann
 Below are some project ideas for GSoC.
 You should feel free to propose projects directly under the following ideas, but you are also welcome to bring your own proposal!
 
+For help putting together a proposal, refer to `this useful guide <https://google.github.io/gsocguides/student/writing-a-proposal>`_.
+
 ---
 
 2026 Project Ideas
@@ -37,7 +39,7 @@ This project involves exploring the feasibility of building wheels from the Robo
 ROS Interface and Examples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Mentors:** Sebastian Castro, Erik Holum
+**Mentors:** Erik Holum, Sebastian Castro, Sebastian Jahr
 
 **Project size:** Large (350 hours)
 
@@ -52,7 +54,8 @@ This project involves directly working on the ``roboplan-ros`` repository, helpi
 Some representative tasks in this project are:
 
 * Helping finalize the ROS wrappers to RoboPlan for motion planning, inverse kinematics, modifying scene obstacles, etc.
-* Putting together more complete examples that use simulators such as MuJoCo/Gazebo with ``ros2_control`` and demonstrate full motion planning pipelines.
+* Creating ROS 2 controllers that utilize inverse kinematics, online planning, and/or collision checking capabilities in RoboPlan.
+* Putting together more complete examples that use simulators such as MuJoCo/Gazebo with ``ros2_control`` and demonstrate full motion planning pipelines (`here <https://github.com/NASA-JSC-Robotics/clr_ws>_` is a motivating example).
 * Work on releasing the ROS wrappers to the ROS Buildfarm, so the packages can be installed via binaries.
 
 You are welcome to propose a subset of the above ideas for this project, or even come up with new ideas!
@@ -89,7 +92,7 @@ However, note that these efforts should target simulation, or low-cost hobbyist 
 Expanding Available Algorithms in RoboPlan
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Mentors:** Sebastian Castro, Sebastian Jahr, Erik Holum
+**Mentors:** Sebastian Jahr, Sebastian Castro, Erik Holum
 
 **Project size:** Medium (175 hours) - Large (350 hours)
 
