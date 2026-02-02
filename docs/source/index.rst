@@ -32,5 +32,6 @@ Quick Links:
 
    design
    getting_started
+   gsoc
    api_cpp
    api_py
