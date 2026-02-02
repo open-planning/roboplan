@@ -19,71 +19,17 @@ from roboplan.optimal_ik import (
     FrameTaskParams,
     Oink,
     PositionLimit,
+    VelocityLimit,
 )
 from roboplan.viser_visualizer import ViserVisualizer
-
-# Canonical "home" or "ready" poses for each robot model
-# Maps model name -> joint configuration vector
-CANONICAL_POSES = {
-    "ur5": np.array(
-        [0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0]
-    ),  # Home pose
-    "franka": np.array(
-        [0.0, -np.pi / 4, 0.0, -3 * np.pi / 4, 0.0, np.pi / 2, np.pi / 4, 0.04, 0.04]
-    ),  # Ready pose
-    "dual": np.array(
-        [
-            # Left arm
-            0.0,
-            -np.pi / 4,
-            0.0,
-            -3 * np.pi / 4,
-            0.0,
-            np.pi / 2,
-            np.pi / 4,
-            0.04,
-            0.04,
-            # Right arm
-            0.0,
-            -np.pi / 4,
-            0.0,
-            -3 * np.pi / 4,
-            0.0,
-            np.pi / 2,
-            np.pi / 4,
-            0.04,
-            0.04,
-        ]
-    ),
-    "kinova": np.array(
-        [
-            0.0,
-            0.26,
-            np.pi,
-            0.26,
-            0.0,
-            -0.26,
-            np.pi / 2,  # Arm joints
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,  # Hand/gripper joints
-        ]
-    ),  # Home pose
-    "so101": np.array([0.0, -np.pi / 4, 0.0, -np.pi / 2, 0.0, np.pi / 4]),  # Ready pose
-}
 
 
 def main(
     model: str = "ur5",
     task_gain: float = 1.0,
     lm_damping: float = 2.0,
+    control_freq: float = 100.0,
+    max_joint_velocity: float = 1.0,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -94,6 +40,8 @@ def main(
         model: The name of the model to use (ur5, franka, or dual).
         task_gain: Task gain (alpha) for the IK solver (0-1).
         lm_damping: Levenberg-Marquardt damping for regularization.
+        control_freq: Control loop frequency in Hz.
+        max_joint_velocity: Maximum joint velocity in rad/s for all joints.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -147,25 +95,50 @@ def main(
     viz = ViserVisualizer(model_pin, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
-    # Set up the Oink solver with position limit constraints
-    num_variables = len(q_full)
+    # Determine the velocity space dimension (nv) by computing a Jacobian
+    # For models with quaternion joints, nv < nq
+    jac = scene.computeFrameJacobian(q_full, model_data.ee_names[0])
+    num_variables = jac.shape[1]  # nv (velocity space dimension)
+    print(f"\nConfiguration space dimension (nq): {len(q_full)}")
+    print(f"Velocity space dimension (nv): {num_variables}")
+
+    # Set up the Oink solver with position and velocity limit constraints
     oink = Oink(num_variables)
+
+    # Thread-safe access to tasks and scene
+    tasks_lock = threading.Lock()
+    scene_lock = threading.Lock()
+
+    # Control loop time step
+    dt = 1.0 / control_freq
 
     # Create position limit constraint
     position_limit = PositionLimit(num_variables, gain=1.0)
-    constraints = [position_limit]
 
-    # Determine canonical pose for this model
-    if model in CANONICAL_POSES:
-        q_canonical = CANONICAL_POSES[model]
-        print(f"\nUsing canonical pose for '{model}' (size {len(q_canonical)})")
-        print(f"  {q_canonical}")
+    # Create velocity limit constraint
+    # v_max is in rad/s, the constraint limits delta_q to [-dt*v_max, dt*v_max]
+    v_max = np.full(num_variables, max_joint_velocity)
+    velocity_limit = VelocityLimit(num_variables, dt, v_max)
+
+    constraints = [position_limit, velocity_limit]
+
+    # Validate starting joint configuration size (should match nq)
+    q_canonical_raw = np.array(model_data.starting_joint_config)
+    if len(q_canonical_raw) != len(q_full):
+        print(
+            f"\nWarning: starting_joint_config size ({len(q_canonical_raw)}) doesn't match "
+            f"configuration space dimension ({len(q_full)}), using current scene positions instead"
+        )
+        with scene_lock:
+            q_canonical = scene.getCurrentJointPositions()
     else:
-        # Fallback to zeros if no canonical pose defined
-        q_canonical = np.zeros(num_variables)
-        print(f"\nWarning: No canonical pose defined for '{model}', using zeros")
+        q_canonical = q_canonical_raw
+    print(
+        f"\nUsing starting pose for '{model}' (configuration space size: {len(q_canonical)})"
+    )
+    print(f"  {q_canonical}")
 
-    # Create a ConfigurationTask to regularize toward the canonical pose
+    # Create a ConfigurationTask to regularize toward the starting pose
     # Joint weights: 0.2 for base joints, 0.1 for all others
     joint_weights = np.full(num_variables, 0.1)
     joint_weights[0] = 0.2
@@ -176,8 +149,7 @@ def main(
     config_params = ConfigurationTaskParams(task_gain=0.1, lm_damping=0.0)
     config_task = ConfigurationTask(q_canonical, joint_weights, config_params)
 
-    # Thread-safe task list
-    tasks_lock = threading.Lock()
+    # Task list for the control loop
     tasks = []
 
     # Task parameters (define before using in callbacks)
@@ -230,16 +202,12 @@ def main(
     for controls in transform_controls:
         controls.on_update(update_goals)
 
-    # Control loop running at 100Hz
+    # Control loop
     running = True
 
     def control_loop():
-        dt = 1.0 / 100.0  # 100Hz
         while running:
             loop_start = time.time()
-
-            # Get current joint configuration
-            q_current = scene.getCurrentJointPositions()
 
             # Thread-safe task access
             with tasks_lock:
@@ -247,31 +215,34 @@ def main(
 
             # Only solve if we have tasks
             if current_tasks:
-                # Solve IK for one step with constraints
-                try:
-                    delta_q = oink.solveIk(current_tasks, constraints, scene)
-                except RuntimeError as e:
-                    print(f"Warning: IK solver failed: {e}, using zero delta_q")
-                    delta_q = np.zeros(num_variables)
+                # Thread-safe scene access for IK solving
+                with scene_lock:
+                    # Get current joint configuration
+                    q_current = scene.getCurrentJointPositions()
 
-                # Integrate: update current config by adding delta_q
-                q_current = scene.integrate(q_current, delta_q * dt)
+                    # Solve IK for one step with constraints
+                    try:
+                        delta_q = oink.solveIk(current_tasks, constraints, scene)
+                    except RuntimeError as e:
+                        print(f"Warning: IK solver failed: {e}, using zero delta_q")
+                        delta_q = np.zeros(num_variables)
 
-                # Update scene state
-                scene.setJointPositions(q_current)
+                    # Integrate: delta_q is a displacement (already limited by VelocityLimit)
+                    q_current = scene.integrate(q_current, delta_q)
 
-                # Update forward kinematics after applying velocities
-                # This ensures FK is current for the next iteration's solveIk
-                for goal in goals:
-                    scene.forwardKinematics(q_current, goal.tip_frame)
+                    # Update scene state
+                    scene.setJointPositions(q_current)
+
+                    # Update forward kinematics after applying velocities
+                    # This ensures FK is current for the next iteration's solveIk
+                    for goal in goals:
+                        scene.forwardKinematics(q_current, goal.tip_frame)
 
                 viz.display(q_current)
 
-            # Maintain 100Hz loop rate
+            # Maintain control loop rate
             elapsed = time.time() - loop_start
-            sleep_time = dt - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            time.sleep(max(0, dt - elapsed))
 
     # Start control loop in separate thread
     control_thread = threading.Thread(target=control_loop, daemon=True)
@@ -282,25 +253,31 @@ def main(
 
     @reset_button.on_click
     def reset_position(_):
-        for goal, controls in zip(goals, transform_controls):
-            fk_tform = scene.forwardKinematics(
-                scene.getCurrentJointPositions(), goal.tip_frame
-            )
-            controls.position = fk_tform[:3, 3]
-            controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
+        with tasks_lock:
+            tasks.clear()
+        with scene_lock:
+            q_current = scene.getCurrentJointPositions()
+            for goal, controls in zip(goals, transform_controls):
+                fk_tform = scene.forwardKinematics(q_current, goal.tip_frame)
+                controls.position = fk_tform[:3, 3]
+                controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
 
     random_button = viz.viewer.gui.add_button("Randomize Pose")
 
     @random_button.on_click
     def randomize_position(_):
-        q_rand = scene.randomCollisionFreePositions()
-        scene.setJointPositions(q_rand)
+        with tasks_lock:
+            tasks.clear()
+        with scene_lock:
+            q_rand = scene.randomCollisionFreePositions()
+            scene.setJointPositions(q_rand)
         reset_position(_)
         viz.display(q_rand)
 
-    # Display the arm and marker at the canonical starting position
+    # Display the arm and marker at the starting position
     q_full = q_canonical.copy()
-    scene.setJointPositions(q_full)
+    with scene_lock:
+        scene.setJointPositions(q_full)
     viz.display(q_full)
     reset_position(None)
 
