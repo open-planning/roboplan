@@ -55,7 +55,14 @@ Oink::Oink(int num_variables, const OsqpEigen::Settings& custom_settings)
 tl::expected<void, std::string>
 Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
-              Eigen::VectorXd& delta_q) {
+              Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q) {
+  // Validate delta_q size before proceeding
+  if (delta_q.size() != num_variables) {
+    return tl::make_unexpected("delta_q has wrong size: expected " + std::to_string(num_variables) +
+                               ", got " + std::to_string(delta_q.size()) +
+                               ". delta_q must be pre-allocated to num_variables.");
+  }
+
   // Reset Hessian and Gradient
   H.setIdentity();
   H.diagonal().array() *= kHessianRegularization;
@@ -206,8 +213,8 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     return tl::make_unexpected("QP solver failed to find a solution");
   }
 
-  // Extract the solution and update delta_q
-  delta_q = solver.getSolution();
+  // Extract the solution and copy into delta_q
+  delta_q.noalias() = solver.getSolution();
 
   return {};
 }

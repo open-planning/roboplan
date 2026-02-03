@@ -27,15 +27,9 @@ void init_optimal_ik(nanobind::module_& m) {
 
   // Bind FrameTaskParams configuration struct
   nanobind::class_<FrameTaskParams>(m, "FrameTaskParams", "Parameters for FrameTask.")
-      .def(nanobind::init<>())
-      .def(
-          "__init__",
-          [](FrameTaskParams* self, double position_cost, double orientation_cost, double task_gain,
-             double lm_damping) {
-            new (self) FrameTaskParams{position_cost, orientation_cost, task_gain, lm_damping};
-          },
-          "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
-          "lm_damping"_a = 0.0, "Constructor with custom parameters.")
+      .def(nanobind::init<double, double, double, double>(), "position_cost"_a = 1.0,
+           "orientation_cost"_a = 1.0, "task_gain"_a = 1.0, "lm_damping"_a = 0.0,
+           "Constructor with custom parameters.")
       .def_rw("position_cost", &FrameTaskParams::position_cost, "Position cost weight.")
       .def_rw("orientation_cost", &FrameTaskParams::orientation_cost, "Orientation cost weight.")
       .def_rw("task_gain", &FrameTaskParams::task_gain, "Task gain for low-pass filtering.")
@@ -53,13 +47,7 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind ConfigurationTaskParams configuration struct
   nanobind::class_<ConfigurationTaskParams>(m, "ConfigurationTaskParams",
                                             "Parameters for ConfigurationTask.")
-      .def(nanobind::init<>())
-      .def(
-          "__init__",
-          [](ConfigurationTaskParams* self, double task_gain, double lm_damping) {
-            new (self) ConfigurationTaskParams{task_gain, lm_damping};
-          },
-          "task_gain"_a = 1.0, "lm_damping"_a = 0.0)
+      .def(nanobind::init<double, double>(), "task_gain"_a = 1.0, "lm_damping"_a = 0.0)
       .def_rw("task_gain", &ConfigurationTaskParams::task_gain, "Task gain for low-pass filtering.")
       .def_rw("lm_damping", &ConfigurationTaskParams::lm_damping, "Levenberg-Marquardt damping.");
 
@@ -98,17 +86,28 @@ void init_optimal_ik(nanobind::module_& m) {
           "solveIk",
           [](Oink& self, const std::vector<std::shared_ptr<Task>>& tasks,
              const std::vector<std::shared_ptr<Constraints>>& constraints,
-             const std::shared_ptr<Scene>& scene) -> Eigen::VectorXd {
-            Eigen::VectorXd delta_q;
+             const std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q) {
             auto result = self.solveIk(tasks, constraints, *scene, delta_q);
             if (!result.has_value()) {
               throw std::runtime_error("IK solve failed: " + result.error());
             }
-            return delta_q;
           },
-          "tasks"_a, "constraints"_a, "scene"_a,
-          "Solve inverse kinematics with constraints and return delta_q. Raises RuntimeError on "
-          "failure.");
+          "tasks"_a, "constraints"_a, "scene"_a, "delta_q"_a,
+          "Solve inverse kinematics for given tasks and constraints.\n\n"
+          "Solves a QP optimization problem to compute the joint velocity that minimizes\n"
+          "weighted task errors while satisfying all constraints. The result is written\n"
+          "directly into the provided delta_q buffer.\n\n"
+          "Args:\n"
+          "    tasks: List of weighted tasks to optimize for.\n"
+          "    constraints: List of constraints to satisfy.\n"
+          "    scene: Scene containing robot model and state.\n"
+          "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
+          "             Must be a contiguous float64 array. Modified in-place.\n\n"
+          "Raises:\n"
+          "    RuntimeError: If the QP solver fails to find a solution.\n\n"
+          "Example:\n"
+          "    delta_q = np.zeros(oink.num_variables)\n"
+          "    oink.solveIk(tasks, constraints, scene, delta_q)");
 }
 
 }  // namespace roboplan
