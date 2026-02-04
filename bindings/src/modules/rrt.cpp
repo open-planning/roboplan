@@ -22,7 +22,10 @@ void init_rrt(nanobind::module_& m) {
       .def_ro("parent_id", &Node::parent_id, "The parent node ID.");
 
   nanobind::class_<RRTOptions>(m, "RRTOptions", "Options struct for RRT planner.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<const std::string&, size_t, double, double, double, double, bool>(),
+           "group_name"_a = "", "max_nodes"_a = 1000, "max_connection_distance"_a = 3.0,
+           "collision_check_step_size"_a = 0.05, "goal_biasing_probability"_a = 0.15,
+           "max_planning_time"_a = 0.0, "rrt_connect"_a = false)
       .def_rw("group_name", &RRTOptions::group_name,
               "The joint group name to be used by the planner.")
       .def_rw("max_nodes", &RRTOptions::max_nodes, "The maximum number of nodes to sample.")

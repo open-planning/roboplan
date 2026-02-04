@@ -72,11 +72,12 @@ def main(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     # Set up an IK solver
-    options = SimpleIkOptions()
-    options.group_name = model_data.default_joint_group
-    options.max_iters = max_iters
-    options.step_size = step_size
-    options.check_collisions = check_collisions
+    options = SimpleIkOptions(
+        group_name=model_data.default_joint_group,
+        max_iters=max_iters,
+        step_size=step_size,
+        check_collisions=check_collisions,
+    )
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()
