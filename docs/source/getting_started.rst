@@ -22,13 +22,7 @@ RoboPlan is available via `conda-forge <https://conda-forge.org/>`_ for easy ins
 
 To get started, first `install conda <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_.
 
-The most straightforward way to install RoboPlan is as follows, which adds it to your conda base environment.
-
-::
-
-    conda install roboplan-python
-
-We instead recommend creating your own environment for isolation.
+We recommend creating your own environment for isolation.
 
 ::
 
