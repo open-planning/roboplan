@@ -4,7 +4,7 @@ import roboplan_ext.core
 class SimpleIkOptions:
     """Options struct for simple IK solver."""
 
-    def __init__(self) -> None: ...
+    def __init__(self, group_name: str = '', max_iters: int = 100, max_time: float = 0.01, max_restarts: int = 2, step_size: float = 0.01, damping: float = 0.001, max_error_norm: float = 0.001, check_collisions: bool = True) -> None: ...
 
     @property
     def group_name(self) -> str:
