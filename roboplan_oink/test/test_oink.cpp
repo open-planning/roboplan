@@ -410,8 +410,8 @@ TEST_F(OinkTest, SolveWithConfigurationTask) {
   // Create uniform joint weights
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
 
-  ConfigurationTaskParams params{.task_gain = 1.0, .lm_damping = 0.01};
-  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, params);
+  ConfigurationTaskOptions options{.task_gain = 1.0, .lm_damping = 0.01};
+  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, options);
   std::vector<std::shared_ptr<Task>> tasks = {config_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -437,14 +437,15 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
   // Create a frame task with high weight
   auto target_pose =
       makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  FrameTaskParams frame_params{.lm_damping = 0.01};
-  auto frame_task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_, frame_params);
+  FrameTaskOptions frame_options{.lm_damping = 0.01};
+  auto frame_task =
+      std::make_shared<FrameTask>("tool0", target_pose, num_variables_, frame_options);
 
   // Create a configuration task with lower weight (regularization)
   Eigen::VectorXd target_q = q;  // Keep current configuration
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
-  ConfigurationTaskParams config_params{.lm_damping = 0.0};
-  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, config_params);
+  ConfigurationTaskOptions config_options{.lm_damping = 0.0};
+  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, config_options);
 
   std::vector<std::shared_ptr<Task>> tasks = {frame_task, config_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
@@ -475,8 +476,8 @@ TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
   joint_weights(0) = 1.0;
   joint_weights(1) = 1.0;
 
-  ConfigurationTaskParams params{.lm_damping = 0.01};
-  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, params);
+  ConfigurationTaskOptions options{.lm_damping = 0.01};
+  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, options);
   std::vector<std::shared_ptr<Task>> tasks = {config_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -522,14 +523,14 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
   const Eigen::Vector3d target_position = current_position + Eigen::Vector3d(0.1, 0.0, 0.0);
   auto target_pose = makeCartesianConfig(target_position, Eigen::Quaterniond(current_rotation));
 
-  // Create FrameTask with typical parameters
-  FrameTaskParams frame_params{
+  // Create FrameTask with typical options
+  FrameTaskOptions frame_options{
       .position_cost = 1.0,
       .orientation_cost = 1.0,
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>("tool0", target_pose, ur5_nv, frame_params);
+  auto frame_task = std::make_shared<FrameTask>("tool0", target_pose, ur5_nv, frame_options);
 
   // Create position limit constraint
   auto position_limit = std::make_shared<PositionLimit>(ur5_nv, 1.0);
@@ -768,8 +769,8 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
       makeCartesianConfig(target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
 
   // Use higher damping for stable convergence
-  FrameTaskParams params{.lm_damping = 1.0};
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_, params);
+  FrameTaskOptions options{.lm_damping = 1.0};
+  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -828,8 +829,8 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
 
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
 
-  ConfigurationTaskParams params{.task_gain = 1.0, .lm_damping = 0.01};
-  auto task = std::make_shared<ConfigurationTask>(target_q, joint_weights, params);
+  ConfigurationTaskOptions options{.task_gain = 1.0, .lm_damping = 0.01};
+  auto task = std::make_shared<ConfigurationTask>(target_q, joint_weights, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -880,8 +881,8 @@ TEST_F(OinkTest, SingleStepMovesTowardTarget) {
   auto target_config =
       makeCartesianConfig(target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
 
-  FrameTaskParams params{.lm_damping = 0.1};
-  auto task = std::make_shared<FrameTask>("tool0", target_config, num_variables_, params);
+  FrameTaskOptions options{.lm_damping = 0.1};
+  auto task = std::make_shared<FrameTask>("tool0", target_config, num_variables_, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 

@@ -15,7 +15,7 @@ namespace roboplan {
 constexpr int kSpatialDimension = 6;
 
 /// @brief Optional parameters for FrameTask configuration.
-struct FrameTaskParams {
+struct FrameTaskOptions {
   /// @brief Cost weight for position error (default: 1.0).
   double position_cost = 1.0;
 
@@ -47,11 +47,11 @@ struct FrameTask : public Task {
   /// @param name The name of the frame to track.
   /// @param target_pose The target Cartesian configuration to reach.
   /// @param num_vars Number of robot DOFs (velocity dimension, model.nv).
-  /// @param params Optional task parameters (default: all parameters set to defaults).
+  /// @param options Optional task options (default: all options set to defaults).
   FrameTask(const std::string& name, const CartesianConfiguration& target_pose, int num_vars,
-            const FrameTaskParams& params = {})
-      : Task(createWeightMatrix(params.position_cost, params.orientation_cost), params.task_gain,
-             params.lm_damping),
+            const FrameTaskOptions& options = {})
+      : Task(createWeightMatrix(options.position_cost, options.orientation_cost), options.task_gain,
+             options.lm_damping),
         frame_name(name), target_pose(target_pose) {
     // Pre-allocate storage: 6 rows (SE(3) task) × num_vars columns
     initializeStorage(kSpatialDimension, num_vars);

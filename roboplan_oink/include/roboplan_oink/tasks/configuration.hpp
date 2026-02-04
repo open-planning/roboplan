@@ -8,7 +8,7 @@
 namespace roboplan {
 
 /// @brief ConfigurationTask configuration.
-struct ConfigurationTaskParams {
+struct ConfigurationTaskOptions {
   /// @brief Proportional gain for error feedback (default: 1.0).
   double task_gain = 1.0;
 
@@ -39,11 +39,11 @@ struct ConfigurationTask : public Task {
   ///
   /// @param target_q The target joint configuration.
   /// @param joint_weights Per-joint weights. All weights must be non-negative.
-  /// @param params Optional task parameters.
+  /// @param options Optional task options.
   /// @throws std::invalid_argument if target_q and joint_weights have different sizes
   ///         or if any joint weight is negative.
   ConfigurationTask(const Eigen::VectorXd& target_q, const Eigen::VectorXd& joint_weights,
-                    const ConfigurationTaskParams& params = {});
+                    const ConfigurationTaskOptions& options = {});
 
   /// @brief Computes the configuration space error.
   ///

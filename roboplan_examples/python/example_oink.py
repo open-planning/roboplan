@@ -14,9 +14,9 @@ from roboplan.core import Scene, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
 from roboplan.optimal_ik import (
     ConfigurationTask,
-    ConfigurationTaskParams,
+    ConfigurationTaskOptions,
     FrameTask,
-    FrameTaskParams,
+    FrameTaskOptions,
     Oink,
     PositionLimit,
     VelocityLimit,
@@ -146,14 +146,14 @@ def main(
     if model == "dual":
         joints_per_arm = num_variables // 2  # 9 joints per arm (7 arm + 2 gripper)
         joint_weights[joints_per_arm] = 0.2
-    config_params = ConfigurationTaskParams(task_gain=0.1, lm_damping=0.0)
-    config_task = ConfigurationTask(q_canonical, joint_weights, config_params)
+    config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
+    config_task = ConfigurationTask(q_canonical, joint_weights, config_options)
 
     # Task list for the control loop
     tasks = []
 
     # Task parameters (define before using in callbacks)
-    task_params = FrameTaskParams(
+    task_options = FrameTaskOptions(
         position_cost=2.0,
         orientation_cost=1.0,
         task_gain=task_gain,
@@ -195,7 +195,9 @@ def main(
                 ).homogeneous
 
                 # Create a FrameTask for this goal
-                frame_task = FrameTask(goal.tip_frame, goal, num_variables, task_params)
+                frame_task = FrameTask(
+                    goal.tip_frame, goal, num_variables, task_options
+                )
                 tasks.append(frame_task)
 
     # Attach the callback to all controls

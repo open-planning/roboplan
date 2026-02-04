@@ -135,13 +135,12 @@ struct Oink {
   /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement.
   ///                Must be sized to num_variables (velocity space dimension).
-  ///                The buffer is modified in-place with the solution.
   ///                Using Eigen::Ref allows zero-copy access from Python numpy arrays.
   /// @return void on success, error message on failure
   ///
   /// @note The delta_q parameter must be pre-allocated to the correct size before calling.
   ///       Eigen::Ref cannot be resized, so passing an empty or incorrectly sized vector
-  ///       will result in undefined behavior.
+  ///       will result in a failure.
   ///
   /// Example usage:
   /// @code

@@ -6,8 +6,8 @@ namespace roboplan {
 
 ConfigurationTask::ConfigurationTask(const Eigen::VectorXd& target_q,
                                      const Eigen::VectorXd& joint_weights,
-                                     const ConfigurationTaskParams& params)
-    : Task(createWeightMatrix(joint_weights), params.task_gain, params.lm_damping),
+                                     const ConfigurationTaskOptions& options)
+    : Task(createWeightMatrix(joint_weights), options.task_gain, options.lm_damping),
       target_q(target_q), joint_weights(joint_weights) {
   // Validate joint weights are non-negative
   for (int i = 0; i < joint_weights.size(); ++i) {

@@ -25,38 +25,39 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("lm_damping", &Task::lm_damping, "Levenberg-Marquardt damping.")
       .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.");
 
-  // Bind FrameTaskParams configuration struct
-  nanobind::class_<FrameTaskParams>(m, "FrameTaskParams", "Parameters for FrameTask.")
+  // Bind FrameTaskOptions configuration struct
+  nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
       .def(nanobind::init<double, double, double, double>(), "position_cost"_a = 1.0,
            "orientation_cost"_a = 1.0, "task_gain"_a = 1.0, "lm_damping"_a = 0.0,
            "Constructor with custom parameters.")
-      .def_rw("position_cost", &FrameTaskParams::position_cost, "Position cost weight.")
-      .def_rw("orientation_cost", &FrameTaskParams::orientation_cost, "Orientation cost weight.")
-      .def_rw("task_gain", &FrameTaskParams::task_gain, "Task gain for low-pass filtering.")
-      .def_rw("lm_damping", &FrameTaskParams::lm_damping, "Levenberg-Marquardt damping.");
+      .def_rw("position_cost", &FrameTaskOptions::position_cost, "Position cost weight.")
+      .def_rw("orientation_cost", &FrameTaskOptions::orientation_cost, "Orientation cost weight.")
+      .def_rw("task_gain", &FrameTaskOptions::task_gain, "Task gain for low-pass filtering.")
+      .def_rw("lm_damping", &FrameTaskOptions::lm_damping, "Levenberg-Marquardt damping.");
 
   // Bind FrameTask inheriting from Task
   nanobind::class_<FrameTask, Task>(m, "FrameTask",
                                     "Task to reach a target pose for a specified frame.")
       .def(nanobind::init<const std::string&, const CartesianConfiguration&, int,
-                          const FrameTaskParams&>(),
-           "frame_name"_a, "target_pose"_a, "num_variables"_a, "params"_a = FrameTaskParams{})
+                          const FrameTaskOptions&>(),
+           "frame_name"_a, "target_pose"_a, "num_variables"_a, "options"_a = FrameTaskOptions{})
       .def_rw("frame_name", &FrameTask::frame_name, "Name of the frame to control.")
       .def_rw("target_pose", &FrameTask::target_pose, "Target pose for the frame.");
 
-  // Bind ConfigurationTaskParams configuration struct
-  nanobind::class_<ConfigurationTaskParams>(m, "ConfigurationTaskParams",
-                                            "Parameters for ConfigurationTask.")
+  // Bind ConfigurationTaskOptions configuration struct
+  nanobind::class_<ConfigurationTaskOptions>(m, "ConfigurationTaskOptions",
+                                             "Parameters for ConfigurationTask.")
       .def(nanobind::init<double, double>(), "task_gain"_a = 1.0, "lm_damping"_a = 0.0)
-      .def_rw("task_gain", &ConfigurationTaskParams::task_gain, "Task gain for low-pass filtering.")
-      .def_rw("lm_damping", &ConfigurationTaskParams::lm_damping, "Levenberg-Marquardt damping.");
+      .def_rw("task_gain", &ConfigurationTaskOptions::task_gain,
+              "Task gain for low-pass filtering.")
+      .def_rw("lm_damping", &ConfigurationTaskOptions::lm_damping, "Levenberg-Marquardt damping.");
 
   // Bind ConfigurationTask inheriting from Task
   nanobind::class_<ConfigurationTask, Task>(m, "ConfigurationTask",
                                             "Task to reach a target joint configuration.")
       .def(nanobind::init<const Eigen::VectorXd&, const Eigen::VectorXd&,
-                          const ConfigurationTaskParams&>(),
-           "target_q"_a, "joint_weights"_a, "params"_a = ConfigurationTaskParams{})
+                          const ConfigurationTaskOptions&>(),
+           "target_q"_a, "joint_weights"_a, "options"_a = ConfigurationTaskOptions{})
       .def_rw("target_q", &ConfigurationTask::target_q, "Target joint configuration.")
       .def_rw("joint_weights", &ConfigurationTask::joint_weights,
               "Weights for each joint in the configuration task.");

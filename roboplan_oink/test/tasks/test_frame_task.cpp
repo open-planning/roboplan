@@ -53,14 +53,14 @@ TEST_F(FrameTaskTest, Construction) {
   EXPECT_EQ(task1.gain, 1.0);
   EXPECT_EQ(task1.lm_damping, 0.0);
 
-  // Test construction with custom parameters
-  FrameTaskParams params{
+  // Test construction with custom options
+  FrameTaskOptions options{
       .position_cost = 1.5,
       .orientation_cost = 0.5,
       .task_gain = 0.8,
       .lm_damping = 0.01,
   };
-  FrameTask task2("tool0", target_pose, num_variables_, params);
+  FrameTask task2("tool0", target_pose, num_variables_, options);
   EXPECT_EQ(task2.gain, 0.8);
   EXPECT_EQ(task2.lm_damping, 0.01);
 }
@@ -185,8 +185,8 @@ TEST_F(FrameTaskTest, QpObjectiveComputation) {
   CartesianConfiguration target_pose;
   target_pose.tform = pinocchio::SE3::Identity();
 
-  FrameTaskParams params{.lm_damping = 0.01};
-  FrameTask task("tool0", target_pose, num_variables_, params);
+  FrameTaskOptions options{.lm_damping = 0.01};
+  FrameTask task("tool0", target_pose, num_variables_, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
   Eigen::SparseMatrix<double> H(num_variables_, num_variables_);
@@ -224,12 +224,12 @@ TEST_F(FrameTaskTest, WeightMatrixEffects) {
   target_pose.tform = pinocchio::SE3::Identity();
 
   // Task with high position cost, low orientation cost
-  FrameTaskParams params1{.position_cost = 10.0, .orientation_cost = 0.1};
-  FrameTask task1("tool0", target_pose, num_variables_, params1);
+  FrameTaskOptions options1{.position_cost = 10.0, .orientation_cost = 0.1};
+  FrameTask task1("tool0", target_pose, num_variables_, options1);
 
   // Task with low position cost, high orientation cost
-  FrameTaskParams params2{.position_cost = 0.1, .orientation_cost = 10.0};
-  FrameTask task2("tool0", target_pose, num_variables_, params2);
+  FrameTaskOptions options2{.position_cost = 0.1, .orientation_cost = 10.0};
+  FrameTask task2("tool0", target_pose, num_variables_, options2);
 
   // Weight matrices should be different
   EXPECT_FALSE(task1.weight.isApprox(task2.weight));
@@ -255,11 +255,11 @@ TEST_F(FrameTaskTest, TaskGainParameter) {
   target_pose.tform = pinocchio::SE3::Identity();
 
   // Create tasks with different gains
-  FrameTaskParams params_low{.task_gain = 0.1};
-  FrameTask task_low_gain("tool0", target_pose, num_variables_, params_low);
+  FrameTaskOptions options_low{.task_gain = 0.1};
+  FrameTask task_low_gain("tool0", target_pose, num_variables_, options_low);
 
-  FrameTaskParams params_high{.task_gain = 0.9};
-  FrameTask task_high_gain("tool0", target_pose, num_variables_, params_high);
+  FrameTaskOptions options_high{.task_gain = 0.9};
+  FrameTask task_high_gain("tool0", target_pose, num_variables_, options_high);
 
   EXPECT_LT(task_low_gain.gain, task_high_gain.gain);
 
@@ -323,8 +323,8 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
   Oink oink(num_variables_);
 
   // Use higher damping for stability (same as SingleStepMovesTowardTarget test)
-  FrameTaskParams params{.lm_damping = 0.1};
-  auto task = std::make_shared<FrameTask>("tool0", target_config, num_variables_, params);
+  FrameTaskOptions options{.lm_damping = 0.1};
+  auto task = std::make_shared<FrameTask>("tool0", target_config, num_variables_, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 

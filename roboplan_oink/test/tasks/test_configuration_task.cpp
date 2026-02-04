@@ -55,12 +55,12 @@ TEST_F(ConfigurationTaskTest, Construction) {
   EXPECT_EQ(task1.gain, 1.0);
   EXPECT_EQ(task1.lm_damping, 0.0);
 
-  // Test construction with custom parameters
-  ConfigurationTaskParams params{
+  // Test construction with custom options
+  ConfigurationTaskOptions options{
       .task_gain = 0.8,
       .lm_damping = 0.01,
   };
-  ConfigurationTask task2(target_q, joint_weights, params);
+  ConfigurationTask task2(target_q, joint_weights, options);
   EXPECT_EQ(task2.gain, 0.8);
   EXPECT_EQ(task2.lm_damping, 0.01);
 }
@@ -149,8 +149,8 @@ TEST_F(ConfigurationTaskTest, QpObjectiveComputation) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Zero(nq_);
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTaskParams params{.lm_damping = 0.01};
-  ConfigurationTask task(target_q, joint_weights, params);
+  ConfigurationTaskOptions options{.lm_damping = 0.01};
+  ConfigurationTask task(target_q, joint_weights, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
   Eigen::SparseMatrix<double> H(nv_, nv_);
@@ -262,11 +262,11 @@ TEST_F(ConfigurationTaskTest, TaskGainParameter) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
   // Create tasks with different gains
-  ConfigurationTaskParams params_low{.task_gain = 0.1};
-  ConfigurationTask task_low_gain(target_q, joint_weights, params_low);
+  ConfigurationTaskOptions options_low{.task_gain = 0.1};
+  ConfigurationTask task_low_gain(target_q, joint_weights, options_low);
 
-  ConfigurationTaskParams params_high{.task_gain = 0.9};
-  ConfigurationTask task_high_gain(target_q, joint_weights, params_high);
+  ConfigurationTaskOptions options_high{.task_gain = 0.9};
+  ConfigurationTask task_high_gain(target_q, joint_weights, options_high);
 
   EXPECT_LT(task_low_gain.gain, task_high_gain.gain);
 
@@ -290,8 +290,8 @@ TEST_F(ConfigurationTaskTest, ErrorDirectionMatchesJacobian) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Constant(nq_, 0.5);
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTaskParams params{.task_gain = 1.0, .lm_damping = 0.0};
-  ConfigurationTask task(target_q, joint_weights, params);
+  ConfigurationTaskOptions options{.task_gain = 1.0, .lm_damping = 0.0};
+  ConfigurationTask task(target_q, joint_weights, options);
 
   // Compute error and Jacobian
   auto error_result = task.computeError(*scene_);

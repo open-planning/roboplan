@@ -26,8 +26,8 @@ class Task:
     def num_variables(self) -> int:
         """Number of optimization variables."""
 
-class FrameTaskParams:
-    """Parameters for FrameTask."""
+class FrameTaskOptions:
+    """Options for FrameTask."""
 
     def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0) -> None: ...
 
@@ -62,7 +62,7 @@ class FrameTaskParams:
 class FrameTask(Task):
     """Task to reach a target pose for a specified frame."""
 
-    def __init__(self, frame_name: str, target_pose: roboplan_ext.core.CartesianConfiguration, num_variables: int, params: FrameTaskParams = ...) -> None: ...
+    def __init__(self, frame_name: str, target_pose: roboplan_ext.core.CartesianConfiguration, num_variables: int, options: FrameTaskOptions = ...) -> None: ...
 
     @property
     def frame_name(self) -> str:
@@ -78,8 +78,8 @@ class FrameTask(Task):
     @target_pose.setter
     def target_pose(self, arg: roboplan_ext.core.CartesianConfiguration, /) -> None: ...
 
-class ConfigurationTaskParams:
-    """Parameters for ConfigurationTask."""
+class ConfigurationTaskOptions:
+    """Options for ConfigurationTask."""
 
     def __init__(self, task_gain: float = 1.0, lm_damping: float = 0.0) -> None: ...
 
@@ -100,7 +100,7 @@ class ConfigurationTaskParams:
 class ConfigurationTask(Task):
     """Task to reach a target joint configuration."""
 
-    def __init__(self, target_q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], joint_weights: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], params: ConfigurationTaskParams = ...) -> None: ...
+    def __init__(self, target_q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], joint_weights: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], options: ConfigurationTaskOptions = ...) -> None: ...
 
     @property
     def target_q(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:

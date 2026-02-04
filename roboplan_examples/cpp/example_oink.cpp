@@ -48,22 +48,22 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const int num_variables = model.nv;
 
   // Create a FrameTask (high priority)
-  FrameTaskParams frame_params{
+  FrameTaskOptions frame_options{
       .position_cost = 1.0,
       .orientation_cost = 1.0,
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>("tool0", goal, num_variables, frame_params);
+  auto frame_task = std::make_shared<FrameTask>("tool0", goal, num_variables, frame_options);
 
   // Create a ConfigurationTask to regularize toward start configuration (low priority)
   // Using lower joint_weights (0.1) makes this task less important than the frame task
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Constant(model.nv, 0.1);
-  ConfigurationTaskParams config_params{
+  ConfigurationTaskOptions config_options{
       .task_gain = 1.0,
       .lm_damping = 0.0,
   };
-  auto config_task = std::make_shared<ConfigurationTask>(q_start, joint_weights, config_params);
+  auto config_task = std::make_shared<ConfigurationTask>(q_start, joint_weights, config_options);
 
   // Add tasks to vector (frame task dominates due to higher weights)
   std::vector<std::shared_ptr<Task>> tasks = {frame_task, config_task};
