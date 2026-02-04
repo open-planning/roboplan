@@ -22,7 +22,7 @@ class Node:
 class RRTOptions:
     """Options struct for RRT planner."""
 
-    def __init__(self) -> None: ...
+    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False) -> None: ...
 
     @property
     def group_name(self) -> str:
