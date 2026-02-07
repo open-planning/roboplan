@@ -135,14 +135,25 @@ target_include_directories(roboplan_ext PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 set_property(TARGET roboplan_ext PROPERTY CXX_STANDARD 20)
+
+# Ensures that the library is always called tl_expected::tl_expected regardless
+# of whether it was built from source in roboplan or comes from ROS binaries.
+find_package(tl_expected QUIET)
+if(NOT TARGET tl_expected::tl_expected AND TARGET roboplan::tl_expected)
+    add_library(tl_expected::tl_expected INTERFACE IMPORTED)
+    set_target_properties(tl_expected::tl_expected PROPERTIES
+        INTERFACE_LINK_LIBRARIES roboplan::tl_expected
+    )
+endif()
+
 target_link_libraries(roboplan_ext PRIVATE
-  roboplan::expected
   roboplan::roboplan
   roboplan_example_models::roboplan_example_models
   roboplan_oink::roboplan_oink
   roboplan_rrt::roboplan_rrt
   roboplan_simple_ik::roboplan_simple_ik
   roboplan_toppra::roboplan_toppra
+  tl_expected::tl_expected
 )
 
 if(AMENT_BUILD)

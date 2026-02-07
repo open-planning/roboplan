@@ -16,14 +16,22 @@ find_package(yaml-cpp REQUIRED)
 # issues with symlink installs.
 find_package(ament_cmake QUIET)
 
-# Add libraries
-add_library(expected INTERFACE)
-target_include_directories(expected
-  INTERFACE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+set(TARGETS_LIST roboplan)
 
-# ROS already has a TinyXML2 vendor, so add this only in non-ROS contexts.
+# Add tl_expected from source only if not found.
+find_package(tl_expected QUIET)
+if (NOT tl_expected_FOUND)
+    add_library(tl_expected INTERFACE)
+    target_include_directories(
+        tl_expected
+        INTERFACE
+            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
+    list(APPEND TARGETS_LIST tl_expected)
+endif()
+
+# Add tinyxml2 from source only if not found.
 find_package(tinyxml2_vendor QUIET)
 find_package(TinyXML2 QUIET)
 if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
@@ -31,8 +39,10 @@ if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
         include/tinyxml2/tinyxml2.cpp
         include/tinyxml2/tinyxml2.h)
     add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+    list(APPEND TARGETS_LIST tinyxml2)
 endif()
 
+# Add roboplan libraries.
 add_library(roboplan SHARED
     src/core/path_utils.cpp
     src/core/scene.cpp
@@ -56,12 +66,7 @@ else()
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
-if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
-    set(ROBOPLAN_TARGETS expected tinyxml2 roboplan)
-else()
-    set(ROBOPLAN_TARGETS expected roboplan)
-endif()
-
+set(ROBOPLAN_TARGETS ${TARGETS_LIST})
 install(
   TARGETS
   ${ROBOPLAN_TARGETS}
