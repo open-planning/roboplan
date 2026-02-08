@@ -352,8 +352,16 @@ class Scene:
     def interpolate(self, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], fraction: float) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Interpolates between two joint configurations."""
 
+    def integrate(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], v: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Integrates a velocity vector from a configuration using Lie group operations.
+        """
+
     def forwardKinematics(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
         """Calculates forward kinematics for a specific frame."""
+
+    def computeFrameJacobian(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, local: bool = True) -> Annotated[NDArray[numpy.float64], dict(shape=(None, None), order='F')]:
+        """Computes the frame Jacobian for a specific frame."""
 
     def getFrameId(self, name: str) -> int:
         """Get the Pinocchio model ID of a frame by its name."""

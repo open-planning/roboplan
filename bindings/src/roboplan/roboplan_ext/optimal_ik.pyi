@@ -27,9 +27,10 @@ class Task:
         """Number of optimization variables."""
 
 class FrameTaskOptions:
-    """Options for FrameTask."""
+    """Parameters for FrameTask."""
 
-    def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0) -> None: ...
+    def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0) -> None:
+        """Constructor with custom parameters."""
 
     @property
     def position_cost(self) -> float:
@@ -79,7 +80,7 @@ class FrameTask(Task):
     def target_pose(self, arg: roboplan_ext.core.CartesianConfiguration, /) -> None: ...
 
 class ConfigurationTaskOptions:
-    """Options for ConfigurationTask."""
+    """Parameters for ConfigurationTask."""
 
     def __init__(self, task_gain: float = 1.0, lm_damping: float = 0.0) -> None: ...
 
@@ -151,11 +152,29 @@ class VelocityLimit(Constraints):
     def v_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
 class Oink:
-    """Optimal inverse kinematics solver using quadratic programming."""
+    """Optimal Inverse Kinematics solver."""
 
     def __init__(self, num_variables: int) -> None: ...
 
-    def solveIk(self, tasks: Sequence[Task], constraints: Sequence[Constraints], scene: roboplan_ext.core.Scene) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+    def solveIk(self, tasks: Sequence[Task], constraints: Sequence[Constraints], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))]) -> None:
         """
-        Solve inverse kinematics with constraints and return delta_q. Raises RuntimeError on failure.
+        Solve inverse kinematics for given tasks and constraints.
+
+        Solves a QP optimization problem to compute the joint velocity that minimizes
+        weighted task errors while satisfying all constraints. The result is written
+        directly into the provided delta_q buffer.
+
+        Args:
+            tasks: List of weighted tasks to optimize for.
+            constraints: List of constraints to satisfy.
+            scene: Scene containing robot model and state.
+            delta_q: Pre-allocated numpy array for output (size = num_variables).
+                     Must be a contiguous float64 array. Modified in-place.
+
+        Raises:
+            RuntimeError: If the QP solver fails to find a solution.
+
+        Example:
+            delta_q = np.zeros(oink.num_variables)
+            oink.solveIk(tasks, constraints, scene, delta_q)
         """
