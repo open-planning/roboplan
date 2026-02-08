@@ -44,12 +44,23 @@ public:
   /// @param options A struct containing IK solver options.
   SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& options);
 
-  /// @brief Solves inverse kinematics.
+  /// @brief Solves inverse kinematics (single goal).
+  /// @details This just calls the multiple goal version internally.
   /// @param goal The goal Cartesian configuration.
   /// @param start The starting joint configuration. (should be optional)
   /// @param solution The IK solution, as a joint configuration.
   /// @return Whether the IK solve succeeded.
   bool solveIk(const CartesianConfiguration& goal, const JointConfiguration& start,
+               JointConfiguration& solution) {
+    return solveIk(std::vector<CartesianConfiguration>{goal}, start, solution);
+  }
+
+  /// @brief Solves inverse kinematics (multiple goal).
+  /// @param goals The goal Cartesian configurations.
+  /// @param start The starting joint configuration. (should be optional)
+  /// @param solution The IK solution, as a joint configuration.
+  /// @return Whether the IK solve succeeded.
+  bool solveIk(const std::vector<CartesianConfiguration>& goals, const JointConfiguration& start,
                JointConfiguration& solution);
 
 private:
@@ -64,6 +75,9 @@ private:
 
   /// @brief The joint group info for the IK solver.
   JointGroupInfo joint_group_info_;
+
+  /// @brief The full error vector (for allocating memory once).
+  Eigen::VectorXd error_;
 
   /// @brief The full model Jacobian (for allocating memory once).
   Eigen::MatrixXd full_jacobian_;

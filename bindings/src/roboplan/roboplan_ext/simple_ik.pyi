@@ -1,3 +1,6 @@
+from collections.abc import Sequence
+from typing import overload
+
 import roboplan_ext.core
 
 
@@ -69,5 +72,10 @@ class SimpleIk:
 
     def __init__(self, scene: roboplan_ext.core.Scene, options: SimpleIkOptions) -> None: ...
 
+    @overload
     def solveIk(self, goal: roboplan_ext.core.CartesianConfiguration, start: roboplan_ext.core.JointConfiguration, solution: roboplan_ext.core.JointConfiguration) -> bool:
-        """Solves inverse kinematics."""
+        """Solves inverse kinematics (single goal)."""
+
+    @overload
+    def solveIk(self, goals: Sequence[roboplan_ext.core.CartesianConfiguration], start: roboplan_ext.core.JointConfiguration, solution: roboplan_ext.core.JointConfiguration) -> bool:
+        """Solves inverse kinematics (multiple goal)."""

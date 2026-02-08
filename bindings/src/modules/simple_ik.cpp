@@ -1,6 +1,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
@@ -35,8 +36,14 @@ void init_simple_ik(nanobind::module_& m) {
       m, "SimpleIk", "Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.")
       .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>(), "scene"_a,
            "options"_a)
-      .def("solveIk", &SimpleIk::solveIk, "Solves inverse kinematics.", "goal"_a, "start"_a,
-           "solution"_a);
+      .def("solveIk",
+           (bool (SimpleIk::*)(const CartesianConfiguration&, const JointConfiguration&,
+                               JointConfiguration&))&SimpleIk::solveIk,
+           "Solves inverse kinematics (single goal).", "goal"_a, "start"_a, "solution"_a)
+      .def("solveIk",
+           (bool (SimpleIk::*)(const std::vector<CartesianConfiguration>&,
+                               const JointConfiguration&, JointConfiguration&))&SimpleIk::solveIk,
+           "Solves inverse kinematics (multiple goal).", "goals"_a, "start"_a, "solution"_a);
 }
 
 }  // namespace roboplan
