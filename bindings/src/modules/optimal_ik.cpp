@@ -28,8 +28,7 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind FrameTaskOptions configuration struct
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
       .def(nanobind::init<double, double, double, double>(), "position_cost"_a = 1.0,
-           "orientation_cost"_a = 1.0, "task_gain"_a = 1.0, "lm_damping"_a = 0.0,
-           "Constructor with custom parameters.")
+           "orientation_cost"_a = 1.0, "task_gain"_a = 1.0, "lm_damping"_a = 0.0)
       .def_rw("position_cost", &FrameTaskOptions::position_cost, "Position cost weight.")
       .def_rw("orientation_cost", &FrameTaskOptions::orientation_cost, "Orientation cost weight.")
       .def_rw("task_gain", &FrameTaskOptions::task_gain, "Task gain for low-pass filtering.")
