@@ -35,7 +35,18 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   solution = start;
   auto q = scene_->toFullJointPositions(options_.group_name, start.positions);
 
-  const auto n_dims = 6 * goals.size();
+  // Pre-compute the frame IDs and resize relevant matrices.
+  const auto n_frames = goals.size();
+  std::vector<pinocchio::FrameIndex> frame_ids;
+  frame_ids.reserve(n_frames);
+  for (const auto& goal : goals) {
+    const auto frame_id_result = scene_->getFrameId(goal.tip_frame);
+    if (!frame_id_result) {
+      throw std::runtime_error("Failed to get frame ID: " + frame_id_result.error());
+    }
+    frame_ids.push_back(frame_id_result.value());
+  }
+  const auto n_dims = 6 * n_frames;
   error_.resize(n_dims, 1);
   jacobian_.resize(n_dims, v_indices.size());
   jjt_.resize(n_dims, n_dims);
@@ -55,15 +66,10 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       pinocchio::forwardKinematics(model, data_, q);
 
       // Loop through all the frames and accumulate errors and Jacobians.
-      for (size_t idx = 0; idx < goals.size(); ++idx) {
+      for (size_t idx = 0; idx < n_frames; ++idx) {
         const auto& goal = goals.at(idx);
         const auto goal_tform = pinocchio::SE3(goal.tform);
-
-        const auto frame_id_result = scene_->getFrameId(goal.tip_frame);
-        if (!frame_id_result) {
-          throw std::runtime_error("Failed to get frame ID: " + frame_id_result.error());
-        }
-        auto frame_id = frame_id_result.value();
+        const auto& frame_id = frame_ids.at(idx);
 
         pinocchio::updateFramePlacement(model, data_, frame_id);
 
@@ -80,7 +86,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       // Finalize solution if the error is below threshold.
       // Note the error norm is accumulated per target frame (batch of 6).
       double error_norm = 0.0;
-      for (size_t idx = 0; idx < goals.size(); ++idx) {
+      for (size_t idx = 0; idx < n_frames; ++idx) {
         error_norm += error_.segment(idx * 6, 6).norm();
       }
       if (error_norm <= options_.max_error_norm) {
