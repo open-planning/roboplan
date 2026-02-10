@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_rrt VERSION 0.0.0)
+project(roboplan_rrt VERSION 0.1.0)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -22,11 +22,8 @@ target_include_directories(roboplan_rrt PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(roboplan_rrt
-    roboplan::expected
-    roboplan::roboplan
-)
 set_property(TARGET roboplan_rrt PROPERTY CXX_STANDARD 20)
+target_link_libraries(roboplan_rrt roboplan::roboplan)
 
 install(
   TARGETS

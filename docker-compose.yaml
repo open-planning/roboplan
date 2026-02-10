@@ -35,6 +35,9 @@ services:
     volumes:
       # Mount the source code.
       - ./:/roboplan_ws/:rw
+      # Preserve build artifacts from the image with anonymous volumes.
+      - /roboplan_ws/build
+      - /roboplan_ws/install
       # Allows graphical programs in the container.
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority

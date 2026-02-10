@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>roboplan_toppra</name>
-  <version>0.0.0</version>
+  <version>0.1.0</version>
   <description>Time Optimal Path Parameterization based on Reachability Analysis (TOPP-RA) wrapper for RoboPlan.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>

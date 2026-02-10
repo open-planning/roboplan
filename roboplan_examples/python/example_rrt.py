@@ -7,14 +7,18 @@ import xacro
 
 import matplotlib.pyplot as plt
 import pinocchio as pin
+from pinocchio.visualize import ViserVisualizer
 
 from common import MODELS
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 from roboplan.toppra import PathParameterizerTOPPRA
-from roboplan.viser_visualizer import ViserVisualizer
-from roboplan.visualization import visualizePath, visualizeTree
+from roboplan.visualization import (
+    visualizePath,
+    visualizeJointTrajectory,
+    visualizeTree,
+)
 
 
 def main(
@@ -35,7 +39,7 @@ def main(
     Run the RRT example with the provided parameters.
 
     Parameters:
-        model: The name of the model to user (ur5 or franka).
+        model: The name of the model to use.
         max_connection_distance: Maximum connection distance between two search nodes.
         collision_check_step_size: Configuration-space step size for collision checking along edges.
         goal_biasing_probability: Weighting of the goal node during random sampling.
@@ -93,14 +97,15 @@ def main(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     # Set up an RRT and perform path planning.
-    options = RRTOptions()
-    options.group_name = model_data.default_joint_group
-    options.max_connection_distance = max_connection_distance
-    options.collision_check_step_size = collision_check_step_size
-    options.goal_biasing_probability = goal_biasing_probability
-    options.max_nodes = max_nodes
-    options.max_planning_time = max_planning_time
-    options.rrt_connect = rrt_connect
+    options = RRTOptions(
+        group_name=model_data.default_joint_group,
+        max_nodes=max_nodes,
+        max_connection_distance=max_connection_distance,
+        collision_check_step_size=collision_check_step_size,
+        goal_biasing_probability=goal_biasing_probability,
+        max_planning_time=max_planning_time,
+        rrt_connect=rrt_connect,
+    )
     rrt = RRT(scene, options)
 
     if rng_seed:
@@ -159,17 +164,7 @@ def main(
     else:
         visualizePath(viz, scene, traj, model_data.ee_names, 0.05)
 
-    # TODO: Make this a reusable function
-    plt.ion()
-    plt.plot(traj.times, traj.positions)
-    plt.xlabel("Time")
-    plt.ylabel("Joint positions")
-    plt.title("Time-parameterized trajectory")
-    dof_names = []
-    for name in group_info.joint_names:
-        for idx in range(scene.getJointInfo(name).num_position_dofs):
-            dof_names.append(f"{name}:{idx}")
-    plt.legend(dof_names)
+    visualizeJointTrajectory(traj, scene)
     plt.show()
 
     # Animate the trajectory

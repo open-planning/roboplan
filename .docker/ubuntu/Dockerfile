@@ -2,7 +2,7 @@ ARG UBUNTU_VERSION=24.04
 
 FROM ubuntu:${UBUNTU_VERSION} AS roboplan_ubuntu
 
-ARG PINOCCHIO_VERSION=3.8.0
+ARG PINOCCHIO_VERSION=3.9.0
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 SHELL ["/bin/bash", "-c"]
 
@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt update -y \
     && apt upgrade -y \
     && apt install -y \
-        cmake libeigen3-dev libgmock-dev liburdfdom-dev libyaml-cpp-dev python3-pip
+        cmake git libeigen3-dev libgmock-dev liburdfdom-dev libyaml-cpp-dev python3-pip
 RUN pip3 install nanobind pytest scikit-build-core
 
 # Install pinocchio with pip as it supports additional CPU architectures.

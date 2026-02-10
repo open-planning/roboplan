@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_toppra VERSION 0.0.0)
+project(roboplan_toppra VERSION 0.1.0)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -23,12 +23,11 @@ target_include_directories(roboplan_toppra PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+set_property(TARGET roboplan_toppra PROPERTY CXX_STANDARD 20)
 target_link_libraries(roboplan_toppra
-    roboplan::expected
     roboplan::roboplan
     toppra::toppra
 )
-set_property(TARGET roboplan_toppra PROPERTY CXX_STANDARD 20)
 
 install(
   TARGETS

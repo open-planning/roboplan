@@ -125,7 +125,12 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
       }
 
       // Check for any continuous degrees of freedom.
-      const auto joint_type = kPinocchioJointTypeMap.at(joint.shortname());
+      auto it = kPinocchioJointTypeMap.find(joint.shortname());
+      if (it == kPinocchioJointTypeMap.end()) {
+        throw std::runtime_error("Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
+      }
+      const auto joint_type = it->second;
+
       if (joint_type == JointType::CONTINUOUS || joint_type == JointType::PLANAR) {
         num_joints_with_continuous_dofs += 1;
       }
@@ -157,7 +162,12 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
   size_t default_group_num_continuous_dofs = 0;
   for (size_t jid = 1; jid < static_cast<size_t>(model.njoints); ++jid) {
     const auto& joint = model.joints.at(jid);
-    const auto joint_type = kPinocchioJointTypeMap.at(joint.shortname());
+    auto it = kPinocchioJointTypeMap.find(joint.shortname());
+    if (it == kPinocchioJointTypeMap.end()) {
+      throw std::runtime_error("Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
+    }
+    const auto joint_type = it->second;
+
     if (joint_type == JointType::CONTINUOUS || joint_type == JointType::PLANAR) {
       default_group_has_continuous_dofs = true;
       default_group_num_continuous_dofs += 1;

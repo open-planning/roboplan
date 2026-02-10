@@ -7,12 +7,12 @@ import xacro
 
 import numpy as np
 import pinocchio as pin
+from pinocchio.visualize import ViserVisualizer
 
 from common import MODELS
 from roboplan.core import Scene, JointConfiguration, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
 from roboplan.simple_ik import SimpleIkOptions, SimpleIk
-from roboplan.viser_visualizer import ViserVisualizer
 
 
 def main(
@@ -28,7 +28,7 @@ def main(
 
 
     Parameters:
-        model: The name of the model to user (ur5, franka, or dual).
+        model: The name of the model to use.
         max_iters: Maximum number of iterations for the IK solver.
         step_size: Integration step size for the IK solver.
         check_collisions: Whether to check for collisions when solving IK.
@@ -72,11 +72,12 @@ def main(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     # Set up an IK solver
-    options = SimpleIkOptions()
-    options.group_name = model_data.default_joint_group
-    options.max_iters = max_iters
-    options.step_size = step_size
-    options.check_collisions = check_collisions
+    options = SimpleIkOptions(
+        group_name=model_data.default_joint_group,
+        max_iters=max_iters,
+        step_size=step_size,
+        check_collisions=check_collisions,
+    )
     ik_solver = SimpleIk(scene, options)
 
     start = JointConfiguration()

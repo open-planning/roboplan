@@ -59,6 +59,10 @@ public:
   /// @return The Pinocchio model.
   const pinocchio::Model& getModel() const { return model_; };
 
+  /// @brief Gets the scene's internal Pinocchio data (read-only).
+  /// @return The Pinocchio data.
+  const pinocchio::Data& getData() const { return model_data_; };
+
   /// @brief Gets the scene's full joint names, including mimic joints.
   /// @return A vector of joint names.
   const std::vector<std::string>& getJointNames() const { return joint_names_; };
@@ -127,6 +131,15 @@ public:
   /// @param frame_name The name of the frame for which to perform forward kinematics.
   /// @return The 4x4 matrix denoting the transform of the specified frame.
   Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) const;
+
+  /// @brief Computes the frame Jacobian for a specific frame.
+  /// @param q The joint configuration.
+  /// @param frame_id The Pinocchio frame ID.
+  /// @param reference_frame The reference frame for the Jacobian (LOCAL or WORLD).
+  /// @param jacobian Output matrix to store the Jacobian (must be pre-allocated to 6 x nv).
+  void computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,
+                            pinocchio::ReferenceFrame reference_frame,
+                            Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
   /// @brief Get the Pinocchio model ID of a frame by its name.
   /// @param name The name of the frame to look up.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_example_models VERSION 0.0.0)
+project(roboplan_example_models VERSION 0.1.0)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -14,7 +14,10 @@ endif()
 find_package(ament_cmake QUIET)
 
 # Build and install the library containing the resource paths.
-add_library(roboplan_example_models SHARED src/resources.cpp)
+add_library(roboplan_example_models SHARED
+    src/resources.cpp
+    src/anchor.cpp
+)
 target_include_directories(roboplan_example_models PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -76,7 +79,7 @@ install(TARGETS roboplan_example_models
 install(
   DIRECTORY
   models
-  DESTINATION share/roboplan_example_models
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/share/roboplan_example_models
 )
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.

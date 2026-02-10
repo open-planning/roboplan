@@ -2,6 +2,7 @@
 
 #include <modules/core.hpp>
 #include <modules/example_models.hpp>
+#include <modules/optimal_ik.hpp>
 #include <modules/rrt.hpp>
 #include <modules/simple_ik.hpp>
 #include <modules/toppra.hpp>
@@ -11,6 +12,8 @@ namespace roboplan {
 using namespace nanobind::literals;
 
 NB_MODULE(roboplan_ext, m) {
+  /// Define package version from a preprocessor definition.
+  m.attr("__version__") = ROBOPLAN_VERSION;
 
   /// Core module
   nanobind::module_ m_core = m.def_submodule("core", "Core roboplan module");
@@ -31,6 +34,10 @@ NB_MODULE(roboplan_ext, m) {
   /// Simple IK module
   nanobind::module_ m_simple_ik = m.def_submodule("simple_ik", "Simple IK solver module");
   init_simple_ik(m_simple_ik);
+
+  /// Optimal IK module
+  nanobind::module_ m_optimal_ik = m.def_submodule("optimal_ik", "Optimal IK solver module");
+  init_optimal_ik(m_optimal_ik);
 
   /// TOPP-RA module
   nanobind::module_ m_toppra = m.def_submodule("toppra", "TOPP-RA module");

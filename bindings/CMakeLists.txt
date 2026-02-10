@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(roboplan_bindings LANGUAGES CXX)
+project(roboplan_bindings LANGUAGES CXX VERSION 0.1.0)
+
+add_compile_definitions(ROBOPLAN_VERSION="${PROJECT_VERSION}")
 
 # Determine if we are compiling with ament or scikit
 find_package(ament_cmake QUIET)
@@ -56,15 +58,52 @@ endif()
 
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
+find_package(roboplan_oink REQUIRED)
 find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
 find_package(roboplan_toppra REQUIRED)
+
+# Interface library for the utility functions
+add_library(roboplan_bindings_utils INTERFACE)
+target_include_directories(roboplan_bindings_utils INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+install(DIRECTORY include/utils
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.hpp"
+)
+install(TARGETS roboplan_bindings_utils
+  EXPORT roboplan_bindings_utilsTargets
+)
+if(AMENT_BUILD)
+  ament_export_targets(roboplan_bindings_utilsTargets HAS_LIBRARY_TARGET)
+  ament_export_dependencies()
+else()
+  include(CMakePackageConfigHelpers)
+
+  install(EXPORT roboplan_bindings_utilsTargets
+    FILE roboplan_bindings_utilsTargets.cmake
+    NAMESPACE roboplan_bindings::
+    DESTINATION lib/cmake/roboplan_bindings_utils
+  )
+  configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/roboplan_bindings_utilsConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/roboplan_bindings_utilsConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/roboplan_bindings_utils
+  )
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/roboplan_bindings_utilsConfig.cmake"
+    DESTINATION lib/cmake/roboplan_bindings_utils
+  )
+endif()
 
 # Roboplan binding sources
 set(ROBOPLAN_EXT_SOURCES
   src/roboplan_ext.cpp
   src/modules/core.cpp
   src/modules/example_models.cpp
+  src/modules/optimal_ik.cpp
   src/modules/rrt.cpp
   src/modules/simple_ik.cpp
   src/modules/toppra.cpp
@@ -92,17 +131,29 @@ nanobind_add_stub(
 
 # Configure the extension module
 target_include_directories(roboplan_ext PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 set_property(TARGET roboplan_ext PROPERTY CXX_STANDARD 20)
+
+# Ensures that the library is always called tl_expected::tl_expected regardless
+# of whether it was built from source in roboplan or comes from ROS binaries.
+find_package(tl_expected QUIET)
+if(NOT TARGET tl_expected::tl_expected AND TARGET roboplan::tl_expected)
+    add_library(tl_expected::tl_expected INTERFACE IMPORTED)
+    set_target_properties(tl_expected::tl_expected PROPERTIES
+        INTERFACE_LINK_LIBRARIES roboplan::tl_expected
+    )
+endif()
+
 target_link_libraries(roboplan_ext PRIVATE
-  roboplan::expected
   roboplan::roboplan
   roboplan_example_models::roboplan_example_models
+  roboplan_oink::roboplan_oink
   roboplan_rrt::roboplan_rrt
   roboplan_simple_ik::roboplan_simple_ik
   roboplan_toppra::roboplan_toppra
+  tl_expected::tl_expected
 )
 
 if(AMENT_BUILD)

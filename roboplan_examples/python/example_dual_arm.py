@@ -9,7 +9,7 @@ from roboplan.example_models import get_package_share_dir
 
 if __name__ == "__main__":
 
-    model = "franka"
+    model = "dual"
     model_data = MODELS[model]
 
     urdf = xacro.process_file(model_data.urdf_path).toxml()

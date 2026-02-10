@@ -13,20 +13,30 @@ using namespace nanobind::literals;
 
 void init_simple_ik(nanobind::module_& m) {
 
-  nanobind::class_<SimpleIkOptions>(m, "SimpleIkOptions")
-      .def(nanobind::init<>())  // Default constructor
-      .def_rw("group_name", &SimpleIkOptions::group_name)
-      .def_rw("max_iters", &SimpleIkOptions::max_iters)
-      .def_rw("max_time", &SimpleIkOptions::max_time)
-      .def_rw("max_restarts", &SimpleIkOptions::max_restarts)
-      .def_rw("step_size", &SimpleIkOptions::step_size)
-      .def_rw("damping", &SimpleIkOptions::damping)
-      .def_rw("max_error_norm", &SimpleIkOptions::max_error_norm)
-      .def_rw("check_collisions", &SimpleIkOptions::check_collisions);
+  nanobind::class_<SimpleIkOptions>(m, "SimpleIkOptions", "Options struct for simple IK solver.")
+      .def(nanobind::init<const std::string&, size_t, double, size_t, double, double, double,
+                          bool>(),
+           "group_name"_a = "", "max_iters"_a = 100, "max_time"_a = 0.01, "max_restarts"_a = 2,
+           "step_size"_a = 0.01, "damping"_a = 0.001, "max_error_norm"_a = 0.001,
+           "check_collisions"_a = true)
+      .def_rw("group_name", &SimpleIkOptions::group_name,
+              "The joint group name to be used by the solver.")
+      .def_rw("max_iters", &SimpleIkOptions::max_iters, "Max iterations for one try of the solver.")
+      .def_rw("max_time", &SimpleIkOptions::max_time, "Max total computation time, in seconds.")
+      .def_rw("max_restarts", &SimpleIkOptions::max_restarts,
+              "Maximum number of restarts until success.")
+      .def_rw("step_size", &SimpleIkOptions::step_size, "The integration step for the solver.")
+      .def_rw("damping", &SimpleIkOptions::damping, "Damping value for the Jacobian pseudoinverse.")
+      .def_rw("max_error_norm", &SimpleIkOptions::max_error_norm, "The maximum error norm.")
+      .def_rw("check_collisions", &SimpleIkOptions::check_collisions,
+              "Whether to check collisions.");
 
-  nanobind::class_<SimpleIk>(m, "SimpleIk")
-      .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>())
-      .def("solveIk", &SimpleIk::solveIk);
+  nanobind::class_<SimpleIk>(
+      m, "SimpleIk", "Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.")
+      .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>(), "scene"_a,
+           "options"_a)
+      .def("solveIk", &SimpleIk::solveIk, "Solves inverse kinematics.", "goal"_a, "start"_a,
+           "solution"_a);
 }
 
 }  // namespace roboplan

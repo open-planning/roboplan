@@ -7,6 +7,7 @@ namespace roboplan {
 // NOTE: These are temporary structs to represent specific geometry objects.
 // When Pinocchio and Coal release nanobind bindings, these can be replaced with the built-in types.
 
+/// @brief Temporary wrapper struct to represent a box geometry.
 struct Box {
   /// @brief Construct a Box object wrapper
   /// @param x The X dimension of the box.
@@ -18,6 +19,7 @@ struct Box {
   std::shared_ptr<hpp::fcl::Box> geom_ptr;
 };
 
+/// @brief Temporary wrapper struct to represent a sphere geometry.
 struct Sphere {
   /// @brief Construct a Sphere object wrapper
   /// @param radius The radius of the sphere.

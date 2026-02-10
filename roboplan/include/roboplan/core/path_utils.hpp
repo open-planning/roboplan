@@ -55,13 +55,13 @@ public:
   /// error.
   tl::expected<Eigen::VectorXd, std::string> getPathLengths(const JointPath& path);
 
-  /// @brief Helper function to compute length-normalized scaling values along a JointPath.
+  /// @brief Computes length-normalized scaling values along a JointPath.
   /// @param path The path to length-normalize.
   /// @return A vector of scaling values between 0.0 and 1.0 at each point in the path if available,
   /// otherwise an error.
   tl::expected<Eigen::VectorXd, std::string> getNormalizedPathScaling(const JointPath& path);
 
-  /// @brief Helper function to get joint configurations from a path with normalized joint scalings.
+  /// @brief Gets joint configurations from a path with normalized joint scalings.
   /// @param path A JointPath of joint poses.
   /// @param path_scalings The corresponding path scalings (between 0 and 1) to the provided path.
   /// @param value A value between 0.0 and 1.0 pointing to the intermediate point along the path.

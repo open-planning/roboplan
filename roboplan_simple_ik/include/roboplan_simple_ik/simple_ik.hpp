@@ -8,6 +8,7 @@
 
 namespace roboplan {
 
+/// @brief Options struct for simple IK solver.
 struct SimpleIkOptions {
   /// @brief The joint group name to be used by the solver.
   std::string group_name = "";
@@ -35,6 +36,7 @@ struct SimpleIkOptions {
   bool check_collisions = true;
 };
 
+/// @brief Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.
 class SimpleIk {
 public:
   /// @brief Constructor.

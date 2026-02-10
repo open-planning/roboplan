@@ -18,6 +18,7 @@ namespace roboplan {
 using CombinedStateSpace = dynotree::Combined<double>;
 using KdTree = dynotree::KDTree<int, -1, 32, double, CombinedStateSpace>;
 
+/// @brief Options struct for RRT planner.
 struct RRTOptions {
   /// @brief The joint group name to be used by the planner.
   std::string group_name = "";
@@ -43,6 +44,7 @@ struct RRTOptions {
   bool rrt_connect = false;
 };
 
+/// @brief Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.
 class RRT {
 public:
   /// @brief Constructor.
@@ -96,7 +98,7 @@ public:
   /// @return A JointPath between end_node and nodes[0].
   JointPath getPath(const std::vector<Node>& nodes, const Node& end_node);
 
-  /// @brief Returns the start and goal node vectors, for visualization purposes.
+  /// @brief Returns the start and goal trees' node vectors, for visualization purposes.
   std::pair<std::vector<Node>, std::vector<Node>> getNodes() { return {start_nodes_, goal_nodes_}; }
 
 private:

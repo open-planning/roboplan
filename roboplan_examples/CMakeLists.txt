@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_examples VERSION 0.0.0)
+project(roboplan_examples VERSION 0.1.0)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -9,6 +9,7 @@ endif()
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
+find_package(roboplan_oink REQUIRED)
 find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_toppra REQUIRED)
 
