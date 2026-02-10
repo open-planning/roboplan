@@ -22,11 +22,8 @@ target_include_directories(roboplan_rrt PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(roboplan_rrt
-    roboplan::expected
-    roboplan::roboplan
-)
 set_property(TARGET roboplan_rrt PROPERTY CXX_STANDARD 20)
+target_link_libraries(roboplan_rrt roboplan::roboplan)
 
 install(
   TARGETS
