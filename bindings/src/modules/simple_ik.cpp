@@ -37,12 +37,13 @@ void init_simple_ik(nanobind::module_& m) {
       .def(nanobind::init<const std::shared_ptr<Scene>, const SimpleIkOptions&>(), "scene"_a,
            "options"_a)
       .def("solveIk",
-           (bool (SimpleIk::*)(const CartesianConfiguration&, const JointConfiguration&,
-                               JointConfiguration&))&SimpleIk::solveIk,
+           nanobind::overload_cast<const CartesianConfiguration&, const JointConfiguration&,
+                                   JointConfiguration&>(&SimpleIk::solveIk),
            "Solves inverse kinematics (single goal).", "goal"_a, "start"_a, "solution"_a)
       .def("solveIk",
-           (bool (SimpleIk::*)(const std::vector<CartesianConfiguration>&,
-                               const JointConfiguration&, JointConfiguration&))&SimpleIk::solveIk,
+           nanobind::overload_cast<const std::vector<CartesianConfiguration>&,
+                                   const JointConfiguration&, JointConfiguration&>(
+               &SimpleIk::solveIk),
            "Solves inverse kinematics (multiple goal).", "goals"_a, "start"_a, "solution"_a);
 }
 
