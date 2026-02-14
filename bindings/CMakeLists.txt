@@ -177,10 +177,10 @@ if(AMENT_BUILD)
 
   ament_package()
 else()
-  install(TARGETS roboplan_ext LIBRARY DESTINATION roboplan)
+  install(TARGETS roboplan_ext LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/roboplan")
   install(
     DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-    DESTINATION roboplan
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/roboplan"
   )
 endif()
 
