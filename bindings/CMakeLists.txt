@@ -4,6 +4,9 @@ project(roboplan_bindings LANGUAGES CXX VERSION 0.1.0)
 
 add_compile_definitions(ROBOPLAN_VERSION="${PROJECT_VERSION}")
 
+# Compilation options
+option(GENERATE_PYTHON_STUBS "Generate the Python stubs associated to the Python library" ON)
+
 # Determine if we are compiling with ament or scikit
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)
@@ -117,15 +120,17 @@ nanobind_add_module(
 )
 
 # Generate Python stub files from the bindings.
-nanobind_add_stub(
-  roboplan_ext_stub
-  MODULE roboplan_ext
-  RECURSIVE
-  OUTPUT roboplan_ext.pyi
-  MARKER_FILE py.typed
-  PYTHON_PATH $<TARGET_FILE_DIR:roboplan_ext>
-  DEPENDS roboplan_ext
-)
+if(GENERATE_PYTHON_STUBS)
+  nanobind_add_stub(
+    roboplan_ext_stub
+    MODULE roboplan_ext
+    RECURSIVE
+    OUTPUT roboplan_ext.pyi
+    MARKER_FILE py.typed
+    PYTHON_PATH $<TARGET_FILE_DIR:roboplan_ext>
+    DEPENDS roboplan_ext
+  )
+endif()
 
 # Configure the extension module
 target_include_directories(roboplan_ext PUBLIC
