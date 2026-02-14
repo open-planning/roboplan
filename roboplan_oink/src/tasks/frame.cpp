@@ -26,7 +26,7 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   if (!frame_id.has_value()) {
     const auto maybe_frame_id = scene.getFrameId(frame_name);
     if (!maybe_frame_id) {
-      throw std::runtime_error("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
+      return tl::make_unexpected("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
     }
     frame_id = maybe_frame_id.value();
   }
@@ -58,7 +58,7 @@ tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
   if (!frame_id.has_value()) {
     const auto maybe_frame_id = scene.getFrameId(frame_name);
     if (!maybe_frame_id) {
-      throw std::runtime_error("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
+      return tl::make_unexpected("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
     }
     frame_id = maybe_frame_id.value();
   }
