@@ -146,6 +146,7 @@ target_link_libraries(roboplan_ext PRIVATE
   roboplan_simple_ik::roboplan_simple_ik
   roboplan_toppra::roboplan_toppra
 )
+set_target_properties(roboplan_ext PROPERTIES PREFIX "")
 
 if(AMENT_BUILD)
   ament_get_python_install_dir(PYTHON_INSTALL_DIR)
@@ -177,10 +178,10 @@ if(AMENT_BUILD)
 
   ament_package()
 else()
-  install(TARGETS roboplan_ext LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/roboplan")
+  install(TARGETS roboplan_ext LIBRARY DESTINATION roboplan)
   install(
     DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/roboplan"
+    DESTINATION roboplan
   )
 endif()
 
