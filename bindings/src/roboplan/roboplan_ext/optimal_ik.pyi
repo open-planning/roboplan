@@ -62,21 +62,22 @@ class FrameTaskOptions:
 class FrameTask(Task):
     """Task to reach a target pose for a specified frame."""
 
-    def __init__(self, frame_name: str, target_pose: roboplan_ext.core.CartesianConfiguration, num_variables: int, options: FrameTaskOptions = ...) -> None: ...
+    def __init__(self, target_pose: roboplan_ext.core.CartesianConfiguration, num_variables: int, options: FrameTaskOptions = ...) -> None: ...
 
     @property
     def frame_name(self) -> str:
         """Name of the frame to control."""
 
-    @frame_name.setter
-    def frame_name(self, arg: str, /) -> None: ...
+    @property
+    def frame_id(self) -> "std::optional<unsigned long>":
+        """Index of the frame in the scene's Pinocchio model."""
 
     @property
     def target_pose(self) -> roboplan_ext.core.CartesianConfiguration:
         """Target pose for the frame."""
 
-    @target_pose.setter
-    def target_pose(self, arg: roboplan_ext.core.CartesianConfiguration, /) -> None: ...
+    def setTargetFrameTransform(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], /) -> None:
+        """Sets the target transform for this frame task."""
 
 class ConfigurationTaskOptions:
     """Parameters for ConfigurationTask."""

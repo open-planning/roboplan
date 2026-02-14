@@ -17,9 +17,11 @@ namespace {
 constexpr double kTolerance = 1e-3;
 
 // Helper to create CartesianConfiguration from position and orientation
-roboplan::CartesianConfiguration makeCartesianConfig(const Eigen::Vector3d& position,
+roboplan::CartesianConfiguration makeCartesianConfig(const std::string& tip_frame,
+                                                     const Eigen::Vector3d& position,
                                                      const Eigen::Quaterniond& orientation) {
   roboplan::CartesianConfiguration config;
+  config.tip_frame = tip_frame;
   Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
   tform.block<3, 3>(0, 0) = orientation.toRotationMatrix();
   tform.block<3, 1>(0, 3) = position;
@@ -73,8 +75,8 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
 
   // Create a simple frame task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -126,9 +128,9 @@ TEST_F(OinkTest, SolveWithNoConstraints) {
 
   // Create a simple frame task (move end effector to target)
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
 
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -157,8 +159,8 @@ TEST_F(OinkTest, SolveWithVelocityConstraints) {
 
   // Create a frame task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
@@ -190,8 +192,8 @@ TEST_F(OinkTest, SolveWithPositionConstraints) {
 
   // Create a task that would push toward the limit
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.8, 0.0, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.8, 0.0, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {pos_constraint};
 
@@ -231,8 +233,8 @@ TEST_F(OinkTest, SolveWithMultipleConstraints) {
 
   // Create a frame task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.4, 0.1, 0.6), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.4, 0.1, 0.6), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint, pos_constraint};
 
@@ -263,8 +265,8 @@ TEST_F(OinkTest, WorkspaceCaching) {
 
   // Create task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
@@ -324,8 +326,8 @@ TEST_F(OinkTest, DynamicConstraintCount) {
 
   // Create task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
 
   // First solve with one constraint
@@ -375,8 +377,8 @@ TEST_F(OinkTest, EigenRefSafety) {
 
   // Create task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
@@ -436,10 +438,9 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
 
   // Create a frame task with high weight
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
   FrameTaskOptions frame_options{.lm_damping = 0.01};
-  auto frame_task =
-      std::make_shared<FrameTask>("tool0", target_pose, num_variables_, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(target_pose, num_variables_, frame_options);
 
   // Create a configuration task with lower weight (regularization)
   Eigen::VectorXd target_q = q;  // Keep current configuration
@@ -521,7 +522,8 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
 
   // Target is offset from current position (10cm in X direction)
   const Eigen::Vector3d target_position = current_position + Eigen::Vector3d(0.1, 0.0, 0.0);
-  auto target_pose = makeCartesianConfig(target_position, Eigen::Quaterniond(current_rotation));
+  auto target_pose =
+      makeCartesianConfig("tool0", target_position, Eigen::Quaterniond(current_rotation));
 
   // Create FrameTask with typical options
   FrameTaskOptions frame_options{
@@ -530,7 +532,7 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>("tool0", target_pose, ur5_nv, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(target_pose, ur5_nv, frame_options);
 
   // Create position limit constraint
   auto position_limit = std::make_shared<PositionLimit>(ur5_nv, 1.0);
@@ -571,10 +573,10 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
 // Test that FrameTask allocates correct dimensions at construction
 TEST_F(OinkTest, FrameTaskStorageAllocation) {
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
 
   // Create FrameTask with known num_variables
-  FrameTask task("tool0", target_pose, num_variables_);
+  FrameTask task(target_pose, num_variables_);
 
   // Verify pre-allocated storage dimensions
   EXPECT_EQ(task.jacobian_container.rows(), 6) << "FrameTask Jacobian should have 6 rows (SE(3))";
@@ -610,8 +612,8 @@ TEST_F(OinkTest, TaskStorageReuse) {
 
   // Create task
   auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_);
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -699,10 +701,10 @@ TEST_P(MultiRobotOinkTest, SolveWithMultipleConstraintsAndTasks) {
   auto pos_constraint = std::make_shared<PositionLimit>(num_variables_, 0.7);
 
   // Create a frame task
-  auto target_pose =
-      makeCartesianConfig(Eigen::Vector3d(0.35, 0.15, 0.55), Eigen::Quaterniond::Identity());
+  auto target_pose = makeCartesianConfig(end_effector_frame_, Eigen::Vector3d(0.35, 0.15, 0.55),
+                                         Eigen::Quaterniond::Identity());
 
-  auto task = std::make_shared<FrameTask>(end_effector_frame_, target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint, pos_constraint};
 
@@ -766,11 +768,11 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
   // Create a small target offset (5cm in x) for more stable convergence
   Eigen::Vector3d target_pos = initial_pos + Eigen::Vector3d(0.05, 0.0, 0.0);
   auto target_pose =
-      makeCartesianConfig(target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
+      makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
 
   // Use higher damping for stable convergence
   FrameTaskOptions options{.lm_damping = 1.0};
-  auto task = std::make_shared<FrameTask>("tool0", target_pose, num_variables_, options);
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -879,10 +881,10 @@ TEST_F(OinkTest, SingleStepMovesTowardTarget) {
   // Create target 10cm away
   Eigen::Vector3d target_pos = initial_pos + Eigen::Vector3d(0.1, 0.0, 0.0);
   auto target_config =
-      makeCartesianConfig(target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
+      makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
 
   FrameTaskOptions options{.lm_damping = 0.1};
-  auto task = std::make_shared<FrameTask>("tool0", target_config, num_variables_, options);
+  auto task = std::make_shared<FrameTask>(target_config, num_variables_, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 

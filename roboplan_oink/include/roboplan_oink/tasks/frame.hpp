@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <Eigen/Dense>
@@ -37,25 +38,12 @@ struct FrameTaskOptions {
 /// The task owns pre-allocated storage for its 6×nv Jacobian and 6D error vector,
 /// allocated at construction time to avoid runtime allocations during IK solving.
 struct FrameTask : public Task {
-  /// @brief Name of the frame to track (e.g., end-effector link name).
-  std::string frame_name;
-
-  /// @brief Target Cartesian configuration to reach.
-  CartesianConfiguration target_pose;
-
   /// @brief Constructs a FrameTask for tracking a target pose.
-  /// @param name The name of the frame to track.
   /// @param target_pose The target Cartesian configuration to reach.
   /// @param num_vars Number of robot DOFs (velocity dimension, model.nv).
   /// @param options Optional task options (default: all options set to defaults).
-  FrameTask(const std::string& name, const CartesianConfiguration& target_pose, int num_vars,
-            const FrameTaskOptions& options = {})
-      : Task(createWeightMatrix(options.position_cost, options.orientation_cost), options.task_gain,
-             options.lm_damping),
-        frame_name(name), target_pose(target_pose) {
-    // Pre-allocate storage: 6 rows (SE(3) task) × num_vars columns
-    initializeStorage(kSpatialDimension, num_vars);
-  }
+  FrameTask(const CartesianConfiguration& target_pose, int num_vars,
+            const FrameTaskOptions& options = {});
 
   /// @brief Computes the SE(3) error between target and current frame pose.
   ///
@@ -73,10 +61,10 @@ struct FrameTask : public Task {
   /// The task Jacobian J(q) ∈ ℝ^(6 × n_v) is the derivative of the task
   /// error e(q) ∈ ℝ^6 with respect to the configuration q. The formula is:
   ///
-  ///     J(q) = -Jlog_6(T_target_to_frame) * J_frame(q)
+  ///     J(q) = -Jlog_6(T_frame_to_target) * J_frame(q)
   ///
   /// Where:
-  /// - T_target_to_frame: Transform from target to current frame
+  /// - T_frame_to_target: Transform from current frame to target
   /// - J_frame(q): Frame Jacobian (expressed in frame coordinates)
   /// - Jlog_6: Pinocchio's logarithmic Jacobian
   ///
@@ -96,7 +84,20 @@ struct FrameTask : public Task {
   /// @return A 6×6 diagonal weight matrix.
   static Eigen::MatrixXd createWeightMatrix(double position_cost, double orientation_cost);
 
-  // Pre-allocated logarithmic Jacobian (mutable for use in const computeJacobian)
+  /// @brief Sets the target transform for this frame task.
+  /// @param tform The target transform.
+  void setTargetFrameTransform(const Eigen::Matrix4d& tform) { target_pose.tform = tform; }
+
+  /// @brief Name of the frame to track (e.g., end-effector link name).
+  std::string frame_name;
+
+  /// @brief Index of the frame in the scene's Pinocchio model.
+  std::optional<pinocchio::Index> frame_id;
+
+  /// @brief Target Cartesian configuration to reach.
+  CartesianConfiguration target_pose;
+
+  /// @brief Pre-allocated logarithmic Jacobian (mutable for use in const computeJacobian)
   mutable Eigen::Matrix<double, 6, 6> Jlog = Eigen::Matrix<double, 6, 6>::Identity();
 };
 
