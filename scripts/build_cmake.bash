@@ -45,6 +45,12 @@ cmake roboplan_rrt/CMakeLists.txt \
 cmake --build build/roboplan_rrt
 cmake --install build/roboplan_rrt
 
+cmake roboplan_oink/CMakeLists.txt \
+  -Bbuild/roboplan_oink \
+  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_oink
+cmake --build build/roboplan_oink
+cmake --install build/roboplan_oink
+
 cmake external/toppra/cpp/CMakeLists.txt \
   -Bbuild/toppra \
   -DCMAKE_INSTALL_PREFIX=${PWD}/install/toppra \

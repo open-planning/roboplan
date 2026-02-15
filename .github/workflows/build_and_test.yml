@@ -24,7 +24,7 @@ concurrency:
 jobs:
 
   ubuntu_build_and_test:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -64,7 +64,7 @@ jobs:
 
   # Build ROS docker images and run tests.
   ros_build_and_test:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -103,7 +103,7 @@ jobs:
             /bin/bash -c './src/roboplan/scripts/run_tests.bash'
 
   pixi_build_and_test:
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
     strategy:

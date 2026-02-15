@@ -97,14 +97,15 @@ def main(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     # Set up an RRT and perform path planning.
-    options = RRTOptions()
-    options.group_name = model_data.default_joint_group
-    options.max_connection_distance = max_connection_distance
-    options.collision_check_step_size = collision_check_step_size
-    options.goal_biasing_probability = goal_biasing_probability
-    options.max_nodes = max_nodes
-    options.max_planning_time = max_planning_time
-    options.rrt_connect = rrt_connect
+    options = RRTOptions(
+        group_name=model_data.default_joint_group,
+        max_nodes=max_nodes,
+        max_connection_distance=max_connection_distance,
+        collision_check_step_size=collision_check_step_size,
+        goal_biasing_probability=goal_biasing_probability,
+        max_planning_time=max_planning_time,
+        rrt_connect=rrt_connect,
+    )
     rrt = RRT(scene, options)
 
     if rng_seed:

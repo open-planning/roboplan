@@ -22,6 +22,8 @@ int main(int /*argc*/, char* /*argv*/[]) {
   SimpleIkOptions options;
   options.group_name = "arm";
   options.step_size = 0.25;
+  options.max_linear_error_norm = 0.001;
+  options.max_angular_error_norm = 0.001;
   options.check_collisions = true;
   auto ik_solver = SimpleIk(scene, options);
 

@@ -23,12 +23,11 @@ target_include_directories(roboplan_toppra PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+set_property(TARGET roboplan_toppra PROPERTY CXX_STANDARD 20)
 target_link_libraries(roboplan_toppra
-    roboplan::expected
     roboplan::roboplan
     toppra::toppra
 )
-set_property(TARGET roboplan_toppra PROPERTY CXX_STANDARD 20)
 
 install(
   TARGETS

@@ -2,6 +2,7 @@
 
 #include <tl/expected.hpp>
 
+#include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/collision/broadphase.hpp>
 #include <pinocchio/parsers/srdf.hpp>
 #include <pinocchio/parsers/urdf.hpp>
@@ -337,6 +338,12 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
   pinocchio::forwardKinematics(model_, model_data_, q);
   pinocchio::updateFramePlacement(model_, model_data_, frame_id);
   return model_data_.oMf.at(frame_id);
+}
+
+void Scene::computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,
+                                 pinocchio::ReferenceFrame reference_frame,
+                                 Eigen::Ref<Eigen::MatrixXd> jacobian) const {
+  pinocchio::computeFrameJacobian(model_, model_data_, q, frame_id, reference_frame, jacobian);
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {

@@ -104,7 +104,7 @@ MODELS = {
         default_joint_group="arm",
         ee_names=["tool0"],
         base_link="base",
-        starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        starting_joint_config=[0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0],
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -138,7 +138,17 @@ MODELS = {
         default_joint_group="fr3_arm",
         ee_names=["fr3_hand"],
         base_link="fr3_link0",
-        starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        starting_joint_config=[
+            0.0,
+            -np.pi / 4,
+            0.0,
+            -3 * np.pi / 4,
+            0.0,
+            np.pi / 2,
+            np.pi / 4,
+            0.04,
+            0.04,
+        ],
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -174,7 +184,28 @@ MODELS = {
         default_joint_group="dual_fr3_arm",
         ee_names=["left_fr3_hand", "right_fr3_hand"],
         base_link="left_fr3_link0",
-        starting_joint_config=[0.0] * 18,
+        starting_joint_config=[
+            # Left arm
+            0.0,
+            -np.pi / 4,
+            0.0,
+            -3 * np.pi / 4,
+            0.0,
+            np.pi / 2,
+            np.pi / 4,
+            0.04,
+            0.04,
+            # Right arm
+            0.0,
+            -np.pi / 4,
+            0.0,
+            -3 * np.pi / 4,
+            0.0,
+            np.pi / 2,
+            np.pi / 4,
+            0.04,
+            0.04,
+        ],
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -203,6 +234,7 @@ MODELS = {
         ee_names=["robotiq_85_base_link"],
         base_link="base_link",
         starting_joint_config=[
+            # Default pose (17 values for nq=17 with quaternion joints)
             1.0,
             0.0,
             0.0,
@@ -256,7 +288,7 @@ MODELS = {
         default_joint_group="arm",
         ee_names=["gripper_link"],
         base_link="base_link",
-        starting_joint_config=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        starting_joint_config=[0.0, -np.pi / 4, 0.0, -np.pi / 2, 0.0, np.pi / 4],
         obstacles=[
             ObstacleConfig(
                 name="test_box",

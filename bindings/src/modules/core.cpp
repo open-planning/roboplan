@@ -182,8 +182,31 @@ void init_core_scene(nanobind::module_& m) {
            "Converts partial joint positions to full joint positions.", "group_name"_a, "q"_a)
       .def("interpolate", &Scene::interpolate, "Interpolates between two joint configurations.",
            "q_start"_a, "q_end"_a, "fraction"_a)
+      .def(
+          "integrate",
+          [](const Scene& self, const Eigen::VectorXd& q, const Eigen::VectorXd& v)
+              -> Eigen::VectorXd { return pinocchio::integrate(self.getModel(), q, v); },
+          "Integrates a velocity vector from a configuration using Lie group operations.", "q"_a,
+          "v"_a)
       .def("forwardKinematics", &Scene::forwardKinematics,
            "Calculates forward kinematics for a specific frame.", "q"_a, "frame_name"_a)
+      .def(
+          "computeFrameJacobian",
+          [](const Scene& self, const Eigen::VectorXd& q, const std::string& frame_name,
+             bool local) -> Eigen::MatrixXd {
+            const auto maybe_frame_id = self.getFrameId(frame_name);
+            if (!maybe_frame_id) {
+              throw std::runtime_error("Frame '" + frame_name +
+                                       "' not found: " + maybe_frame_id.error());
+            }
+            const auto reference_frame =
+                local ? pinocchio::ReferenceFrame::LOCAL : pinocchio::ReferenceFrame::WORLD;
+            Eigen::MatrixXd jacobian = Eigen::MatrixXd::Zero(6, self.getModel().nv);
+            self.computeFrameJacobian(q, maybe_frame_id.value(), reference_frame, jacobian);
+            return jacobian;
+          },
+          "Computes the frame Jacobian for a specific frame.", "q"_a, "frame_name"_a,
+          "local"_a = true)
       .def("getFrameId", unwrap_expected(&Scene::getFrameId),
            "Get the Pinocchio model ID of a frame by its name.", "name"_a)
       .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo),

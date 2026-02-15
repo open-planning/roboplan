@@ -9,6 +9,7 @@ endif()
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 find_package(roboplan_simple_ik REQUIRED)
+find_package(roboplan_oink REQUIRED)
 find_package(roboplan_rrt REQUIRED)
 find_package(roboplan_toppra REQUIRED)
 
