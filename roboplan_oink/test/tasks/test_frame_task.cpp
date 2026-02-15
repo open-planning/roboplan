@@ -45,10 +45,11 @@ protected:
 // Test frame task construction
 TEST_F(FrameTaskTest, Construction) {
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
   // Test default construction
-  FrameTask task1("tool0", target_pose, num_variables_);
+  FrameTask task1(target_pose, num_variables_);
   EXPECT_EQ(task1.frame_name, "tool0");
   EXPECT_EQ(task1.gain, 1.0);
   EXPECT_EQ(task1.lm_damping, 0.0);
@@ -60,7 +61,7 @@ TEST_F(FrameTaskTest, Construction) {
       .task_gain = 0.8,
       .lm_damping = 0.01,
   };
-  FrameTask task2("tool0", target_pose, num_variables_, options);
+  FrameTask task2(target_pose, num_variables_, options);
   EXPECT_EQ(task2.gain, 0.8);
   EXPECT_EQ(task2.lm_damping, 0.01);
 }
@@ -73,9 +74,10 @@ TEST_F(FrameTaskTest, ErrorAtIdentity) {
 
   // Create task with current pose as target (zero error expected)
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "tool0";
   target_pose.tform = current_tform;
 
-  FrameTask task("tool0", target_pose, num_variables_);
+  FrameTask task(target_pose, num_variables_);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -100,9 +102,10 @@ TEST_F(FrameTaskTest, ErrorWithTranslation) {
   target_pose.translation() += translation_offset;
 
   CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
   target_config.tform = target_pose;
 
-  FrameTask task("tool0", target_config, num_variables_);
+  FrameTask task(target_config, num_variables_);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -132,9 +135,10 @@ TEST_F(FrameTaskTest, ErrorWithRotation) {
   target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
 
   CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
   target_config.tform = target_pose;
 
-  FrameTask task("tool0", target_config, num_variables_);
+  FrameTask task(target_config, num_variables_);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -154,9 +158,10 @@ TEST_F(FrameTaskTest, ErrorWithRotation) {
 // Test Jacobian computation dimensions
 TEST_F(FrameTaskTest, JacobianDimensions) {
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
-  FrameTask task("tool0", target_pose, num_variables_);
+  FrameTask task(target_pose, num_variables_);
 
   auto result = task.computeJacobian(*scene_);
 
@@ -168,9 +173,10 @@ TEST_F(FrameTaskTest, JacobianDimensions) {
 // Test Jacobian is not zero
 TEST_F(FrameTaskTest, JacobianNonZero) {
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
-  FrameTask task("tool0", target_pose, num_variables_);
+  FrameTask task(target_pose, num_variables_);
 
   auto result = task.computeJacobian(*scene_);
 
@@ -183,10 +189,11 @@ TEST_F(FrameTaskTest, JacobianNonZero) {
 // Test QP objective computation
 TEST_F(FrameTaskTest, QpObjectiveComputation) {
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
   FrameTaskOptions options{.lm_damping = 0.01};
-  FrameTask task("tool0", target_pose, num_variables_, options);
+  FrameTask task(target_pose, num_variables_, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
   Eigen::SparseMatrix<double> H(num_variables_, num_variables_);
@@ -208,9 +215,10 @@ TEST_F(FrameTaskTest, QpObjectiveComputation) {
 // Test invalid frame name
 TEST_F(FrameTaskTest, InvalidFrameName) {
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "nonexistent_frame";
   target_pose.tform = pinocchio::SE3::Identity();
 
-  FrameTask task("nonexistent_frame", target_pose, num_variables_);
+  FrameTask task(target_pose, num_variables_);
 
   auto result = task.computeError(*scene_);
 
@@ -225,11 +233,11 @@ TEST_F(FrameTaskTest, WeightMatrixEffects) {
 
   // Task with high position cost, low orientation cost
   FrameTaskOptions options1{.position_cost = 10.0, .orientation_cost = 0.1};
-  FrameTask task1("tool0", target_pose, num_variables_, options1);
+  FrameTask task1(target_pose, num_variables_, options1);
 
   // Task with low position cost, high orientation cost
   FrameTaskOptions options2{.position_cost = 0.1, .orientation_cost = 10.0};
-  FrameTask task2("tool0", target_pose, num_variables_, options2);
+  FrameTask task2(target_pose, num_variables_, options2);
 
   // Weight matrices should be different
   EXPECT_FALSE(task1.weight.isApprox(task2.weight));
@@ -252,14 +260,15 @@ TEST_F(FrameTaskTest, WeightMatrixEffects) {
 // Test task gain parameter
 TEST_F(FrameTaskTest, TaskGainParameter) {
   CartesianConfiguration target_pose;
+  target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
   // Create tasks with different gains
   FrameTaskOptions options_low{.task_gain = 0.1};
-  FrameTask task_low_gain("tool0", target_pose, num_variables_, options_low);
+  FrameTask task_low_gain(target_pose, num_variables_, options_low);
 
   FrameTaskOptions options_high{.task_gain = 0.9};
-  FrameTask task_high_gain("tool0", target_pose, num_variables_, options_high);
+  FrameTask task_high_gain(target_pose, num_variables_, options_high);
 
   EXPECT_LT(task_low_gain.gain, task_high_gain.gain);
 
@@ -285,9 +294,10 @@ TEST_F(FrameTaskTest, ErrorPointsTowardTarget) {
   target_pose.translation() += current_pose.rotation() * offset;
 
   CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
   target_config.tform = target_pose;
 
-  FrameTask task("tool0", target_config, num_variables_);
+  FrameTask task(target_config, num_variables_);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -315,6 +325,7 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
   Eigen::Vector3d target_pos = current_pos + Eigen::Vector3d(0.1, 0.0, 0.0);
 
   CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
   target_config.tform = Eigen::Matrix4d::Identity();
   target_config.tform.block<3, 1>(0, 3) = target_pos;
   target_config.tform.block<3, 3>(0, 0) = current_pose_mat.block<3, 3>(0, 0);
@@ -324,7 +335,7 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
 
   // Use higher damping for stability (same as SingleStepMovesTowardTarget test)
   FrameTaskOptions options{.lm_damping = 0.1};
-  auto task = std::make_shared<FrameTask>("tool0", target_config, num_variables_, options);
+  auto task = std::make_shared<FrameTask>(target_config, num_variables_, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 

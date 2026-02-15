@@ -54,7 +54,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>("tool0", goal, num_variables, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(goal, num_variables, frame_options);
 
   // Create a ConfigurationTask to regularize toward start configuration (low priority)
   // Using lower joint_weights (0.1) makes this task less important than the frame task

@@ -37,11 +37,14 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind FrameTask inheriting from Task
   nanobind::class_<FrameTask, Task>(m, "FrameTask",
                                     "Task to reach a target pose for a specified frame.")
-      .def(nanobind::init<const std::string&, const CartesianConfiguration&, int,
-                          const FrameTaskOptions&>(),
-           "frame_name"_a, "target_pose"_a, "num_variables"_a, "options"_a = FrameTaskOptions{})
-      .def_rw("frame_name", &FrameTask::frame_name, "Name of the frame to control.")
-      .def_rw("target_pose", &FrameTask::target_pose, "Target pose for the frame.");
+      .def(nanobind::init<const CartesianConfiguration&, int, const FrameTaskOptions&>(),
+           "target_pose"_a, "num_variables"_a, "options"_a = FrameTaskOptions{})
+      .def_ro("frame_name", &FrameTask::frame_name, "Name of the frame to control.")
+      .def_ro("frame_id", &FrameTask::frame_id,
+              "Index of the frame in the scene's Pinocchio model.")
+      .def_ro("target_pose", &FrameTask::target_pose, "Target pose for the frame.")
+      .def("setTargetFrameTransform", &FrameTask::setTargetFrameTransform,
+           "Sets the target transform for this frame task.");
 
   // Bind ConfigurationTaskOptions configuration struct
   nanobind::class_<ConfigurationTaskOptions>(m, "ConfigurationTaskOptions",
