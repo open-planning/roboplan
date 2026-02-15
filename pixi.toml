@@ -221,7 +221,7 @@ xacro             = ">=2.1.1,<3"
 
 # Dependencies for examples
 tyro              = ">=0.9.26,<0.10"
-viser             = ">=1.0.1,<2"
+viser             = ">=1.0.21,<2"
 zstandard         = ">=0.25.0,<0.26"
 
 # We use pip as a workaround for pixi building the bindings before we build the core packages

@@ -5,6 +5,8 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -338,7 +340,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom-4.0.1-hae71d53_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom_headers-1.1.2-h84d6215_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.5.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.21-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.24.0-h3e06ad9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wayland-protocols-1.45-hd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/websockets-15.0.1-py311h9ecbd09_0.conda
@@ -704,7 +706,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/urdfdom-4.0.1-hdac3a21_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/urdfdom_headers-1.1.2-h17cf362_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.5.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.21-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wayland-1.24.0-h698ed42_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/websockets-15.0.1-py311ha879c10_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.45.1-pyhd8ed1ab_1.conda
@@ -749,6 +751,8 @@ environments:
   lint:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -9286,9 +9290,9 @@ packages:
   license_family: MIT
   size: 4133755
   timestamp: 1746781585998
-- conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.1-pyhd8ed1ab_0.conda
-  sha256: 14c171bca2c7af13b3c9ed3d65ed098297a4d0a3e5a53ed0707f937c5765aaf4
-  md5: e39c2e1369c22fa120609f0912599274
+- conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.21-pyhd8ed1ab_1.conda
+  sha256: 9c4c3d0077ccd3a4400e5eb6b32466c4b0d930349c7823ef7665094b36eb7914
+  md5: 8934538d460c12e146732f4f7af580d1
   depends:
   - imageio >=2.0.0,<3.0.0
   - msgspec >=0.18.6,<1.0.0
@@ -9296,7 +9300,7 @@ packages:
   - numpy >=1.0.0,<3.0.0
   - psutil >=5.9.5,<8.0.0
   - py-opencv >=4.0.0.21,<5.0.0
-  - python >=3.9
+  - python >=3.10
   - requests >=2.0.0,<3.0.0
   - rich >=13.3.3,<15.0.0
   - scikit-image >=0.18.0,<1.0.0
@@ -9306,11 +9310,13 @@ packages:
   - tyro >=0.2.0,<1.0.0
   - websockets >=13.1,<16.0.0
   - yourdfpy >=0.0.53,<1.0.0
+  - zstandard >=0.20.0,<1.0.0
   license: Apache-2.0
+  license_family: APACHE
   purls:
   - pkg:pypi/viser?source=hash-mapping
-  size: 21143664
-  timestamp: 1754003160438
+  size: 4502280
+  timestamp: 1770169990760
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.24.0-h3e06ad9_0.conda
   sha256: ba673427dcd480cfa9bbc262fd04a9b1ad2ed59a159bd8f7e750d4c52282f34c
   md5: 0f2ca7906bf166247d1d760c3422cb8a
