@@ -3,11 +3,6 @@
 
 namespace roboplan {
 
-namespace {
-// Small regularization value added to Hessian diagonal for numerical stability
-constexpr double kHessianRegularization = 1e-12;
-}  // namespace
-
 tl::expected<void, std::string>
 Task::computeQpObjective(const Scene& scene, Eigen::SparseMatrix<double>& H, Eigen::VectorXd& c) {
   // Compute Jacobian and error into internal containers
@@ -55,7 +50,8 @@ Oink::Oink(int num_variables, const OsqpEigen::Settings& custom_settings)
 tl::expected<void, std::string>
 Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
-              Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q) {
+              Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+              double regularization) {
   // Validate delta_q size before proceeding
   if (delta_q.size() != num_variables) {
     return tl::make_unexpected("delta_q has wrong size: expected " + std::to_string(num_variables) +
@@ -64,8 +60,9 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
   }
 
   // Reset Hessian and Gradient
+  // Initialize with Tikhonov regularization for numerical stability
   H.setIdentity();
-  H.diagonal().array() *= kHessianRegularization;
+  H.diagonal().array() *= regularization;
   c.setZero();
 
   // Calculate accumulated Hessian and Gradient
