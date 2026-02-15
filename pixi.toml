@@ -3,7 +3,7 @@ authors   = ["Sebastian Castro <sebas.a.castro@gmail.com>", "JafarAbdi <jafar.ur
 channels  = ["conda-forge"]
 name      = "roboplan"
 platforms = ["linux-64", "linux-aarch64"]
-version   = "0.1.0"
+version   = "0.2.0"
 
 [activation.env]
 CMAKE_INSTALL_MODE   = "SYMLINK"

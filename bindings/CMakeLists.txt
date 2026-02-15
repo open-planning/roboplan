@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(roboplan_bindings LANGUAGES CXX VERSION 0.1.0)
+project(roboplan_bindings LANGUAGES CXX VERSION 0.2.0)
 
 add_compile_definitions(ROBOPLAN_VERSION="${PROJECT_VERSION}")
 
