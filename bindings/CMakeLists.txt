@@ -147,7 +147,6 @@ target_link_libraries(roboplan_ext PRIVATE
   roboplan_toppra::roboplan_toppra
   tl_expected::tl_expected
 )
-set_target_properties(roboplan_ext PROPERTIES PREFIX "")
 
 if(AMENT_BUILD)
   ament_get_python_install_dir(PYTHON_INSTALL_DIR)
