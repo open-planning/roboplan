@@ -190,17 +190,15 @@ if(GENERATE_PYTHON_STUBS)
     DEPENDS roboplan_ext
   )
 
-  if(AMENT_BUILD)
-    install(
-      DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-      DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
-    )
+  if(PYTHON_INSTALL_DIR)
+      set(PYTHON_STUB_INSTALL_DIR "${PYTHON_INSTALL_DIR}/roboplan")
   else()
-    install(
-      DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-      DESTINATION roboplan
-    )
+      set(PYTHON_STUB_INSTALL_DIR "roboplan")
   endif()
+  install(
+    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
+    DESTINATION "${PYTHON_STUB_INSTALL_DIR}"
+  )
 
   # Copy the stub files to the source folder for docs and versioning.
   # For now, this step has to be run manually when submitting changes.
