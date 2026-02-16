@@ -198,14 +198,10 @@ if(GENERATE_PYTHON_STUBS)
   install(
     DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
     DESTINATION "${PYTHON_STUB_INSTALL_DIR}"
-  )
-
-  # Copy the stub files to the source folder for docs and versioning.
-  # For now, this step has to be run manually when submitting changes.
-  # It might be good to make a CI action that generates this and finds mismatches,
-  # prompting the user to regenerate it on their own.
-  install(
-    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext"
+    # Copy the stub files to the source folder for docs and versioning.
+    # For now, this step has to be run manually when submitting changes.
+    # It might be good to make a CI action that generates this and finds mismatches,
+    # prompting the user to regenerate it on their own.
     DESTINATION "${CMAKE_SOURCE_DIR}/src/roboplan"
   )
 endif()
