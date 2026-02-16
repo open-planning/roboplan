@@ -154,10 +154,6 @@ if(AMENT_BUILD)
   install(TARGETS roboplan_ext
     LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
   )
-  install(
-    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-    DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
-  )
   ament_python_install_package(roboplan
     PACKAGE_DIR src/roboplan
   )
@@ -193,10 +189,19 @@ if(GENERATE_PYTHON_STUBS)
     PYTHON_PATH $<TARGET_FILE_DIR:roboplan_ext>
     DEPENDS roboplan_ext
   )
-  install(
-    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-    DESTINATION roboplan
-  )
+
+  if(AMENT_BUILD)
+    install(
+      DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
+      DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
+    )
+  else()
+    install(
+      DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
+      DESTINATION roboplan
+    )
+  endif()
+
   # Copy the stub files to the source folder for docs and versioning.
   # For now, this step has to be run manually when submitting changes.
   # It might be good to make a CI action that generates this and finds mismatches,
