@@ -908,6 +908,40 @@ TEST_F(OinkTest, SingleStepMovesTowardTarget) {
       << "This indicates a sign error in the error/Jacobian computation.";
 }
 
+// Test that higher regularization reduces solution magnitude (more regularization)
+TEST_F(OinkTest, HigherRegularizationReducesSolutionMagnitude) {
+  Oink oink(num_variables_);
+
+  // Set initial configuration
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  scene_->setJointPositions(q);
+
+  // Create a frame task with a distant target to ensure significant motion is requested
+  auto target_pose =
+      makeCartesianConfig("tool0", Eigen::Vector3d(0.5, 0.3, 0.7), Eigen::Quaterniond::Identity());
+  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  std::vector<std::shared_ptr<Task>> tasks = {task};
+  std::vector<std::shared_ptr<Constraints>> constraints;
+
+  // Solve with low regularization
+  Eigen::VectorXd delta_q_low_regularization(num_variables_);
+  auto result_low = oink.solveIk(tasks, constraints, *scene_, delta_q_low_regularization, 1e-12);
+  ASSERT_TRUE(result_low.has_value()) << "Low regularization solve failed: " << result_low.error();
+
+  // Solve with high regularization
+  Eigen::VectorXd delta_q_high_regularization(num_variables_);
+  auto result_high = oink.solveIk(tasks, constraints, *scene_, delta_q_high_regularization, 1.0);
+  ASSERT_TRUE(result_high.has_value())
+      << "High regularization solve failed: " << result_high.error();
+
+  // Higher regularization should produce smaller joint displacements due to regularization
+  // The regularization term penalizes ||delta_q||^2, so more regularization = smaller delta_q
+  EXPECT_LT(delta_q_high_regularization.norm(), delta_q_low_regularization.norm())
+      << "High regularization should produce smaller delta_q. "
+      << "Low regularization norm: " << delta_q_low_regularization.norm()
+      << ", High regularization norm: " << delta_q_high_regularization.norm();
+}
+
 }  // namespace roboplan
 
 int main(int argc, char** argv) {

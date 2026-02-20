@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(roboplan_bindings LANGUAGES CXX VERSION 0.1.0)
+project(roboplan_bindings LANGUAGES CXX VERSION 0.2.0)
 
 add_compile_definitions(ROBOPLAN_VERSION="${PROJECT_VERSION}")
+
+# Compilation options
+option(GENERATE_PYTHON_STUBS "Generate the Python stubs associated to the Python library" ON)
 
 # Determine if we are compiling with ament or scikit
 find_package(ament_cmake QUIET)
@@ -42,13 +45,11 @@ endif()
 if(AMENT_BUILD)
   find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
   find_package(ament_cmake_python REQUIRED)
-  include(FetchContent)
-  FetchContent_Declare(
-    nanobind
-    GIT_REPOSITORY https://github.com/wjakob/nanobind.git
-    GIT_TAG v2.9.2
-  )
-  FetchContent_MakeAvailable(nanobind)
+  # Detect the installed nanobind package and import it into CMake
+  execute_process(
+    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+  find_package(nanobind CONFIG REQUIRED)
 else()
   find_package(Python
     REQUIRED COMPONENTS Interpreter Development.Module
@@ -118,17 +119,6 @@ nanobind_add_module(
   ${ROBOPLAN_EXT_SOURCES}
 )
 
-# Generate Python stub files from the bindings.
-nanobind_add_stub(
-  roboplan_ext_stub
-  MODULE roboplan_ext
-  RECURSIVE
-  OUTPUT roboplan_ext.pyi
-  MARKER_FILE py.typed
-  PYTHON_PATH $<TARGET_FILE_DIR:roboplan_ext>
-  DEPENDS roboplan_ext
-)
-
 # Configure the extension module
 target_include_directories(roboplan_ext PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -161,10 +151,6 @@ if(AMENT_BUILD)
   install(TARGETS roboplan_ext
     LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
   )
-  install(
-    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-    DESTINATION "${PYTHON_INSTALL_DIR}/roboplan"
-  )
   ament_python_install_package(roboplan
     PACKAGE_DIR src/roboplan
   )
@@ -187,17 +173,32 @@ if(AMENT_BUILD)
   ament_package()
 else()
   install(TARGETS roboplan_ext LIBRARY DESTINATION roboplan)
-  install(
-    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
-    DESTINATION roboplan
-  )
 endif()
 
-# Copy the stub files to the source folder for docs and versioning.
-# For now, this step has to be run manually when submitting changes.
-# It might be good to make a CI action that generates this and finds mismatches,
-# prompting the user to regenerate it on their own.
-install(
-  DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext"
-  DESTINATION "${CMAKE_SOURCE_DIR}/src/roboplan"
-)
+# Generate Python stub files from the bindings.
+if(GENERATE_PYTHON_STUBS)
+  nanobind_add_stub(
+    roboplan_ext_stub
+    MODULE roboplan_ext
+    RECURSIVE
+    OUTPUT roboplan_ext.pyi
+    MARKER_FILE py.typed
+    PYTHON_PATH $<TARGET_FILE_DIR:roboplan_ext>
+    DEPENDS roboplan_ext
+  )
+
+  if(PYTHON_INSTALL_DIR)
+      set(PYTHON_STUB_INSTALL_DIR "${PYTHON_INSTALL_DIR}/roboplan")
+  else()
+      set(PYTHON_STUB_INSTALL_DIR "roboplan")
+  endif()
+  install(
+    DIRECTORY "${CMAKE_BINARY_DIR}/roboplan_ext/"
+    DESTINATION "${PYTHON_STUB_INSTALL_DIR}"
+    # Copy the stub files to the source folder for docs and versioning.
+    # For now, this step has to be run manually when submitting changes.
+    # It might be good to make a CI action that generates this and finds mismatches,
+    # prompting the user to regenerate it on their own.
+    DESTINATION "${CMAKE_SOURCE_DIR}/src/roboplan"
+  )
+endif()

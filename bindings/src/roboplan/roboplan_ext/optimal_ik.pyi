@@ -156,7 +156,7 @@ class Oink:
 
     def __init__(self, num_variables: int) -> None: ...
 
-    def solveIk(self, tasks: Sequence[Task], constraints: Sequence[Constraints], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))]) -> None:
+    def solveIk(self, tasks: Sequence[Task], constraints: Sequence[Constraints], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:
         """
         Solve inverse kinematics for given tasks and constraints.
 
@@ -170,6 +170,9 @@ class Oink:
             scene: Scene containing robot model and state.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
                      Must be a contiguous float64 array. Modified in-place.
+            regularization: Tikhonov regularization weight added to the Hessian diagonal.
+                     Provides numerical stability. Higher values increase regularization
+                     but may reduce task tracking accuracy. Default is 1e-12.
 
         Raises:
             RuntimeError: If the QP solver fails to find a solution.
@@ -177,4 +180,6 @@ class Oink:
         Example:
             delta_q = np.zeros(oink.num_variables)
             oink.solveIk(tasks, constraints, scene, delta_q)
+            # Or with custom regularization:
+            oink.solveIk(tasks, constraints, scene, delta_q, regularization=1e-6)
         """

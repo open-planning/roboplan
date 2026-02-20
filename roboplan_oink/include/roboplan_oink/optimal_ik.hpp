@@ -136,6 +136,10 @@ struct Oink {
   /// @param delta_q Pre-allocated output buffer for configuration displacement.
   ///                Must be sized to num_variables (velocity space dimension).
   ///                Using Eigen::Ref allows zero-copy access from Python numpy arrays.
+  /// @param regularization Tikhonov regularization weight added to the Hessian diagonal.
+  ///                This provides numerical stability by ensuring the Hessian is
+  ///                strictly positive definite. Higher values increase regularization
+  ///                but may reduce task tracking accuracy. Default is 1e-12.
   /// @return void on success, error message on failure
   ///
   /// @note The delta_q parameter must be pre-allocated to the correct size before calling.
@@ -146,11 +150,14 @@ struct Oink {
   /// @code
   /// Eigen::VectorXd delta_q(oink.num_variables);
   /// auto result = oink.solveIk(tasks, constraints, scene, delta_q);
+  /// // Or with custom regularization for high-weight tasks:
+  /// auto result = oink.solveIk(tasks, constraints, scene, delta_q, 1e-6);
   /// @endcode
   tl::expected<void, std::string>
   solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
           const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
-          Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q);
+          Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+          double regularization = 1e-12);
 
   // QP solver
   OsqpEigen::Solver solver;

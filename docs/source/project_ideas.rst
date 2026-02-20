@@ -1,32 +1,21 @@
-Google Summer of Code
-=====================
+Project Ideas
+=============
 
-We are happy to participate in the `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) program.
+Below are some project ideas if you would like to get involved.
 
-This is a great way to get hands-on experience with open-source software.
-If you are interested, consider applying as a GSoC contributor to the Open Planning organization!
-
-Below are some project ideas for GSoC.
 You should feel free to propose projects directly under the following ideas, but you are also welcome to bring your own proposal!
-
-For help putting together a proposal, refer to `this useful guide <https://google.github.io/gsocguides/student/writing-a-proposal>`_.
 
 ---
 
-2026 Project Ideas
-------------------
-
-Releasing RoboPlan to PyPi
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Releasing RoboPlan to PyPi and/or conda-forge
+---------------------------------------------
 
 **Mentors:** Sebastian Castro
-
-**Project size:** Medium (175 hours)
 
 **Description:**
 
 Recently, RoboPlan was added to `conda-forge <https://conda-forge.org/>`_ to make installation easy.
-Right now this only supports Linux, so a contributor could also consider expanding support to other platforms as part of this effort.
+Right now this only supports Linux and MacOS, so a contributor could also consider expanding support to Windows as part of this effort.
 
 However, a next step for ease of use is to be able to ``pip install roboplan``.
 
@@ -37,11 +26,9 @@ This project involves exploring the feasibility of building wheels from the Robo
 
 
 ROS Interface and Examples
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 **Mentors:** Erik Holum, Sebastian Castro, Sebastian Jahr
-
-**Project size:** Large (350 hours)
 
 **Description:**
 
@@ -63,11 +50,9 @@ The ROS ecosystem has a large space to explore, and many types of contributions 
 
 
 Robot Learning Application Examples
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 **Mentors:** Sebastian Castro, Jafar Uruç, Sebastian Jahr
-
-**Project size:** Large (350 hours)
 
 **Description:**
 
@@ -90,11 +75,9 @@ However, note that these efforts should target simulation, or low-cost hobbyist 
 
 
 Expanding Available Algorithms in RoboPlan
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------
 
 **Mentors:** Sebastian Jahr, Sebastian Castro, Erik Holum
-
-**Project size:** Medium (175 hours) - Large (350 hours)
 
 **Description:**
 

@@ -89,13 +89,14 @@ void init_optimal_ik(nanobind::module_& m) {
           "solveIk",
           [](Oink& self, const std::vector<std::shared_ptr<Task>>& tasks,
              const std::vector<std::shared_ptr<Constraints>>& constraints,
-             const std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q) {
-            auto result = self.solveIk(tasks, constraints, *scene, delta_q);
+             const std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q,
+             double regularization) {
+            auto result = self.solveIk(tasks, constraints, *scene, delta_q, regularization);
             if (!result.has_value()) {
               throw std::runtime_error("IK solve failed: " + result.error());
             }
           },
-          "tasks"_a, "constraints"_a, "scene"_a, "delta_q"_a,
+          "tasks"_a, "constraints"_a, "scene"_a, "delta_q"_a, "regularization"_a = 1e-12,
           "Solve inverse kinematics for given tasks and constraints.\n\n"
           "Solves a QP optimization problem to compute the joint velocity that minimizes\n"
           "weighted task errors while satisfying all constraints. The result is written\n"
@@ -105,7 +106,10 @@ void init_optimal_ik(nanobind::module_& m) {
           "    constraints: List of constraints to satisfy.\n"
           "    scene: Scene containing robot model and state.\n"
           "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
-          "             Must be a contiguous float64 array. Modified in-place.\n\n"
+          "             Must be a contiguous float64 array. Modified in-place.\n"
+          "    regularization: Tikhonov regularization weight for the QP Hessian.\n"
+          "                    Higher values improve numerical stability but may reduce\n"
+          "                    task tracking accuracy. Default: 1e-12.\n\n"
           "Raises:\n"
           "    RuntimeError: If the QP solver fails to find a solution.\n\n"
           "Example:\n"

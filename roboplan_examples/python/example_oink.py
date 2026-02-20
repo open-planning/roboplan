@@ -28,6 +28,7 @@ def main(
     model: str = "ur5",
     task_gain: float = 1.0,
     lm_damping: float = 0.01,
+    regularization: float = 1e-6,
     control_freq: float = 100.0,
     max_joint_velocity: float = 1.0,
     host: str = "localhost",
@@ -40,6 +41,8 @@ def main(
         model: The name of the model to use (ur5, franka, or dual).
         task_gain: Task gain (alpha) for the IK solver (0-1).
         lm_damping: Levenberg-Marquardt damping for regularization.
+        regularization: Tikhonov regularization weight for the QP Hessian. Higher values
+            improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
         max_joint_velocity: Maximum joint velocity in rad/s for all joints.
         host: The host for the ViserVisualizer.
@@ -211,7 +214,7 @@ def main(
 
                     # Solve IK for one step with constraints
                     try:
-                        oink.solveIk(tasks, constraints, scene, delta_q)
+                        oink.solveIk(tasks, constraints, scene, delta_q, regularization)
                     except RuntimeError as e:
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 

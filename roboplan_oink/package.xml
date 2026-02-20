@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>roboplan_oink</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <description>OInK - Optimal Inverse Kinematics solver for RoboPlan.</description>
   <maintainer email="sebastian.jahr@tuta.io">Sebastian Jahr</maintainer>
   <license>MIT</license>
