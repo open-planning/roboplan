@@ -34,6 +34,8 @@ struct PositionLimit : public Constraints {
 
   double config_limit_gain;             /// Gain parameter for steering away from limits
   int num_variables;                    /// Number of variables (cached from model.nv)
+  mutable Eigen::VectorXd q_max;        /// Pre-allocated maximum joint position limits.
+  mutable Eigen::VectorXd q_min;        /// Pre-allocated minimum joint position limits.
   mutable Eigen::VectorXd delta_q_max;  /// Pre-allocated workspace for max joint deltas
   mutable Eigen::VectorXd delta_q_min;  /// Pre-allocated workspace for min joint deltas
 };

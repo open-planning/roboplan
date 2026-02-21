@@ -1,6 +1,7 @@
 #include <roboplan_oink/constraints/position_limit.hpp>
 
 #include <OsqpEigen/OsqpEigen.h>
+#include <roboplan/core/scene_utils.hpp>
 
 namespace roboplan {
 
@@ -15,6 +16,50 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
   const auto& model = scene.getModel();
   const auto& q = scene.getCurrentJointPositions();
+
+  auto maybe_q_collapsed = collapseContinuousJointPositions(scene, "", q);
+  if (!maybe_q_collapsed) {
+    return tl::make_unexpected("Failed to compute position constraint: " +
+                               maybe_q_collapsed.error());
+  }
+  const auto& q_collapsed = maybe_q_collapsed.value();
+
+  // Get joint limits from the model (only do this once)
+  if (q_min.size() == 0u) {
+    q_min.resize(num_variables);
+    q_max.resize(num_variables);
+    const auto joint_names = scene.getJointNames();
+    for (int idx = 0; idx < num_variables; ++idx) {
+      const auto& joint_name = joint_names.at(idx);
+      const auto maybe_joint_info = scene.getJointInfo(joint_name);
+      if (!maybe_joint_info) {
+        throw std::runtime_error("Failed to get joint limits for position constraint: " +
+                                 maybe_joint_info.error());
+      }
+      const auto& joint_info = maybe_joint_info.value();
+
+      switch (joint_info.type) {
+      case JointType::FLOATING:
+      case JointType::PLANAR:
+        throw std::runtime_error("Multi-DOF joints not yet supported by position constraints.");
+      case JointType::CONTINUOUS:
+        q_min(idx) = -std::numeric_limits<double>::infinity();
+        q_max(idx) = std::numeric_limits<double>::infinity();
+        break;
+      default:
+        if (joint_info.limits.min_position.size() == 0) {
+          q_min(idx) = -std::numeric_limits<double>::infinity();
+        } else {
+          q_min(idx) = joint_info.limits.min_position(0);
+        }
+        if (joint_info.limits.max_position.size() == 0) {
+          q_max(idx) = std::numeric_limits<double>::infinity();
+        } else {
+          q_max(idx) = joint_info.limits.max_position(0);
+        }
+      }
+    }
+  }
 
   // Validate that model dimensions match constructor
   if (model.nv != num_variables) {
@@ -42,23 +87,19 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
                                std::to_string(upper_bounds.size()));
   }
 
-  // Get joint limits from the model
-  const Eigen::VectorXd& q_min = model.lowerPositionLimit;
-  const Eigen::VectorXd& q_max = model.upperPositionLimit;
-
   // Assuming single DOF joints (revolute/prismatic), nq == nv
   // Compute distances to limits and scale by gain, then write to bounds
   for (int i = 0; i < num_variables; ++i) {
     // Compute distance to upper limit
     if (std::isfinite(q_max(i))) {
-      delta_q_max(i) = q_max(i) - q(i);
+      delta_q_max(i) = q_max(i) - q_collapsed(i);
     } else {
       delta_q_max(i) = std::numeric_limits<double>::infinity();
     }
 
     // Compute distance to lower limit
     if (std::isfinite(q_min(i))) {
-      delta_q_min(i) = q(i) - q_min(i);
+      delta_q_min(i) = q_collapsed(i) - q_min(i);
     } else {
       delta_q_min(i) = std::numeric_limits<double>::infinity();
     }
