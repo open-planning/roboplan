@@ -14,6 +14,10 @@ find_package(roboplan REQUIRED)
 # Try to find OsqpEigen
 find_package(OsqpEigen QUIET)
 
+# Set a new oink specific build testing option since osqp can mess with the original.
+option(BUILD_TESTING "" ON)
+option(BUILD_TESTING_OINK "" ${BUILD_TESTING})
+
 if(NOT OsqpEigen_FOUND)
   # When building OsqpEigen from source, we need OSQP >= 1.0.0
   find_package(osqp QUIET)
@@ -136,8 +140,7 @@ install(EXPORT roboplan_oink-targets
         DESTINATION lib/cmake/roboplan_oink)
 
 # Add the unit tests, if enabled.
-option(BUILD_TESTING "" ON)
-if (BUILD_TESTING)
+if (BUILD_TESTING_OINK)
     enable_testing()
     add_subdirectory(test)
 endif()
