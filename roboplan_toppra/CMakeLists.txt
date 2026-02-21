@@ -85,7 +85,6 @@ install(TARGETS roboplan_toppra
 
 # Add the unit tests, if enabled.
 option(BUILD_TESTING "" ON)
-message(STATUS "BUILD TESTING: ${BUILD_TESTING}")
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
