@@ -40,15 +40,14 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   // Get target pose as SE3
   const pinocchio::SE3 transform_world_to_target(target_pose.tform);
 
-  // Compute transform from target to frame
-  // T_frame_to_target = T_world_to_frame^{-1} * T_world_to_target
-  const pinocchio::SE3 transform_target_to_frame =
-      transform_world_to_frame.actInv(transform_world_to_target);
-
-  // Compute error as SE3 logarithm and store in error_container
-  // Error is the tangent vector from current frame to target (toward goal)
-  const pinocchio::Motion error_motion = pinocchio::log6(transform_target_to_frame);
-  error_container = error_motion.toVector();
+  // Compute linear and angular errors from target to frame, in the world frame.
+  Eigen::Vector3d e_pos =
+      transform_world_to_target.translation() - transform_world_to_frame.translation();
+  Eigen::Matrix3d R_err =
+      transform_world_to_frame.rotation().transpose() * transform_world_to_target.rotation();
+  Eigen::Vector3d e_rot = transform_world_to_frame.rotation() * pinocchio::log3(R_err);
+  error_container.head<3>() = e_pos;
+  error_container.tail<3>() = e_rot;
 
   return {};
 }
@@ -67,27 +66,12 @@ tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
 
   // Compute frame Jacobian into jacobian_container
-  scene.computeFrameJacobian(q, frame_id.value(), pinocchio::ReferenceFrame::LOCAL,
+  scene.computeFrameJacobian(q, frame_id.value(), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
                              jacobian_container);
 
-  // Get current frame pose in world frame (assumes kinematics are already up-to-date)
-  const auto& data = scene.getData();
-  const pinocchio::SE3& transform_world_to_frame = data.oMf.at(frame_id.value());
-
-  // Get target pose as SE3
-  const pinocchio::SE3 transform_world_to_target(target_pose.tform);
-
-  // Compute transform from frame to target
-  const pinocchio::SE3 transform_frame_to_target =
-      transform_world_to_frame.actInv(transform_world_to_target);
-
-  // Compute logarithmic Jacobian
-  pinocchio::Jlog6(transform_frame_to_target, Jlog);
-
-  // Combine: J(q) = -Jlog6 * J_frame (in-place)
   // The negative sign ensures that with the QP formulation (min ||J*dq + gain*e||^2),
   // the solution dq = -gain * J^{-1} * e moves toward the target.
-  jacobian_container.applyOnTheLeft(-Jlog);
+  jacobian_container *= -1.0;
 
   return {};
 }
