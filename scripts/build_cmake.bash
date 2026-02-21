@@ -8,13 +8,6 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_ROOT_DIR="${SCRIPT_DIR}/.."
 pushd ${REPO_ROOT_DIR} || exit
 
-# TODO: First install Pinocchio via https://stack-of-tasks.github.io/pinocchio/download.html
-# This whole block should probably just be in a non-ROS Dockerfile.
-export PATH=/opt/openrobots/bin:$PATH
-export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH
-export LD_LIBRARY_PATH=/opt/openrobots/lib:$LD_LIBRARY_PATH
-export CMAKE_PREFIX_PATH=/opt/openrobots:$CMAKE_PREFIX_PATH
-
 # Build all the packages with CMake
 # rm -rf build install  # If you want a clean build
 mkdir -p build install
