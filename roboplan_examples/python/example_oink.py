@@ -207,6 +207,7 @@ def main(
                     try:
                         oink.solveIk(tasks, constraints, scene, delta_q, regularization)
                     except RuntimeError as e:
+                        delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
