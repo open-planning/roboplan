@@ -6,13 +6,13 @@ namespace roboplan {
 
 /// @brief Configuration for teleop command conditioning.
 struct CommandFilterConfig {
-  double linear_deadzone = 0.05;    ///< Unitless threshold in [0, 1]
-  double angular_deadzone = 0.05;   ///< Unitless threshold in [0, 1]
-  double linear_sensitivity = 0.12; ///< m/s at unit input
-  double angular_sensitivity = 0.60; ///< rad/s at unit input
-  double max_linear_speed = 0.25;   ///< m/s speed clamp
-  double max_angular_speed = 1.50;  ///< rad/s speed clamp
-  double smoothing_alpha = 0.35;    ///< EMA coefficient in [0, 1]
+  double linear_deadzone = 0.05;      ///< Unitless threshold in [0, 1]
+  double angular_deadzone = 0.05;     ///< Unitless threshold in [0, 1]
+  double linear_sensitivity = 0.12;   ///< m/s at unit input
+  double angular_sensitivity = 0.60;  ///< rad/s at unit input
+  double max_linear_speed = 0.25;     ///< m/s speed clamp
+  double max_angular_speed = 1.50;    ///< rad/s speed clamp
+  double smoothing_alpha = 0.35;      ///< EMA coefficient in [0, 1]
 };
 
 /// @brief Applies deadzone, scaling, clamping, and smoothing to 6D teleop commands.
