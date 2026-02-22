@@ -42,7 +42,7 @@ class TwistCommand:
 
 @dataclass
 class TeleopState:
-    """Runtime state for user-facing teleop status."""
+    """Runtime control state shared across teleop loop components."""
 
     enabled: bool = True
     input_alive: bool = True

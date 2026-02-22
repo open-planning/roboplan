@@ -27,7 +27,6 @@ from teleop import (
     KeyboardInput,
     TeleopConfig,
     TeleopController,
-    TeleopState,
     TwistCommand,
 )
 
@@ -150,7 +149,6 @@ def main(
         key_hold_s=teleop_config.key_hold_s,
         default_frame=teleop_config.default_frame,
     )
-    teleop_state = TeleopState(active_device=f"keyboard ({teleop_input.backend_name})")
     command_filter = CommandFilter()
 
     scene_lock = threading.Lock()
@@ -172,8 +170,6 @@ def main(
     frame_task.setTargetFrameTransform(controller.get_target())
     viz.display(q_home)
 
-    enable_checkbox = viz.viewer.gui.add_checkbox("Enable Teleop", initial_value=True)
-    pause_button = viz.viewer.gui.add_button("Pause / Resume")
     linear_slider = viz.viewer.gui.add_slider(
         "Linear Sensitivity (m/s)",
         min=0.01,
@@ -194,30 +190,6 @@ def main(
         initial_value=teleop_config.default_frame,
     )
     reset_home_button = viz.viewer.gui.add_button("Reset to Home")
-    reset_current_button = viz.viewer.gui.add_button("Reset Target to Current")
-    status_md = viz.viewer.gui.add_markdown("Initializing teleop status...")
-
-    @enable_checkbox.on_update
-    def _toggle_enable(event):
-        nonlocal paused
-        teleop_state.enabled = bool(event.target.value)
-        with state_lock:
-            if teleop_state.enabled:
-                paused = False
-                teleop_state.mode = "velocity_drive"
-            else:
-                paused = True
-                teleop_state.mode = "paused"
-                command_filter.reset()
-
-    @pause_button.on_click
-    def _toggle_pause(_):
-        nonlocal paused
-        with state_lock:
-            paused = not paused
-            teleop_state.mode = "paused" if paused else "velocity_drive"
-            if paused:
-                command_filter.reset()
 
     @linear_slider.on_update
     def _update_linear_gain(event):
@@ -238,12 +210,6 @@ def main(
         with state_lock:
             request_reset_home = True
 
-    @reset_current_button.on_click
-    def _reset_target(_):
-        nonlocal request_reset_target
-        with state_lock:
-            request_reset_target = True
-
     print(
         "Teleop started. Focus terminal and use keyboard controls. "
         f"Input backend: {teleop_input.backend_name}"
@@ -261,7 +227,6 @@ def main(
     def control_loop() -> None:
         nonlocal running, paused, request_reset_home, request_reset_target
         delta_q = np.zeros(num_variables, dtype=float)
-        last_status_update = time.monotonic()
 
         while running:
             loop_start = time.monotonic()
@@ -273,7 +238,6 @@ def main(
             if teleop_input.consume_pause_toggle():
                 with state_lock:
                     paused = not paused
-                    teleop_state.mode = "paused" if paused else "velocity_drive"
                     if paused:
                         command_filter.reset()
             if teleop_input.consume_reset_home():
@@ -284,7 +248,6 @@ def main(
                     request_reset_target = True
 
             with state_lock:
-                enabled = teleop_state.enabled
                 paused_local = paused
                 do_reset_home = request_reset_home
                 do_reset_target = request_reset_target
@@ -309,7 +272,6 @@ def main(
                     frame_task.setTargetFrameTransform(controller.get_target())
                     command_filter.reset()
 
-                teleop_state.input_alive = teleop_input.is_active()
                 raw_cmd = teleop_input.read()
                 raw_cmd.frame = teleop_config.default_frame
 
@@ -321,12 +283,10 @@ def main(
                         frame=teleop_config.default_frame, stamp_ns=now_ns
                     )
 
-                if (not enabled) or paused_local:
-                    teleop_state.mode = "paused"
+                if paused_local:
                     command_filter.reset()
                     hold_current_pose()
                 else:
-                    teleop_state.mode = "velocity_drive"
                     filtered_cmd = command_filter.filter(raw_cmd, teleop_config)
                     controller.update(filtered_cmd, dt)
                     frame_task.setTargetFrameTransform(controller.get_target())
@@ -341,23 +301,6 @@ def main(
                     scene.setJointPositions(q_next)
                     scene.forwardKinematics(q_next, ee_name)
                     viz.display(q_next)
-
-                now = time.monotonic()
-                if now - last_status_update > 0.1:
-                    q_status = scene.getCurrentJointPositions()
-                    ee_status = scene.forwardKinematics(q_status, ee_name)
-                    ee_xyz = ee_status[:3, 3]
-                    status_md.content = (
-                        f"Device: `{teleop_state.active_device}`  \n"
-                        f"Input alive: `{teleop_state.input_alive}`  \n"
-                        f"Mode: `{teleop_state.mode}`  \n"
-                        f"Frame: `{teleop_config.default_frame}`  \n"
-                        f"Linear sensitivity: `{teleop_config.linear_sensitivity:.3f}` m/s  \n"
-                        f"Angular sensitivity: `{teleop_config.angular_sensitivity:.3f}` rad/s  \n"
-                        f"EE position: `[{ee_xyz[0]:.3f}, {ee_xyz[1]:.3f}, {ee_xyz[2]:.3f}]`  \n"
-                        f"Keyboard events: `{teleop_input.key_event_count}`"
-                    )
-                    last_status_update = now
 
             elapsed = time.monotonic() - loop_start
             time.sleep(max(0.0, dt - elapsed))
