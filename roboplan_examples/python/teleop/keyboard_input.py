@@ -171,6 +171,7 @@ class KeyboardInput(TeleopInput):
                 attached_existing += 1
 
         if hasattr(viewer, "on_client_connect"):
+
             @viewer.on_client_connect
             def _on_client_connect(client):
                 self._try_attach_client_key_hooks(client)
@@ -179,9 +180,7 @@ class KeyboardInput(TeleopInput):
             self._backend = "viser"
             self._backend_note = "Using viser keyboard callbacks."
         else:
-            self._backend_note = (
-                "Viser key callbacks unavailable in this environment; using terminal keyboard fallback."
-            )
+            self._backend_note = "Viser key callbacks unavailable in this environment; using terminal keyboard fallback."
 
     def _start_terminal_fallback(self) -> None:
         if not sys.stdin.isatty():
@@ -194,7 +193,9 @@ class KeyboardInput(TeleopInput):
         self._old_term_attrs = termios.tcgetattr(sys.stdin)
         tty.setcbreak(sys.stdin.fileno())
         self._terminal_running = True
-        self._terminal_thread = threading.Thread(target=self._terminal_loop, daemon=True)
+        self._terminal_thread = threading.Thread(
+            target=self._terminal_loop, daemon=True
+        )
         self._terminal_thread.start()
         self._backend = "terminal"
 
@@ -242,12 +243,24 @@ class KeyboardInput(TeleopInput):
                 for key in remove_keys:
                     self._terminal_last_press.pop(key, None)
 
-        tx = self._axis_value_from_keys(self.key_mapping.tx_pos, self.key_mapping.tx_neg, now_ns)
-        ty = self._axis_value_from_keys(self.key_mapping.ty_pos, self.key_mapping.ty_neg, now_ns)
-        tz = self._axis_value_from_keys(self.key_mapping.tz_pos, self.key_mapping.tz_neg, now_ns)
-        rx = self._axis_value_from_keys(self.key_mapping.rx_pos, self.key_mapping.rx_neg, now_ns)
-        ry = self._axis_value_from_keys(self.key_mapping.ry_pos, self.key_mapping.ry_neg, now_ns)
-        rz = self._axis_value_from_keys(self.key_mapping.rz_pos, self.key_mapping.rz_neg, now_ns)
+        tx = self._axis_value_from_keys(
+            self.key_mapping.tx_pos, self.key_mapping.tx_neg, now_ns
+        )
+        ty = self._axis_value_from_keys(
+            self.key_mapping.ty_pos, self.key_mapping.ty_neg, now_ns
+        )
+        tz = self._axis_value_from_keys(
+            self.key_mapping.tz_pos, self.key_mapping.tz_neg, now_ns
+        )
+        rx = self._axis_value_from_keys(
+            self.key_mapping.rx_pos, self.key_mapping.rx_neg, now_ns
+        )
+        ry = self._axis_value_from_keys(
+            self.key_mapping.ry_pos, self.key_mapping.ry_neg, now_ns
+        )
+        rz = self._axis_value_from_keys(
+            self.key_mapping.rz_pos, self.key_mapping.rz_neg, now_ns
+        )
         gripper = self._axis_value_from_keys(
             self.key_mapping.gripper_open,
             self.key_mapping.gripper_close,

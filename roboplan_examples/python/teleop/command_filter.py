@@ -23,7 +23,9 @@ class CommandFilter:
         return out
 
     def filter(self, raw_cmd: TwistCommand, config: TeleopConfig) -> TwistCommand:
-        linear = self._apply_deadzone(np.asarray(raw_cmd.linear_xyz, dtype=float), config.linear_deadzone)
+        linear = self._apply_deadzone(
+            np.asarray(raw_cmd.linear_xyz, dtype=float), config.linear_deadzone
+        )
         angular = self._apply_deadzone(
             np.asarray(raw_cmd.angular_xyz, dtype=float), config.angular_deadzone
         )

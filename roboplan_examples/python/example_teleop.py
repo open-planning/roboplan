@@ -22,7 +22,14 @@ from roboplan.optimal_ik import (
     VelocityLimit,
 )
 from roboplan.viser_visualizer import ViserVisualizer
-from teleop import CommandFilter, KeyboardInput, TeleopConfig, TeleopController, TeleopState, TwistCommand
+from teleop import (
+    CommandFilter,
+    KeyboardInput,
+    TeleopConfig,
+    TeleopController,
+    TeleopState,
+    TwistCommand,
+)
 
 
 def main(
@@ -56,7 +63,9 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
     if teleop != "keyboard":
-        print(f"Unsupported teleop mode '{teleop}'. Milestone 1 currently supports only 'keyboard'.")
+        print(
+            f"Unsupported teleop mode '{teleop}'. Milestone 1 currently supports only 'keyboard'."
+        )
         sys.exit(1)
 
     model_data = MODELS[model]
@@ -123,7 +132,10 @@ def main(
     tasks = [frame_task, config_task]
 
     v_max = np.full(num_variables, max_joint_velocity, dtype=float)
-    constraints = [PositionLimit(num_variables, gain=1.0), VelocityLimit(num_variables, dt, v_max)]
+    constraints = [
+        PositionLimit(num_variables, gain=1.0),
+        VelocityLimit(num_variables, dt, v_max),
+    ]
 
     teleop_config = TeleopConfig(
         linear_sensitivity=linear_sensitivity,
@@ -301,9 +313,13 @@ def main(
                 raw_cmd = teleop_input.read()
                 raw_cmd.frame = teleop_config.default_frame
 
-                stale = (now_ns - raw_cmd.stamp_ns) > int(teleop_config.input_timeout_s * 1e9)
+                stale = (now_ns - raw_cmd.stamp_ns) > int(
+                    teleop_config.input_timeout_s * 1e9
+                )
                 if stale:
-                    raw_cmd = TwistCommand.zero(frame=teleop_config.default_frame, stamp_ns=now_ns)
+                    raw_cmd = TwistCommand.zero(
+                        frame=teleop_config.default_frame, stamp_ns=now_ns
+                    )
 
                 if (not enabled) or paused_local:
                     teleop_state.mode = "paused"

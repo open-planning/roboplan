@@ -34,7 +34,9 @@ class TeleopController:
         self._clamp_workspace()
 
     def _clamp_workspace(self) -> None:
-        self._target[:3, 3] = np.clip(self._target[:3, 3], self._workspace_min, self._workspace_max)
+        self._target[:3, 3] = np.clip(
+            self._target[:3, 3], self._workspace_min, self._workspace_max
+        )
 
     def update(self, cmd: TwistCommand, dt: float) -> None:
         if dt <= 0.0:

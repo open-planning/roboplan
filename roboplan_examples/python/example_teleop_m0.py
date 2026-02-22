@@ -248,7 +248,9 @@ def main(
 
     # M0.3: frame integration validation
     assert_frame_integration_math()
-    print("Frame integration validation passed (EE/world composition difference confirmed).")
+    print(
+        "Frame integration validation passed (EE/world composition difference confirmed)."
+    )
 
     q_current = scene.getCurrentJointPositions()
     ee_name = model_data.ee_names[0]
@@ -282,7 +284,10 @@ def main(
     tasks = [frame_task, config_task]
 
     v_max = np.full(num_variables, max_joint_velocity)
-    constraints = [PositionLimit(num_variables, gain=1.0), VelocityLimit(num_variables, dt, v_max)]
+    constraints = [
+        PositionLimit(num_variables, gain=1.0),
+        VelocityLimit(num_variables, dt, v_max),
+    ]
     delta_q = np.zeros(num_variables)
 
     keyboard = TerminalKeyboardReader(key_hold_s=key_hold_s)
@@ -317,7 +322,9 @@ def main(
 
             frame_label.content = f"Frame mode: `{keyboard.frame_mode}`"
             pause_label.content = f"Paused: `{keyboard.paused}`"
-            key_count_label.content = f"Terminal key events: `{keyboard.key_event_count}`"
+            key_count_label.content = (
+                f"Terminal key events: `{keyboard.key_event_count}`"
+            )
             diag_label.content = keyboard_path_msg
 
             q_current = scene.getCurrentJointPositions()
