@@ -29,18 +29,18 @@ class KeyboardKeyMapping:
 
 @dataclass
 class TeleopConfig:
-    """Configuration for keyboard teleoperation behavior."""
+    """Configuration for keyboard teleoperation behavior (units noted per field)."""
 
-    linear_sensitivity: float = 0.12
-    angular_sensitivity: float = 0.60
-    linear_deadzone: float = 0.05
-    angular_deadzone: float = 0.05
-    smoothing_alpha: float = 0.35
-    max_linear_speed: float = 0.25
-    max_angular_speed: float = 1.50
-    input_timeout_s: float = 0.20
-    workspace_min_xyz: tuple[float, float, float] = (-1.2, -1.2, -0.05)
-    workspace_max_xyz: tuple[float, float, float] = (1.2, 1.2, 1.6)
-    key_hold_s: float = 0.12
+    linear_sensitivity: float = 0.12  # [m/s] translation speed at unit input
+    angular_sensitivity: float = 0.60  # [rad/s] angular speed at unit input
+    linear_deadzone: float = 0.05  # [unitless] normalized input threshold in [0, 1]
+    angular_deadzone: float = 0.05  # [unitless] normalized input threshold in [0, 1]
+    smoothing_alpha: float = 0.35  # [unitless] EMA blend factor in [0, 1]
+    max_linear_speed: float = 0.25  # [m/s] post-filter translational speed clamp
+    max_angular_speed: float = 1.50  # [rad/s] post-filter angular speed clamp
+    input_timeout_s: float = 0.20  # [s] stale-input timeout before zeroing command
+    workspace_min_xyz: tuple[float, float, float] = (-1.2, -1.2, -0.05)  # [m]
+    workspace_max_xyz: tuple[float, float, float] = (1.2, 1.2, 1.6)  # [m]
+    key_hold_s: float = 0.12  # [s] terminal key press hold duration
     default_frame: Literal["ee", "world"] = "ee"
     key_mapping: KeyboardKeyMapping = field(default_factory=KeyboardKeyMapping)
