@@ -4,12 +4,16 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <stdexcept>
+
 #include <roboplan/core/scene.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 #include <roboplan_oink/tasks/configuration.hpp>
 #include <roboplan_oink/tasks/frame.hpp>
+#include <roboplan_oink/teleop/command_filter.hpp>
+#include <roboplan_oink/teleop/teleop_target.hpp>
 
 #include <modules/optimal_ik.hpp>
 
@@ -81,6 +85,89 @@ void init_optimal_ik(nanobind::module_& m) {
            "v_max"_a)
       .def_rw("dt", &VelocityLimit::dt, "Time step for velocity calculation.")
       .def_rw("v_max", &VelocityLimit::v_max, "Maximum joint velocities.");
+
+  // Bind Oink solver
+  nanobind::class_<CommandFilterConfig>(m, "CommandFilterConfig",
+                                        "Parameters for teleop command filtering.")
+      .def(nanobind::init<>())
+      .def_rw("linear_deadzone", &CommandFilterConfig::linear_deadzone,
+              "Linear deadzone threshold (unitless, [0, 1]).")
+      .def_rw("angular_deadzone", &CommandFilterConfig::angular_deadzone,
+              "Angular deadzone threshold (unitless, [0, 1]).")
+      .def_rw("linear_sensitivity", &CommandFilterConfig::linear_sensitivity,
+              "Linear sensitivity (m/s at unit input).")
+      .def_rw("angular_sensitivity", &CommandFilterConfig::angular_sensitivity,
+              "Angular sensitivity (rad/s at unit input).")
+      .def_rw("max_linear_speed", &CommandFilterConfig::max_linear_speed,
+              "Maximum translational speed (m/s).")
+      .def_rw("max_angular_speed", &CommandFilterConfig::max_angular_speed,
+              "Maximum angular speed (rad/s).")
+      .def_rw("smoothing_alpha", &CommandFilterConfig::smoothing_alpha,
+              "EMA smoothing coefficient (unitless, [0, 1]).");
+
+  nanobind::class_<CommandFilter>(m, "CommandFilter",
+                                  "Applies deadzone, scaling, clamping, and smoothing.")
+      .def(nanobind::init<const CommandFilterConfig&>(), "config"_a = CommandFilterConfig{})
+      .def(
+          "filter",
+          [](CommandFilter& self, nanobind::DRef<Eigen::VectorXd> raw_twist) {
+            if (raw_twist.size() != 6) {
+              throw std::invalid_argument("raw_twist must have size 6.");
+            }
+            const Eigen::Matrix<double, 6, 1> input = raw_twist;
+            Eigen::VectorXd output = self.filter(input);
+            return output;
+          },
+          "raw_twist"_a,
+          "Filter raw normalized twist [vx, vy, vz, wx, wy, wz] into physical units.")
+      .def("reset", &CommandFilter::reset, "Reset internal smoothing state.")
+      .def("setConfig", &CommandFilter::setConfig, "Set filter configuration.")
+      .def(
+          "getConfig", [](const CommandFilter& self) { return self.getConfig(); },
+          "Get filter configuration.");
+
+  nanobind::enum_<TeleopFrame>(m, "TeleopFrame", "Frame used for teleop pose integration.")
+      .value("EndEffector", TeleopFrame::EndEffector)
+      .value("World", TeleopFrame::World);
+
+  nanobind::class_<WorkspaceBounds>(m, "WorkspaceBounds", "Axis-aligned workspace bounds.")
+      .def(nanobind::init<>())
+      .def_rw("min_xyz", &WorkspaceBounds::min_xyz, "Lower XYZ bound in meters.")
+      .def_rw("max_xyz", &WorkspaceBounds::max_xyz, "Upper XYZ bound in meters.");
+
+  nanobind::class_<TeleopTarget>(m, "TeleopTarget",
+                                 "Maintains and updates a target pose from twist commands.")
+      .def(nanobind::init<const Eigen::Matrix4d&, const WorkspaceBounds&, TeleopFrame>(),
+           "initial_pose"_a, "bounds"_a = WorkspaceBounds{}, "frame"_a = TeleopFrame::EndEffector)
+      .def(
+          "update",
+          [](TeleopTarget& self, nanobind::DRef<Eigen::VectorXd> twist, double dt) {
+            if (twist.size() != 6) {
+              throw std::invalid_argument("twist must have size 6.");
+            }
+            const Eigen::Matrix<double, 6, 1> input = twist;
+            self.update(input, dt);
+          },
+          "twist"_a, "dt"_a, "Integrate twist into target pose using default frame.")
+      .def(
+          "update",
+          [](TeleopTarget& self, nanobind::DRef<Eigen::VectorXd> twist, double dt,
+             TeleopFrame frame) {
+            if (twist.size() != 6) {
+              throw std::invalid_argument("twist must have size 6.");
+            }
+            const Eigen::Matrix<double, 6, 1> input = twist;
+            self.update(input, dt, frame);
+          },
+          "twist"_a, "dt"_a, "frame"_a, "Integrate twist into target pose using explicit frame.")
+      .def("resetTo", &TeleopTarget::resetTo, "Reset target pose to a specified transform.")
+      .def("getTarget", &TeleopTarget::getTarget, "Get current target pose as a 4x4 transform.")
+      .def("setFrame", &TeleopTarget::setFrame, "Set default integration frame.")
+      .def("getFrame", &TeleopTarget::getFrame, "Get default integration frame.")
+      .def("setBounds", &TeleopTarget::setBounds, "Set workspace bounds.")
+      .def(
+          "getBounds", [](const TeleopTarget& self) { return self.getBounds(); },
+          "Get workspace bounds.");
 
   // Bind Oink solver
   nanobind::class_<Oink>(m, "Oink", "Optimal Inverse Kinematics solver.")

@@ -76,6 +76,8 @@ add_library(roboplan_oink SHARED
     src/tasks/configuration.cpp
     src/constraints/position_limit.cpp
     src/constraints/velocity_limit.cpp
+    src/teleop/command_filter.cpp
+    src/teleop/teleop_target.cpp
 )
 target_include_directories(roboplan_oink PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
