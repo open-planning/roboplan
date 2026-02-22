@@ -170,9 +170,9 @@ class Oink:
             scene: Scene containing robot model and state.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
                      Must be a contiguous float64 array. Modified in-place.
-            regularization: Tikhonov regularization weight added to the Hessian diagonal.
-                     Provides numerical stability. Higher values increase regularization
-                     but may reduce task tracking accuracy. Default is 1e-12.
+            regularization: Tikhonov regularization weight for the QP Hessian.
+                            Higher values improve numerical stability but may reduce
+                            task tracking accuracy. Default: 1e-12.
 
         Raises:
             RuntimeError: If the QP solver fails to find a solution.
@@ -180,6 +180,4 @@ class Oink:
         Example:
             delta_q = np.zeros(oink.num_variables)
             oink.solveIk(tasks, constraints, scene, delta_q)
-            # Or with custom regularization:
-            oink.solveIk(tasks, constraints, scene, delta_q, regularization=1e-6)
         """
