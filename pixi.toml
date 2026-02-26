@@ -147,6 +147,12 @@ build_tests = { depends-on = [
     "ON",
   ] },
   { task = "install", args = [
+    "roboplan_oink",
+    "roboplan_oink",
+    "{{ cxx_flags }}",
+    "ON",
+  ] },
+  { task = "install", args = [
     "roboplan_rrt",
     "roboplan_rrt",
     "{{ cxx_flags }}",
@@ -178,6 +184,7 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan"] },
   { task = "test", args = ["roboplan_rrt"] },
   { task = "test", args = ["roboplan_simple_ik"] },
+  { task = "test", args = ["roboplan_oink"] },
   { task = "test", args = ["roboplan_toppra"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
