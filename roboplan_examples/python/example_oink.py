@@ -30,7 +30,6 @@ def main(
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
     control_freq: float = 100.0,
-    max_joint_velocity: float = 1.0,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -44,7 +43,6 @@ def main(
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values
             improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
-        max_joint_velocity: Maximum joint velocity in rad/s for all joints.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -118,36 +116,29 @@ def main(
     position_limit = PositionLimit(num_variables, gain=1.0)
 
     # Create velocity limit constraint
-    # v_max is in rad/s, the constraint limits delta_q to [-dt*v_max, dt*v_max]
-    v_max = np.full(num_variables, max_joint_velocity)
+    v_max = np.hstack(
+        [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
+    )
     velocity_limit = VelocityLimit(num_variables, dt, v_max)
 
     constraints = [position_limit, velocity_limit]
 
     # Validate starting joint configuration size (should match nq)
-    q_canonical_raw = np.array(model_data.starting_joint_config)
-    if len(q_canonical_raw) != len(q_full):
+    q_canonical = np.array(model_data.starting_joint_config)
+    if len(q_canonical) != len(q_full):
         print(
-            f"\nWarning: starting_joint_config size ({len(q_canonical_raw)}) doesn't match "
+            f"\nWarning: starting_joint_config size ({len(q_canonical)}) doesn't match "
             f"configuration space dimension ({len(q_full)}), using current scene positions instead"
         )
         with scene_lock:
             q_canonical = scene.getCurrentJointPositions()
-    else:
-        q_canonical = q_canonical_raw
     print(
         f"\nUsing starting pose for '{model}' (configuration space size: {len(q_canonical)})"
     )
     print(f"  {q_canonical}")
 
     # Create a ConfigurationTask to regularize toward the starting pose
-    # Joint weights: 0.2 for base joints, 0.1 for all others
-    joint_weights = np.full(num_variables, 0.1)
-    joint_weights[0] = 0.2
-    # For dual-arm, also weight the right arm's base joint symmetrically
-    if model == "dual":
-        joints_per_arm = num_variables // 2  # 9 joints per arm (7 arm + 2 gripper)
-        joint_weights[joints_per_arm] = 0.2
+    joint_weights = np.full(num_variables, 0.05)
     config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
     config_task = ConfigurationTask(q_canonical, joint_weights, config_options)
 
@@ -216,6 +207,7 @@ def main(
                     try:
                         oink.solveIk(tasks, constraints, scene, delta_q, regularization)
                     except RuntimeError as e:
+                        delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)

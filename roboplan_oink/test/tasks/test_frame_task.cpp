@@ -303,11 +303,14 @@ TEST_F(FrameTaskTest, ErrorPointsTowardTarget) {
   ASSERT_TRUE(result.has_value());
 
   // The error vector in local frame should point toward target
+  // However, the error is in world frame so we rotate it to align it with local
   // Since target is +10cm in local z, the z-component of position error should be positive
-  Eigen::Vector3d position_error = task.error_container.head<3>();
+  Eigen::Vector3d position_error_local =
+      current_pose.rotation().transpose() * task.error_container.head<3>();
 
   // Error should point toward the target (positive z in local frame)
-  EXPECT_GT(position_error(2), 0.0) << "Position error should point toward target (positive z)";
+  EXPECT_FLOAT_EQ(position_error_local(2), 0.1)
+      << "Position error should point toward target (positive z)";
 }
 
 // Test that the QP gradient has correct sign for movement toward target
