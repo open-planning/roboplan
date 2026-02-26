@@ -138,13 +138,39 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     const auto& mimicked_joint_name = mimic_model.names[mimicked_idx];
 
     auto* mimic_joint = boost::get<pinocchio::JointModelMimic>(&mimicking_joint);
-    const auto mimicked_joint_type = joint_info_map_.at(mimicked_joint_name).type;
-    auto info = JointInfo(mimicked_joint_type);
+    const auto mimicked_joint_info = joint_info_map_.at(mimicked_joint_name);
+    auto info = JointInfo(mimicked_joint_info.type);
     info.mimic_info = JointMimicInfo{
         .mimicked_joint_name = mimicked_joint_name,
         .scaling = mimic_joint->scaling(),
         .offset = mimic_joint->offset(),
     };
+
+    // Compute derived joint limits.
+    // If the scaling is negative, the position limits have to be swapped.
+    if (mimic_joint->scaling() > 0.0) {
+      info.limits.min_position =
+          (mimicked_joint_info.limits.min_position.array() * mimic_joint->scaling() +
+           mimic_joint->offset())
+              .matrix();
+      info.limits.max_position =
+          (mimicked_joint_info.limits.max_position.array() * mimic_joint->scaling() +
+           mimic_joint->offset())
+              .matrix();
+    } else {
+      info.limits.min_position =
+          (mimicked_joint_info.limits.max_position.array() * mimic_joint->scaling() +
+           mimic_joint->offset())
+              .matrix();
+      info.limits.max_position =
+          (mimicked_joint_info.limits.min_position.array() * mimic_joint->scaling() +
+           mimic_joint->offset())
+              .matrix();
+    }
+    info.limits.max_velocity = mimicked_joint_info.limits.max_velocity * mimic_joint->scaling();
+    info.limits.max_acceleration =
+        mimicked_joint_info.limits.max_acceleration * mimic_joint->scaling();
+    info.limits.max_jerk = mimicked_joint_info.limits.max_jerk * mimic_joint->scaling();
     joint_info_map_.emplace(mimicking_joint_name, info);
   }
 

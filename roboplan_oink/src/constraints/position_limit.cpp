@@ -33,15 +33,15 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
       const auto& joint_name = joint_names.at(idx);
       const auto maybe_joint_info = scene.getJointInfo(joint_name);
       if (!maybe_joint_info) {
-        throw std::runtime_error("Failed to get joint limits for position constraint: " +
-                                 maybe_joint_info.error());
+        return tl::make_unexpected("Failed to get joint limits for position constraint: " +
+                                   maybe_joint_info.error());
       }
       const auto& joint_info = maybe_joint_info.value();
 
       switch (joint_info.type) {
       case JointType::FLOATING:
       case JointType::PLANAR:
-        throw std::runtime_error("Multi-DOF joints not yet supported by position constraints.");
+        return tl::make_unexpected("Multi-DOF joints not yet supported by position constraints.");
       case JointType::CONTINUOUS:
         q_min(idx) = -std::numeric_limits<double>::infinity();
         q_max(idx) = std::numeric_limits<double>::infinity();
