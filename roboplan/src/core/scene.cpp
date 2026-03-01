@@ -167,10 +167,10 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
            mimic_joint->offset())
               .matrix();
     }
-    info.limits.max_velocity = mimicked_joint_info.limits.max_velocity * mimic_joint->scaling();
-    info.limits.max_acceleration =
-        mimicked_joint_info.limits.max_acceleration * mimic_joint->scaling();
-    info.limits.max_jerk = mimicked_joint_info.limits.max_jerk * mimic_joint->scaling();
+    const auto scaling_abs = std::abs(mimic_joint->scaling());
+    info.limits.max_velocity = mimicked_joint_info.limits.max_velocity * scaling_abs;
+    info.limits.max_acceleration = mimicked_joint_info.limits.max_acceleration * scaling_abs;
+    info.limits.max_jerk = mimicked_joint_info.limits.max_jerk * scaling_abs;
     joint_info_map_.emplace(mimicking_joint_name, info);
   }
 
