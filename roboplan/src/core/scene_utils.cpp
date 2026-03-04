@@ -75,7 +75,6 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
           const auto& frame = model.frames.at(cur_frame_id);
           const auto parent_joint_id = frame.parentJoint;
           const auto& parent_joint_name = model.names.at(parent_joint_id);
-          // group_info.joint_names.push_back(parent_joint_name);
           joint_indices.push_back(parent_joint_id);
           cur_frame_id = model.frames.at(model.getFrameId(parent_joint_name)).parentFrame;
           if (cur_frame_id == base_frame_id) {
@@ -99,7 +98,13 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
           throw std::runtime_error("Group '" + std::string(name) +
                                    "' specifies a subgroup with no name in the SRDF!");
         }
-        const auto& subgroup_info = joint_group_map.at(group_name);  // TODO validate
+        auto it = joint_group_map.find(group_name);
+        if (it == joint_group_map.end()) {
+          throw std::runtime_error("Group '" + std::string(name) + "' specifies a subgroup '" +
+                                   std::string(group_name) +
+                                   "' which has not yet been parsed in the SRDF.");
+        }
+        const auto& subgroup_info = it->second;
         group_info.joint_names.insert(group_info.joint_names.end(),
                                       subgroup_info.joint_names.begin(),
                                       subgroup_info.joint_names.end());
