@@ -61,10 +61,10 @@ jobs:
           docker run --rm \
             roboplan_ubuntu:${{ steps.sanitize_tag.outputs.tag }} \
             /bin/bash -c './scripts/run_tests.bash'
-      - name: Check bindings stubs
+      - name: Check bindings stub files
         run: |
-          if ! git diff --exit-code -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
-            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the bindings without symlink builds."
+          if git diff --exit-code -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
+            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds and commit the changes."
             echo "Git Diff:"
             git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
             exit 1
