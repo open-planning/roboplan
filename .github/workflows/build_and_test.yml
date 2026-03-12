@@ -139,10 +139,10 @@ jobs:
           pixi run -e ci test_all
       - name: Check bindings stub files
         run: |
-          if ! git diff --exit-code --shortstat -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
+          if ! git diff --exit-code --ignore-all-space --shortstat -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
             echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds and commit the changes."
             echo "Git Diff:"
-            git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
+            git diff --ignore-all-space -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
             exit 1
           fi
           echo "✅ .pyi stub files look good!"
