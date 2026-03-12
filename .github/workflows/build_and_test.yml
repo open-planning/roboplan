@@ -61,14 +61,6 @@ jobs:
           docker run --rm \
             roboplan_ubuntu:${{ steps.sanitize_tag.outputs.tag }} \
             /bin/bash -c './scripts/run_tests.bash'
-      - name: Check bindings stub files
-        run: |
-          if git diff --exit-code -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
-            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds and commit the changes."
-            echo "Git Diff:"
-            git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
-            exit 1
-          fi
 
   # Build ROS docker images and run tests.
   ros_build_and_test:
@@ -113,6 +105,7 @@ jobs:
   pixi_build_and_test:
     timeout-minutes: 30
     env:
+      CMAKE_INSTALL_MODE: COPY
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
     strategy:
       fail-fast: false
@@ -145,6 +138,14 @@ jobs:
           pixi run install_all
           pixi run build_tests
           pixi run test_all
+      - name: Check bindings stub files
+        run: |
+          if ! git diff --exit-code --shortstat -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
+            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds and commit the changes."
+            echo "Git Diff:"
+            git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
+            exit 1
+          fi
       # TODO: Decide on a method for automated benchmark performance testing.
       - name: Run benchmarks
         run: |
