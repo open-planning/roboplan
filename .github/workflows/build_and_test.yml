@@ -63,9 +63,9 @@ jobs:
             /bin/bash -c './scripts/run_tests.bash'
       - name: Check bindings stub files
         run: |
-          docker run --rm \
+          docker run --rm -v ./:/roboplan_ws/ \
             roboplan_ubuntu:${{ steps.sanitize_tag.outputs.tag }} \
-            /bin/bash -c './scripts/check_bindings_stubs.bash'
+            /bin/bash -c 'git config --global --add safe.directory /roboplan_ws && ./scripts/check_bindings_stubs.bash'
 
   # Build ROS docker images and run tests.
   ros_build_and_test:
@@ -138,8 +138,6 @@ jobs:
           frozen: true
           manifest-path: pixi.toml
       - name: Build and test
-        env:
-          CMAKE_INSTALL_MODE: "COPY"
         run: |
           pixi run install_all
           pixi run build_tests
