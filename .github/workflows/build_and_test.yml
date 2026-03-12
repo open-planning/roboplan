@@ -61,6 +61,14 @@ jobs:
           docker run --rm \
             roboplan_ubuntu:${{ steps.sanitize_tag.outputs.tag }} \
             /bin/bash -c './scripts/run_tests.bash'
+      - name: Check bindings stubs
+        run: |
+          if ! git diff --exit-code -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
+            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the bindings without symlink builds."
+            echo "Git Diff:"
+            git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
+            exit 1
+          fi
 
   # Build ROS docker images and run tests.
   ros_build_and_test:

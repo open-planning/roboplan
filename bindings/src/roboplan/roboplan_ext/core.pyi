@@ -18,7 +18,7 @@ class JointConfiguration:
 
     @property
     def joint_names(self) -> list[str]:
-        """The names of the joints."""
+        """The names of the joints. CHANGED!"""
 
     @joint_names.setter
     def joint_names(self, arg: Sequence[str], /) -> None: ...
