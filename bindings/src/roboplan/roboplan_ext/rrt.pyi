@@ -1,3 +1,5 @@
+"""RRT module"""
+
 from typing import Annotated
 
 import numpy
