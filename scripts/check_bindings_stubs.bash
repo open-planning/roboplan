@@ -8,3 +8,4 @@ if ! git diff --exit-code --shortstat -- 'bindings/src/roboplan/roboplan_ext/*.p
     git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
     exit 1
 fi
+echo "✅ .pyi stub files look good!"
