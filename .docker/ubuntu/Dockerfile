@@ -30,7 +30,8 @@ RUN PIP_PATH="$(pip3 show pin | grep "Location:" | cut -d' ' -f2)/cmeel.prefix" 
     echo "export CMAKE_PREFIX_PATH=${PIP_PATH}:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh
 
 # Create a workspace and copy in the source code.
-RUN mkdir -p /roboplan_ws
+RUN mkdir -p /roboplan_ws \
+    && git config --global --add safe.directory /roboplan_ws
 WORKDIR /roboplan_ws
 COPY . /roboplan_ws
 

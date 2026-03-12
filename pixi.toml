@@ -6,11 +6,16 @@ platforms = ["linux-64", "linux-aarch64"]
 version   = "0.2.0"
 
 [activation.env]
-CMAKE_INSTALL_MODE   = "SYMLINK"
 CMAKE_INSTALL_PREFIX = "$CONDA_PREFIX"
 LD_LIBRARY_PATH      = "$CONDA_PREFIX/lib"
 ASAN_OPTIONS         = "symbolize=1:print_stacktrace=1"
 ASAN_SYMBOLIZER_PATH = "$CONDA_PREFIX/bin/llvm-symbolizer"
+
+[feature.local.activation.env]
+CMAKE_INSTALL_MODE   = "SYMLINK"
+
+[feature.ci.activation.env]
+CMAKE_INSTALL_MODE   = "COPY"
 
 [tasks]
 configure = { cmd = [
@@ -265,4 +270,6 @@ pre-commit = ">=4.1.0,<5"
 lint = "pre-commit run --all-files"
 
 [environments]
+default = { features = ["local"] }
+ci = { features = ["ci"] }
 lint = { features = ["lint"], no-default-feature = true }

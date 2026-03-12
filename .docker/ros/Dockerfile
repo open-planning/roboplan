@@ -25,7 +25,8 @@ RUN pip3 install \
         "viser>=1.0.1"
 
 # Create a ROS 2 workspace and copy in the source code.
-RUN mkdir -p /workspace/roboplan_ws/src/roboplan
+RUN mkdir -p /workspace/roboplan_ws/src/roboplan \
+    && git config --global --add safe.directory /workspace/roboplan_ws/src/roboplan
 WORKDIR /workspace/roboplan_ws
 COPY . src/roboplan
 
