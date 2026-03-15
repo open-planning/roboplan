@@ -210,6 +210,70 @@ def test_set_collisions(test_scene: Scene) -> None:
     assert str(exc_info.value) == expected_error
 
 
+def test_position_limits_vector(test_scene: Scene) -> None:
+    expected_lower_limits = np.array(
+        [-3.14159, -3.14159, -3.14159, -3.14159, -3.14159, -3.14159]
+    )
+    expected_upper_limits = np.array(
+        [3.14159, 3.14159, 3.14159, 3.14159, 3.14159, 3.14159]
+    )
+
+    # Default group (all joints)
+    lower_limits, upper_limits = test_scene.getPositionLimitVectors()
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+    # Specific group (in this case, it's the same as all joints)
+    lower_limits, upper_limits = test_scene.getPositionLimitVectors("arm")
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+
+def test_velocity_limits_vector(test_scene: Scene) -> None:
+    expected_lower_limits = np.array([-3.15, -3.15, -3.15, -3.2, -3.2, -3.2])
+    expected_upper_limits = np.array([3.15, 3.15, 3.15, 3.2, 3.2, 3.2])
+
+    # Default group (all joints)
+    lower_limits, upper_limits = test_scene.getVelocityLimitVectors()
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+    # Specific group (in this case, it's the same as all joints)
+    lower_limits, upper_limits = test_scene.getVelocityLimitVectors("arm")
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+
+def test_acceleration_limits_vector(test_scene: Scene) -> None:
+    expected_lower_limits = np.array([-2.0, -2.0, -2.0, -2.0, -2.0, -2.0])
+    expected_upper_limits = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+
+    # Default group (all joints)
+    lower_limits, upper_limits = test_scene.getAccelerationLimitVectors()
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+    # Specific group (in this case, it's the same as all joints)
+    lower_limits, upper_limits = test_scene.getAccelerationLimitVectors("arm")
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+
+def test_jerk_limits_vector(test_scene: Scene) -> None:
+    expected_lower_limits = np.array([-10.0, -10.0, -10.0, -10.0, -10.0, -10.0])
+    expected_upper_limits = np.array([10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
+
+    # Default group (all joints)
+    lower_limits, upper_limits = test_scene.getJerkLimitVectors()
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+    # Specific group (in this case, it's the same as all joints)
+    lower_limits, upper_limits = test_scene.getJerkLimitVectors("arm")
+    assert np.allclose(lower_limits, expected_lower_limits)
+    assert np.allclose(upper_limits, expected_upper_limits)
+
+
 def test_mimics() -> None:
     # Equivalent to the C++ test, but the updated joint state is returned as a new
     # object rather than updated in place.
