@@ -93,14 +93,17 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       break;
     case (JointType::PLANAR):
       // Only the position limits need to be incorporated, as orientation is unlimited.
-      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
-      info.limits.min_position[1] = mimic_model.lowerPositionLimit(q_idx + 1);
+      for (size_t dof = 0; dof < 2; ++dof) {
+        info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
+        info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
+      }
       break;
     case (JointType::FLOATING):
       // Only the position limits need to be incorporated, as orientation is unlimited.
-      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
-      info.limits.min_position[1] = mimic_model.lowerPositionLimit(q_idx + 1);
-      info.limits.min_position[2] = mimic_model.lowerPositionLimit(q_idx + 2);
+      for (size_t dof = 0; dof < 3; ++dof) {
+        info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
+        info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
+      }
       break;
     default:  // Includes continuous joints, where no operation is needed.
       break;
