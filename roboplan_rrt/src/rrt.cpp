@@ -23,22 +23,16 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   if (!maybe_collapsed_pos) {
     throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_collapsed_pos.error());
   }
-  const auto nq = maybe_collapsed_pos->size();
-  Eigen::VectorXd lower_bounds = Eigen::VectorXd::Zero(nq);
-  Eigen::VectorXd upper_bounds = Eigen::VectorXd::Zero(nq);
 
   const auto joint_names = scene_->getJointNames();
   std::vector<std::string> state_space_names;
   state_space_names.reserve(joint_names.size());
-
-  size_t q_idx = 0;
   for (const auto& joint_name : joint_group_info_.joint_names) {
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_joint_info.error());
     }
     const auto& joint_info = maybe_joint_info.value();
-
     switch (joint_info.type) {
     case JointType::FLOATING:
     case JointType::PLANAR:
@@ -46,19 +40,23 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     case JointType::CONTINUOUS:
       // The solution squashes the continuous position vectors to be used as an SO(2).
       state_space_names.push_back("SO2");
-      lower_bounds(q_idx) = -M_PI;  // unused by dynotree
-      upper_bounds(q_idx) = M_PI;   // unused by dynotree
-      ++q_idx;
       break;
     default:  // Prismatic or revolute, which are single-DOF.
       state_space_names.push_back("Rn:1");
-      lower_bounds(q_idx) = joint_info.limits.min_position[0];
-      upper_bounds(q_idx) = joint_info.limits.max_position[0];
-      ++q_idx;
     }
   }
+
+  const auto maybe_joint_position_limits = scene_->getPositionLimitVectors(options_.group_name);
+  if (!maybe_joint_position_limits) {
+    throw std::runtime_error("Failed to instantiate RRT planner: " +
+                             maybe_joint_position_limits.error());
+  }
+
   state_space_ = CombinedStateSpace(state_space_names);
-  state_space_.set_bounds(lower_bounds, upper_bounds);
+  std::cout << "lower limits: " << maybe_joint_position_limits->first.transpose() << std::endl;
+  std::cout << "upper limits: " << maybe_joint_position_limits->second.transpose() << std::endl;
+
+  state_space_.set_bounds(maybe_joint_position_limits->first, maybe_joint_position_limits->second);
 };
 
 tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,

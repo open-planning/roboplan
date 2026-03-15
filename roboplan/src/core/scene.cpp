@@ -85,11 +85,27 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                                joint.shortname() + "' but this is not in the RoboPlan joint map.");
     }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
-    for (int idx = 0; idx < joint.nq(); ++idx) {
-      info.limits.min_position[idx] = mimic_model.lowerPositionLimit(q_idx);
-      info.limits.max_position[idx] = mimic_model.upperPositionLimit(q_idx);
-      ++q_idx;
+    switch (info.type) {
+    case (JointType::PRISMATIC):
+    case (JointType::REVOLUTE):
+      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
+      info.limits.max_position[0] = mimic_model.upperPositionLimit(q_idx);
+      break;
+    case (JointType::PLANAR):
+      // Only the position limits need to be incorporated, as orientation is unlimited.
+      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
+      info.limits.min_position[1] = mimic_model.lowerPositionLimit(q_idx + 1);
+      break;
+    case (JointType::FLOATING):
+      // Only the position limits need to be incorporated, as orientation is unlimited.
+      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
+      info.limits.min_position[1] = mimic_model.lowerPositionLimit(q_idx + 1);
+      info.limits.min_position[2] = mimic_model.lowerPositionLimit(q_idx + 2);
+      break;
+    default:  // Includes continuous joints, where no operation is needed.
+      break;
     }
+    q_idx += info.num_position_dofs;
 
     std::optional<YAML::Node> maybe_acc_limits;
     std::optional<YAML::Node> maybe_jerk_limits;
