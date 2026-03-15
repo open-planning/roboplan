@@ -344,7 +344,7 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
 
   // Solve IK
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
   // Apply delta_q and check we moved closer to target
@@ -361,6 +361,158 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
   EXPECT_LT(dist_after, dist_before)
       << "Single IK step should move closer to target. "
       << "Distance before: " << dist_before << ", after: " << dist_after;
+}
+
+// Test error saturation for position error
+TEST_F(FrameTaskTest, PositionErrorSaturation) {
+  // Get current end-effector pose
+  const auto q = scene_->getCurrentJointPositions();
+  const auto current_tform = scene_->forwardKinematics(q, "tool0");
+  pinocchio::SE3 current_pose(current_tform);
+
+  // Create target pose far away (1 meter translation)
+  pinocchio::SE3 target_pose = current_pose;
+  target_pose.translation() += Eigen::Vector3d(1.0, 0.0, 0.0);
+
+  CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
+  target_config.tform = target_pose;
+
+  // First compute error without saturation to get the original direction
+  FrameTask task_unsaturated(target_config, num_variables_);
+  auto result_unsaturated = task_unsaturated.computeError(*scene_);
+  ASSERT_TRUE(result_unsaturated.has_value());
+  Eigen::Vector3d unsaturated_error = task_unsaturated.error_container.head<3>();
+  Eigen::Vector3d original_direction = unsaturated_error.normalized();
+
+  // Create task with position error limit of 0.1m
+  FrameTaskOptions options{.max_position_error = 0.1};
+  FrameTask task(target_config, num_variables_, options);
+
+  auto result = task.computeError(*scene_);
+  ASSERT_TRUE(result.has_value());
+
+  // Position error should be saturated to 0.1m
+  Eigen::Vector3d position_error = task.error_container.head<3>();
+  EXPECT_NEAR(position_error.norm(), 0.1, 1e-10);
+
+  // Direction should be preserved (same direction as unsaturated error)
+  Eigen::Vector3d saturated_direction = position_error.normalized();
+  EXPECT_TRUE(saturated_direction.isApprox(original_direction, 1e-10))
+      << "Direction should be preserved after saturation";
+}
+
+// Test error saturation for rotation error
+TEST_F(FrameTaskTest, RotationErrorSaturation) {
+  // Get current end-effector pose
+  const auto q = scene_->getCurrentJointPositions();
+  const auto current_tform = scene_->forwardKinematics(q, "tool0");
+  pinocchio::SE3 current_pose(current_tform);
+
+  // Create target pose with large rotation (180 degrees around z)
+  Eigen::AngleAxisd rotation(M_PI, Eigen::Vector3d::UnitZ());
+  pinocchio::SE3 target_pose = current_pose;
+  target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
+
+  CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
+  target_config.tform = target_pose;
+
+  // Create task with rotation error limit of 0.5 rad (~28 degrees)
+  FrameTaskOptions options{.max_rotation_error = 0.5};
+  FrameTask task(target_config, num_variables_, options);
+
+  auto result = task.computeError(*scene_);
+  ASSERT_TRUE(result.has_value());
+
+  // Rotation error should be saturated to 0.5 rad
+  Eigen::Vector3d rotation_error = task.error_container.tail<3>();
+  EXPECT_NEAR(rotation_error.norm(), 0.5, 1e-10);
+}
+
+// Test that small errors are not modified
+TEST_F(FrameTaskTest, SmallErrorsNotSaturated) {
+  // Get current end-effector pose
+  const auto q = scene_->getCurrentJointPositions();
+  const auto current_tform = scene_->forwardKinematics(q, "tool0");
+  pinocchio::SE3 current_pose(current_tform);
+
+  // Create target pose with small offsets
+  pinocchio::SE3 target_pose = current_pose;
+  target_pose.translation() += Eigen::Vector3d(0.05, 0.0, 0.0);  // 5cm
+
+  CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
+  target_config.tform = target_pose;
+
+  // Create task with limits larger than the error
+  FrameTaskOptions options{.max_position_error = 0.2, .max_rotation_error = 1.0};
+  FrameTask task(target_config, num_variables_, options);
+
+  auto result = task.computeError(*scene_);
+  ASSERT_TRUE(result.has_value());
+
+  // Position error should NOT be saturated (5cm < 20cm limit)
+  Eigen::Vector3d position_error = task.error_container.head<3>();
+  EXPECT_NEAR(position_error.norm(), 0.05, 1e-6);
+}
+
+// Test backward compatibility with default (infinite) limits
+TEST_F(FrameTaskTest, BackwardCompatibilityNoSaturation) {
+  // Get current end-effector pose
+  const auto q = scene_->getCurrentJointPositions();
+  const auto current_tform = scene_->forwardKinematics(q, "tool0");
+  pinocchio::SE3 current_pose(current_tform);
+
+  // Create target pose far away (1 meter translation)
+  pinocchio::SE3 target_pose = current_pose;
+  target_pose.translation() += Eigen::Vector3d(1.0, 0.0, 0.0);
+
+  CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
+  target_config.tform = target_pose;
+
+  // Create task with default options (infinite limits)
+  FrameTask task(target_config, num_variables_);
+
+  auto result = task.computeError(*scene_);
+  ASSERT_TRUE(result.has_value());
+
+  // Position error should NOT be saturated (default limits are infinite)
+  Eigen::Vector3d position_error = task.error_container.head<3>();
+  EXPECT_NEAR(position_error.norm(), 1.0, 1e-6);
+}
+
+// Test combined position and rotation saturation
+TEST_F(FrameTaskTest, CombinedPositionAndRotationSaturation) {
+  // Get current end-effector pose
+  const auto q = scene_->getCurrentJointPositions();
+  const auto current_tform = scene_->forwardKinematics(q, "tool0");
+  pinocchio::SE3 current_pose(current_tform);
+
+  // Create target pose with large position and rotation offset
+  Eigen::AngleAxisd rotation(M_PI / 2.0, Eigen::Vector3d::UnitZ());
+  pinocchio::SE3 target_pose = current_pose;
+  target_pose.translation() += Eigen::Vector3d(1.0, 0.0, 0.0);
+  target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
+
+  CartesianConfiguration target_config;
+  target_config.tip_frame = "tool0";
+  target_config.tform = target_pose;
+
+  // Create task with both limits
+  FrameTaskOptions options{.max_position_error = 0.15, .max_rotation_error = 0.3};
+  FrameTask task(target_config, num_variables_, options);
+
+  auto result = task.computeError(*scene_);
+  ASSERT_TRUE(result.has_value());
+
+  // Both position and rotation errors should be saturated
+  Eigen::Vector3d position_error = task.error_container.head<3>();
+  Eigen::Vector3d rotation_error = task.error_container.tail<3>();
+
+  EXPECT_NEAR(position_error.norm(), 0.15, 1e-10);
+  EXPECT_NEAR(rotation_error.norm(), 0.3, 1e-10);
 }
 
 }  // namespace roboplan

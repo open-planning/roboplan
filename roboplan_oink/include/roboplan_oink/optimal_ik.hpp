@@ -111,12 +111,119 @@ struct Constraints {
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const = 0;
 };
 
+/// @brief Abstract base class for Control Barrier Functions
+///
+/// Barriers enforce safety constraints derived from the CBF condition:
+///
+///   Standard CBF:     ḣ(q) + α(h(q)) ≥ 0
+///   Discrete time:    J_h · δq/dt + α(h(q)) ≥ 0
+///   Rearranging:      -J_h · δq ≤ dt · α(h(q))
+///   QP form:          G · δq ≤ b  where G = -J_h/dt, b = α(h(q))
+///
+/// Uses a linear class-K function: α(h) = γ·h
+/// This provides proportional recovery force when barriers are violated.
+///
+/// Safe displacement regularization adds a QP objective term:
+///   (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
+///
+/// This encourages the robot to move toward a known safe configuration when near
+/// constraint boundaries. The weighting by 1/‖J_h‖² normalizes the contribution
+/// based on how sensitive the barrier is to joint motion.
+///
+/// The safety_margin parameter provides a conservative buffer for hard constraints.
+/// When safety_margin > 0, the CBF constraint is tightened by this amount, meaning
+/// the barrier will begin to resist motion earlier (when h = safety_margin rather
+/// than h = 0). This compensates for linearization errors in the discrete-time
+/// formulation.
+struct Barrier {
+  /// @brief Constructor with barrier parameters
+  /// @param gain Barrier gain (gamma), controls aggressiveness
+  /// @param dt Timestep for discrete-time formulation (must match control loop period)
+  /// @param safe_displacement_gain Gain for safe displacement regularization
+  /// @param safety_margin Conservative margin for hard constraint guarantee (default 0.0)
+  explicit Barrier(double gain, double dt, double safe_displacement_gain = 1.0,
+                   double safety_margin = 0.0);
+
+  /// @brief Initialize pre-allocated storage
+  /// @param num_barriers Number of barrier constraints this barrier produces
+  /// @param num_vars Number of optimization variables (model.nv)
+  void initializeStorage(int num_barriers, int num_vars);
+
+  /// @brief Get the number of barrier constraints this barrier produces
+  /// @param scene The scene containing robot state and model
+  /// @return Number of barrier constraint rows
+  virtual int getNumBarriers(const Scene& scene) const = 0;
+
+  /// @brief Compute the barrier function values h(q)
+  /// @param scene The scene containing robot state and model
+  /// @note Barrier values h(q) >= 0 indicate safety; h(q) < 0 indicates violation
+  /// @return void on success, error message on failure
+  virtual tl::expected<void, std::string> computeBarrier(const Scene& scene) = 0;
+
+  /// @brief Compute the barrier Jacobian J_h = dh/dq
+  /// @param scene The scene containing robot state and model
+  /// @return void on success, error message on failure
+  virtual tl::expected<void, std::string> computeJacobian(const Scene& scene) = 0;
+
+  /// @brief Compute safe displacement for regularization
+  ///
+  /// Subclasses can override to provide a non-zero safe displacement that
+  /// the robot will be encouraged to move toward when near constraint boundaries.
+  ///
+  /// @param scene The scene containing robot state and model
+  /// @return Safe displacement vector (num_variables), default is zero
+  virtual Eigen::VectorXd computeSafeDisplacement(const Scene& scene) const;
+
+  /// @brief Compute QP inequality constraints for this barrier
+  ///
+  /// Computes: G_b * delta_q <= b_b
+  /// Where:
+  ///   G_b = -J_h / dt
+  ///   b_b = gain * h(q)  (linear class-K function)
+  ///
+  /// @param scene The scene containing robot state and model
+  /// @param G Output constraint matrix (pre-sized view: num_barriers x num_variables)
+  /// @param b Output constraint upper bound vector (pre-sized view: num_barriers)
+  /// @return void on success, error message on failure
+  tl::expected<void, std::string> computeQpInequalities(const Scene& scene,
+                                                        Eigen::Ref<Eigen::MatrixXd> G,
+                                                        Eigen::Ref<Eigen::VectorXd> b);
+
+  /// @brief Compute QP objective contribution for safe displacement regularization
+  ///
+  /// Computes: (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
+  ///
+  /// This encourages the robot to move toward a safe configuration when near
+  /// constraint boundaries. The weighting by 1/‖J_h‖² normalizes the contribution
+  /// based on how sensitive the barrier is to joint motion.
+  ///
+  /// @param scene The scene containing robot state and model
+  /// @param H Output Hessian matrix contribution (num_variables x num_variables)
+  /// @param c Output gradient vector contribution (num_variables)
+  /// @return void on success, error message on failure
+  tl::expected<void, std::string> computeQpObjective(const Scene& scene,
+                                                     Eigen::Ref<Eigen::MatrixXd> H,
+                                                     Eigen::Ref<Eigen::VectorXd> c);
+
+  virtual ~Barrier() = default;
+
+  const double gain;                    ///< Barrier gain (gamma)
+  const double dt;                      ///< Timestep
+  const double safe_displacement_gain;  ///< Gain for safe displacement regularization
+  const double safety_margin;           ///< Conservative margin for hard constraints
+  int num_variables = 0;
+
+  /// Pre-allocated containers
+  Eigen::VectorXd barrier_values;      ///< h(q) values (num_barriers)
+  Eigen::MatrixXd jacobian_container;  ///< J_h matrix (num_barriers x num_variables)
+};
+
 /// @brief Oink - Optimal Inverse Kinematics solver
 struct Oink {
   /// @brief Constructor that initializes matrices and solver with given dimensions
   ///
   /// @param num_variables Number of optimization variables (typically number of actuatable DOFs)
-  Oink(int num_variables);
+  explicit Oink(int num_variables);
 
   /// @brief Constructor with custom settings
   ///
@@ -124,14 +231,15 @@ struct Oink {
   /// @param custom_settings Custom OSQP solver settings
   Oink(int num_variables, const OsqpEigen::Settings& custom_settings);
 
-  /// @brief Solve inverse kinematics for given tasks and constraints
+  /// @brief Solve inverse kinematics for given tasks, constraints, and optional barriers
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors while satisfying all constraints. The result is written
-  /// directly into the provided delta_q buffer.
+  /// weighted task errors while satisfying all constraints and barrier functions.
+  /// The result is written directly into the provided delta_q buffer.
   ///
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param constraints Vector of constraints to satisfy
+  /// @param barriers Vector of barrier functions for safety constraints (default: empty)
   /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement.
   ///                Must be sized to num_variables (velocity space dimension).
@@ -149,13 +257,17 @@ struct Oink {
   /// Example usage:
   /// @code
   /// Eigen::VectorXd delta_q(oink.num_variables);
-  /// auto result = oink.solveIk(tasks, constraints, scene, delta_q);
-  /// // Or with custom regularization for high-weight tasks:
-  /// auto result = oink.solveIk(tasks, constraints, scene, delta_q, 1e-6);
+  /// // Without barriers:
+  /// auto result = oink.solveIk(tasks, constraints, {}, scene, delta_q);
+  /// // With barriers:
+  /// auto result = oink.solveIk(tasks, constraints, barriers, scene, delta_q);
+  /// // With barriers and custom regularization:
+  /// auto result = oink.solveIk(tasks, constraints, barriers, scene, delta_q, 1e-6);
   /// @endcode
   tl::expected<void, std::string>
   solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
-          const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
+          const std::vector<std::shared_ptr<Constraints>>& constraints,
+          const std::vector<std::shared_ptr<Barrier>>& barriers, const Scene& scene,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
@@ -181,5 +293,15 @@ struct Oink {
   Eigen::SparseMatrix<double> A_sparse;
   std::vector<int> constraint_sizes;
   int last_constraint_rows = -1;  // -1 indicates uninitialized
+
+  // Pre-allocated barrier workspace matrices
+  Eigen::MatrixXd barrier_workspace_G;
+  Eigen::VectorXd barrier_workspace_h;
+  std::vector<int> barrier_sizes;
+  int last_barrier_rows = 0;
+
+  // Pre-allocated barrier regularization workspace
+  Eigen::MatrixXd barrier_H_contribution;
+  Eigen::VectorXd barrier_c_contribution;
 };
 }  // namespace roboplan
