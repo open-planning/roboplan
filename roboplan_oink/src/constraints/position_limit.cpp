@@ -19,46 +19,18 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
 
   auto maybe_q_collapsed = collapseContinuousJointPositions(scene, "", q);
   if (!maybe_q_collapsed) {
-    return tl::make_unexpected("Failed to compute position constraint: " +
-                               maybe_q_collapsed.error());
+    return tl::make_unexpected("PositionLimit: " + maybe_q_collapsed.error());
   }
   const auto& q_collapsed = maybe_q_collapsed.value();
 
-  // Get joint limits from the model (only do this once)
+  // Get joint limits from the model (only do this once).
   if (q_min.size() == 0u) {
-    q_min.resize(num_variables);
-    q_max.resize(num_variables);
-    const auto joint_names = scene.getJointNames();
-    for (int idx = 0; idx < num_variables; ++idx) {
-      const auto& joint_name = joint_names.at(idx);
-      const auto maybe_joint_info = scene.getJointInfo(joint_name);
-      if (!maybe_joint_info) {
-        return tl::make_unexpected("Failed to get joint limits for position constraint: " +
-                                   maybe_joint_info.error());
-      }
-      const auto& joint_info = maybe_joint_info.value();
-
-      switch (joint_info.type) {
-      case JointType::FLOATING:
-      case JointType::PLANAR:
-        return tl::make_unexpected("Multi-DOF joints not yet supported by position constraints.");
-      case JointType::CONTINUOUS:
-        q_min(idx) = -std::numeric_limits<double>::infinity();
-        q_max(idx) = std::numeric_limits<double>::infinity();
-        break;
-      default:
-        if (joint_info.limits.min_position.size() == 0) {
-          q_min(idx) = -std::numeric_limits<double>::infinity();
-        } else {
-          q_min(idx) = joint_info.limits.min_position(0);
-        }
-        if (joint_info.limits.max_position.size() == 0) {
-          q_max(idx) = std::numeric_limits<double>::infinity();
-        } else {
-          q_max(idx) = joint_info.limits.max_position(0);
-        }
-      }
+    const auto maybe_position_limits = scene.getPositionLimitVectors();
+    if (!maybe_position_limits) {
+      return tl::make_unexpected("PositionLimit: " + maybe_position_limits.error());
     }
+    q_min = maybe_position_limits->first;
+    q_max = maybe_position_limits->second;
   }
 
   // Validate that model dimensions match constructor
