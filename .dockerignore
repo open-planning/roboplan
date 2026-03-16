@@ -1,7 +1,10 @@
 .git/
+.gitattributes
 .github
 .gitignore
+.gitmodules
 .pixi/
+.vscode/
 
 **/build/
 **/install/
