@@ -5,7 +5,7 @@ joint_limits:
     max_acceleration: [1.0]
     max_jerk: [5.0]
   shoulder_lift:
-    max_acceleration: [10]
+    max_acceleration: [1.0]
     max_jerk: [5.0]
   elbow_flex:
     max_acceleration: [1.0]

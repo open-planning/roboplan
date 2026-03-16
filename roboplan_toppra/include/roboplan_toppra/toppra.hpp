@@ -36,8 +36,8 @@ private:
   /// @brief The name of the joint group.
   std::string group_name_;
 
-  /// @brief The joint group info for the path parameterizer.
-  JointGroupInfo joint_group_info_;
+  /// @brief The names of the joints in the group.
+  std::vector<std::string> joint_names_;
 
   /// @brief The stored velocity lower limits.
   toppra::Vector vel_lower_limits_;

@@ -15,57 +15,40 @@ namespace roboplan {
 PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene,
                                                  const std::string& group_name)
     : scene_{scene}, group_name_{group_name} {
-  // Extract the joint group information.
+  // Extract joint velocity + acceleration limits from the scene.
+  const auto maybe_joint_velocity_limits = scene_->getVelocityLimitVectors(group_name_);
+  if (!maybe_joint_velocity_limits) {
+    throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
+                             maybe_joint_velocity_limits.error());
+  }
+  vel_lower_limits_ = maybe_joint_velocity_limits->first;
+  vel_upper_limits_ = maybe_joint_velocity_limits->second;
+
+  const auto maybe_joint_acceleration_limits = scene_->getAccelerationLimitVectors(group_name_);
+  if (!maybe_joint_acceleration_limits) {
+    throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
+                             maybe_joint_acceleration_limits.error());
+  }
+  acc_lower_limits_ = maybe_joint_acceleration_limits->first;
+  acc_upper_limits_ = maybe_joint_acceleration_limits->second;
+
+  // Get the continuous joint indices for unwrapping positions.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name_);
   if (!maybe_joint_group_info) {
     throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
                              maybe_joint_group_info.error());
   }
-  joint_group_info_ = maybe_joint_group_info.value();
+  const auto& joint_group_info = maybe_joint_group_info.value();
+  joint_names_ = joint_group_info.joint_names;
 
-  // Extract joint velocity + acceleration limits from scene.
-  const auto maybe_collapsed_pos = collapseContinuousJointPositions(
-      *scene_, group_name_, Eigen::VectorXd::Zero(joint_group_info_.q_indices.size()));
-  if (!maybe_collapsed_pos) {
-    throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_collapsed_pos.error());
-  }
-  const auto num_dofs = maybe_collapsed_pos->size();
-  vel_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
-  vel_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
-  acc_lower_limits_ = Eigen::VectorXd::Zero(num_dofs);
-  acc_upper_limits_ = Eigen::VectorXd::Zero(num_dofs);
-
-  size_t q_idx = 0;
-  for (size_t j_idx = 0; j_idx < joint_group_info_.joint_names.size(); ++j_idx) {
-    const auto& joint_name = joint_group_info_.joint_names.at(j_idx);
+  for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
+    const auto& joint_name = joint_group_info.joint_names.at(j_idx);
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_joint_info.error());
     }
-    const auto& joint_info = maybe_joint_info.value();
-
-    switch (joint_info.type) {
-    case JointType::FLOATING:
-    case JointType::PLANAR:
-      throw std::runtime_error("Multi-DOF joints not yet supported by TOPP-RA.");
-    case JointType::CONTINUOUS:
+    if (maybe_joint_info->type == JointType::CONTINUOUS) {
       continuous_joint_indices_.push_back(j_idx);
-      [[fallthrough]];
-    default:  // Prismatic, revolute, or continuous, which are single-DOF in tangent space.
-      if (joint_info.limits.max_velocity.size() == 0) {
-        throw std::runtime_error("Velocity limit must be defined for joint '" + joint_name + "'.");
-      }
-      if (joint_info.limits.max_acceleration.size() == 0) {
-        throw std::runtime_error("Acceleration limit must be defined for joint '" + joint_name +
-                                 "'.");
-      }
-      const auto& max_vel = joint_info.limits.max_velocity[0];
-      vel_lower_limits_(q_idx) = -max_vel;
-      vel_upper_limits_(q_idx) = max_vel;
-      const auto& max_acc = joint_info.limits.max_acceleration[0];
-      acc_lower_limits_(q_idx) = -max_acc;
-      acc_upper_limits_(q_idx) = max_acc;
-      ++q_idx;
     }
   }
 }
@@ -86,9 +69,8 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
   if ((acceleration_scale <= 0.0) || (acceleration_scale > 1.0)) {
     return tl::make_unexpected("Acceleration scale must be greater than 0.0 and less than 1.0.");
   }
-  const auto& joint_names = joint_group_info_.joint_names;
-  if ((joint_names.size() != path.joint_names.size()) ||
-      !std::equal(joint_names.begin(), joint_names.end(), path.joint_names.begin())) {
+  if ((joint_names_.size() != path.joint_names.size()) ||
+      !std::equal(joint_names_.begin(), joint_names_.end(), path.joint_names.begin())) {
     return tl::make_unexpected("Path joint names do not match the scene joint names.");
   }
 

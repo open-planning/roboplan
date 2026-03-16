@@ -85,11 +85,30 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                                joint.shortname() + "' but this is not in the RoboPlan joint map.");
     }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
-    for (int idx = 0; idx < joint.nq(); ++idx) {
-      info.limits.min_position[idx] = mimic_model.lowerPositionLimit(q_idx);
-      info.limits.max_position[idx] = mimic_model.upperPositionLimit(q_idx);
-      ++q_idx;
+    switch (info.type) {
+    case (JointType::PRISMATIC):
+    case (JointType::REVOLUTE):
+      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
+      info.limits.max_position[0] = mimic_model.upperPositionLimit(q_idx);
+      break;
+    case (JointType::PLANAR):
+      // Only the position limits need to be incorporated, as orientation is unlimited.
+      for (size_t dof = 0; dof < 2; ++dof) {
+        info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
+        info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
+      }
+      break;
+    case (JointType::FLOATING):
+      // Only the position limits need to be incorporated, as orientation is unlimited.
+      for (size_t dof = 0; dof < 3; ++dof) {
+        info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
+        info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
+      }
+      break;
+    default:  // Includes continuous joints, where no operation is needed.
+      break;
     }
+    q_idx += info.num_position_dofs;
 
     std::optional<YAML::Node> maybe_acc_limits;
     std::optional<YAML::Node> maybe_jerk_limits;
@@ -398,6 +417,173 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
     }
   }
   return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
+}
+
+tl::expected<EigenVectorPair, std::string>
+Scene::getPositionLimitVectors(const std::string& group_name) const {
+  const auto maybe_joint_group_info = getJointGroupInfo(group_name);
+  if (!maybe_joint_group_info) {
+    return tl::make_unexpected("Failed to get position limit vectors: " +
+                               maybe_joint_group_info.error());
+  }
+  const auto& joint_group_info = maybe_joint_group_info.value();
+
+  // Initialize all limits as infinity and only set the joint DOFs that are finite.
+  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
+      joint_group_info.nq_collapsed, -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.nq_collapsed,
+                                                           std::numeric_limits<double>::infinity());
+  size_t q_idx = 0;
+  for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
+    const auto& joint_name = joint_group_info.joint_names.at(j_idx);
+    const auto maybe_joint_info = getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      return tl::make_unexpected("Failed to get position limit vectors: " +
+                                 maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+
+    switch (joint_info.type) {
+    case JointType::FLOATING:
+      // Position limits can be finite, orientation stays unlimited.
+      for (int dof = 0; dof < 3; ++dof) {
+        if (joint_info.limits.min_position.size() > dof) {
+          lower_limits(q_idx + dof) = joint_info.limits.min_position(dof);
+        }
+        if (joint_info.limits.max_position.size() > dof) {
+          upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
+        }
+      }
+      q_idx += 6;
+      break;
+    case JointType::PLANAR:
+      // Position limits can be finite, orientation stays unlimited.
+      for (int dof = 0; dof < 2; ++dof) {
+        if (joint_info.limits.min_position.size() > dof) {
+          lower_limits(q_idx + dof) = joint_info.limits.min_position(dof);
+        }
+        if (joint_info.limits.max_position.size() > dof) {
+          upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
+        }
+      }
+      q_idx += 3;
+      break;
+    case JointType::CONTINUOUS:
+      // Already has infinite limits, no action needed.
+      ++q_idx;
+      break;
+    default:  // Prismatic or revolute.
+      if (joint_info.limits.min_position.size() > 0) {
+        lower_limits(q_idx) = joint_info.limits.min_position(0);
+      }
+      if (joint_info.limits.max_position.size() > 0) {
+        upper_limits(q_idx) = joint_info.limits.max_position(0);
+      }
+      ++q_idx;
+    }
+  }
+  return std::make_pair(lower_limits, upper_limits);
+}
+
+tl::expected<EigenVectorPair, std::string>
+Scene::getVelocityLimitVectors(const std::string& group_name) const {
+  const auto maybe_joint_group_info = getJointGroupInfo(group_name);
+  if (!maybe_joint_group_info) {
+    return tl::make_unexpected("Failed to get velocity limit vectors: " +
+                               maybe_joint_group_info.error());
+  }
+  const auto& joint_group_info = maybe_joint_group_info.value();
+
+  // Initialize all limits as infinity and only set the joint DOFs that are finite.
+  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
+      joint_group_info.v_indices.size(), -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.v_indices.size(),
+                                                           std::numeric_limits<double>::infinity());
+  size_t v_idx = 0;
+  for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
+    const auto& joint_name = joint_group_info.joint_names.at(j_idx);
+    const auto maybe_joint_info = getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      return tl::make_unexpected("Failed to get velocity limit vectors: " +
+                                 maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+
+    for (size_t dof = 0; dof < joint_info.num_velocity_dofs; ++dof) {
+      const auto& max_vel = joint_info.limits.max_velocity(dof);
+      lower_limits(v_idx + dof) = -max_vel;
+      upper_limits(v_idx + dof) = max_vel;
+    }
+    v_idx += joint_info.num_velocity_dofs;
+  }
+  return std::make_pair(lower_limits, upper_limits);
+}
+
+tl::expected<EigenVectorPair, std::string>
+Scene::getAccelerationLimitVectors(const std::string& group_name) const {
+  const auto maybe_joint_group_info = getJointGroupInfo(group_name);
+  if (!maybe_joint_group_info) {
+    return tl::make_unexpected("Failed to get acceleration limit vectors: " +
+                               maybe_joint_group_info.error());
+  }
+  const auto& joint_group_info = maybe_joint_group_info.value();
+
+  // Initialize all limits as infinity and only set the joint DOFs that are finite.
+  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
+      joint_group_info.v_indices.size(), -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.v_indices.size(),
+                                                           std::numeric_limits<double>::infinity());
+  size_t v_idx = 0;
+  for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
+    const auto& joint_name = joint_group_info.joint_names.at(j_idx);
+    const auto maybe_joint_info = getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      return tl::make_unexpected("Failed to get acceleration limit vectors: " +
+                                 maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+
+    for (size_t dof = 0; dof < joint_info.num_velocity_dofs; ++dof) {
+      const auto& max_accel = joint_info.limits.max_acceleration(dof);
+      lower_limits(v_idx + dof) = -max_accel;
+      upper_limits(v_idx + dof) = max_accel;
+    }
+    v_idx += joint_info.num_velocity_dofs;
+  }
+  return std::make_pair(lower_limits, upper_limits);
+}
+
+tl::expected<EigenVectorPair, std::string>
+Scene::getJerkLimitVectors(const std::string& group_name) const {
+  const auto maybe_joint_group_info = getJointGroupInfo(group_name);
+  if (!maybe_joint_group_info) {
+    return tl::make_unexpected("Failed to get jerk limit vectors: " +
+                               maybe_joint_group_info.error());
+  }
+  const auto& joint_group_info = maybe_joint_group_info.value();
+
+  // Initialize all limits as infinity and only set the joint DOFs that are finite.
+  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
+      joint_group_info.v_indices.size(), -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.v_indices.size(),
+                                                           std::numeric_limits<double>::infinity());
+  size_t v_idx = 0;
+  for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
+    const auto& joint_name = joint_group_info.joint_names.at(j_idx);
+    const auto maybe_joint_info = getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      return tl::make_unexpected("Failed to get jerk limit vectors: " + maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+
+    for (size_t dof = 0; dof < joint_info.num_velocity_dofs; ++dof) {
+      const auto& max_jerk = joint_info.limits.max_jerk(dof);
+      lower_limits(v_idx + dof) = -max_jerk;
+      upper_limits(v_idx + dof) = max_jerk;
+    }
+    v_idx += joint_info.num_velocity_dofs;
+  }
+  return std::make_pair(lower_limits, upper_limits);
 }
 
 tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,

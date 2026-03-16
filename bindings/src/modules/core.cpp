@@ -2,6 +2,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
 #include <nanobind/stl/optional.h>
+#include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
@@ -217,6 +218,14 @@ void init_core_scene(nanobind::module_& m) {
            "Set the joint positions for the full robot state.", "positions"_a)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices,
            "Get the joint position indices for a set of joint names.", "joint_names"_a)
+      .def("getPositionLimitVectors", unwrap_expected(&Scene::getPositionLimitVectors),
+           "Get the joint position limit vectors for a specified group.", "group_name"_a = "")
+      .def("getVelocityLimitVectors", unwrap_expected(&Scene::getVelocityLimitVectors),
+           "Get the joint velocity limit vectors for a specified group.", "group_name"_a = "")
+      .def("getAccelerationLimitVectors", unwrap_expected(&Scene::getAccelerationLimitVectors),
+           "Get the joint acceleration limit vectors for a specified group.", "group_name"_a = "")
+      .def("getJerkLimitVectors", unwrap_expected(&Scene::getJerkLimitVectors),
+           "Get the joint jerk limit vectors for a specified group.", "group_name"_a = "")
       .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry),
            "Adds a box geometry to the scene.", "name"_a, "parent_frame"_a, "box"_a, "tform"_a,
            "color"_a)

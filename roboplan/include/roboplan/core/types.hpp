@@ -3,11 +3,14 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Dense>
 
 namespace roboplan {
+
+using EigenVectorPair = std::pair<Eigen::VectorXd, Eigen::VectorXd>;
 
 /// @brief Represents a robot joint configuration.
 /// @details Creating and validating these structures are handled by separate

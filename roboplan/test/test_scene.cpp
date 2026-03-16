@@ -214,4 +214,88 @@ TEST_F(RoboPlanSceneTest, TestSetCollisions) {
             "'nonexistent_link' not found in frame_map_.");
 }
 
+TEST_F(RoboPlanSceneTest, TestPositionLimitsVector) {
+  Eigen::VectorXd expected_lower_limits(6);
+  expected_lower_limits << -3.14159, -3.14159, -3.14159, -3.14159, -3.14159, -3.14159;
+  Eigen::VectorXd expected_upper_limits(6);
+  expected_upper_limits << 3.14159, 3.14159, 3.14159, 3.14159, 3.14159, 3.14159;
+
+  // Default group (all joints)
+  auto maybe_position_limits = scene_->getPositionLimitVectors();
+  ASSERT_TRUE(maybe_position_limits.has_value());
+  const auto& [lower_limits, upper_limits] = maybe_position_limits.value();
+  EXPECT_TRUE(lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(upper_limits.isApprox(expected_upper_limits, kTolerance));
+
+  // Specific group (in this case, it's the same as all joints).
+  maybe_position_limits = scene_->getPositionLimitVectors("arm");
+  ASSERT_TRUE(maybe_position_limits.has_value());
+  const auto& [group_lower_limits, group_upper_limits] = maybe_position_limits.value();
+  EXPECT_TRUE(group_lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(group_upper_limits.isApprox(expected_upper_limits, kTolerance));
+}
+
+TEST_F(RoboPlanSceneTest, TestVelocityLimitsVector) {
+  Eigen::VectorXd expected_lower_limits(6);
+  expected_lower_limits << -3.15, -3.15, -3.15, -3.2, -3.2, -3.2;
+  Eigen::VectorXd expected_upper_limits(6);
+  expected_upper_limits << 3.15, 3.15, 3.15, 3.2, 3.2, 3.2;
+
+  // Default group (all joints)
+  auto maybe_velocity_limits = scene_->getVelocityLimitVectors();
+  ASSERT_TRUE(maybe_velocity_limits.has_value());
+  const auto& [lower_limits, upper_limits] = maybe_velocity_limits.value();
+  EXPECT_TRUE(lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(upper_limits.isApprox(expected_upper_limits, kTolerance));
+
+  // Specific group (in this case, it's the same as all joints).
+  maybe_velocity_limits = scene_->getVelocityLimitVectors("arm");
+  ASSERT_TRUE(maybe_velocity_limits.has_value());
+  const auto& [group_lower_limits, group_upper_limits] = maybe_velocity_limits.value();
+  EXPECT_TRUE(group_lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(group_upper_limits.isApprox(expected_upper_limits, kTolerance));
+}
+
+TEST_F(RoboPlanSceneTest, TestAccelerationLimitsVector) {
+  Eigen::VectorXd expected_lower_limits(6);
+  expected_lower_limits << -2.0, -2.0, -2.0, -2.0, -2.0, -2.0;
+  Eigen::VectorXd expected_upper_limits(6);
+  expected_upper_limits << 2.0, 2.0, 2.0, 2.0, 2.0, 2.0;
+
+  // Default group (all joints)
+  auto maybe_acceleration_limits = scene_->getAccelerationLimitVectors();
+  ASSERT_TRUE(maybe_acceleration_limits.has_value());
+  const auto& [lower_limits, upper_limits] = maybe_acceleration_limits.value();
+  EXPECT_TRUE(lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(upper_limits.isApprox(expected_upper_limits, kTolerance));
+
+  // Specific group (in this case, it's the same as all joints).
+  maybe_acceleration_limits = scene_->getAccelerationLimitVectors("arm");
+  ASSERT_TRUE(maybe_acceleration_limits.has_value());
+  const auto& [group_lower_limits, group_upper_limits] = maybe_acceleration_limits.value();
+  EXPECT_TRUE(group_lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(group_upper_limits.isApprox(expected_upper_limits, kTolerance));
+}
+
+TEST_F(RoboPlanSceneTest, TestJerkLimitsVector) {
+  Eigen::VectorXd expected_lower_limits(6);
+  expected_lower_limits << -10.0, -10.0, -10.0, -10.0, -10.0, -10.0;
+  Eigen::VectorXd expected_upper_limits(6);
+  expected_upper_limits << 10.0, 10.0, 10.0, 10.0, 10.0, 10.0;
+
+  // Default group (all joints)
+  auto maybe_jerk_limits = scene_->getJerkLimitVectors();
+  ASSERT_TRUE(maybe_jerk_limits.has_value());
+  const auto& [lower_limits, upper_limits] = maybe_jerk_limits.value();
+  EXPECT_TRUE(lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(upper_limits.isApprox(expected_upper_limits, kTolerance));
+
+  // Specific group (in this case, it's the same as all joints).
+  maybe_jerk_limits = scene_->getJerkLimitVectors("arm");
+  ASSERT_TRUE(maybe_jerk_limits.has_value());
+  const auto& [group_lower_limits, group_upper_limits] = maybe_jerk_limits.value();
+  EXPECT_TRUE(group_lower_limits.isApprox(expected_lower_limits, kTolerance));
+  EXPECT_TRUE(group_upper_limits.isApprox(expected_upper_limits, kTolerance));
+}
+
 }  // namespace roboplan
