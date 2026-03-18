@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import queue
 import time
 import tyro
 import xacro
@@ -30,6 +31,7 @@ def main(
     max_planning_time: float = 5.0,
     rrt_connect: bool = False,
     include_shortcutting: bool = False,
+    max_shortcutting_iters: int = 100,
     host: str = "localhost",
     port: str = "8000",
     rng_seed: int | None = None,
@@ -47,6 +49,7 @@ def main(
         max_planning_time: The maximum time (in seconds) to search for a path.
         rrt_connect: Whether or not to use RRT-Connect.
         include_shortcutting: Whether or not to include path shortcutting for found paths.
+        max_shortcutting_iters: The maximum number of path shortcutting iterations.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
         rng_seed: The seed for selecting random start and end poses and solving RRT.
@@ -108,6 +111,16 @@ def main(
     )
     rrt = RRT(scene, options)
 
+    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
+    traj_dt = 0.01
+
+    if include_shortcutting:
+        shortcutter = PathShortcutter(scene, model_data.default_joint_group)
+
+    traj_queue = queue.Queue()
+    cur_traj = None
+    animate = False
+
     if rng_seed:
         scene.setRngSeed(rng_seed)
         rrt.setRngSeed(rng_seed)
@@ -117,68 +130,103 @@ def main(
     viz.display(q_full)
     time.sleep(0.1)
 
-    start = JointConfiguration()
-    start.positions = q_full[q_indices]
-    assert start.positions is not None
+    # Create a path planning button.
+    plan_button = viz.viewer.gui.add_button("Plan path")
 
-    goal = JointConfiguration()
-    goal.positions = scene.randomCollisionFreePositions()[q_indices]
-    assert goal.positions is not None
+    @plan_button.on_click
+    def plan_path(_):
+        nonlocal animate
+        animate = False
+        plan_button.disabled = True
+        animate_button.disabled = True
 
-    print("Planning...")
-    path = rrt.plan(start, goal)
-    assert path is not None
-    print(f"Found a path:\n{path}")
+        start = JointConfiguration()
+        start.positions = q_full[q_indices]
+        assert start.positions is not None
 
-    # Optionally include path shortening
-    if include_shortcutting:
-        print("Shortcutting path...")
-        shortcutter = PathShortcutter(scene, model_data.default_joint_group)
-        shortened_path = shortcutter.shortcut(
-            path,
-            max_step_size=options.collision_check_step_size,
-            max_iters=1000,
+        goal = JointConfiguration()
+        goal.positions = scene.randomCollisionFreePositions()[q_indices]
+        assert goal.positions is not None
+
+        print("\nPlanning...")
+        t_start = time.time()
+        path = rrt.plan(start, goal)
+        assert path is not None
+        print(f"Found a path in {time.time() - t_start:.3f} s")
+
+        # Optionally include path shortening
+        if include_shortcutting:
+            print("Shortcutting path...")
+            t_start = time.time()
+            shortened_path = shortcutter.shortcut(
+                path,
+                max_step_size=options.collision_check_step_size,
+                max_iters=max_shortcutting_iters,
+            )
+            print(f"Shortcutted path in {time.time() - t_start:.3f} s")
+
+        # Set up TOPP-RA to time-parameterize the path
+        print("Generating trajectory...")
+        t_start = time.time()
+        traj = toppra.generate(
+            shortened_path if include_shortcutting else path, traj_dt
         )
-        print(f"Shortcutted path:\n{shortened_path}")
+        print(f"Generated trajectory in {time.time() - t_start:.3f} s")
 
-    # Set up TOPP-RA to time-parameterize the path
-    print("Generating trajectory...")
-    dt = 0.01
-    toppra = PathParameterizerTOPPRA(scene, model_data.default_joint_group)
-    traj = toppra.generate(shortened_path if include_shortcutting else path, dt)
-
-    # Visualize the tree and path
-    viz.display(q_full)
-    visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
-    if include_shortcutting:
-        visualizePath(viz, scene, path, model_data.ee_names, 0.05)
-        visualizePath(
-            viz,
-            scene,
-            traj,
-            model_data.ee_names,
-            0.05,
-            (0, 100, 0),
-            "/rrt/shortcut_path",
-        )
-    else:
-        visualizePath(viz, scene, traj, model_data.ee_names, 0.05)
-
-    visualizeJointTrajectory(traj, scene)
-    plt.show()
-
-    # Animate the trajectory
-    input("Press 'Enter' to animate the trajectory.")
-    for q in traj.positions:
-        q_full[q_indices] = q
+        # Visualize the tree and path
         viz.display(q_full)
-        time.sleep(dt)
+        visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
+        if include_shortcutting:
+            visualizePath(viz, scene, path, model_data.ee_names, 0.05)
+            visualizePath(
+                viz,
+                scene,
+                traj,
+                model_data.ee_names,
+                0.05,
+                (0, 100, 0),
+                "/rrt/shortcut_path",
+            )
+        else:
+            visualizePath(viz, scene, traj, model_data.ee_names, 0.05)
 
-    try:
-        while True:
-            time.sleep(10.0)
-    except KeyboardInterrupt:
-        pass
+        traj_queue.put(traj)
+        plan_button.disabled = False
+        animate_button.disabled = False
+
+    # Create a trajectory animation button.
+    animate_button = viz.viewer.gui.add_button("Animate trajectory")
+    animate_button.disabled = True
+
+    @animate_button.on_click
+    def animate_trajectory(_):
+        plan_button.disabled = True
+        nonlocal animate
+        animate = True
+
+    # Main display and animation loop.
+    plt.figure()
+    plt.ion()
+    while True:
+        if not traj_queue.empty():
+            plt.clf()
+            cur_traj = traj_queue.get()
+            fig = visualizeJointTrajectory(cur_traj, scene)
+            plt.draw()
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            plt.pause(0.1)
+        elif animate and cur_traj is not None:
+            print("Animating trajectory...")
+            for q in cur_traj.positions:
+                q_full[q_indices] = q
+                viz.display(q_full)
+                time.sleep(traj_dt)
+            animate = False
+            plan_button.disabled = False
+            print("...done!")
+        else:
+            time.sleep(0.1)
 
 
 if __name__ == "__main__":

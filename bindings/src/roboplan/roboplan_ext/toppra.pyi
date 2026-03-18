@@ -1,5 +1,3 @@
-"""TOPP-RA module"""
-
 import roboplan_ext.core
 
 

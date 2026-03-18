@@ -1,5 +1,3 @@
-"""Core roboplan module"""
-
 from collections.abc import Sequence
 import enum
 import os

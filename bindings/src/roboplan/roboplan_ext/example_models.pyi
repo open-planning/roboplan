@@ -1,5 +1,3 @@
-"""Example models"""
-
 import pathlib
 
 

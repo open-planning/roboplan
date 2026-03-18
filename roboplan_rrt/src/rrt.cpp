@@ -53,9 +53,6 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   }
 
   state_space_ = CombinedStateSpace(state_space_names);
-  std::cout << "lower limits: " << maybe_joint_position_limits->first.transpose() << std::endl;
-  std::cout << "upper limits: " << maybe_joint_position_limits->second.transpose() << std::endl;
-
   state_space_.set_bounds(maybe_joint_position_limits->first, maybe_joint_position_limits->second);
 };
 

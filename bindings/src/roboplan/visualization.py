@@ -138,7 +138,6 @@ def visualizeJointTrajectory(
     Returns
         The matplotlib figure object. Use plt.show() to display it.
     """
-    plt.ion()
     plt.plot(trajectory.times, trajectory.positions)
     plt.xlabel("Time")
     plt.ylabel("Joint positions")
