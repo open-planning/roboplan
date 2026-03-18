@@ -1,3 +1,5 @@
+"""Simple IK solver module"""
+
 from collections.abc import Sequence
 from typing import overload
 
