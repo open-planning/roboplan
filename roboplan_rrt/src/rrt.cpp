@@ -58,16 +58,20 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
 tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
                                                const JointConfiguration& goal) {
+  // Record the start for measuring timeouts.
+  const auto start_time = std::chrono::steady_clock::now();
+
   const auto& q_indices = joint_group_info_.q_indices;
   auto q_start = scene_->toFullJointPositions(options_.group_name, start.positions);
   auto q_goal = scene_->toFullJointPositions(options_.group_name, goal.positions);
+  auto q_sample = q_start;
 
   // Ensure the start and goal poses are valid
   if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
     return tl::make_unexpected("Invalid poses requested, cannot plan!");
   }
 
-  // Check whether direct connection between the start and goal are possible.
+  // Check whether direct connection between the start and goal is possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
     return JointPath{.joint_names = joint_group_info_.joint_names,
@@ -85,9 +89,6 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
 
   // For switching which tree we grow when using RRT-Connect.
   bool grow_start_tree = true;
-
-  // Record the start for measuring timeouts.
-  const auto start_time = std::chrono::steady_clock::now();
 
   while (true) {
     // Check for timeout.
@@ -112,10 +113,11 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
 
     // Sample the next node with goal biasing, using the goal node for the starting tree,
     // the start node for the goal tree.
-    const auto& q_target = grow_start_tree ? q_goal : q_start;
-    const auto q_sample = (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability)
-                              ? q_target
-                              : scene_->randomPositions();
+    if (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
+      q_sample = grow_start_tree ? q_goal : q_start;
+    } else {
+      q_sample(q_indices) = scene_->randomPositions()(q_indices);
+    }
 
     // Attempt to grow the tree towards the sampled node.
     // If no nodes are added, we resample and try again.

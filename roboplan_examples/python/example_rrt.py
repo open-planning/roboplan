@@ -24,7 +24,7 @@ from roboplan.visualization import (
 
 def main(
     model: str = "ur5",
-    max_connection_distance: float = 1.0,
+    max_connection_distance: float = 3.0,
     collision_check_step_size: float = 0.05,
     goal_biasing_probability: float = 0.15,
     max_nodes: int = 1000,
@@ -150,8 +150,11 @@ def main(
 
         print("\nPlanning...")
         t_start = time.time()
-        path = rrt.plan(start, goal)
-        assert path is not None
+        try:
+            path = rrt.plan(start, goal)
+        finally:
+            plan_button.disabled = False
+            animate_button.disabled = False
         print(f"Found a path in {time.time() - t_start:.3f} s")
 
         # Optionally include path shortening
@@ -201,6 +204,7 @@ def main(
     @animate_button.on_click
     def animate_trajectory(_):
         plan_button.disabled = True
+        animate_button.disabled = True
         nonlocal animate
         animate = True
 
@@ -224,6 +228,7 @@ def main(
                 time.sleep(traj_dt)
             animate = False
             plan_button.disabled = False
+            animate_button.disabled = False
             print("...done!")
         else:
             time.sleep(0.1)
