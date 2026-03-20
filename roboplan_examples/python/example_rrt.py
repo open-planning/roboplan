@@ -186,14 +186,14 @@ def main(
             visualizePath(
                 viz,
                 scene,
-                traj,
+                shortened_path,
                 model_data.ee_names,
                 0.05,
                 (0, 100, 0),
                 "/rrt/shortcut_path",
             )
         else:
-            visualizePath(viz, scene, traj, model_data.ee_names, 0.05)
+            visualizePath(viz, scene, path, model_data.ee_names, 0.05)
 
         traj_queue.put(traj)
         plan_button.disabled = False
