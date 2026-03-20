@@ -250,8 +250,16 @@ void init_core_scene(nanobind::module_& m) {
 }
 
 void init_core_path_utils(nanobind::module_& m) {
-  m.def("computeFramePath", &computeFramePath, "Computes the Cartesian path of a specified frame.",
+  m.def("computeFramePath",
+        nanobind::overload_cast<const Scene&, const Eigen::VectorXd&, const Eigen::VectorXd&,
+                                const std::string&, const double>(&computeFramePath),
+        "Computes the Cartesian path of a specified frame by interpolating sparse positions.",
         "scene"_a, "q_start"_a, "q_end"_a, "frame_name"_a, "max_step_size"_a);
+  m.def("computeFramePath",
+        nanobind::overload_cast<const Scene&, const std::vector<Eigen::VectorXd>&,
+                                const std::string&>(&computeFramePath),
+        "Computes the Cartesian path of a specified frame using a vector of provided points.",
+        "scene"_a, "q_vec"_a, "frame_name"_a);
   m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath,
         "Checks collisions along a specified configuration space path.", "scene"_a, "q_start"_a,
         "q_end"_a, "max_step_size"_a, "bisection"_a = true);

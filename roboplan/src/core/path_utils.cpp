@@ -22,6 +22,17 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
   return frame_path;
 }
 
+std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
+                                              const std::vector<Eigen::VectorXd>& q_vec,
+                                              const std::string& frame_name) {
+  std::vector<Eigen::Matrix4d> frame_path;
+  frame_path.reserve(q_vec.size());
+  for (const auto& q : q_vec) {
+    frame_path.push_back(scene.forwardKinematics(q, frame_name));
+  }
+  return frame_path;
+}
+
 bool hasCollisionsAlongPathRecursive(const Scene& scene, const Eigen::VectorXd& q_start,
                                      const Eigen::VectorXd& q_end, int cur_depth, int max_depth) {
   if (cur_depth >= max_depth) {

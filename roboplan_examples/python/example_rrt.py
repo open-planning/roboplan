@@ -16,8 +16,9 @@ from roboplan.rrt import RRTOptions, RRT
 from roboplan.toppra import PathParameterizerTOPPRA
 from roboplan.viser_visualizer import ViserVisualizer
 from roboplan.visualization import (
-    visualizePath,
     visualizeJointTrajectory,
+    visualizePath,
+    plotJointTrajectory,
     visualizeTree,
 )
 
@@ -183,17 +184,16 @@ def main(
         visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
         if include_shortcutting:
             visualizePath(viz, scene, path, model_data.ee_names, 0.05)
-            visualizePath(
+            visualizeJointTrajectory(
                 viz,
                 scene,
-                shortened_path,
+                traj,
                 model_data.ee_names,
-                0.05,
                 (0, 100, 0),
                 "/rrt/shortcut_path",
             )
         else:
-            visualizePath(viz, scene, path, model_data.ee_names, 0.05)
+            visualizeJointTrajectory(viz, scene, traj, model_data.ee_names)
 
         traj_queue.put(traj)
         plan_button.disabled = False
@@ -217,7 +217,7 @@ def main(
         if not traj_queue.empty():
             plt.clf()
             cur_traj = traj_queue.get()
-            fig = visualizeJointTrajectory(cur_traj, scene)
+            fig = plotJointTrajectory(cur_traj, scene)
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()

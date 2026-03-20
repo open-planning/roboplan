@@ -414,8 +414,17 @@ class Scene:
 
     def __repr__(self) -> str: ...
 
+@overload
 def computeFramePath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, max_step_size: float) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
-    """Computes the Cartesian path of a specified frame."""
+    """
+    Computes the Cartesian path of a specified frame by interpolating sparse positions.
+    """
+
+@overload
+def computeFramePath(scene: Scene, q_vec: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]], frame_name: str) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
+    """
+    Computes the Cartesian path of a specified frame using a vector of provided points.
+    """
 
 def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_step_size: float, bisection: bool = True) -> bool:
     """Checks collisions along a specified configuration space path."""

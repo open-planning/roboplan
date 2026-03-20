@@ -8,8 +8,8 @@
 
 namespace roboplan {
 
-/// @brief Computes the Cartesian path of a specified frame.
-/// @param scene The scene to use for interpolating positions.
+/// @brief Computes the Cartesian path of a specified frame by interpolating sparse positions.
+/// @param scene The scene to use.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param frame_name The name of the frame in which to compute the Cartesian path.
@@ -19,6 +19,15 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
                                               const Eigen::VectorXd& q_end,
                                               const std::string& frame_name,
                                               const double max_step_size);
+
+/// @brief Computes the Cartesian path of a specified frame using a vector of provided points.
+/// @param scene The scene to use.
+/// @param q_vec A vector of joint positions.
+/// @param frame_name The name of the frame in which to compute the Cartesian path.
+/// @return A list of 4x4 matrices corresponding to the poses of the frame along the path.
+std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
+                                              const std::vector<Eigen::VectorXd>& q_vec,
+                                              const std::string& frame_name);
 
 /// @brief Checks collisions along a specified configuration space path.
 /// @param scene The scene to use for interpolating positions and checking collisions.
