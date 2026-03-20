@@ -14,7 +14,7 @@ def visualizePath(
     frame_names: list,
     max_step_size: float,
     color: tuple = (100, 0, 0),
-    name: str = "/rrt/path",
+    name: str = "/path",
 ) -> None:
     """
     Helper function to visualize a sparse joint path in Cartesian space, using interpolation.
@@ -26,7 +26,7 @@ def visualizePath(
         frame_names: The list of frame names to use for forward kinematics.
         max_step_size: The maximum step size between joint configurations when interpolating paths.
         color: The color of the rendered path.
-        name: The name of the path in the vizer window.
+        name: The name of the path in the viser window.
     """
     if path is None:
         return
@@ -61,7 +61,7 @@ def visualizeJointTrajectory(
     traj: JointTrajectory | None,
     frame_names: list,
     color: tuple = (100, 0, 0),
-    name: str = "/rrt/path",
+    name: str = "/trajectory",
 ) -> None:
     """
     Helper function to visualize a joint trajectory in Cartesian space.
@@ -71,8 +71,8 @@ def visualizeJointTrajectory(
         scene: The scene instance.
         traj: The joint trajectory to visualize.
         frame_names: The list of frame names to use for forward kinematics.
-        color: The color of the rendered path.
-        name: The name of the path in the vizer window.
+        color: The color of the rendered trajectory.
+        name: The name of the trajectory in the viser window.
     """
     if traj is None:
         return
