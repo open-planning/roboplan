@@ -25,9 +25,12 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
+/// @param bisection If True, uses recursive bisection instead of linear search.
+///   On average, this helps find collisions faster but has a slower worst-case scenario.
 /// @return True if there are collisions, else false.
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size);
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection = true);
 
 /// @brief Shortcuts joint paths with random sampling and checking connections.
 /// @details This implementation is based on section 3.5.3 of:

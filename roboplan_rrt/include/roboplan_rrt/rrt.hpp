@@ -32,6 +32,9 @@ struct RRTOptions {
   /// @brief The configuration-space step size for collision checking along edges.
   double collision_check_step_size = 0.05;
 
+  /// @brief If true, uses bisection instead of linear search for collision checking along edges.
+  bool collision_check_use_bisection = true;
+
   /// @brief The probability of sampling the goal node instead of a random node.
   /// @details Must be between 0 and 1.
   double goal_biasing_probability = 0.15;

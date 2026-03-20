@@ -73,7 +73,8 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
 
   // Check whether direct connection between the start and goal is possible.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size))) {
+      (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size,
+                               options_.collision_check_use_bisection))) {
     return JointPath{.joint_names = joint_group_info_.joint_names,
                      .positions = {q_start(q_indices), q_goal(q_indices)}};
   }
@@ -177,7 +178,8 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     auto q_extend = extend(q_current, q_sample, options_.max_connection_distance);
 
     // If the extended node cannot be connected to the tree then throw it away and return
-    if (hasCollisionsAlongPath(*scene_, q_current, q_extend, options_.collision_check_step_size)) {
+    if (hasCollisionsAlongPath(*scene_, q_current, q_extend, options_.collision_check_step_size,
+                               options_.collision_check_use_bisection)) {
       break;
     }
 
@@ -227,7 +229,8 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   // If the latest sampled node in one tree can be connected to the nearest node in the target tree,
   // then a path exists and we should return it.
   if ((scene_->configurationDistance(q_latest, q_nearest) <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size))) {
+      (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size,
+                               options_.collision_check_use_bisection))) {
 
     // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree. Otherwise it is
     // reversed.

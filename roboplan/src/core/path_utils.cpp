@@ -22,8 +22,26 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
   return frame_path;
 }
 
+bool hasCollisionsAlongPathRecursive(const Scene& scene, const Eigen::VectorXd& q_start,
+                                     const Eigen::VectorXd& q_end, int cur_depth, int max_depth) {
+  if (cur_depth >= max_depth) {
+    return false;
+  }
+
+  // Calculate the midpoint and check its collisions.
+  const auto q_mid = scene.interpolate(q_start, q_end, 0.5);
+  if (scene.hasCollisions(q_mid)) {
+    return true;
+  }
+
+  // Recursively check the remaining two halves of the path.
+  return hasCollisionsAlongPathRecursive(scene, q_start, q_mid, cur_depth + 1, max_depth) ||
+         hasCollisionsAlongPathRecursive(scene, q_mid, q_end, cur_depth + 1, max_depth);
+}
+
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size) {
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection) {
 
   const auto distance = scene.configurationDistance(q_start, q_end);
 
@@ -37,14 +55,20 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
   if (collision_at_endpoints) {
     return true;
   }
-  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
-  for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
-    const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-    if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
-      return true;
+
+  if (bisection) {
+    const auto max_depth = std::ceil(std::log2(distance));
+    return hasCollisionsAlongPathRecursive(scene, q_start, q_end, 0 /* cur_depth */, max_depth);
+  } else {
+    const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
+    for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
+      const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
+      if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+        return true;
+      }
     }
+    return false;
   }
-  return false;
 }
 
 PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name)
