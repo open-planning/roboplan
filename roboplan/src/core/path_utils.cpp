@@ -34,20 +34,22 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 }
 
 bool hasCollisionsAlongPathRecursive(const Scene& scene, const Eigen::VectorXd& q_start,
-                                     const Eigen::VectorXd& q_end, int cur_depth, int max_depth) {
-  if (cur_depth >= max_depth) {
+                                     const Eigen::VectorXd& q_end, int lo, int hi, int max) {
+  // We have reached the maximum granularity in this case.
+  if (hi <= lo + 1) {
     return false;
   }
 
-  // Calculate the midpoint and check its collisions.
-  const auto q_mid = scene.interpolate(q_start, q_end, 0.5);
-  if (scene.hasCollisions(q_mid)) {
+  // Calculate the midpoint index and check collisions.
+  const size_t mid = lo + (hi - lo) / 2;
+  const auto fraction = static_cast<double>(mid) / static_cast<double>(max);
+  if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
     return true;
   }
 
   // Recursively check the remaining two halves of the path.
-  return hasCollisionsAlongPathRecursive(scene, q_start, q_mid, cur_depth + 1, max_depth) ||
-         hasCollisionsAlongPathRecursive(scene, q_mid, q_end, cur_depth + 1, max_depth);
+  return hasCollisionsAlongPathRecursive(scene, q_start, q_end, lo, mid, max) ||
+         hasCollisionsAlongPathRecursive(scene, q_start, q_end, mid, hi, max);
 }
 
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
@@ -67,11 +69,10 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
     return true;
   }
 
+  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
   if (bisection) {
-    const auto max_depth = std::ceil(std::log2(distance));
-    return hasCollisionsAlongPathRecursive(scene, q_start, q_end, 0 /* cur_depth */, max_depth);
+    return hasCollisionsAlongPathRecursive(scene, q_start, q_end, 0, num_steps, num_steps);
   } else {
-    const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
     for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
       const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
       if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {

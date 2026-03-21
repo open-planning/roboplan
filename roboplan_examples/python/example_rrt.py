@@ -183,7 +183,9 @@ def main(
         viz.display(q_full)
         visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
         if include_shortcutting:
-            visualizePath(viz, scene, path, model_data.ee_names, 0.05, "/rrt/path")
+            visualizePath(
+                viz, scene, path, model_data.ee_names, 0.05, (100, 0, 0), "/rrt/path"
+            )
             visualizeJointTrajectory(
                 viz,
                 scene,
@@ -193,7 +195,9 @@ def main(
                 "/rrt/shortcut_path",
             )
         else:
-            visualizeJointTrajectory(viz, scene, traj, model_data.ee_names, "/rrt/path")
+            visualizeJointTrajectory(
+                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/path"
+            )
 
         traj_queue.put(traj)
         plan_button.disabled = False
