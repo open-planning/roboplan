@@ -24,7 +24,7 @@ void init_rrt(nanobind::module_& m) {
   nanobind::class_<RRTOptions>(m, "RRTOptions", "Options struct for RRT planner.")
       .def(nanobind::init<const std::string&, size_t, double, double, bool, double, double, bool>(),
            "group_name"_a = "", "max_nodes"_a = 1000, "max_connection_distance"_a = 3.0,
-           "collision_check_step_size"_a = 0.05, "collision_check_use_bisection"_a = true,
+           "collision_check_step_size"_a = 0.05, "collision_check_use_bisection"_a = false,
            "goal_biasing_probability"_a = 0.15, "max_planning_time"_a = 0.0,
            "rrt_connect"_a = false)
       .def_rw("group_name", &RRTOptions::group_name,

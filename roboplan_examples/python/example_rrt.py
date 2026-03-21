@@ -27,7 +27,7 @@ def main(
     model: str = "ur5",
     max_connection_distance: float = 3.0,
     collision_check_step_size: float = 0.05,
-    collision_check_use_bisection: bool = True,
+    collision_check_use_bisection: bool = False,
     goal_biasing_probability: float = 0.15,
     max_nodes: int = 1000,
     max_planning_time: float = 5.0,
@@ -47,6 +47,7 @@ def main(
         max_connection_distance: Maximum connection distance between two search nodes.
         collision_check_step_size: Configuration-space step size for collision checking along edges.
         collision_check_use_bisection: If true, uses bisection instead of linear search for collision checking along edges.
+            This can be helpful in collision-dense environments, but has a lower worst-case performance.
         goal_biasing_probability: Weighting of the goal node during random sampling.
         max_nodes: The maximum number of nodes to add to the search tree.
         max_planning_time: The maximum time (in seconds) to search for a path.

@@ -170,7 +170,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     }
 
     // Ensure the new connection is valid. If not, try again.
-    if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size, /* bisection*/ true)) {
+    if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size)) {
       continue;
     }
 
