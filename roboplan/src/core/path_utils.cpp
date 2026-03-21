@@ -1,5 +1,25 @@
 #include <roboplan/core/path_utils.hpp>
 
+namespace {
+
+/// @brief Helper function that returns elements of a van der Corput sequence.
+/// @details This can be helpful to perform collision checking along a densely sampled path in a way
+/// that is statistically more efficient than linearly searching along the discretized path. An
+/// example sequence looks like [0, 1/2, 1/4, 3/4, 1/8, 5/8, 3/8, 7/8, 1/16, ...] See
+/// https://lavalle.pl/planning/node196.html for more details.
+/// @param bits The input bits to the sequence.
+/// @return The van der Corput sequence element.
+double vanDerCorput(uint32_t bits) {
+  bits = (bits << 16) | (bits >> 16);
+  bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
+  bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
+  bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
+  bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
+  return static_cast<double>(bits) * 2.3283064365386963e-10;  // 1 / 2^32
+}
+
+}  // namespace
+
 namespace roboplan {
 
 std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::VectorXd& q_start,
@@ -33,25 +53,6 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
   return frame_path;
 }
 
-bool hasCollisionsAlongPathRecursive(const Scene& scene, const Eigen::VectorXd& q_start,
-                                     const Eigen::VectorXd& q_end, int lo, int hi, int max) {
-  // We have reached the maximum granularity in this case.
-  if (hi <= lo + 1) {
-    return false;
-  }
-
-  // Calculate the midpoint index and check collisions.
-  const size_t mid = lo + (hi - lo) / 2;
-  const auto fraction = static_cast<double>(mid) / static_cast<double>(max);
-  if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
-    return true;
-  }
-
-  // Recursively check the remaining two halves of the path.
-  return hasCollisionsAlongPathRecursive(scene, q_start, q_end, lo, mid, max) ||
-         hasCollisionsAlongPathRecursive(scene, q_start, q_end, mid, hi, max);
-}
-
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
                             const bool bisection) {
@@ -70,17 +71,14 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
   }
 
   const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
-  if (bisection) {
-    return hasCollisionsAlongPathRecursive(scene, q_start, q_end, 0, num_steps, num_steps);
-  } else {
-    for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
-      const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-      if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
-        return true;
-      }
+  for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
+    const auto fraction =
+        bisection ? vanDerCorput(idx) : static_cast<double>(idx) / static_cast<double>(num_steps);
+    if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+      return true;
     }
-    return false;
   }
+  return false;
 }
 
 PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name)
