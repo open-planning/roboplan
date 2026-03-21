@@ -70,8 +70,12 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
     return true;
   }
 
-  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
-  for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
+  auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
+  if (bisection) {
+    // To guarantee minimum distance with bisection, we have to round up to the nearest power of 2.
+    num_steps = std::pow(2.0, std::ceil(std::log2(num_steps)));
+  }
+  for (size_t idx = 1; idx < num_steps; ++idx) {
     const auto fraction =
         bisection ? vanDerCorput(idx) : static_cast<double>(idx) / static_cast<double>(num_steps);
     if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {

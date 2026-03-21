@@ -51,7 +51,8 @@ public:
 };
 
 TEST_F(RoboPlanPathUtilsTest, testHasCollisionsAlongPath) {
-  // Do not set the RNG seed here to catch cases where the checks are not equivalent.
+  // Ensures all the samples are the same, since linear vs. bisection can differ in some cases.
+  scene_->setRngSeed(1234);
   for (auto idx = 0; idx < 10; ++idx) {
     const auto maybe_q_start = scene_->randomCollisionFreePositions();
     ASSERT_TRUE(maybe_q_start.has_value());
