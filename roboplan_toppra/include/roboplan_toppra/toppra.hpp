@@ -24,9 +24,10 @@ public:
   /// @param path The path to time parameterize.
   /// @param dt The sample time of the output trajectory, in seconds.
   /// @param mode The mode to use for spline fitting the path. Options include:
-  ///   "hermite": Fits a cubic Hermite spline with zero velocity at all waypoints.
+  ///
+  ///   - "hermite": Fits a cubic Hermite spline with zero velocity at all waypoints.
   ///     This can cause slow execution, but guarantees perfect adherence to the desired path.
-  ///   "cubic": Fits a cubic spline with zero velocity only at the endpoints.
+  ///   - "cubic": Fits a cubic spline with zero velocity only at the endpoints.
   ///     This is smoother, but can cause deviations from the desired path that could lead to
   ///     collision.
   /// @param velocity_scale A scaling factor (between 0 and 1) for velocity limits.
