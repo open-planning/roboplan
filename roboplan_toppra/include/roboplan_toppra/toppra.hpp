@@ -56,18 +56,18 @@ private:
   /// @details This defines zero velocity and acceleration at the endpoints only, meaning that
   /// intermediate waypoints are passed through smoothly, but could deviate from the original path
   /// and therefore lead to collisions.
-  /// @param path The joint path.
-  /// @return The resulting cubic spline if successful, else a string describing the error.
-  tl::expected<std::shared_ptr<toppra::PiecewisePolyPath>, std::string>
-  generateCubicSpline(const JointPath& path);
+  /// @param path_pos_vecs The joint path position vectors.
+  /// @return The resulting cubic spline.
+  std::shared_ptr<toppra::PiecewisePolyPath>
+  generateCubicSpline(const toppra::Vectors& path_pos_vecs);
 
   /// @brief Helper function to extract a cubic Hermite spline from a joint path.
   /// @details This enforces zero velocity and acceleration at all waypoints, meaning the desired
   /// path is exactly adhered to. If the path was checked for collisions, this spline is also safe.
-  /// @param path The joint path.
-  /// @return The resulting cubic Hermite spline if successful, else a string describing the error.
-  tl::expected<std::shared_ptr<toppra::PiecewisePolyPath>, std::string>
-  generateCubicHermiteSpline(const JointPath& path);
+  /// @param path_pos_vecs The joint path position vectors.
+  /// @return The resulting cubic Hermite spline.
+  std::shared_ptr<toppra::PiecewisePolyPath>
+  generateCubicHermiteSpline(const toppra::Vectors& path_pos_vecs);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;

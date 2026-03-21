@@ -61,8 +61,7 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
     const auto& pos = path.positions.at(idx);
     auto maybe_collapsed_pos = collapseContinuousJointPositions(*scene_, group_name_, pos);
     if (!maybe_collapsed_pos) {
-      return tl::make_unexpected("Failed to compute path parameterization: " +
-                                 maybe_collapsed_pos.error());
+      return tl::make_unexpected(maybe_collapsed_pos.error());
     }
     auto curr_collapsed = maybe_collapsed_pos.value();
 
@@ -85,15 +84,9 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
   return path_pos_vecs;
 }
 
-tl::expected<std::shared_ptr<toppra::PiecewisePolyPath>, std::string>
-PathParameterizerTOPPRA::generateCubicSpline(const JointPath& path) {
-  const auto maybe_path_pos_vecs = getPathPositionVectors(path);
-  if (!maybe_path_pos_vecs) {
-    return tl::make_unexpected(maybe_path_pos_vecs.error());
-  }
-  const auto& path_pos_vecs = maybe_path_pos_vecs.value();
-
-  const auto num_pts = path.positions.size();
+std::shared_ptr<toppra::PiecewisePolyPath>
+PathParameterizerTOPPRA::generateCubicSpline(const toppra::Vectors& path_pos_vecs) {
+  const auto num_pts = path_pos_vecs.size();
   Eigen::VectorXd times(num_pts);
   double s = 0.0;
   for (size_t idx = 0; idx < num_pts; ++idx) {
@@ -109,15 +102,9 @@ PathParameterizerTOPPRA::generateCubicSpline(const JointPath& path) {
   return std::make_shared<toppra::PiecewisePolyPath>(spline);
 }
 
-tl::expected<std::shared_ptr<toppra::PiecewisePolyPath>, std::string>
-PathParameterizerTOPPRA::generateCubicHermiteSpline(const JointPath& path) {
-  const auto maybe_path_pos_vecs = getPathPositionVectors(path);
-  if (!maybe_path_pos_vecs) {
-    return tl::make_unexpected(maybe_path_pos_vecs.error());
-  }
-  const auto& path_pos_vecs = maybe_path_pos_vecs.value();
-
-  const auto num_pts = path.positions.size();
+std::shared_ptr<toppra::PiecewisePolyPath>
+PathParameterizerTOPPRA::generateCubicHermiteSpline(const toppra::Vectors& path_pos_vecs) {
+  const auto num_pts = path_pos_vecs.size();
   toppra::Vectors path_vel_vecs;
   path_vel_vecs.reserve(num_pts);
   std::vector<double> steps;
@@ -169,13 +156,71 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
   acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
   toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
-  // Create the spline
-  const auto maybe_geom_path =
-      is_hermite ? generateCubicHermiteSpline(path) : generateCubicSpline(path);
-  if (!maybe_geom_path) {
-    return tl::make_unexpected(maybe_geom_path.error());
+  auto maybe_path_pos_vecs = getPathPositionVectors(path);
+  if (!maybe_path_pos_vecs) {
+    return tl::make_unexpected("Failed to extract position vectors from path: " +
+                               maybe_path_pos_vecs.error());
   }
-  const auto& geom_path = maybe_geom_path.value();
+  auto path_pos_vecs = maybe_path_pos_vecs.value();
+
+  std::shared_ptr<toppra::PiecewisePolyPath> geom_path;
+  int max_collision_iterations = 10;  // todo hoist out
+  std::vector<size_t> collision_indices;
+
+  for (int idx = 0; idx < max_collision_iterations; ++idx) {
+    std::cout << "=== ITERATION " << idx << "===" << std::endl;
+    // Create the spline.
+    geom_path =
+        is_hermite ? generateCubicHermiteSpline(path_pos_vecs) : generateCubicSpline(path_pos_vecs);
+
+    // Collision check the spline.
+    // This assumes the initial path has time indices at exactly increments of 1.0 (which is the
+    // case). These time values will later be modified by the final TOPP-RA algorithm.
+    collision_indices.clear();
+    size_t points_added = 0;
+    const auto time_points = geom_path->proposeGridpoints(1.0e-4, 100, 0.05);
+    for (const auto t : time_points) {
+      // If the current point has already been added, can skip to the next time point.
+      const auto t_int = static_cast<size_t>(t);
+      if (collision_indices.size() > 0 && collision_indices.back() == t_int) {
+        continue;
+      }
+
+      const auto q = geom_path->eval_single(t, 0);
+      // std::cout << "t: " << t << " q: " << q.transpose() << std::endl;
+      const auto maybe_q_expanded = expandContinuousJointPositions(*scene_, group_name_, q);
+      if (!maybe_q_expanded) {
+        return tl::make_unexpected("Failed to collision check geometric path: " +
+                                   maybe_q_expanded.error());
+      }
+      const auto q_full = scene_->toFullJointPositions(group_name_, maybe_q_expanded.value());
+
+      // If a collision is found, add a waypoint in the middle of the current and next point.
+      if (scene_->hasCollisions(q_full)) {
+        collision_indices.push_back(t_int);
+        const auto& q_prev = path_pos_vecs.at(t_int + points_added);
+        const auto& q_next = path_pos_vecs.at(t_int + points_added + 1);
+        const auto q_interp = 0.5 * (q_prev + q_next);
+        std::cout << "Added point between: " << t_int << " and " << (t_int + 1) << ": "
+                  << std::endl;
+        std::cout << "  " << q_interp.transpose() << std::endl;
+        path_pos_vecs.insert(path_pos_vecs.begin() + t_int + points_added + 1, q_interp);
+        ++points_added;
+      }
+    }
+
+    if (collision_indices.empty()) {
+      std::cout << "Path is collision free after " << idx << " iterations!" << std::endl;
+      break;
+    }
+  }
+
+  // If we are still not collision-free, fall back to a Hermite cubic spline using the original
+  // path.
+  if (!collision_indices.empty()) {
+    std::cout << "Fell back to Hermite spline :(" << std::endl;
+    geom_path = generateCubicHermiteSpline(getPathPositionVectors(path).value());
+  }
 
   // Solve TOPP-RA problem.
   toppra::PathParametrizationAlgorithmPtr algo =
