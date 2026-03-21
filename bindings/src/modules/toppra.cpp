@@ -19,7 +19,7 @@ void init_toppra(nanobind::module_& m) {
            "group_name"_a = "")
       .def("generate", unwrap_expected(&PathParameterizerTOPPRA::generate),
            "Time-parameterizes a joint-space path using TOPP-RA.", "path"_a, "dt"_a,
-           "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0);
+           "mode"_a = "hermite", "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0);
 }
 
 }  // namespace roboplan

@@ -34,6 +34,7 @@ def main(
     rrt_connect: bool = False,
     include_shortcutting: bool = False,
     max_shortcutting_iters: int = 100,
+    toppra_mode: str = "hermite",
     host: str = "localhost",
     port: str = "8000",
     rng_seed: int | None = None,
@@ -54,6 +55,7 @@ def main(
         rrt_connect: Whether or not to use RRT-Connect.
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         max_shortcutting_iters: The maximum number of path shortcutting iterations.
+        toppra_mode: The trajectory generation mode for TOPP-RA. Can be "hermite" or "cubic".
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
         rng_seed: The seed for selecting random start and end poses and solving RRT.
@@ -176,7 +178,7 @@ def main(
         print("Generating trajectory...")
         t_start = time.time()
         traj = toppra.generate(
-            shortened_path if include_shortcutting else path, traj_dt
+            shortened_path if include_shortcutting else path, traj_dt, toppra_mode
         )
         print(f"Generated trajectory in {time.time() - t_start:.3f} s")
 
