@@ -231,7 +231,56 @@ struct Oink {
   /// @param custom_settings Custom OSQP solver settings
   Oink(int num_variables, const OsqpEigen::Settings& custom_settings);
 
-  /// @brief Solve inverse kinematics for given tasks, constraints, and optional barriers
+  /// @brief Solve inverse kinematics for tasks only (no constraints or barriers)
+  ///
+  /// Solves a QP optimization problem to compute the joint velocity that minimizes
+  /// weighted task errors.
+  ///
+  /// @param tasks Vector of weighted tasks to optimize for
+  /// @param scene Scene containing robot model and state
+  /// @param delta_q Pre-allocated output buffer for configuration displacement
+  /// @param regularization Tikhonov regularization weight (default: 1e-12)
+  /// @return void on success, error message on failure
+  tl::expected<void, std::string>
+  solveIk(const std::vector<std::shared_ptr<Task>>& tasks, const Scene& scene,
+          Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+          double regularization = 1e-12);
+
+  /// @brief Solve inverse kinematics for tasks with constraints (no barriers)
+  ///
+  /// Solves a QP optimization problem to compute the joint velocity that minimizes
+  /// weighted task errors while satisfying all constraints.
+  ///
+  /// @param tasks Vector of weighted tasks to optimize for
+  /// @param constraints Vector of constraints to satisfy
+  /// @param scene Scene containing robot model and state
+  /// @param delta_q Pre-allocated output buffer for configuration displacement
+  /// @param regularization Tikhonov regularization weight (default: 1e-12)
+  /// @return void on success, error message on failure
+  tl::expected<void, std::string>
+  solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+          const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
+          Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+          double regularization = 1e-12);
+
+  /// @brief Solve inverse kinematics for tasks with barriers (no constraints)
+  ///
+  /// Solves a QP optimization problem to compute the joint velocity that minimizes
+  /// weighted task errors while satisfying all barrier functions.
+  ///
+  /// @param tasks Vector of weighted tasks to optimize for
+  /// @param barriers Vector of barrier functions for safety constraints
+  /// @param scene Scene containing robot model and state
+  /// @param delta_q Pre-allocated output buffer for configuration displacement
+  /// @param regularization Tikhonov regularization weight (default: 1e-12)
+  /// @return void on success, error message on failure
+  tl::expected<void, std::string>
+  solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+          const std::vector<std::shared_ptr<Barrier>>& barriers, const Scene& scene,
+          Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+          double regularization = 1e-12);
+
+  /// @brief Solve inverse kinematics for tasks with constraints and barriers
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
   /// weighted task errors while satisfying all constraints and barrier functions.
@@ -239,7 +288,7 @@ struct Oink {
   ///
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param constraints Vector of constraints to satisfy
-  /// @param barriers Vector of barrier functions for safety constraints (default: empty)
+  /// @param barriers Vector of barrier functions for safety constraints
   /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement.
   ///                Must be sized to num_variables (velocity space dimension).
@@ -257,11 +306,15 @@ struct Oink {
   /// Example usage:
   /// @code
   /// Eigen::VectorXd delta_q(oink.num_variables);
-  /// // Without barriers:
-  /// auto result = oink.solveIk(tasks, constraints, {}, scene, delta_q);
-  /// // With barriers:
+  /// // Tasks only:
+  /// auto result = oink.solveIk(tasks, scene, delta_q);
+  /// // Tasks with constraints:
+  /// auto result = oink.solveIk(tasks, constraints, scene, delta_q);
+  /// // Tasks with barriers:
+  /// auto result = oink.solveIk(tasks, barriers, scene, delta_q);
+  /// // Tasks with constraints and barriers:
   /// auto result = oink.solveIk(tasks, constraints, barriers, scene, delta_q);
-  /// // With barriers and custom regularization:
+  /// // With custom regularization:
   /// auto result = oink.solveIk(tasks, constraints, barriers, scene, delta_q, 1e-6);
   /// @endcode
   tl::expected<void, std::string>

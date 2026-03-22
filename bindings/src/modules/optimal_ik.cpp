@@ -109,7 +109,7 @@ void init_optimal_ik(nanobind::module_& m) {
 
   // Bind ConstraintAxisSelection configuration struct
   nanobind::class_<ConstraintAxisSelection>(m, "ConstraintAxisSelection",
-                                             "Axis selection for position barrier constraints.")
+                                            "Axis selection for position barrier constraints.")
       .def(nanobind::init<bool, bool, bool>(), "x"_a = true, "y"_a = true, "z"_a = true,
            "Constructor with axis enable flags.")
       .def_rw("x", &ConstraintAxisSelection::x, "Constrain X axis.")
@@ -176,7 +176,71 @@ void init_optimal_ik(nanobind::module_& m) {
           "    # With barriers:\n"
           "    oink.solveIk(tasks, constraints, barriers, scene, delta_q)\n\n"
           "    # With custom regularization:\n"
-          "    oink.solveIk(tasks, constraints, barriers, scene, delta_q, 1e-6)");
+          "    oink.solveIk(tasks, constraints, barriers, scene, delta_q, 1e-6)")
+      .def(
+          "solveIk",
+          [](Oink& self, const std::vector<std::shared_ptr<Task>>& tasks,
+             const std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q,
+             double regularization) {
+            auto result = self.solveIk(tasks, *scene, delta_q, regularization);
+            if (!result.has_value()) {
+              throw std::runtime_error("IK solve failed: " + result.error());
+            }
+          },
+          "tasks"_a, "scene"_a, "delta_q"_a, "regularization"_a = 1e-12,
+          "Solve inverse kinematics for tasks only (no constraints or barriers).\n\n"
+          "Args:\n"
+          "    tasks: List of weighted tasks to optimize for.\n"
+          "    scene: Scene containing robot model and state.\n"
+          "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
+          "    regularization: Tikhonov regularization weight (default: 1e-12).\n\n"
+          "Example:\n"
+          "    delta_q = np.zeros(oink.num_variables)\n"
+          "    oink.solveIk(tasks, scene, delta_q)")
+      .def(
+          "solveIk",
+          [](Oink& self, const std::vector<std::shared_ptr<Task>>& tasks,
+             const std::vector<std::shared_ptr<Constraints>>& constraints,
+             const std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q,
+             double regularization) {
+            auto result = self.solveIk(tasks, constraints, *scene, delta_q, regularization);
+            if (!result.has_value()) {
+              throw std::runtime_error("IK solve failed: " + result.error());
+            }
+          },
+          "tasks"_a, "constraints"_a, "scene"_a, "delta_q"_a, "regularization"_a = 1e-12,
+          "Solve inverse kinematics for tasks with constraints (no barriers).\n\n"
+          "Args:\n"
+          "    tasks: List of weighted tasks to optimize for.\n"
+          "    constraints: List of constraints to satisfy.\n"
+          "    scene: Scene containing robot model and state.\n"
+          "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
+          "    regularization: Tikhonov regularization weight (default: 1e-12).\n\n"
+          "Example:\n"
+          "    delta_q = np.zeros(oink.num_variables)\n"
+          "    oink.solveIk(tasks, constraints, scene, delta_q)")
+      .def(
+          "solveIk",
+          [](Oink& self, const std::vector<std::shared_ptr<Task>>& tasks,
+             const std::vector<std::shared_ptr<Barrier>>& barriers,
+             const std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q,
+             double regularization) {
+            auto result = self.solveIk(tasks, barriers, *scene, delta_q, regularization);
+            if (!result.has_value()) {
+              throw std::runtime_error("IK solve failed: " + result.error());
+            }
+          },
+          "tasks"_a, "barriers"_a, "scene"_a, "delta_q"_a, "regularization"_a = 1e-12,
+          "Solve inverse kinematics for tasks with barriers (no constraints).\n\n"
+          "Args:\n"
+          "    tasks: List of weighted tasks to optimize for.\n"
+          "    barriers: List of barrier functions for safety constraints.\n"
+          "    scene: Scene containing robot model and state.\n"
+          "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
+          "    regularization: Tikhonov regularization weight (default: 1e-12).\n\n"
+          "Example:\n"
+          "    delta_q = np.zeros(oink.num_variables)\n"
+          "    oink.solveIk(tasks, barriers, scene, delta_q)");
 }
 
 }  // namespace roboplan

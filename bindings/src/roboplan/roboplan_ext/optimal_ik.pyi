@@ -196,18 +196,40 @@ class Barrier:
     def safety_margin(self) -> float:
         """Conservative margin for hard constraints."""
 
+class ConstraintAxisSelection:
+    """Axis selection for position barrier constraints."""
+
+    def __init__(self, x: bool = True, y: bool = True, z: bool = True) -> None:
+        """Constructor with axis enable flags."""
+
+    @property
+    def x(self) -> bool:
+        """Constrain X axis."""
+
+    @x.setter
+    def x(self, arg: bool, /) -> None: ...
+
+    @property
+    def y(self) -> bool:
+        """Constrain Y axis."""
+
+    @y.setter
+    def y(self, arg: bool, /) -> None: ...
+
+    @property
+    def z(self) -> bool:
+        """Constrain Z axis."""
+
+    @z.setter
+    def z(self, arg: bool, /) -> None: ...
+
 class PositionBarrier(Barrier):
     """
     Position barrier constraint that keeps a frame within an axis-aligned bounding box.
     """
 
-    @overload
-    def __init__(self, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], num_variables: int, gain: float = 1.0, dt: float = 0.01, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
-        """Create a position barrier for all 3 axes (x, y, z)."""
-
-    @overload
-    def __init__(self, frame_name: str, indices: Sequence[int], p_min: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], num_variables: int, gain: float = 1.0, dt: float = 0.01, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
-        """Create a position barrier for selected axes only."""
+    def __init__(self, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], num_variables: int, dt: float, axis_selection: ConstraintAxisSelection = ..., gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
+        """Create a position barrier with optional axis selection."""
 
     def get_frame_position(self, scene: roboplan_ext.core.Scene) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Get the current frame position in world coordinates."""
@@ -217,15 +239,15 @@ class PositionBarrier(Barrier):
         """Name of the constrained frame."""
 
     @property
-    def indices(self) -> list[int]:
-        """Constrained axis indices."""
+    def axis_selection(self) -> ConstraintAxisSelection:
+        """Axis selection for constraints."""
 
     @property
-    def p_min(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+    def p_min(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Minimum position bounds."""
 
     @property
-    def p_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+    def p_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Maximum position bounds."""
 
 class Oink:
@@ -238,6 +260,7 @@ class Oink:
     def num_variables(self) -> int:
         """Number of optimization variables."""
 
+    @overload
     def solveIk(self, tasks: Sequence[Task], constraints: Sequence[Constraints], barriers: Sequence[Barrier], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:
         """
         Solve inverse kinematics for given tasks, constraints, and optional barriers.
@@ -270,4 +293,54 @@ class Oink:
 
             # With custom regularization:
             oink.solveIk(tasks, constraints, barriers, scene, delta_q, 1e-6)
+        """
+
+    @overload
+    def solveIk(self, tasks: Sequence[Task], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:
+        """
+        Solve inverse kinematics for tasks only (no constraints or barriers).
+
+        Args:
+            tasks: List of weighted tasks to optimize for.
+            scene: Scene containing robot model and state.
+            delta_q: Pre-allocated numpy array for output (size = num_variables).
+            regularization: Tikhonov regularization weight (default: 1e-12).
+
+        Example:
+            delta_q = np.zeros(oink.num_variables)
+            oink.solveIk(tasks, scene, delta_q)
+        """
+
+    @overload
+    def solveIk(self, tasks: Sequence[Task], constraints: Sequence[Constraints], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:
+        """
+        Solve inverse kinematics for tasks with constraints (no barriers).
+
+        Args:
+            tasks: List of weighted tasks to optimize for.
+            constraints: List of constraints to satisfy.
+            scene: Scene containing robot model and state.
+            delta_q: Pre-allocated numpy array for output (size = num_variables).
+            regularization: Tikhonov regularization weight (default: 1e-12).
+
+        Example:
+            delta_q = np.zeros(oink.num_variables)
+            oink.solveIk(tasks, constraints, scene, delta_q)
+        """
+
+    @overload
+    def solveIk(self, tasks: Sequence[Task], barriers: Sequence[Barrier], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:
+        """
+        Solve inverse kinematics for tasks with barriers (no constraints).
+
+        Args:
+            tasks: List of weighted tasks to optimize for.
+            barriers: List of barrier functions for safety constraints.
+            scene: Scene containing robot model and state.
+            delta_q: Pre-allocated numpy array for output (size = num_variables).
+            regularization: Tikhonov regularization weight (default: 1e-12).
+
+        Example:
+            delta_q = np.zeros(oink.num_variables)
+            oink.solveIk(tasks, barriers, scene, delta_q)
         """

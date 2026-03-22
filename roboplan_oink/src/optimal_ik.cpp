@@ -355,4 +355,30 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
   return {};
 }
 
+// Overload: tasks only
+tl::expected<void, std::string>
+Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks, const Scene& scene,
+              Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+              double regularization) {
+  return solveIk(tasks, {}, {}, scene, delta_q, regularization);
+}
+
+// Overload: tasks + constraints
+tl::expected<void, std::string>
+Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+              const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
+              Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+              double regularization) {
+  return solveIk(tasks, constraints, {}, scene, delta_q, regularization);
+}
+
+// Overload: tasks + barriers
+tl::expected<void, std::string>
+Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+              const std::vector<std::shared_ptr<Barrier>>& barriers, const Scene& scene,
+              Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+              double regularization) {
+  return solveIk(tasks, {}, barriers, scene, delta_q, regularization);
+}
+
 }  // namespace roboplan
