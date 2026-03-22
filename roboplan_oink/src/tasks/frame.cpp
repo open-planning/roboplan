@@ -53,22 +53,26 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   error_container.head<3>() = e_pos;
   error_container.tail<3>() = e_rot;
 
-  // Saturate position error (first 3 components) if limit is finite
-  // This prevents large jumps that can invalidate CBF linearization
+  // Soft saturation of position error using tanh for smooth gradients
+  // This prevents large jumps that can invalidate CBF linearization while maintaining
+  // smooth error dynamics. Uses saturate(e) = e_max * tanh(||e|| / e_max) * (e / ||e||)
   if (std::isfinite(max_position_error)) {
     Eigen::Vector3d pos_error = error_container.head<kPositionDimension>();
     const double pos_norm = pos_error.norm();
-    if (pos_norm > max_position_error) {
-      error_container.head<kPositionDimension>() = pos_error * (max_position_error / pos_norm);
+    if (pos_norm > 1e-9) {  // Avoid division by zero
+      const double scale = max_position_error * std::tanh(pos_norm / max_position_error) / pos_norm;
+      error_container.head<kPositionDimension>() = pos_error * scale;
     }
   }
 
-  // Saturate rotation error (last 3 components) if limit is finite
+  // Soft saturation of rotation error using tanh for smooth gradients
   if (std::isfinite(max_rotation_error)) {
     Eigen::Vector3d rot_error = error_container.tail<kOrientationDimension>();
     const double rot_norm = rot_error.norm();
-    if (rot_norm > max_rotation_error) {
-      error_container.tail<kOrientationDimension>() = rot_error * (max_rotation_error / rot_norm);
+    if (rot_norm > 1e-9) {  // Avoid division by zero
+      const double scale =
+          max_rotation_error * std::tanh(rot_norm / max_rotation_error) / rot_norm;
+      error_container.tail<kOrientationDimension>() = rot_error * scale;
     }
   }
 
