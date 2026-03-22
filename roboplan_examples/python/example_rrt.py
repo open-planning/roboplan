@@ -176,6 +176,7 @@ def main(
 
         # Set up TOPP-RA to time-parameterize the path
         print("Generating trajectory...")
+        print(path)
         t_start = time.time()
         traj = toppra.generate(
             shortened_path if include_shortcutting else path, traj_dt, toppra_mode
