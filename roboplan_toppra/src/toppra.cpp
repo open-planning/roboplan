@@ -226,8 +226,7 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   }
 
   // If necessary, fall back to a Hermite cubic spline using the original path.
-  // This will happen if we chose Hermite mode or didn't find a collision-free path with other
-  // modes.
+  // This happens with Hermite mode or if we didn't find a collision-free path with other modes.
   if (!found_collision_free_path) {
     geom_path = generateCubicHermiteSpline(getPathPositionVectors(path).value());
   }
