@@ -19,6 +19,7 @@ from roboplan.optimal_ik import (
     FrameTask,
     FrameTaskOptions,
     Oink,
+    PositionBarrier,
     PositionLimit,
     VelocityLimit,
 )
@@ -31,6 +32,9 @@ def main(
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
     control_freq: float = 100.0,
+    barrier_gain: float = 10.0,
+    barrier_size: float = 0.5,
+    safety_margin: float = 0.05,
     max_position_error: float = 0.15,
     max_rotation_error: float = 0.5,
     reference_filter_tau: float = 0.1,
@@ -38,7 +42,11 @@ def main(
     port: str = "8000",
 ):
     """
-    Run the optimal IK example.
+    Tutorial on optimal IK with Control Barrier Functions (CBF) safety constraints.
+
+    This example demonstrates how to use PositionBarrier to enforce safety constraints
+    on end-effector motion. Barriers prevent the robot from leaving a safe region while
+    tracking target poses.
 
     Parameters:
         model: The name of the model to use (ur5, franka, or dual).
@@ -47,10 +55,16 @@ def main(
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values
             improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
+        barrier_gain: Barrier gain for CBF constraint. Since the linear class-K function
+            provides proportional force, use lower values (5-20) compared to saturating
+            functions. Higher values = stronger barrier response.
+        barrier_size: Size of the cubic barrier box around the EE start position (meters).
+        safety_margin: Distance from boundary where barrier activates (meters). With linear
+            barriers, smaller values (0.02-0.1m) are typically sufficient.
         max_position_error: Maximum position error magnitude in meters. Prevents large
-            jumps that can invalidate error derivative calculations.
+            jumps that can invalidate CBF linearization.
         max_rotation_error: Maximum rotation error magnitude in radians. Prevents large
-            jumps that can invalidate error derivative calculations.
+            jumps that can invalidate CBF linearization.
         reference_filter_tau: Time constant for reference filtering in seconds. Smooths
             target pose changes to prevent sudden jumps. Set to 0 to disable filtering.
         host: The host for the ViserVisualizer.
@@ -247,7 +261,8 @@ def main(
                         for idx in range(len(frame_tasks)):
                             frame_tasks[idx].setTargetFrameTransform(raw_targets[idx])
 
-                    # Solve IK for one step with constraints
+                    # Solve IK for one step with constraints and barriers
+                    # Argument order: tasks, constraints, barriers, scene, delta_q, regularization (optional)
                     try:
                         oink.solveIk(
                             tasks, constraints, barriers, scene, delta_q, regularization
@@ -313,6 +328,10 @@ def main(
     with scene_lock:
         scene.setJointPositions(q_full)
 
+        # Create the barrier box around the canonical EE position
+        initial_ee_pose = scene.forwardKinematics(q_full, model_data.ee_names[0])
+        initial_ee_pos = initial_ee_pose[:3, 3]
+
         # Initialize raw targets and filters to current EE poses
         for idx, name in enumerate(model_data.ee_names):
             initial_pose = scene.forwardKinematics(q_full, name)
@@ -320,8 +339,41 @@ def main(
             if reference_filter_tau > 0:
                 reference_filters[idx].reset(initial_pose)
 
-    # No barriers in this example (see example_oink_with_barriers.py for a tutorial on barriers)
-    barriers = []
+    # Create position barrier with conservative parameters
+    # - High gain ensures strong resistance to boundary approach
+    # - Safety margin shifts the effective boundary inward to account for linearization errors
+    half_size = barrier_size / 2.0
+    p_min = initial_ee_pos - half_size
+    p_max = initial_ee_pos + half_size
+    position_barrier = PositionBarrier(
+        model_data.ee_names[0],
+        p_min,
+        p_max,
+        num_variables,
+        gain=barrier_gain,
+        dt=dt,
+        safe_displacement_gain=1.0,
+        safety_margin=safety_margin,
+    )
+    barriers = [position_barrier]
+
+    # Visualize the barrier box in Viser (now centered at correct position)
+    viz.viewer.scene.add_box(
+        "/barrier_box",
+        dimensions=(barrier_size, barrier_size, barrier_size),
+        position=initial_ee_pos,
+        color=(255, 100, 100),
+        opacity=0.15,
+    )
+    # Add wireframe edges for better visibility
+    viz.viewer.scene.add_box(
+        "/barrier_box_wireframe",
+        dimensions=(barrier_size, barrier_size, barrier_size),
+        position=initial_ee_pos,
+        color=(255, 50, 50),
+        opacity=0.5,
+        side="back",  # Only render back faces for wireframe effect
+    )
 
     viz.display(q_full)
     reset_position(None)
