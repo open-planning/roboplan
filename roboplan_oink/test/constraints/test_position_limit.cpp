@@ -393,4 +393,65 @@ TEST_F(PositionLimitTest, DifferentConfigurationsDifferentBounds) {
   EXPECT_FALSE(lower_bounds1.isApprox(lower_bounds2));
 }
 
+class KinovaPositionLimitTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    // Use Kinova robot here, since it has continuous and mimic joints.
+    const auto model_prefix = example_models::get_package_models_dir();
+    urdf_path_ = model_prefix / "kinova_robot_model" / "kinova_robotiq.urdf";
+    srdf_path_ = model_prefix / "kinova_robot_model" / "kinova_robotiq.srdf";
+    package_paths_ = {example_models::get_package_share_dir()};
+    yaml_config_path_ = model_prefix / "kinova_robot_model" / "kinova_robotiq_config.yaml";
+
+    scene_ = std::make_shared<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
+                                     yaml_config_path_);
+
+    const auto& model = scene_->getModel();
+    num_variables_ = model.nv;
+
+    // Set initial configuration at the neutral configuration
+    Eigen::VectorXd q = pinocchio::neutral(model);
+    scene_->setJointPositions(q);
+  }
+
+  std::filesystem::path urdf_path_;
+  std::filesystem::path srdf_path_;
+  std::vector<std::filesystem::path> package_paths_;
+  std::filesystem::path yaml_config_path_;
+  std::shared_ptr<Scene> scene_;
+  int num_variables_;
+};
+
+// Test bounds at neutral configuration
+TEST_F(KinovaPositionLimitTest, BoundsAtNeutral) {
+  const auto& model = scene_->getModel();
+
+  // Set configuration at the center of joint limits
+  Eigen::VectorXd q = pinocchio::neutral(model);
+  scene_->setJointPositions(q);
+
+  PositionLimit constraint(num_variables_, 1.0);
+
+  Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
+  Eigen::VectorXd lower_bounds(num_variables_);
+  Eigen::VectorXd upper_bounds(num_variables_);
+
+  ASSERT_TRUE(
+      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
+          .has_value());
+
+  for (int i = 0; i < num_variables_; ++i) {
+    if (i == 0 || i == 2 || i == 4 || i == 6) {
+      // Joints 1, 3, 5, and 7 are continuous so should have (virtually) infinite limits.
+      ASSERT_LE(lower_bounds[i], -1.0e30);
+      ASSERT_GE(upper_bounds[i], 1.0e30);
+    } else {
+      // Joints 2, 3, 4, and all the gripper joints are revolute,
+      // so they should have finite limits.
+      ASSERT_GE(lower_bounds[i], -3.0);
+      ASSERT_LE(upper_bounds[i], 3.0);
+    }
+  }
+}
+
 }  // namespace roboplan

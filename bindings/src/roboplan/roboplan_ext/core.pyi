@@ -1,3 +1,5 @@
+"""Core roboplan module"""
+
 from collections.abc import Sequence
 import enum
 import os
@@ -378,6 +380,18 @@ class Scene:
     def getJointPositionIndices(self, joint_names: Sequence[str]) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
         """Get the joint position indices for a set of joint names."""
 
+    def getPositionLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
+        """Get the joint position limit vectors for a specified group."""
+
+    def getVelocityLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
+        """Get the joint velocity limit vectors for a specified group."""
+
+    def getAccelerationLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
+        """Get the joint acceleration limit vectors for a specified group."""
+
+    def getJerkLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
+        """Get the joint jerk limit vectors for a specified group."""
+
     def addBoxGeometry(self, name: str, parent_frame: str, box: Box, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
         """Adds a box geometry to the scene."""
 
@@ -400,10 +414,19 @@ class Scene:
 
     def __repr__(self) -> str: ...
 
+@overload
 def computeFramePath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, max_step_size: float) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
-    """Computes the Cartesian path of a specified frame."""
+    """
+    Computes the Cartesian path of a specified frame by interpolating sparse positions.
+    """
 
-def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_step_size: float) -> bool:
+@overload
+def computeFramePath(scene: Scene, q_vec: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]], frame_name: str) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
+    """
+    Computes the Cartesian path of a specified frame using a vector of provided points.
+    """
+
+def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_step_size: float, bisection: bool = False) -> bool:
     """Checks collisions along a specified configuration space path."""
 
 class PathShortcutter:
@@ -422,7 +445,7 @@ class PathShortcutter:
     def getNormalizedPathScaling(self, path: JointPath) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Computes length-normalized scaling values along a JointPath."""
 
-    def getConfigurationfromNormalizedPathScaling(self, path: JointPath, path_scalings: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], value: float) -> "std::pair<Eigen::Matrix<double, -1, 1, 0, -1, 1>, unsigned long>":
+    def getConfigurationfromNormalizedPathScaling(self, path: JointPath, path_scalings: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], value: float) -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], int]:
         """Gets joint configurations from a path with normalized joint scalings."""
 
 def collapseContinuousJointPositions(scene: Scene, group_name: str, q_orig: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:

@@ -134,10 +134,19 @@ jobs:
           manifest-path: pixi.toml
       - name: Build and test
         run: |
-          pixi run install_all
-          pixi run build_tests
-          pixi run test_all
+          pixi run -e ci install_all
+          pixi run -e ci build_tests
+          pixi run -e ci test_all
+      - name: Check bindings stub files
+        run: |
+          if ! git diff --exit-code --shortstat -- 'bindings/src/roboplan/roboplan_ext/*.pyi'; then
+            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds using 'pixi run -e ci install_all' and commit the changes."
+            echo "Git Diff:"
+            git diff -- 'bindings/src/roboplan/roboplan_ext/*.pyi'
+            exit 1
+          fi
+          echo "✅ .pyi stub files look good!"
       # TODO: Decide on a method for automated benchmark performance testing.
       - name: Run benchmarks
         run: |
-          pixi run test_benchmarks
+          pixi run -e ci test_benchmarks

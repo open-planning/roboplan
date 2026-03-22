@@ -197,7 +197,7 @@ if(GENERATE_PYTHON_STUBS)
     DESTINATION "${PYTHON_STUB_INSTALL_DIR}"
     # Copy the stub files to the source folder for docs and versioning.
     # For now, this step has to be run manually when submitting changes.
-    # It might be good to make a CI action that generates this and finds mismatches,
+    # There is a CI action that generates this and finds mismatches,
     # prompting the user to regenerate it on their own.
     DESTINATION "${CMAKE_SOURCE_DIR}/src/roboplan"
   )

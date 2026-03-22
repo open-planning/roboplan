@@ -8,8 +8,8 @@
 
 namespace roboplan {
 
-/// @brief Computes the Cartesian path of a specified frame.
-/// @param scene The scene to use for interpolating positions.
+/// @brief Computes the Cartesian path of a specified frame by interpolating sparse positions.
+/// @param scene The scene to use.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param frame_name The name of the frame in which to compute the Cartesian path.
@@ -20,14 +20,28 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
                                               const std::string& frame_name,
                                               const double max_step_size);
 
+/// @brief Computes the Cartesian path of a specified frame using a vector of provided points.
+/// @param scene The scene to use.
+/// @param q_vec A vector of joint positions.
+/// @param frame_name The name of the frame in which to compute the Cartesian path.
+/// @return A list of 4x4 matrices corresponding to the poses of the frame along the path.
+std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
+                                              const std::vector<Eigen::VectorXd>& q_vec,
+                                              const std::string& frame_name);
+
 /// @brief Checks collisions along a specified configuration space path.
 /// @param scene The scene to use for interpolating positions and checking collisions.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
+/// @param bisection If True, uses bisection instead of linear search.
+///   Bisection could help find collisions faster in collision-dense environments, but is
+///   slower in the worst-case scenario since it requires a number of samples that is a
+///   power of 2 to guarantee maximum distance between points.
 /// @return True if there are collisions, else false.
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size);
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection = false);
 
 /// @brief Shortcuts joint paths with random sampling and checking connections.
 /// @details This implementation is based on section 3.5.3 of:

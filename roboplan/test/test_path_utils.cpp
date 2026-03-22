@@ -50,6 +50,26 @@ public:
   }
 };
 
+TEST_F(RoboPlanPathUtilsTest, testHasCollisionsAlongPath) {
+  // Ensures all the samples are the same, since linear vs. bisection can differ in some cases.
+  scene_->setRngSeed(1234);
+  for (auto idx = 0; idx < 10; ++idx) {
+    const auto maybe_q_start = scene_->randomCollisionFreePositions();
+    ASSERT_TRUE(maybe_q_start.has_value());
+    const auto& q_start = maybe_q_start.value();
+    const auto maybe_q_end = scene_->randomCollisionFreePositions();
+    ASSERT_TRUE(maybe_q_end.has_value());
+    const auto& q_end = maybe_q_end.value();
+
+    const auto max_step_size = 0.05;
+    const auto result_linear =
+        hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size, /* bisection*/ false);
+    const auto result_bisection =
+        hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size, /* bisection*/ true);
+    ASSERT_EQ(result_linear, result_bisection);
+  }
+}
+
 TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
   auto shortcutter = PathShortcutter(scene_, "arm");
 

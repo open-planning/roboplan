@@ -1,6 +1,7 @@
 #include <roboplan_oink/constraints/position_limit.hpp>
 
 #include <OsqpEigen/OsqpEigen.h>
+#include <roboplan/core/scene_utils.hpp>
 
 namespace roboplan {
 
@@ -15,6 +16,22 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
   const auto& model = scene.getModel();
   const auto& q = scene.getCurrentJointPositions();
+
+  auto maybe_q_collapsed = collapseContinuousJointPositions(scene, "", q);
+  if (!maybe_q_collapsed) {
+    return tl::make_unexpected("PositionLimit: " + maybe_q_collapsed.error());
+  }
+  const auto& q_collapsed = maybe_q_collapsed.value();
+
+  // Get joint limits from the model (only do this once).
+  if (q_min.size() == 0u) {
+    const auto maybe_position_limits = scene.getPositionLimitVectors();
+    if (!maybe_position_limits) {
+      return tl::make_unexpected("PositionLimit: " + maybe_position_limits.error());
+    }
+    q_min = maybe_position_limits->first;
+    q_max = maybe_position_limits->second;
+  }
 
   // Validate that model dimensions match constructor
   if (model.nv != num_variables) {
@@ -42,23 +59,19 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
                                std::to_string(upper_bounds.size()));
   }
 
-  // Get joint limits from the model
-  const Eigen::VectorXd& q_min = model.lowerPositionLimit;
-  const Eigen::VectorXd& q_max = model.upperPositionLimit;
-
   // Assuming single DOF joints (revolute/prismatic), nq == nv
   // Compute distances to limits and scale by gain, then write to bounds
   for (int i = 0; i < num_variables; ++i) {
     // Compute distance to upper limit
     if (std::isfinite(q_max(i))) {
-      delta_q_max(i) = q_max(i) - q(i);
+      delta_q_max(i) = q_max(i) - q_collapsed(i);
     } else {
       delta_q_max(i) = std::numeric_limits<double>::infinity();
     }
 
     // Compute distance to lower limit
     if (std::isfinite(q_min(i))) {
-      delta_q_min(i) = q(i) - q_min(i);
+      delta_q_min(i) = q_collapsed(i) - q_min(i);
     } else {
       delta_q_min(i) = std::numeric_limits<double>::infinity();
     }

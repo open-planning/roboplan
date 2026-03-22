@@ -99,8 +99,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       if (converged) {
         if (!options_.check_collisions || !scene_->hasCollisions(q)) {
           solution.positions = q(q_indices);
+          return true;
         }
-        return true;
       }
 
       jjt_.noalias() = jacobian_ * jacobian_.transpose();

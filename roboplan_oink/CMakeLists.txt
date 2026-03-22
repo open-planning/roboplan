@@ -5,6 +5,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Set a new oink specific build testing option since osqp can mess with the original.
+option(BUILD_TESTING "" ON)
+option(BUILD_TESTING_OINK "" ${BUILD_TESTING})
+
 # Include FetchContent for downloading dependencies
 include(FetchContent)
 
@@ -149,8 +153,7 @@ install(EXPORT roboplan_oink-targets
         DESTINATION lib/cmake/roboplan_oink)
 
 # Add the unit tests, if enabled.
-option(BUILD_TESTING "" ON)
-if (BUILD_TESTING)
+if (BUILD_TESTING_OINK)
     enable_testing()
     add_subdirectory(test)
 endif()

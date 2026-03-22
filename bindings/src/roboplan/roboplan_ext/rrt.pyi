@@ -1,3 +1,5 @@
+"""RRT module"""
+
 from typing import Annotated
 
 import numpy
@@ -22,7 +24,7 @@ class Node:
 class RRTOptions:
     """Options struct for RRT planner."""
 
-    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False) -> None: ...
+    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, collision_check_use_bisection: bool = False, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -51,6 +53,15 @@ class RRTOptions:
 
     @collision_check_step_size.setter
     def collision_check_step_size(self, arg: float, /) -> None: ...
+
+    @property
+    def collision_check_use_bisection(self) -> bool:
+        """
+        If true, uses bisection instead of linear search for collision checking along edges.
+        """
+
+    @collision_check_use_bisection.setter
+    def collision_check_use_bisection(self, arg: bool, /) -> None: ...
 
     @property
     def goal_biasing_probability(self) -> float:

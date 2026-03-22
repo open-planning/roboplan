@@ -29,10 +29,12 @@ JointInfo::JointInfo(JointType joint_type) : type{joint_type} {
     throw std::runtime_error("Got invalid joint type.");
   }
 
+  // We use num_velocity_dofs even for position limits because any continuous position DOFs
+  // should anyway be collapsed down to the tangent space.
   limits.min_position =
-      Eigen::VectorXd::Constant(num_position_dofs, std::numeric_limits<double>::lowest());
+      Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::lowest());
   limits.max_position =
-      Eigen::VectorXd::Constant(num_position_dofs, std::numeric_limits<double>::max());
+      Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::max());
   limits.max_velocity =
       Eigen::VectorXd::Constant(num_velocity_dofs, std::numeric_limits<double>::max());
   limits.max_acceleration =

@@ -22,10 +22,11 @@ void init_rrt(nanobind::module_& m) {
       .def_ro("parent_id", &Node::parent_id, "The parent node ID.");
 
   nanobind::class_<RRTOptions>(m, "RRTOptions", "Options struct for RRT planner.")
-      .def(nanobind::init<const std::string&, size_t, double, double, double, double, bool>(),
+      .def(nanobind::init<const std::string&, size_t, double, double, bool, double, double, bool>(),
            "group_name"_a = "", "max_nodes"_a = 1000, "max_connection_distance"_a = 3.0,
-           "collision_check_step_size"_a = 0.05, "goal_biasing_probability"_a = 0.15,
-           "max_planning_time"_a = 0.0, "rrt_connect"_a = false)
+           "collision_check_step_size"_a = 0.05, "collision_check_use_bisection"_a = false,
+           "goal_biasing_probability"_a = 0.15, "max_planning_time"_a = 0.0,
+           "rrt_connect"_a = false)
       .def_rw("group_name", &RRTOptions::group_name,
               "The joint group name to be used by the planner.")
       .def_rw("max_nodes", &RRTOptions::max_nodes, "The maximum number of nodes to sample.")
@@ -33,6 +34,9 @@ void init_rrt(nanobind::module_& m) {
               "The maximum configuration distance between two nodes.")
       .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size,
               "The configuration-space step size for collision checking along edges.")
+      .def_rw(
+          "collision_check_use_bisection", &RRTOptions::collision_check_use_bisection,
+          "If true, uses bisection instead of linear search for collision checking along edges.")
       .def_rw("goal_biasing_probability", &RRTOptions::goal_biasing_probability,
               "The probability of sampling the goal node instead of a random node.")
       .def_rw("max_planning_time", &RRTOptions::max_planning_time,
