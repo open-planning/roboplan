@@ -70,8 +70,7 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
     Eigen::Vector3d rot_error = error_container.tail<kOrientationDimension>();
     const double rot_norm = rot_error.norm();
     if (rot_norm > 1e-9) {  // Avoid division by zero
-      const double scale =
-          max_rotation_error * std::tanh(rot_norm / max_rotation_error) / rot_norm;
+      const double scale = max_rotation_error * std::tanh(rot_norm / max_rotation_error) / rot_norm;
       error_container.tail<kOrientationDimension>() = rot_error * scale;
     }
   }

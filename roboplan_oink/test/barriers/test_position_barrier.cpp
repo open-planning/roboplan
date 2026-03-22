@@ -56,7 +56,7 @@ TEST_F(PositionBarrierTest, ConstructionFullBox) {
   Eigen::Vector3d p_min(-1.0, -1.0, 0.0);
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
-  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, dt_);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
 
   // Full box creates 6 constraints (2 per axis: lower and upper bound)
   EXPECT_EQ(barrier->getNumBarriers(*scene_), 6);
@@ -67,14 +67,19 @@ TEST_F(PositionBarrierTest, ConstructionFullBox) {
 // Test selective axis constraint
 TEST_F(PositionBarrierTest, SelectiveAxisConstraint) {
   // Only constrain Z axis (keep end-effector above table)
-  std::vector<int> indices = {2};  // z only
-  Eigen::VectorXd p_min(1);
-  p_min << 0.1;  // 10cm above ground
-  Eigen::VectorXd p_max(1);
-  p_max << std::numeric_limits<double>::infinity();
+  Eigen::Vector3d p_min(-std::numeric_limits<double>::infinity(),
+                        -std::numeric_limits<double>::infinity(), 0.1);
+  Eigen::Vector3d p_max(std::numeric_limits<double>::infinity(),
+                        std::numeric_limits<double>::infinity(),
+                        std::numeric_limits<double>::infinity());
+
+  roboplan::ConstraintAxisSelection axes;
+  axes.x = false;
+  axes.y = false;
+  axes.z = true;
 
   auto barrier =
-      std::make_shared<PositionBarrier>("tool0", indices, p_min, p_max, num_variables_, 1.0, dt_);
+      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_, axes);
 
   // Only 1 constraint (lower bound on z; upper bound is +inf so not counted)
   EXPECT_EQ(barrier->getNumBarriers(*scene_), 1);
@@ -94,7 +99,7 @@ TEST_F(PositionBarrierTest, BarrierValueComputation) {
   Eigen::Vector3d p_min = current_pos.array() - 0.5;
   Eigen::Vector3d p_max = current_pos.array() + 0.5;
 
-  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, dt_);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
 
   auto result = barrier->computeBarrier(*scene_);
   ASSERT_TRUE(result.has_value()) << "computeBarrier failed: " << result.error();
@@ -122,8 +127,8 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
   Eigen::Vector3d p_max(2.0, 2.0, 2.0);
 
   // Use a high barrier gain to strongly discourage crossing the boundary
-  auto barrier =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 50.0, dt_);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                   roboplan::ConstraintAxisSelection(), 50.0);
 
   // Verify we start inside the safe region
   auto compute_result = barrier->computeBarrier(*scene_);
@@ -198,8 +203,8 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
   Eigen::Vector3d p_min(-2.0, -2.0, -0.5);
   Eigen::Vector3d p_max(2.0, 2.0, 2.0);
 
-  auto barrier =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, dt_, 0.1);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                   roboplan::ConstraintAxisSelection(), 1.0, 0.1);
 
   // Create a frame task to move to a position inside the safe region
   Eigen::Vector3d target_pos = current_pos + Eigen::Vector3d(0.1, 0.0, 0.0);  // 10cm in x
@@ -252,8 +257,8 @@ TEST_F(PositionBarrierTest, InvalidFrameName) {
   Eigen::Vector3d p_min(-1.0, -1.0, 0.0);
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
-  auto barrier = std::make_shared<PositionBarrier>("nonexistent_frame", p_min, p_max,
-                                                   num_variables_, 1.0, dt_);
+  auto barrier =
+      std::make_shared<PositionBarrier>("nonexistent_frame", p_min, p_max, num_variables_, dt_);
 
   auto result = barrier->computeBarrier(*scene_);
   EXPECT_FALSE(result.has_value());
@@ -267,15 +272,15 @@ TEST_F(PositionBarrierTest, InvalidGain) {
 
   EXPECT_THROW(
       {
-        auto barrier =
-            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 0.0, dt_);
+        auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                         roboplan::ConstraintAxisSelection(), 0.0);
       },
       std::invalid_argument);
 
   EXPECT_THROW(
       {
-        auto barrier =
-            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, -1.0, dt_);
+        auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                         roboplan::ConstraintAxisSelection(), -1.0);
       },
       std::invalid_argument);
 }
@@ -288,14 +293,14 @@ TEST_F(PositionBarrierTest, InvalidDt) {
   EXPECT_THROW(
       {
         auto barrier =
-            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, 0.0);
+            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 0.0);
       },
       std::invalid_argument);
 
   EXPECT_THROW(
       {
         auto barrier =
-            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, -0.01);
+            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, -0.01);
       },
       std::invalid_argument);
 }
@@ -312,7 +317,8 @@ TEST_F(PositionBarrierTest, QpInequalityComputation) {
   Eigen::Vector3d p_min = ee_pos.array() - 0.5;
   Eigen::Vector3d p_max = ee_pos.array() + 0.5;
 
-  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 5.0, dt_);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                   roboplan::ConstraintAxisSelection(), 5.0);
 
   int num_barriers = barrier->getNumBarriers(*scene_);
   Eigen::MatrixXd G(num_barriers, num_variables_);
@@ -366,7 +372,8 @@ TEST_F(PositionBarrierTest, LinearClassKFunction) {
   Eigen::Vector3d p_max = ee_pos.array() + 0.5;
 
   // Create barrier (uses linear class-K by default)
-  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 5.0, dt_);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                   roboplan::ConstraintAxisSelection(), 5.0);
 
   int num_barriers = barrier->getNumBarriers(*scene_);
   Eigen::MatrixXd G(num_barriers, num_variables_);
@@ -403,8 +410,9 @@ TEST_F(PositionBarrierTest, SafeDisplacementRegularization) {
 
   // Create barrier with custom safe displacement gain
   double safe_disp_gain = 3.0;
-  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 5.0, dt_,
-                                                   safe_disp_gain);
+  auto barrier =
+      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                        roboplan::ConstraintAxisSelection(), 5.0, safe_disp_gain);
 
   EXPECT_DOUBLE_EQ(barrier->safe_displacement_gain, safe_disp_gain);
 
@@ -444,8 +452,8 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
   Eigen::Vector3d p_min(-2.0, -2.0, z_floor);
   Eigen::Vector3d p_max(2.0, 2.0, 2.0);
 
-  auto barrier =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 50.0, dt_);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                   roboplan::ConstraintAxisSelection(), 50.0);
 
   // Create task to move down (toward barrier)
   Eigen::Vector3d target_pos = current_pos;
@@ -493,8 +501,9 @@ TEST_F(PositionBarrierTest, SafetyMarginParameter) {
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
   double safety_margin = 0.05;
-  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, dt_,
-                                                   1.0, safety_margin);
+  auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                                   roboplan::ConstraintAxisSelection(), 1.0, 1.0,
+                                                   safety_margin);
 
   EXPECT_DOUBLE_EQ(barrier->safety_margin, safety_margin);
   EXPECT_DOUBLE_EQ(barrier->safe_displacement_gain, 1.0);
@@ -507,8 +516,9 @@ TEST_F(PositionBarrierTest, InvalidSafetyMargin) {
 
   EXPECT_THROW(
       {
-        auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0,
-                                                         dt_, 1.0, -0.1);
+        auto barrier =
+            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                              roboplan::ConstraintAxisSelection(), 1.0, 1.0, -0.1);
       },
       std::invalid_argument);
 }
@@ -526,9 +536,11 @@ TEST_F(PositionBarrierTest, SafetyMarginTightensConstraint) {
 
   // Create barriers with and without safety margin
   auto barrier_no_margin =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 5.0, dt_, 1.0, 0.0);
+      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                        roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.0);
   auto barrier_with_margin =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 5.0, dt_, 1.0, 0.1);
+      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                        roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.1);
 
   int num_barriers = barrier_no_margin->getNumBarriers(*scene_);
   Eigen::MatrixXd G_no(num_barriers, num_variables_);
@@ -554,12 +566,12 @@ TEST_F(PositionBarrierTest, BackwardCompatibility) {
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
   // Old-style construction (without safety_margin)
-  auto barrier_old =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, dt_);
+  auto barrier_old = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
 
   // New-style construction with default safety_margin
   auto barrier_new =
-      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, 1.0, dt_, 1.0, 0.0);
+      std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
+                                        roboplan::ConstraintAxisSelection(), 1.0, 1.0, 0.0);
 
   EXPECT_DOUBLE_EQ(barrier_old->safety_margin, 0.0);
   EXPECT_DOUBLE_EQ(barrier_new->safety_margin, 0.0);

@@ -5,56 +5,34 @@
 
 namespace roboplan {
 
-PositionBarrier::PositionBarrier(const std::string& frame_name_, const Eigen::Vector3d& p_min_,
-                                 const Eigen::Vector3d& p_max_, int num_variables_, double gain,
-                                 double dt, double safe_displacement_gain, double safety_margin)
-    : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name_),
-      indices({0, 1, 2}), p_min(p_min_), p_max(p_max_) {
-  // Count active constraints (finite bounds)
-  int num_barriers = 0;
-  for (int i = 0; i < 3; ++i) {
-    if (std::isfinite(p_min_[i])) {
-      num_barriers++;
-    }
-    if (std::isfinite(p_max_[i])) {
-      num_barriers++;
-    }
-  }
-  initializeStorage(num_barriers, num_variables_);
-  frame_jacobian = Eigen::MatrixXd::Zero(6, num_variables_);
-}
-
-PositionBarrier::PositionBarrier(const std::string& frame_name_, const std::vector<int>& indices_,
-                                 const Eigen::VectorXd& p_min_, const Eigen::VectorXd& p_max_,
-                                 int num_variables_, double gain, double dt,
+PositionBarrier::PositionBarrier(const std::string& frame_name, const Eigen::Vector3d& p_min,
+                                 const Eigen::Vector3d& p_max, int num_variables, double dt,
+                                 const ConstraintAxisSelection& axis_selection, double gain,
                                  double safe_displacement_gain, double safety_margin)
-    : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name_),
-      indices(indices_), p_min(p_min_), p_max(p_max_) {
-  // Validate indices
-  for (int idx : indices_) {
-    if (idx < 0 || idx > 2) {
-      throw std::invalid_argument("Axis index must be 0, 1, or 2 (x, y, z)");
-    }
-  }
-
-  // Validate sizes match
-  if (static_cast<int>(indices_.size()) != p_min_.size() ||
-      static_cast<int>(indices_.size()) != p_max_.size()) {
-    throw std::invalid_argument("p_min and p_max size must match indices size");
-  }
-
-  // Count active constraints (finite bounds)
+    : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name),
+      axis_selection(axis_selection), p_min(p_min), p_max(p_max) {
+  // Count active constraints (finite bounds and enabled axes)
   int num_barriers = 0;
-  for (int i = 0; i < static_cast<int>(indices_.size()); ++i) {
-    if (std::isfinite(p_min_[i])) {
+  if (axis_selection.x) {
+    if (std::isfinite(p_min[0]))
       num_barriers++;
-    }
-    if (std::isfinite(p_max_[i])) {
+    if (std::isfinite(p_max[0]))
       num_barriers++;
-    }
   }
-  initializeStorage(num_barriers, num_variables_);
-  frame_jacobian = Eigen::MatrixXd::Zero(6, num_variables_);
+  if (axis_selection.y) {
+    if (std::isfinite(p_min[1]))
+      num_barriers++;
+    if (std::isfinite(p_max[1]))
+      num_barriers++;
+  }
+  if (axis_selection.z) {
+    if (std::isfinite(p_min[2]))
+      num_barriers++;
+    if (std::isfinite(p_max[2]))
+      num_barriers++;
+  }
+  initializeStorage(num_barriers, num_variables);
+  frame_jacobian = Eigen::MatrixXd::Zero(6, num_variables);
 }
 
 int PositionBarrier::getNumBarriers(const Scene& /*scene*/) const { return barrier_values.size(); }
@@ -73,22 +51,41 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& sce
   Eigen::Vector3d p = getFramePosition(scene);
 
   // Compute barrier values for each active constraint
-  // Note: p_min[i] and p_max[i] correspond to indices[i], not to axis i directly
-  // For full constructor with indices={0,1,2}, p_min/p_max are Vector3d so this works
-  // For selective constructor, p_min/p_max have size indices.size()
   int idx = 0;
-  for (size_t i = 0; i < indices.size(); ++i) {
-    int axis = indices[i];
-    double p_i = p[axis];  // Position along this axis in world frame
 
-    // Lower bound barrier: h = p - p_min >= 0 when p >= p_min (safe)
-    if (std::isfinite(p_min[i])) {
-      barrier_values[idx++] = p_i - p_min[i];
+  // X axis
+  if (axis_selection.x) {
+    if (std::isfinite(p_min[0])) {
+      barrier_values[idx] = p[0] - p_min[0];
+      idx++;
     }
+    if (std::isfinite(p_max[0])) {
+      barrier_values[idx] = p_max[0] - p[0];
+      idx++;
+    }
+  }
 
-    // Upper bound barrier: h = p_max - p >= 0 when p <= p_max (safe)
-    if (std::isfinite(p_max[i])) {
-      barrier_values[idx++] = p_max[i] - p_i;
+  // Y axis
+  if (axis_selection.y) {
+    if (std::isfinite(p_min[1])) {
+      barrier_values[idx] = p[1] - p_min[1];
+      idx++;
+    }
+    if (std::isfinite(p_max[1])) {
+      barrier_values[idx] = p_max[1] - p[1];
+      idx++;
+    }
+  }
+
+  // Z axis
+  if (axis_selection.z) {
+    if (std::isfinite(p_min[2])) {
+      barrier_values[idx] = p[2] - p_min[2];
+      idx++;
+    }
+    if (std::isfinite(p_max[2])) {
+      barrier_values[idx] = p_max[2] - p[2];
+      idx++;
     }
   }
 
@@ -109,17 +106,40 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
 
   // Build barrier Jacobians from the linear velocity rows
   int idx = 0;
-  for (size_t i = 0; i < indices.size(); ++i) {
-    int axis = indices[i];  // 0=x, 1=y, 2=z
 
-    // Lower bound: h = p - p_min, so J_h = dp/dq = J_p[axis, :]
-    if (std::isfinite(p_min[i])) {
-      jacobian_container.row(idx++) = frame_jacobian.row(axis);
+  // X axis
+  if (axis_selection.x) {
+    if (std::isfinite(p_min[0])) {
+      jacobian_container.row(idx) = frame_jacobian.row(0);
+      idx++;
     }
+    if (std::isfinite(p_max[0])) {
+      jacobian_container.row(idx) = -frame_jacobian.row(0);
+      idx++;
+    }
+  }
 
-    // Upper bound: h = p_max - p, so J_h = -dp/dq = -J_p[axis, :]
-    if (std::isfinite(p_max[i])) {
-      jacobian_container.row(idx++) = -frame_jacobian.row(axis);
+  // Y axis
+  if (axis_selection.y) {
+    if (std::isfinite(p_min[1])) {
+      jacobian_container.row(idx) = frame_jacobian.row(1);
+      idx++;
+    }
+    if (std::isfinite(p_max[1])) {
+      jacobian_container.row(idx) = -frame_jacobian.row(1);
+      idx++;
+    }
+  }
+
+  // Z axis
+  if (axis_selection.z) {
+    if (std::isfinite(p_min[2])) {
+      jacobian_container.row(idx) = frame_jacobian.row(2);
+      idx++;
+    }
+    if (std::isfinite(p_max[2])) {
+      jacobian_container.row(idx) = -frame_jacobian.row(2);
+      idx++;
     }
   }
 

@@ -192,12 +192,8 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     auto obj_result =
         barrier->computeQpObjective(scene, barrier_H_contribution, barrier_c_contribution);
     if (obj_result.has_value()) {
-      // Add dense contribution to sparse H
-      for (int i = 0; i < num_variables; ++i) {
-        for (int j = 0; j < num_variables; ++j) {
-          H.coeffRef(i, j) += barrier_H_contribution(i, j);
-        }
-      }
+      // Add dense contribution to sparse H (convert to sparse for efficient addition)
+      H += barrier_H_contribution.sparseView();
       c += barrier_c_contribution;
     }
   }

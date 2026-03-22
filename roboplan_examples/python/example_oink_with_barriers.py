@@ -260,7 +260,9 @@ def main(
 
                     # Update reference filters (tau=0 acts as pass-through)
                     for idx in range(len(frame_tasks)):
-                        filtered_target = reference_filters[idx].update(raw_targets[idx], dt)
+                        filtered_target = reference_filters[idx].update(
+                            raw_targets[idx], dt
+                        )
                         frame_tasks[idx].setTargetFrameTransform(filtered_target)
 
                     # Solve IK for one step with constraints and barriers
@@ -350,8 +352,8 @@ def main(
         p_min,
         p_max,
         num_variables,
+        dt,
         gain=barrier_gain,
-        dt=dt,
         safe_displacement_gain=1.0,
         safety_margin=safety_margin,
     )

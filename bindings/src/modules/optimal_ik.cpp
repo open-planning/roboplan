@@ -107,26 +107,29 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("safety_margin", &Barrier::safety_margin,
               "Conservative margin for hard constraints.");
 
+  // Bind ConstraintAxisSelection configuration struct
+  nanobind::class_<ConstraintAxisSelection>(m, "ConstraintAxisSelection",
+                                             "Axis selection for position barrier constraints.")
+      .def(nanobind::init<bool, bool, bool>(), "x"_a = true, "y"_a = true, "z"_a = true,
+           "Constructor with axis enable flags.")
+      .def_rw("x", &ConstraintAxisSelection::x, "Constrain X axis.")
+      .def_rw("y", &ConstraintAxisSelection::y, "Constrain Y axis.")
+      .def_rw("z", &ConstraintAxisSelection::z, "Constrain Z axis.");
+
   // Bind PositionBarrier
   nanobind::class_<PositionBarrier, Barrier>(
       m, "PositionBarrier",
       "Position barrier constraint that keeps a frame within an axis-aligned bounding box.")
-      // Full box constructor (all 3 axes)
       .def(nanobind::init<const std::string&, const Eigen::Vector3d&, const Eigen::Vector3d&, int,
-                          double, double, double, double>(),
-           "frame_name"_a, "p_min"_a, "p_max"_a, "num_variables"_a, "gain"_a = 1.0, "dt"_a = 0.01,
+                          double, const ConstraintAxisSelection&, double, double, double>(),
+           "frame_name"_a, "p_min"_a, "p_max"_a, "num_variables"_a, "dt"_a,
+           "axis_selection"_a = ConstraintAxisSelection(), "gain"_a = 1.0,
            "safe_displacement_gain"_a = 1.0, "safety_margin"_a = 0.0,
-           "Create a position barrier for all 3 axes (x, y, z).")
-      // Selective axis constructor
-      .def(nanobind::init<const std::string&, const std::vector<int>&, const Eigen::VectorXd&,
-                          const Eigen::VectorXd&, int, double, double, double, double>(),
-           "frame_name"_a, "indices"_a, "p_min"_a, "p_max"_a, "num_variables"_a, "gain"_a = 1.0,
-           "dt"_a = 0.01, "safe_displacement_gain"_a = 1.0, "safety_margin"_a = 0.0,
-           "Create a position barrier for selected axes only.")
+           "Create a position barrier with optional axis selection.")
       .def("get_frame_position", &PositionBarrier::getFramePosition, "scene"_a,
            "Get the current frame position in world coordinates.")
       .def_ro("frame_name", &PositionBarrier::frame_name, "Name of the constrained frame.")
-      .def_ro("indices", &PositionBarrier::indices, "Constrained axis indices.")
+      .def_ro("axis_selection", &PositionBarrier::axis_selection, "Axis selection for constraints.")
       .def_ro("p_min", &PositionBarrier::p_min, "Minimum position bounds.")
       .def_ro("p_max", &PositionBarrier::p_max, "Maximum position bounds.");
 
