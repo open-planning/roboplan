@@ -11,6 +11,13 @@
 
 namespace roboplan {
 
+/// @brief Enumeration for TOPP-RA spline fitting mode.
+/// @details Refer to the PathParameterizerTOPPRA options for more information.
+enum class SplineFittingMode {
+  Hermite,
+  Cubic,
+};
+
 /// @brief Trajectory time parameterizer using the TOPP-RA algorithm.
 /// @details This directly uses https://github.com/hungpham2511/toppra.
 class PathParameterizerTOPPRA {
@@ -25,18 +32,18 @@ public:
   /// @param dt The sample time of the output trajectory, in seconds.
   /// @param mode The mode to use for spline fitting the path. Options include:
   ///
-  ///   - "hermite": Fits a cubic Hermite spline with zero velocity at all waypoints.
-  ///     This can cause slow execution, but guarantees perfect adherence to the desired path.
-  ///   - "cubic": Fits a cubic spline with zero velocity only at the endpoints.
+  ///   - `SplineFittingMode::Hermite`: Fits a cubic Hermite spline with zero velocity at all
+  ///   waypoints. This can cause slow execution, but guarantees perfect adherence to the path.
+  ///   - `SplineFittingMode::Cubic`: Fits a cubic spline with zero velocity only at the endpoints.
   ///     This is smoother, but can cause deviations from the desired path that could lead to
   ///     collision.
   /// @param velocity_scale A scaling factor (between 0 and 1) for velocity limits.
   /// @param acceleration_scale A scaling factor (between 0 and 1) for acceleration limits.
   /// @return A time-parameterized joint trajectory.
-  tl::expected<JointTrajectory, std::string> generate(const JointPath& path, const double dt,
-                                                      const std::string& mode = "hermite",
-                                                      const double velocity_scale = 1.0,
-                                                      const double acceleration_scale = 1.0);
+  tl::expected<JointTrajectory, std::string>
+  generate(const JointPath& path, const double dt,
+           const SplineFittingMode mode = SplineFittingMode::Hermite,
+           const double velocity_scale = 1.0, const double acceleration_scale = 1.0);
 
 private:
   /// @brief Helper function to convert the raw joint path to TOPP-RA compatible position vectors.

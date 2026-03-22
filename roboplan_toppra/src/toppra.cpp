@@ -132,8 +132,9 @@ PathParameterizerTOPPRA::generateCubicHermiteSpline(const JointPath& path) {
 }
 
 tl::expected<JointTrajectory, std::string>
-PathParameterizerTOPPRA::generate(const JointPath& path, const double dt, const std::string& mode,
-                                  const double velocity_scale, const double acceleration_scale) {
+PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
+                                  const SplineFittingMode mode, const double velocity_scale,
+                                  const double acceleration_scale) {
   if (path.positions.size() < 2) {
     return tl::make_unexpected("Path must have at least 2 points.");
   }
@@ -145,10 +146,8 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt, const 
     return tl::make_unexpected("dt must be strictly positive.");
   }
   bool is_hermite = false;
-  if (mode == "hermite") {
+  if (mode == SplineFittingMode::Hermite) {
     is_hermite = true;
-  } else if (mode != "cubic") {
-    return tl::make_unexpected("Invalid mode specified: " + mode);
   }
   if ((velocity_scale <= 0.0) || (velocity_scale > 1.0)) {
     return tl::make_unexpected("Velocity scale must be greater than 0.0 and less than 1.0.");
