@@ -14,7 +14,7 @@ class SE3LowPassFilter:
 
         Args:
             tau: Time constant in seconds. Larger values = slower, smoother tracking.
-                 tau=0.1 means ~63% of the step is taken per 0.1 seconds.
+                 tau=0.1 means ~63% of the step is taken per 0.1 second.
         """
         self.tau = tau
         self.filtered_position: np.ndarray | None = None

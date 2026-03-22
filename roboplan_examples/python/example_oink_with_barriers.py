@@ -65,14 +65,19 @@ def main(
             jumps that can invalidate CBF linearization.
         max_rotation_error: Maximum rotation error magnitude in radians. Prevents large
             jumps that can invalidate CBF linearization.
-        reference_filter_tau: Time constant for reference filtering in seconds. Smooths
-            target pose changes to prevent sudden jumps. Set to 0 to disable filtering.
+        reference_filter_tau: Time constant (tau) for exponential low-pass filter in seconds.
+            The filter reaches ~63% of target per tau seconds. For tau=0.1, the filter
+            smooths target pose changes to prevent sudden jumps. Set to 0 to disable.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
 
     if model not in MODELS:
         print(f"Invalid model requested: {model}")
+        sys.exit(1)
+
+    if reference_filter_tau < 0:
+        print(f"Invalid reference_filter_tau: {reference_filter_tau} (must be >= 0)")
         sys.exit(1)
 
     model_data = MODELS[model]
@@ -149,9 +154,12 @@ def main(
 
     print(f"\nReference Filtering:")
     if reference_filter_tau > 0:
-        print(f"  tau: {reference_filter_tau}s (smooths target pose changes)")
+        print(
+            f"  tau: {reference_filter_tau}s (time constant for exponential filter; "
+            f"reaches ~63% of step per tau seconds for tau=0.1.)"
+        )
     else:
-        print(f"  Disabled (tau=0)")
+        print(f"  tau: {reference_filter_tau}s (disabled, raw targets used)")
 
     # Validate starting joint configuration size (should match nq)
     q_canonical = np.array(model_data.starting_joint_config)
@@ -206,7 +214,7 @@ def main(
         transform_controls.append(controls)
 
     # Create reference filters for smooth target pose changes
-    # These filters smooth sudden changes in target pose to prevent large jumps
+    # With tau=0, filters act as pass-through; with tau>0, they smooth sudden changes
     reference_filters = []
     raw_targets = []  # Store unfiltered targets from user input
     for name in model_data.ee_names:
@@ -250,16 +258,10 @@ def main(
                     # Get current joint configuration
                     q_current = scene.getCurrentJointPositions()
 
-                    # Update reference filters if enabled (smooths target pose changes)
-                    # The filter gradually approaches the raw target to prevent sudden jumps
-                    if reference_filter_tau > 0:
-                        for idx, ref_filter in enumerate(reference_filters):
-                            filtered_target = ref_filter.update(raw_targets[idx], dt)
-                            frame_tasks[idx].setTargetFrameTransform(filtered_target)
-                    else:
-                        # No filtering - use raw targets directly
-                        for idx in range(len(frame_tasks)):
-                            frame_tasks[idx].setTargetFrameTransform(raw_targets[idx])
+                    # Update reference filters (tau=0 acts as pass-through)
+                    for idx in range(len(frame_tasks)):
+                        filtered_target = reference_filters[idx].update(raw_targets[idx], dt)
+                        frame_tasks[idx].setTargetFrameTransform(filtered_target)
 
                     # Solve IK for one step with constraints and barriers
                     # Argument order: tasks, constraints, barriers, scene, delta_q, regularization (optional)
@@ -308,8 +310,7 @@ def main(
                 controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
                 # Reset raw target and filter state to current pose
                 raw_targets[idx] = fk_tform.copy()
-                if reference_filter_tau > 0:
-                    reference_filters[idx].reset(fk_tform)
+                reference_filters[idx].reset(fk_tform)
         viz.display(q_current)
 
     random_button = viz.viewer.gui.add_button("Randomize Pose")
@@ -336,8 +337,7 @@ def main(
         for idx, name in enumerate(model_data.ee_names):
             initial_pose = scene.forwardKinematics(q_full, name)
             raw_targets[idx] = initial_pose.copy()
-            if reference_filter_tau > 0:
-                reference_filters[idx].reset(initial_pose)
+            reference_filters[idx].reset(initial_pose)
 
     # Create position barrier with conservative parameters
     # - High gain ensures strong resistance to boundary approach
