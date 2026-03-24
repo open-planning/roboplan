@@ -101,8 +101,10 @@ PathParameterizerTOPPRA::generateCubicSpline(const JointPath& path) {
     s += 1.0;
   }
 
+  // Set boundary conditions to zero velocity and acceleration at both endpoints.
   toppra::BoundaryCond bc{2, Eigen::VectorXd::Zero(path_pos_vecs.at(0).size())};
   toppra::BoundaryCondFull bc_full{bc, bc};
+
   const auto spline = toppra::PiecewisePolyPath::CubicSpline(path_pos_vecs, times, bc_full);
   return std::make_shared<toppra::PiecewisePolyPath>(spline);
 }
@@ -150,10 +152,12 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const double dt,
     is_hermite = true;
   }
   if ((velocity_scale <= 0.0) || (velocity_scale > 1.0)) {
-    return tl::make_unexpected("Velocity scale must be greater than 0.0 and less than 1.0.");
+    return tl::make_unexpected(
+        "Velocity scale must be greater than 0.0 and less than or equal to 1.0.");
   }
   if ((acceleration_scale <= 0.0) || (acceleration_scale > 1.0)) {
-    return tl::make_unexpected("Acceleration scale must be greater than 0.0 and less than 1.0.");
+    return tl::make_unexpected(
+        "Acceleration scale must be greater than 0.0 and less than or equal to 1.0.");
   }
 
   // Create scaled velocity and acceleration constraints.

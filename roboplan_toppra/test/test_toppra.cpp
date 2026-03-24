@@ -153,14 +153,16 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
   for (const auto& vel_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
     auto result = toppra.generate(path, dt, SplineFittingMode::Hermite, vel_scale);
     ASSERT_FALSE(result.has_value());
-    ASSERT_EQ(result.error(), "Velocity scale must be greater than 0.0 and less than 1.0.");
+    ASSERT_EQ(result.error(),
+              "Velocity scale must be greater than 0.0 and less than or equal to 1.0.");
   }
 
   for (const auto& acc_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
     auto result =
         toppra.generate(path, dt, SplineFittingMode::Hermite, /* vel_scale */ 0.5, acc_scale);
     ASSERT_FALSE(result.has_value());
-    ASSERT_EQ(result.error(), "Acceleration scale must be greater than 0.0 and less than 1.0.");
+    ASSERT_EQ(result.error(),
+              "Acceleration scale must be greater than 0.0 and less than or equal to 1.0.");
   }
 }
 
