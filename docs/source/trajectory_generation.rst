@@ -8,7 +8,7 @@ This trajectory describes how the robot follows a path over time, usually under 
 
 Our TOPP-RA implementation contains three separate modes.
 
-**Hermite**: This fits a cubic Hermite spline with zero velocity and acceleration at _all_ points.
+**Hermite**: This fits a cubic Hermite spline with zero velocity and acceleration at *all* points.
 This ensures that the trajectory exactly tracks the path by coming to a full stop at each waypoint.
 One benefit of this approach is that if the path is collision-free, the resulting trajectory is also guaranteed to be collision-free.
 However, this can come at the expense of execution speed for multi-waypoint paths, since the robot has to stop often.
@@ -18,7 +18,7 @@ However, this can come at the expense of execution speed for multi-waypoint path
 
    Timed trajectory with the Hermite mode. This trajectory takes approximately 8.5 seconds.
 
-**Cubic**: This fits a cubic spline with zero velocity and acceleration only at the _endpoints_.
+**Cubic**: This fits a cubic spline with zero velocity and acceleration only at the *endpoints*.
 This means that the robot does not necessarily stop at intermediate waypoints, which can lead to much smoother paths.
 However, for paths with high curvature, this can cause sufficient overshoot and deviation from the path that collisions could occur.
 Our approach specifically checks for collisions and falls back to the Hermite fitting method if any are found.
