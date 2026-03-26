@@ -120,8 +120,9 @@ struct Constraints {
 ///   Rearranging:      -J_h · δq ≤ dt · α(h(q))
 ///   QP form:          G · δq ≤ b  where G = -J_h/dt, b = α(h(q))
 ///
-/// Uses a linear class-K function: α(h) = γ·h
-/// This provides proportional recovery force when barriers are violated.
+/// Uses a saturating class-K function: α(h) = γ·h / (1 + |h|)
+/// This provides bounded recovery force, preventing over-reaction when far from
+/// the boundary while giving smooth, proportional behavior near constraints.
 ///
 /// Safe displacement regularization adds a QP objective term:
 ///   (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
@@ -205,6 +206,20 @@ struct Barrier {
                                                      Eigen::Ref<Eigen::MatrixXd> H,
                                                      Eigen::Ref<Eigen::VectorXd> c);
 
+  /// @brief Evaluate the minimum barrier value at a candidate configuration using FK.
+  ///
+  /// This method allows post-solve validation by computing the actual barrier value
+  /// at a candidate configuration q, independent of the linearized constraint used
+  /// in the QP. Used by Oink::enforceBarriers() to detect linearization errors.
+  ///
+  /// @param model Pinocchio model
+  /// @param data Pinocchio data (will be modified by FK computation)
+  /// @param q Candidate joint configuration to evaluate
+  /// @return Minimum barrier value across all barrier constraints, or infinity if
+  ///         this barrier type does not support configuration evaluation
+  virtual double evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
+                                         const Eigen::VectorXd& q) const;
+
   virtual ~Barrier() = default;
 
   const double gain;                    ///< Barrier gain (gamma)
@@ -231,7 +246,7 @@ struct Oink {
   /// @param custom_settings Custom OSQP solver settings
   Oink(int num_variables, const OsqpEigen::Settings& custom_settings);
 
-  /// @brief Solve inverse kinematics for tasks only (no constraints or barriers)
+  /// @brief Solve inverse kinematics for tasks only-
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
   /// weighted task errors.
@@ -246,7 +261,7 @@ struct Oink {
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
-  /// @brief Solve inverse kinematics for tasks with constraints (no barriers)
+  /// @brief Solve inverse kinematics for tasks with constraints.
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
   /// weighted task errors while satisfying all constraints.
@@ -263,7 +278,7 @@ struct Oink {
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
-  /// @brief Solve inverse kinematics for tasks with barriers (no constraints)
+  /// @brief Solve inverse kinematics for tasks with barriers.
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
   /// weighted task errors while satisfying all barrier functions.
@@ -302,27 +317,36 @@ struct Oink {
   /// @note The delta_q parameter must be pre-allocated to the correct size before calling.
   ///       Eigen::Ref cannot be resized, so passing an empty or incorrectly sized vector
   ///       will result in a failure.
-  ///
-  /// Example usage:
-  /// @code
-  /// Eigen::VectorXd delta_q(oink.num_variables);
-  /// // Tasks only:
-  /// auto result = oink.solveIk(tasks, scene, delta_q);
-  /// // Tasks with constraints:
-  /// auto result = oink.solveIk(tasks, constraints, scene, delta_q);
-  /// // Tasks with barriers:
-  /// auto result = oink.solveIk(tasks, barriers, scene, delta_q);
-  /// // Tasks with constraints and barriers:
-  /// auto result = oink.solveIk(tasks, constraints, barriers, scene, delta_q);
-  /// // With custom regularization:
-  /// auto result = oink.solveIk(tasks, constraints, barriers, scene, delta_q, 1e-6);
-  /// @endcode
   tl::expected<void, std::string>
   solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
           const std::vector<std::shared_ptr<Constraints>>& constraints,
           const std::vector<std::shared_ptr<Barrier>>& barriers, const Scene& scene,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
+
+  /// @brief Validate delta_q against barriers using forward kinematics.
+  ///
+  /// This method provides a post-solve safety check by evaluating the actual barrier
+  /// values at the candidate configuration (q + delta_q). If any barrier would be
+  /// violated, delta_q is set to zero to prevent unsafe motion.
+  ///
+  /// This is a backup safety mechanism for cases where the linearized CBF constraint
+  /// in the QP has significant error (e.g., large jumps, near-boundary configurations).
+  /// The QP constraint uses a first-order approximation h(q + δq) ≈ h(q) + J_h · δq,
+  /// which can have significant error O(||δq||²) for large displacements.
+  ///
+  /// @param barriers Vector of barrier functions to check
+  /// @param scene Scene containing robot model and state (current configuration q)
+  /// @param delta_q Configuration displacement to validate. Modified in place: set to
+  ///                zero if barrier violation is detected.
+  /// @param tolerance Tolerance for barrier violation detection. A barrier is considered
+  ///                  violated if h(q + delta_q) < -tolerance. Default is 0.0.
+  ///
+  /// @note Only barriers that implement evaluateAtConfiguration() are checked.
+  ///       Barriers returning infinity are assumed safe.
+  void enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
+                       Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+                       double tolerance = 0.0);
 
   // QP solver
   OsqpEigen::Solver solver;

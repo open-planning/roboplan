@@ -57,6 +57,18 @@ struct PositionBarrier : public Barrier {
 
   tl::expected<void, std::string> computeJacobian(const Scene& scene) override;
 
+  /// @brief Evaluate minimum barrier value at a candidate configuration.
+  ///
+  /// Computes forward kinematics for the candidate configuration and returns
+  /// the minimum barrier value across all position constraints (x, y, z min/max).
+  ///
+  /// @param model Pinocchio model
+  /// @param data Pinocchio data (will be modified by FK computation)
+  /// @param q Candidate joint configuration to evaluate
+  /// @return Minimum barrier value (negative if any constraint is violated)
+  double evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
+                                 const Eigen::VectorXd& q) const override;
+
   /// @brief Get current frame position in world coordinates.
   /// @param scene The scene containing robot state.
   /// @return Frame position in world coordinates.

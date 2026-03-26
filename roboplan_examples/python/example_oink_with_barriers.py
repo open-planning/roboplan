@@ -31,7 +31,7 @@ def main(
     task_gain: float = 1.0,
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
-    control_freq: float = 100.0,
+    control_freq: float = 400.0,
     barrier_gain: float = 10.0,
     barrier_size: float = 0.5,
     safety_margin: float = 0.05,
@@ -274,6 +274,10 @@ def main(
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
+
+                    # CRITICAL: Validate solution with enforceBarriers() using FK
+                    # This catches cases where linearization error causes barrier violation
+                    oink.enforceBarriers(barriers, scene, delta_q, tolerance=0.0)
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     q_current = scene.integrate(q_current, delta_q)

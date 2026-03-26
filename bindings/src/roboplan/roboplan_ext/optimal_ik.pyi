@@ -344,3 +344,28 @@ class Oink:
             delta_q = np.zeros(oink.num_variables)
             oink.solveIk(tasks, barriers, scene, delta_q)
         """
+
+    def enforceBarriers(self, barriers: Sequence[Barrier], scene: roboplan_ext.core.Scene, delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], tolerance: float = 0.0) -> None:
+        """
+        Validate delta_q against barriers using forward kinematics.
+
+        This method provides a post-solve safety check by evaluating the actual barrier
+        values at the candidate configuration (q + delta_q). If any barrier would be
+        violated, delta_q is set to zero to prevent unsafe motion.
+
+        This is a backup safety mechanism for cases where the linearized CBF constraint
+        in the QP has significant error (e.g., large jumps, near-boundary configurations).
+
+        Args:
+            barriers: List of barrier functions to check.
+            scene: Scene containing robot model and state (current configuration q).
+            delta_q: Configuration displacement to validate. Modified in place: set to
+                     zero if barrier violation is detected.
+            tolerance: Tolerance for barrier violation detection. A barrier is considered
+                       violated if h(q + delta_q) < -tolerance. Default is 0.0.
+
+        Example:
+            delta_q = np.zeros(oink.num_variables)
+            oink.solveIk(tasks, constraints, barriers, scene, delta_q)
+            oink.enforceBarriers(barriers, scene, delta_q)
+        """

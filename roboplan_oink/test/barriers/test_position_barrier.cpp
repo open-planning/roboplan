@@ -305,6 +305,49 @@ TEST_F(PositionBarrierTest, InvalidDt) {
       std::invalid_argument);
 }
 
+// Test invalid bounds (p_min >= p_max)
+TEST_F(PositionBarrierTest, InvalidBounds) {
+  // Test p_min == p_max on X axis
+  EXPECT_THROW(
+      {
+        Eigen::Vector3d p_min(0.5, -1.0, 0.0);
+        Eigen::Vector3d p_max(0.5, 1.0, 2.0);  // x: 0.5 == 0.5
+        auto barrier =
+            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
+      },
+      std::invalid_argument);
+
+  // Test p_min > p_max on Y axis
+  EXPECT_THROW(
+      {
+        Eigen::Vector3d p_min(-1.0, 1.0, 0.0);
+        Eigen::Vector3d p_max(1.0, -1.0, 2.0);  // y: 1.0 > -1.0
+        auto barrier =
+            std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
+      },
+      std::invalid_argument);
+
+  // Test that infinite bounds are allowed (no validation needed)
+  EXPECT_NO_THROW({
+    Eigen::Vector3d p_min(-std::numeric_limits<double>::infinity(),
+                          -std::numeric_limits<double>::infinity(), 0.0);
+    Eigen::Vector3d p_max(std::numeric_limits<double>::infinity(),
+                          std::numeric_limits<double>::infinity(), 2.0);
+    auto barrier =
+        std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
+  });
+
+  // Test that disabled axes don't trigger validation
+  EXPECT_NO_THROW({
+    Eigen::Vector3d p_min(1.0, -1.0, 0.0);   // x: 1.0 > -1.0 (invalid if enabled)
+    Eigen::Vector3d p_max(-1.0, 1.0, 2.0);
+    roboplan::ConstraintAxisSelection axes;
+    axes.x = false;  // Disable X axis, so invalid bounds are ignored
+    auto barrier =
+        std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_, axes);
+  });
+}
+
 // Test QP inequality computation
 TEST_F(PositionBarrierTest, QpInequalityComputation) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -359,8 +402,8 @@ TEST_F(PositionBarrierTest, SolveWithEmptyBarriers) {
   EXPECT_EQ(delta_q.size(), num_variables_);
 }
 
-// Test linear class-K function (always used)
-TEST_F(PositionBarrierTest, LinearClassKFunction) {
+// Test saturating class-K function (always used)
+TEST_F(PositionBarrierTest, SaturatingClassKFunction) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
   scene_->forwardKinematics(q, "tool0");
@@ -371,7 +414,7 @@ TEST_F(PositionBarrierTest, LinearClassKFunction) {
   Eigen::Vector3d p_min = ee_pos.array() - 0.5;
   Eigen::Vector3d p_max = ee_pos.array() + 0.5;
 
-  // Create barrier (uses linear class-K by default)
+  // Create barrier (uses saturating class-K)
   auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_,
                                                    roboplan::ConstraintAxisSelection(), 5.0);
 
@@ -382,18 +425,19 @@ TEST_F(PositionBarrierTest, LinearClassKFunction) {
   auto result = barrier->computeQpInequalities(*scene_, G, b);
   ASSERT_TRUE(result.has_value()) << "computeQpInequalities failed: " << result.error();
 
-  // Verify b uses linear formula: gain * h_i
+  // Verify b is positive when safe (h > 0)
   // For safe position, h_i > 0, so b should be positive
   EXPECT_TRUE((b.array() > 0.0).all()) << "b values should be positive when safe";
 
-  // Verify linear property: b = gain * h (since h/(1+|h|) = h for h > 0)
+  // Verify saturating formula: b = gain * h / (1 + |h|)
   auto barrier_result = barrier->computeBarrier(*scene_);
   ASSERT_TRUE(barrier_result.has_value());
 
   for (int i = 0; i < num_barriers; ++i) {
     double h_i = barrier->barrier_values[i];
-    double linear_value = 5.0 * h_i;  // What linear class-K would give
-    EXPECT_EQ(b[i], linear_value) << "Linear class-K should match theoretical value at index " << i;
+    double saturating_value = 5.0 * h_i / (1.0 + std::abs(h_i));
+    EXPECT_NEAR(b[i], saturating_value, 1e-10)
+        << "Saturating class-K should match theoretical value at index " << i;
   }
 }
 
@@ -577,6 +621,205 @@ TEST_F(PositionBarrierTest, BackwardCompatibility) {
   EXPECT_DOUBLE_EQ(barrier_new->safety_margin, 0.0);
   EXPECT_DOUBLE_EQ(barrier_old->gain, barrier_new->gain);
   EXPECT_DOUBLE_EQ(barrier_old->dt, barrier_new->dt);
+}
+
+// ============================================================================
+// LINEARIZATION ERROR TESTS (Large Jumps)
+// ============================================================================
+
+/**
+ * Documents that barrier CAN be violated without enforceBarriers().
+ *
+ * When commanding a large target jump outside the barrier and starting near the boundary,
+ * the linearized CBF constraint G·δq ≤ b can be satisfied while the actual barrier h(q + δq)
+ * is violated. This happens because:
+ *
+ * 1. The linearization h(q + δq) ≈ h(q) + J_h·δq has O(||δq||²) error
+ * 2. Starting near boundary (small h) with large δq maximizes this error
+ * 3. Once h < 0 the barrier becomes ineffective
+ *
+ * This test verifies the violation occurs, documenting the need for enforceBarriers().
+ */
+TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
+  // Use a configuration that places the EE in a good test position
+  Eigen::VectorXd q(num_variables_);
+  q << 0.0, -1.5, 1.5, -1.5, -1.5, 0.0;
+
+  scene_->setJointPositions(q);
+  scene_->forwardKinematics(q, "tool0");
+
+  Eigen::Matrix4d current_pose = scene_->forwardKinematics(q, "tool0");
+  Eigen::Vector3d current_pos = current_pose.block<3, 1>(0, 3);
+  Eigen::Quaterniond current_orientation(current_pose.block<3, 3>(0, 0));
+
+  // Create small barrier box with robot starting near the +X boundary
+  constexpr double barrier_box_size = 0.2;
+  const double half_size = barrier_box_size / 2.0;
+
+  Eigen::Vector3d barrier_center = current_pos;
+  barrier_center[0] -= (half_size - 0.02);  // Start 2cm from +X boundary
+
+  const Eigen::Vector3d p_min = barrier_center.array() - half_size;
+  const Eigen::Vector3d p_max = barrier_center.array() + half_size;
+
+  auto barrier = std::make_shared<PositionBarrier>(
+      "tool0", p_min, p_max, num_variables_, dt_, roboplan::ConstraintAxisSelection(),
+      /*gain=*/5.0, /*safe_displacement_gain=*/1.0, /*safety_margin=*/0.01);
+
+  auto compute_result = barrier->computeBarrier(*scene_);
+  ASSERT_TRUE(compute_result.has_value());
+  ASSERT_TRUE((barrier->barrier_values.array() >= 0.0).all()) << "Must start inside safe region";
+
+  // Command large jump outside barrier
+  Eigen::Vector3d target_pos = current_pos;
+  target_pos[0] += 0.5;  // 0.5m jump (barrier is only 0.02m away)
+
+  auto target_config = makeCartesianConfig("tool0", target_pos, current_orientation);
+
+  FrameTaskOptions task_params{.position_cost = 1.0,
+                               .orientation_cost = 0.1,
+                               .task_gain = 2.0,
+                               .lm_damping = 0.01,
+                               .max_position_error = std::numeric_limits<double>::infinity(),
+                               .max_rotation_error = std::numeric_limits<double>::infinity()};
+
+  auto frame_task = std::make_shared<FrameTask>(target_config, num_variables_, task_params);
+
+  Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.5);
+  auto vel_limit = std::make_shared<VelocityLimit>(num_variables_, dt_, v_max);
+
+  Oink oink(num_variables_);
+  std::vector<std::shared_ptr<Task>> tasks = {frame_task};
+  std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
+  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
+
+  Eigen::VectorXd q_current = q;
+  bool barrier_violated = false;
+  double min_barrier_value_seen = barrier->barrier_values.minCoeff();
+
+  for (int iter = 0; iter < 100; ++iter) {
+    scene_->setJointPositions(q_current);
+    scene_->forwardKinematics(q_current, "tool0");
+
+    compute_result = barrier->computeBarrier(*scene_);
+    ASSERT_TRUE(compute_result.has_value());
+
+    const double min_barrier = barrier->barrier_values.minCoeff();
+    min_barrier_value_seen = std::min(min_barrier_value_seen, min_barrier);
+
+    if (!barrier_violated && min_barrier < -0.001) {
+      barrier_violated = true;
+    }
+
+    Eigen::VectorXd delta_q(num_variables_);
+    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q, 1e-6);
+    ASSERT_TRUE(result.has_value());
+
+    q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
+  }
+
+  // This test documents that barrier CAN be violated without enforceBarriers()
+  EXPECT_TRUE(barrier_violated) << "Without enforceBarriers(), the barrier should be violated. "
+                                << "Min barrier: " << min_barrier_value_seen;
+}
+
+/**
+ * Verifies that enforceBarriers() prevents barrier violations.
+ *
+ * Uses identical conditions to the previous test, but calls enforceBarriers() after each
+ * solveIk() to validate the solution using forward kinematics. If a violation would occur,
+ * delta_q is zeroed to prevent unsafe motion.
+ */
+TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
+  Eigen::VectorXd q(num_variables_);
+  q << 0.0, -1.5, 1.5, -1.5, -1.5, 0.0;
+
+  scene_->setJointPositions(q);
+  scene_->forwardKinematics(q, "tool0");
+
+  Eigen::Matrix4d current_pose = scene_->forwardKinematics(q, "tool0");
+  Eigen::Vector3d current_pos = current_pose.block<3, 1>(0, 3);
+  Eigen::Quaterniond current_orientation(current_pose.block<3, 3>(0, 0));
+
+  constexpr double barrier_box_size = 0.2;
+  const double half_size = barrier_box_size / 2.0;
+
+  Eigen::Vector3d barrier_center = current_pos;
+  barrier_center[0] -= (half_size - 0.02);
+
+  const Eigen::Vector3d p_min = barrier_center.array() - half_size;
+  const Eigen::Vector3d p_max = barrier_center.array() + half_size;
+
+  auto barrier = std::make_shared<PositionBarrier>(
+      "tool0", p_min, p_max, num_variables_, dt_, roboplan::ConstraintAxisSelection(),
+      /*gain=*/5.0, /*safe_displacement_gain=*/1.0, /*safety_margin=*/0.01);
+
+  auto compute_result = barrier->computeBarrier(*scene_);
+  ASSERT_TRUE(compute_result.has_value());
+  ASSERT_TRUE((barrier->barrier_values.array() >= 0.0).all()) << "Must start inside safe region";
+
+  Eigen::Vector3d target_pos = current_pos;
+  target_pos[0] += 0.5;
+
+  auto target_config = makeCartesianConfig("tool0", target_pos, current_orientation);
+
+  FrameTaskOptions task_params{.position_cost = 1.0,
+                               .orientation_cost = 0.1,
+                               .task_gain = 2.0,
+                               .lm_damping = 0.01,
+                               .max_position_error = std::numeric_limits<double>::infinity(),
+                               .max_rotation_error = std::numeric_limits<double>::infinity()};
+
+  auto frame_task = std::make_shared<FrameTask>(target_config, num_variables_, task_params);
+
+  Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.5);
+  auto vel_limit = std::make_shared<VelocityLimit>(num_variables_, dt_, v_max);
+
+  Oink oink(num_variables_);
+  std::vector<std::shared_ptr<Task>> tasks = {frame_task};
+  std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
+  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
+
+  Eigen::VectorXd q_current = q;
+  bool barrier_violated = false;
+  double min_barrier_value_seen = barrier->barrier_values.minCoeff();
+
+  for (int iter = 0; iter < 100; ++iter) {
+    scene_->setJointPositions(q_current);
+    scene_->forwardKinematics(q_current, "tool0");
+
+    compute_result = barrier->computeBarrier(*scene_);
+    ASSERT_TRUE(compute_result.has_value());
+
+    const double min_barrier = barrier->barrier_values.minCoeff();
+    min_barrier_value_seen = std::min(min_barrier_value_seen, min_barrier);
+
+    if (min_barrier < -0.001) {
+      barrier_violated = true;
+    }
+
+    Eigen::VectorXd delta_q(num_variables_);
+    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q, 1e-6);
+    ASSERT_TRUE(result.has_value());
+
+    // KEY: Call enforceBarriers() to validate solution using FK
+    oink.enforceBarriers(barriers, *scene_, delta_q, 0.0);
+
+    q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
+  }
+
+  // Final check
+  scene_->setJointPositions(q_current);
+  scene_->forwardKinematics(q_current, "tool0");
+  compute_result = barrier->computeBarrier(*scene_);
+  ASSERT_TRUE(compute_result.has_value());
+  const double final_min_barrier = barrier->barrier_values.minCoeff();
+
+  EXPECT_FALSE(barrier_violated) << "With enforceBarriers(), barrier should never be violated. "
+                                 << "Min value: " << min_barrier_value_seen;
+
+  EXPECT_GE(final_min_barrier, -kTolerance)
+      << "Final barrier should be non-negative. Min: " << final_min_barrier;
 }
 
 }  // namespace roboplan

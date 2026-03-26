@@ -1,3 +1,5 @@
+#include <limits>
+
 #include <OsqpEigen/OsqpEigen.h>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -33,6 +35,13 @@ Eigen::VectorXd Barrier::computeSafeDisplacement(const Scene& /*scene*/) const {
   return Eigen::VectorXd::Zero(num_variables);
 }
 
+double Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/,
+                                        pinocchio::Data& /*data*/,
+                                        const Eigen::VectorXd& /*q*/) const {
+  // Default: return infinity to indicate not supported by this barrier type
+  return std::numeric_limits<double>::infinity();
+}
+
 tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scene,
                                                                Eigen::Ref<Eigen::MatrixXd> G,
                                                                Eigen::Ref<Eigen::VectorXd> b) {
@@ -50,13 +59,14 @@ tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scen
   // G = -J_h / dt
   G = -jacobian_container / dt;
 
-  // Linear class-K function with safety margin: α(h - m) = γ·(h - m)
+  // Saturating class-K function with safety margin: α(h - m) = γ·(h - m) / (1 + |h - m|)
   // The safety margin shifts the "zero crossing" point, making the constraint more conservative.
   // This helps account for linearization errors in discrete-time CBF formulation.
-  // Linear function provides stronger recovery force for violations compared to saturating version.
+  // Saturating function provides bounded recovery force, preventing over-reaction when far from
+  // boundary and giving more consistent behavior across configurations.
   for (int i = 0; i < barrier_values.size(); ++i) {
     const double h_shifted = barrier_values[i] - safety_margin;
-    b[i] = gain * h_shifted;
+    b[i] = gain * h_shifted / (1.0 + std::abs(h_shifted));
   }
 
   return {};
@@ -379,6 +389,35 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
               Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
               double regularization) {
   return solveIk(tasks, {}, barriers, scene, delta_q, regularization);
+}
+
+void Oink::enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
+                           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+                           double tolerance) {
+  if (barriers.empty()) {
+    return;
+  }
+
+  const auto& model = scene.getModel();
+  const Eigen::VectorXd q = scene.getCurrentJointPositions();
+
+  // Compute candidate configuration by integrating delta_q
+  const Eigen::VectorXd q_candidate = pinocchio::integrate(model, q, delta_q);
+
+  // Create a temporary Data object for FK evaluation to avoid modifying scene state
+  pinocchio::Data temp_data(model);
+
+  // Evaluate all barriers at the candidate configuration
+  double min_h = std::numeric_limits<double>::infinity();
+  for (const auto& barrier : barriers) {
+    const double h = barrier->evaluateAtConfiguration(model, temp_data, q_candidate);
+    min_h = std::min(min_h, h);
+  }
+
+  // If any barrier is violated, stop completely
+  if (min_h < -tolerance) {
+    delta_q.setZero();
+  }
 }
 
 }  // namespace roboplan

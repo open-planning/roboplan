@@ -1,7 +1,11 @@
 #include <roboplan_oink/barriers/position_barrier.hpp>
 
+#include <array>
+#include <limits>
+
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
 
 namespace roboplan {
 
@@ -11,6 +15,19 @@ PositionBarrier::PositionBarrier(const std::string& frame_name, const Eigen::Vec
                                  double safe_displacement_gain, double safety_margin)
     : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name),
       axis_selection(axis_selection), p_min(p_min), p_max(p_max) {
+  // Validate that p_min < p_max for enabled axes with finite bounds
+  const std::array<bool, 3> axes_enabled = {axis_selection.x, axis_selection.y, axis_selection.z};
+  const std::array<char, 3> axis_names = {'x', 'y', 'z'};
+  for (int i = 0; i < 3; ++i) {
+    if (axes_enabled[i] && std::isfinite(p_min[i]) && std::isfinite(p_max[i])) {
+      if (p_min[i] >= p_max[i]) {
+        throw std::invalid_argument("PositionBarrier: p_min[" + std::string(1, axis_names[i]) +
+                                    "] must be less than p_max[" + std::string(1, axis_names[i]) +
+                                    "] (got " + std::to_string(p_min[i]) + " >= " +
+                                    std::to_string(p_max[i]) + ")");
+      }
+    }
+  }
   // Count active constraints (finite bounds and enabled axes)
   int num_barriers = 0;
   if (axis_selection.x) {
@@ -148,6 +165,60 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
 
 Eigen::Vector3d PositionBarrier::getFramePosition(const Scene& scene) const {
   return scene.getData().oMf[frame_id].translation();
+}
+
+double PositionBarrier::evaluateAtConfiguration(const pinocchio::Model& model,
+                                                pinocchio::Data& data,
+                                                const Eigen::VectorXd& q) const {
+  // Compute FK for the candidate configuration
+  pinocchio::forwardKinematics(model, data, q);
+
+  // Get frame ID (use cached value if available, otherwise look up)
+  pinocchio::FrameIndex fid = frame_id;
+  if (!frame_id_cached) {
+    if (!model.existFrame(frame_name)) {
+      return std::numeric_limits<double>::infinity();  // Frame not found
+    }
+    fid = model.getFrameId(frame_name);
+  }
+
+  // Update frame placement
+  pinocchio::updateFramePlacement(model, data, fid);
+
+  // Get frame position
+  const Eigen::Vector3d pos = data.oMf[fid].translation();
+
+  // Compute minimum barrier value across all enabled constraints
+  double min_h = std::numeric_limits<double>::infinity();
+
+  if (axis_selection.x) {
+    if (std::isfinite(p_min[0])) {
+      min_h = std::min(min_h, pos[0] - p_min[0]);
+    }
+    if (std::isfinite(p_max[0])) {
+      min_h = std::min(min_h, p_max[0] - pos[0]);
+    }
+  }
+
+  if (axis_selection.y) {
+    if (std::isfinite(p_min[1])) {
+      min_h = std::min(min_h, pos[1] - p_min[1]);
+    }
+    if (std::isfinite(p_max[1])) {
+      min_h = std::min(min_h, p_max[1] - pos[1]);
+    }
+  }
+
+  if (axis_selection.z) {
+    if (std::isfinite(p_min[2])) {
+      min_h = std::min(min_h, pos[2] - p_min[2]);
+    }
+    if (std::isfinite(p_max[2])) {
+      min_h = std::min(min_h, p_max[2] - pos[2]);
+    }
+  }
+
+  return min_h;
 }
 
 }  // namespace roboplan

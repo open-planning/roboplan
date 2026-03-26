@@ -240,7 +240,30 @@ void init_optimal_ik(nanobind::module_& m) {
           "    regularization: Tikhonov regularization weight (default: 1e-12).\n\n"
           "Example:\n"
           "    delta_q = np.zeros(oink.num_variables)\n"
-          "    oink.solveIk(tasks, barriers, scene, delta_q)");
+          "    oink.solveIk(tasks, barriers, scene, delta_q)")
+      .def(
+          "enforceBarriers",
+          [](Oink& self, const std::vector<std::shared_ptr<Barrier>>& barriers,
+             std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q,
+             double tolerance) { self.enforceBarriers(barriers, *scene, delta_q, tolerance); },
+          "barriers"_a, "scene"_a, "delta_q"_a, "tolerance"_a = 0.0,
+          "Validate delta_q against barriers using forward kinematics.\n\n"
+          "This method provides a post-solve safety check by evaluating the actual barrier\n"
+          "values at the candidate configuration (q + delta_q). If any barrier would be\n"
+          "violated, delta_q is set to zero to prevent unsafe motion.\n\n"
+          "This is a backup safety mechanism for cases where the linearized CBF constraint\n"
+          "in the QP has significant error (e.g., large jumps, near-boundary configurations).\n\n"
+          "Args:\n"
+          "    barriers: List of barrier functions to check.\n"
+          "    scene: Scene containing robot model and state (current configuration q).\n"
+          "    delta_q: Configuration displacement to validate. Modified in place: set to\n"
+          "             zero if barrier violation is detected.\n"
+          "    tolerance: Tolerance for barrier violation detection. A barrier is considered\n"
+          "               violated if h(q + delta_q) < -tolerance. Default is 0.0.\n\n"
+          "Example:\n"
+          "    delta_q = np.zeros(oink.num_variables)\n"
+          "    oink.solveIk(tasks, constraints, barriers, scene, delta_q)\n"
+          "    oink.enforceBarriers(barriers, scene, delta_q)");
 }
 
 }  // namespace roboplan
