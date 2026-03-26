@@ -13,7 +13,7 @@ from common import MODELS
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
-from roboplan.toppra import PathParameterizerTOPPRA
+from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode
 from roboplan.viser_visualizer import ViserVisualizer
 from roboplan.visualization import (
     visualizeJointTrajectory,
@@ -34,6 +34,7 @@ def main(
     rrt_connect: bool = False,
     include_shortcutting: bool = False,
     max_shortcutting_iters: int = 100,
+    toppra_mode: SplineFittingMode = SplineFittingMode.Hermite,
     host: str = "localhost",
     port: str = "8000",
     rng_seed: int | None = None,
@@ -54,6 +55,7 @@ def main(
         rrt_connect: Whether or not to use RRT-Connect.
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         max_shortcutting_iters: The maximum number of path shortcutting iterations.
+        toppra_mode: The trajectory generation mode for TOPP-RA. Can be `Hermite` or `Cubic`.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
         rng_seed: The seed for selecting random start and end poses and solving RRT.
@@ -176,7 +178,7 @@ def main(
         print("Generating trajectory...")
         t_start = time.time()
         traj = toppra.generate(
-            shortened_path if include_shortcutting else path, traj_dt
+            shortened_path if include_shortcutting else path, traj_dt, toppra_mode
         )
         print(f"Generated trajectory in {time.time() - t_start:.3f} s")
 

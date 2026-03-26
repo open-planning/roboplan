@@ -123,6 +123,17 @@ TEST_F(RoboPlanToppraTest, EmptyPath) {
   ASSERT_EQ(result.error(), "Path must have at least 2 points.");
 }
 
+TEST_F(RoboPlanToppraTest, BadJointNames) {
+  auto path = createTestPathShort();
+  path.joint_names = {"fr3_joint1", "fr3_joint2"};
+  double dt = 0.01;
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto result = toppra.generate(path, dt);
+  ASSERT_FALSE(result.has_value());
+  ASSERT_EQ(result.error(), "Path joint names do not match the scene joint names.");
+}
+
 TEST_F(RoboPlanToppraTest, NegativeDt) {
   auto path = createTestPathShort();
   double dt = -0.1;
@@ -140,44 +151,54 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
 
   for (const auto& vel_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
-    auto result = toppra.generate(path, dt, vel_scale);
+    auto result = toppra.generate(path, dt, SplineFittingMode::Hermite, vel_scale);
     ASSERT_FALSE(result.has_value());
-    ASSERT_EQ(result.error(), "Velocity scale must be greater than 0.0 and less than 1.0.");
+    ASSERT_EQ(result.error(),
+              "Velocity scale must be greater than 0.0 and less than or equal to 1.0.");
   }
 
   for (const auto& acc_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
-    auto result = toppra.generate(path, dt, /* vel_scale */ 0.5, acc_scale);
+    auto result =
+        toppra.generate(path, dt, SplineFittingMode::Hermite, /* vel_scale */ 0.5, acc_scale);
     ASSERT_FALSE(result.has_value());
-    ASSERT_EQ(result.error(), "Acceleration scale must be greater than 0.0 and less than 1.0.");
+    ASSERT_EQ(result.error(),
+              "Acceleration scale must be greater than 0.0 and less than or equal to 1.0.");
   }
 }
 
-TEST_F(RoboPlanToppraTest, BadJointNames) {
-  auto path = createTestPathShort();
-  path.joint_names = {"fr3_joint1", "fr3_joint2"};
-  double dt = 0.01;
-
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt);
-  ASSERT_FALSE(result.has_value());
-  ASSERT_EQ(result.error(), "Path joint names do not match the scene joint names.");
-}
-
-TEST_F(RoboPlanToppraTest, ShortPath) {
+TEST_F(RoboPlanToppraTest, ShortPathHermite) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt);
+  auto result = toppra.generate(path, dt, SplineFittingMode::Hermite);
   ASSERT_TRUE(result.has_value());
 }
 
-TEST_F(RoboPlanToppraTest, LongPath) {
+TEST_F(RoboPlanToppraTest, LongPathHermite) {
   auto path = createTestPathLong();
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt);
+  auto result = toppra.generate(path, dt, SplineFittingMode::Hermite);
+  ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(RoboPlanToppraTest, ShortPathCubic) {
+  auto path = createTestPathShort();
+  double dt = 0.01;
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
+  ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(RoboPlanToppraTest, LongPathCubic) {
+  auto path = createTestPathLong();
+  double dt = 0.01;
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
   ASSERT_TRUE(result.has_value());
 }
 
