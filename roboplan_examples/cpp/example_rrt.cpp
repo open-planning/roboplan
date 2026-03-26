@@ -69,7 +69,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   std::cout << "Generating trajectory..." << std::endl;
   const auto dt = 0.01;
   auto toppra = PathParameterizerTOPPRA(scene, "arm");
-  const auto maybe_traj = toppra.generate(path, dt);
+  const auto maybe_traj = toppra.generate(path, dt, SplineFittingMode::Hermite);
   if (!maybe_traj) {
     std::cout << "Failed to generate trajectory: " << maybe_traj.error() << std::endl;
   }

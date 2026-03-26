@@ -23,7 +23,7 @@ def solve(scene: Scene, rrt: RRT, seed: int = 1234):
 
     Returns 1 if planning was successful, 0 otherwise.
     """
-    scene.setRngSeed(seed)
+    rrt.setRngSeed(seed)
 
     start = JointConfiguration()
     start.positions = scene.randomCollisionFreePositions()

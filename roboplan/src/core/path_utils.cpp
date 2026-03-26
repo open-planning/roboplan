@@ -1,5 +1,25 @@
 #include <roboplan/core/path_utils.hpp>
 
+namespace {
+
+/// @brief Helper function that returns elements of a van der Corput sequence.
+/// @details This can be helpful to perform collision checking along a densely sampled path in a way
+/// that is statistically more efficient than linearly searching along the discretized path. An
+/// example sequence looks like [0, 1/2, 1/4, 3/4, 1/8, 5/8, 3/8, 7/8, 1/16, ...] See
+/// https://lavalle.pl/planning/node196.html for more details.
+/// @param bits The input bits to the sequence.
+/// @return The van der Corput sequence element.
+double vanDerCorput(uint32_t bits) {
+  bits = (bits << 16) | (bits >> 16);
+  bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
+  bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
+  bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
+  bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
+  return static_cast<double>(bits) * 2.3283064365386963e-10;  // 1 / 2^32
+}
+
+}  // namespace
+
 namespace roboplan {
 
 std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::VectorXd& q_start,
@@ -22,8 +42,20 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
   return frame_path;
 }
 
+std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
+                                              const std::vector<Eigen::VectorXd>& q_vec,
+                                              const std::string& frame_name) {
+  std::vector<Eigen::Matrix4d> frame_path;
+  frame_path.reserve(q_vec.size());
+  for (const auto& q : q_vec) {
+    frame_path.push_back(scene.forwardKinematics(q, frame_name));
+  }
+  return frame_path;
+}
+
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size) {
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection) {
 
   const auto distance = scene.configurationDistance(q_start, q_end);
 
@@ -37,9 +69,15 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
   if (collision_at_endpoints) {
     return true;
   }
-  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size)) + 1;
-  for (size_t idx = 1; idx <= num_steps - 1; ++idx) {
-    const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
+
+  auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
+  if (bisection) {
+    // To guarantee minimum distance with bisection, we have to round up to the nearest power of 2.
+    num_steps = std::pow(2.0, std::ceil(std::log2(num_steps)));
+  }
+  for (size_t idx = 1; idx < num_steps; ++idx) {
+    const auto fraction =
+        bisection ? vanDerCorput(idx) : static_cast<double>(idx) / static_cast<double>(num_steps);
     if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
       return true;
     }

@@ -2,6 +2,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
 #include <nanobind/stl/optional.h>
+#include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
@@ -217,6 +218,14 @@ void init_core_scene(nanobind::module_& m) {
            "Set the joint positions for the full robot state.", "positions"_a)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices,
            "Get the joint position indices for a set of joint names.", "joint_names"_a)
+      .def("getPositionLimitVectors", unwrap_expected(&Scene::getPositionLimitVectors),
+           "Get the joint position limit vectors for a specified group.", "group_name"_a = "")
+      .def("getVelocityLimitVectors", unwrap_expected(&Scene::getVelocityLimitVectors),
+           "Get the joint velocity limit vectors for a specified group.", "group_name"_a = "")
+      .def("getAccelerationLimitVectors", unwrap_expected(&Scene::getAccelerationLimitVectors),
+           "Get the joint acceleration limit vectors for a specified group.", "group_name"_a = "")
+      .def("getJerkLimitVectors", unwrap_expected(&Scene::getJerkLimitVectors),
+           "Get the joint jerk limit vectors for a specified group.", "group_name"_a = "")
       .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry),
            "Adds a box geometry to the scene.", "name"_a, "parent_frame"_a, "box"_a, "tform"_a,
            "color"_a)
@@ -241,11 +250,19 @@ void init_core_scene(nanobind::module_& m) {
 }
 
 void init_core_path_utils(nanobind::module_& m) {
-  m.def("computeFramePath", &computeFramePath, "Computes the Cartesian path of a specified frame.",
+  m.def("computeFramePath",
+        nanobind::overload_cast<const Scene&, const Eigen::VectorXd&, const Eigen::VectorXd&,
+                                const std::string&, const double>(&computeFramePath),
+        "Computes the Cartesian path of a specified frame by interpolating sparse positions.",
         "scene"_a, "q_start"_a, "q_end"_a, "frame_name"_a, "max_step_size"_a);
+  m.def("computeFramePath",
+        nanobind::overload_cast<const Scene&, const std::vector<Eigen::VectorXd>&,
+                                const std::string&>(&computeFramePath),
+        "Computes the Cartesian path of a specified frame using a vector of provided points.",
+        "scene"_a, "q_vec"_a, "frame_name"_a);
   m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath,
         "Checks collisions along a specified configuration space path.", "scene"_a, "q_start"_a,
-        "q_end"_a, "max_step_size"_a);
+        "q_end"_a, "max_step_size"_a, "bisection"_a = false);
 
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")

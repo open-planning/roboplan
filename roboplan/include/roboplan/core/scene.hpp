@@ -164,6 +164,34 @@ public:
   /// @return The corresponding joint position indices.
   Eigen::VectorXi getJointPositionIndices(const std::vector<std::string>& joint_names) const;
 
+  /// @brief Get the joint position limit vectors for a specified group.
+  /// @param group_name The name of the group. Defaults to the complete robot model.
+  /// @return A pair of vectors for the lower and upper joint position limits, if successful,
+  /// or a string describing any errors.
+  tl::expected<EigenVectorPair, std::string>
+  getPositionLimitVectors(const std::string& group_name = "") const;
+
+  /// @brief Get the joint velocity limit vectors for a specified group.
+  /// @param group_name The name of the group. Defaults to the complete robot model.
+  /// @return A pair of vectors for the lower and upper joint velocity limits, if successful,
+  /// or a string describing any errors.
+  tl::expected<EigenVectorPair, std::string>
+  getVelocityLimitVectors(const std::string& group_name = "") const;
+
+  /// @brief Get the joint acceleration limit vectors for a specified group.
+  /// @param group_name The name of the group. Defaults to the complete robot model.
+  /// @return A pair of vectors for the lower and upper joint acceleration limits, if successful,
+  /// or a string describing any errors.
+  tl::expected<EigenVectorPair, std::string>
+  getAccelerationLimitVectors(const std::string& group_name = "") const;
+
+  /// @brief Get the joint jerk limit vectors for a specified group.
+  /// @param group_name The name of the group. Defaults to the complete robot model.
+  /// @return A pair of vectors for the lower and upper joint jerk limits, if successful,
+  /// or a string describing any errors.
+  tl::expected<EigenVectorPair, std::string>
+  getJerkLimitVectors(const std::string& group_name = "") const;
+
   /// @brief Adds a box geometry to the scene.
   /// @param name The name of the object to add.
   /// @param parent_frame The name of the parent frame to add the object to.

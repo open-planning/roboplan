@@ -10,14 +10,14 @@ from roboplan.viser_visualizer import ViserVisualizer
 def visualizePath(
     viz: ViserVisualizer,
     scene: Scene,
-    path: JointPath,
+    path: JointPath | None,
     frame_names: list,
     max_step_size: float,
     color: tuple = (100, 0, 0),
-    name: str = "/rrt/path",
+    name: str = "/path",
 ) -> None:
     """
-    Helper function to visualize an RRT path.
+    Helper function to visualize a sparse joint path in Cartesian space, using interpolation.
 
     Args
         viz: The viser visualizer instance.
@@ -26,24 +26,66 @@ def visualizePath(
         frame_names: The list of frame names to use for forward kinematics.
         max_step_size: The maximum step size between joint configurations when interpolating paths.
         color: The color of the rendered path.
-        name: The name of the path in the vizer window.
+        name: The name of the path in the viser window.
     """
+    if path is None:
+        return
+
     q_start = scene.getCurrentJointPositions()
     q_end = scene.getCurrentJointPositions()
     q_indices = scene.getJointPositionIndices(path.joint_names)
     path_segments = []
-    if path is not None:
-        for frame_name in frame_names:
-            for idx in range(len(path.positions) - 1):
-                q_start[q_indices] = path.positions[idx]
-                q_end[q_indices] = path.positions[idx + 1]
-                frame_path = computeFramePath(
-                    scene, q_start, q_end, frame_name, max_step_size
+    for frame_name in frame_names:
+        for idx in range(len(path.positions) - 1):
+            q_start[q_indices] = path.positions[idx]
+            q_end[q_indices] = path.positions[idx + 1]
+            frame_path = computeFramePath(
+                scene, q_start, q_end, frame_name, max_step_size
+            )
+            for idx in range(len(frame_path) - 1):
+                path_segments.append(
+                    [frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]]
                 )
-                for idx in range(len(frame_path) - 1):
-                    path_segments.append(
-                        [frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]]
-                    )
+
+    viz.viewer.scene.add_line_segments(
+        name,
+        points=np.array(path_segments),
+        colors=color,
+        line_width=3.0,
+    )
+
+
+def visualizeJointTrajectory(
+    viz: ViserVisualizer,
+    scene: Scene,
+    traj: JointTrajectory | None,
+    frame_names: list,
+    color: tuple = (100, 0, 0),
+    name: str = "/trajectory",
+) -> None:
+    """
+    Helper function to visualize a joint trajectory in Cartesian space.
+
+    Args
+        viz: The viser visualizer instance.
+        scene: The scene instance.
+        traj: The joint trajectory to visualize.
+        frame_names: The list of frame names to use for forward kinematics.
+        color: The color of the rendered trajectory.
+        name: The name of the trajectory in the viser window.
+    """
+    if traj is None:
+        return
+
+    q_indices = scene.getJointPositionIndices(traj.joint_names)
+    q_vec = np.tile(scene.getCurrentJointPositions(), (len(traj.positions), 1))
+    q_vec[:, q_indices] = traj.positions
+
+    path_segments = []
+    for frame_name in frame_names:
+        frame_path = computeFramePath(scene, q_vec, frame_name)
+        for idx in range(len(frame_path) - 1):
+            path_segments.append([frame_path[idx][:3, 3], frame_path[idx + 1][:3, 3]])
 
     if path_segments:
         viz.viewer.scene.add_line_segments(
@@ -124,21 +166,20 @@ def visualizeTree(
         )
 
 
-def visualizeJointTrajectory(
+def plotJointTrajectory(
     trajectory: JointTrajectory, scene: Scene, plot_title: str = "Joint Trajectory"
 ) -> Figure:
     """
-    Visualize a joint trajectory as a plot of joint positions over time.
+    Plot a joint trajectory of positions over time.
 
     Args
-        trajectory: The trajectory object to be visualized.
+        trajectory: The trajectory object visualize.
         scene: The Scene object used to get joint information.
         plot_title: The title of the plot.
 
     Returns
         The matplotlib figure object. Use plt.show() to display it.
     """
-    plt.ion()
     plt.plot(trajectory.times, trajectory.positions)
     plt.xlabel("Time")
     plt.ylabel("Joint positions")
