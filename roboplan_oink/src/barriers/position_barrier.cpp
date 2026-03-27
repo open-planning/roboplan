@@ -23,8 +23,8 @@ PositionBarrier::PositionBarrier(const std::string& frame_name, const Eigen::Vec
       if (p_min[i] >= p_max[i]) {
         throw std::invalid_argument("PositionBarrier: p_min[" + std::string(1, axis_names[i]) +
                                     "] must be less than p_max[" + std::string(1, axis_names[i]) +
-                                    "] (got " + std::to_string(p_min[i]) + " >= " +
-                                    std::to_string(p_max[i]) + ")");
+                                    "] (got " + std::to_string(p_min[i]) +
+                                    " >= " + std::to_string(p_max[i]) + ")");
       }
     }
   }

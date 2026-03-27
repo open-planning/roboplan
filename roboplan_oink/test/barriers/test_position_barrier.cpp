@@ -333,13 +333,12 @@ TEST_F(PositionBarrierTest, InvalidBounds) {
                           -std::numeric_limits<double>::infinity(), 0.0);
     Eigen::Vector3d p_max(std::numeric_limits<double>::infinity(),
                           std::numeric_limits<double>::infinity(), 2.0);
-    auto barrier =
-        std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
+    auto barrier = std::make_shared<PositionBarrier>("tool0", p_min, p_max, num_variables_, dt_);
   });
 
   // Test that disabled axes don't trigger validation
   EXPECT_NO_THROW({
-    Eigen::Vector3d p_min(1.0, -1.0, 0.0);   // x: 1.0 > -1.0 (invalid if enabled)
+    Eigen::Vector3d p_min(1.0, -1.0, 0.0);  // x: 1.0 > -1.0 (invalid if enabled)
     Eigen::Vector3d p_max(-1.0, 1.0, 2.0);
     roboplan::ConstraintAxisSelection axes;
     axes.x = false;  // Disable X axis, so invalid bounds are ignored
