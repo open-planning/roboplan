@@ -6,7 +6,7 @@ We currently use the `Time-Optimal Path Parameterization based on Reachability A
 Given a path (whether manually specified or from a motion planner), it must be timed into a trajectory.
 This trajectory describes how the robot follows a path over time, usually under specific constraints such as maximum velocity, acceleration, and jerk.
 
-Our TOPP-RA implementation contains three separate modes.
+The TOPP-RA wrapper in RoboPlan contains three separate modes.
 
 **Hermite**: This fits a cubic Hermite spline with zero velocity and acceleration at *all* points.
 This ensures that the trajectory exactly tracks the path by coming to a full stop at each waypoint.
@@ -30,8 +30,10 @@ Our approach specifically checks for collisions and falls back to the Hermite fi
 
 
 **Adaptive**: This approach gets the best of both the previous approaches.
-We can iteratively check for collisions and add intermediate waypoints along the path to shape the resulting trajectory.
-While this can effectively trade off fast and smooth execution with collision avoidance, iterating can take a long time and can outright fail after several iterations.
+We can iteratively check for collisions and add intermediate waypoints near collision points to shape the resulting trajectory.
+These intermediate waypoints are added along the path itself (for example, at the midpoint between two existing waypoints), meaning they are guaranteed to be collision-free if the original path segments were also collision-free.
+While this can effectively trade off fast and smooth execution with collision avoidance, iterating can take a long time and can fail after several iterations.
+This method is discussed in Section 3.5 of `Richter et al. (2013) <https://groups.csail.mit.edu/rrg/papers/Richter_ISRR13.pdf>`_.
 
 .. figure:: media/toppra_adaptive.png
    :width: 600px
