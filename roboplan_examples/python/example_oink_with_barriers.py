@@ -335,51 +335,63 @@ def main(
     with scene_lock:
         scene.setJointPositions(q_full)
 
-        # Create the barrier box around the canonical EE position
-        initial_ee_pose = scene.forwardKinematics(q_full, model_data.ee_names[0])
-        initial_ee_pos = initial_ee_pose[:3, 3]
-
         # Initialize raw targets and filters to current EE poses
         for idx, name in enumerate(model_data.ee_names):
             initial_pose = scene.forwardKinematics(q_full, name)
             raw_targets[idx] = initial_pose.copy()
             reference_filters[idx].reset(initial_pose)
 
-    # Create position barrier with conservative parameters
+    # Create position barriers for each end-effector with conservative parameters
     # - High gain ensures strong resistance to boundary approach
     # - Safety margin shifts the effective boundary inward to account for linearization errors
-    half_size = barrier_size / 2.0
-    p_min = initial_ee_pos - half_size
-    p_max = initial_ee_pos + half_size
-    position_barrier = PositionBarrier(
-        model_data.ee_names[0],
-        p_min,
-        p_max,
-        num_variables,
-        dt,
-        gain=barrier_gain,
-        safe_displacement_gain=1.0,
-        safety_margin=safety_margin,
-    )
-    barriers = [position_barrier]
+    barriers = []
+    barrier_colors = [
+        ((255, 100, 100), (255, 50, 50)),  # Red for first EE
+        ((100, 255, 100), (50, 255, 50)),  # Green for second EE
+        ((100, 100, 255), (50, 50, 255)),  # Blue for third EE (if needed)
+    ]
 
-    # Visualize the barrier box in Viser (now centered at correct position)
-    viz.viewer.scene.add_box(
-        "/barrier_box",
-        dimensions=(barrier_size, barrier_size, barrier_size),
-        position=initial_ee_pos,
-        color=(255, 100, 100),
-        opacity=0.15,
-    )
-    # Add wireframe edges for better visibility
-    viz.viewer.scene.add_box(
-        "/barrier_box_wireframe",
-        dimensions=(barrier_size, barrier_size, barrier_size),
-        position=initial_ee_pos,
-        color=(255, 50, 50),
-        opacity=0.5,
-        side="back",  # Only render back faces for wireframe effect
-    )
+    for idx, ee_name in enumerate(model_data.ee_names):
+        # Get the initial pose for this end-effector
+        ee_pose = scene.forwardKinematics(q_full, ee_name)
+        ee_pos = ee_pose[:3, 3]
+
+        # Create barrier bounds centered at this EE's initial position
+        half_size = barrier_size / 2.0
+        p_min = ee_pos - half_size
+        p_max = ee_pos + half_size
+
+        # Create the barrier for this end-effector
+        position_barrier = PositionBarrier(
+            ee_name,
+            p_min,
+            p_max,
+            num_variables,
+            dt,
+            gain=barrier_gain,
+            safe_displacement_gain=1.0,
+            safety_margin=safety_margin,
+        )
+        barriers.append(position_barrier)
+
+        # Visualize the barrier box in Viser with unique name and color per EE
+        box_color, wireframe_color = barrier_colors[idx % len(barrier_colors)]
+        viz.viewer.scene.add_box(
+            f"/barrier_box_{ee_name}",
+            dimensions=(barrier_size, barrier_size, barrier_size),
+            position=ee_pos,
+            color=box_color,
+            opacity=0.15,
+        )
+        # Add wireframe edges for better visibility
+        viz.viewer.scene.add_box(
+            f"/barrier_box_wireframe_{ee_name}",
+            dimensions=(barrier_size, barrier_size, barrier_size),
+            position=ee_pos,
+            color=wireframe_color,
+            opacity=0.5,
+            side="back",  # Only render back faces for wireframe effect
+        )
 
     viz.display(q_full)
     reset_position(None)
