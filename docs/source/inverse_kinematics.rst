@@ -155,12 +155,12 @@ Where:
 +---------------------+------------------------------------------+--------------+
 
 Tasks
------
+^^^^^
 
 Tasks define optimization objectives through Jacobians and errors.
 
 FrameTask
-^^^^^^^^^
+"""""""""
 
 Tracks a target 6-DOF pose (position + orientation).
 
@@ -206,7 +206,7 @@ Tracks a target 6-DOF pose (position + orientation).
 +--------------------------+-----------------------------------+-----------+
 
 ConfigurationTask
-^^^^^^^^^^^^^^^^^
+"""""""""""""""""
 
 Drives toward a target joint configuration (null-space regularization).
 
@@ -217,10 +217,10 @@ Drives toward a target joint configuration (null-space regularization).
 **Weight matrix:** :math:`W = \text{diag}(\sqrt{w_1}, \ldots, \sqrt{w_{n_v}})`
 
 Constraints vs Barriers
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Hard Constraints
-^^^^^^^^^^^^^^^^
+""""""""""""""""
 
 Hard constraints enforce **strict bounds** that the QP solver cannot violate:
 
@@ -238,7 +238,7 @@ Hard constraints enforce **strict bounds** that the QP solver cannot violate:
 **Use for:** Physical actuator limits, joint position/velocity bounds
 
 Control Barrier Functions (Barriers)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""""""""""""""""
 
 Barriers enforce **forward invariance** of a safe set through a differential condition:
 
@@ -263,7 +263,7 @@ In discrete time:
 **Use for:** Cartesian position bounds, collision avoidance, workspace constraints
 
 Comparison
-^^^^^^^^^^
+""""""""""
 
 +------------------------+------------------------------------+--------------------------------------+
 | Aspect                 | Hard Constraint                    | Barrier (CBF)                        |
@@ -285,10 +285,10 @@ Comparison
 +------------------------+------------------------------------+--------------------------------------+
 
 Constraint Details
-------------------
+^^^^^^^^^^^^^^^^^^
 
 VelocityLimit
-^^^^^^^^^^^^^
+"""""""""""""
 
 Enforces maximum joint velocities as hard bounds:
 
@@ -297,7 +297,7 @@ Enforces maximum joint velocities as hard bounds:
    -\Delta t \cdot v_{\max} \leq \Delta q \leq \Delta t \cdot v_{\max}
 
 PositionLimit
-^^^^^^^^^^^^^
+"""""""""""""
 
 Restricts motion based on distance to joint limits:
 
@@ -308,10 +308,10 @@ Restricts motion based on distance to joint limits:
 The gain :math:`\gamma \in (0, 1]` controls aggressiveness. As :math:`q \to q_{\max}`, the upper bound :math:`\to 0`.
 
 Barrier Details
----------------
+^^^^^^^^^^^^^^^
 
 PositionBarrier
-^^^^^^^^^^^^^^^
+"""""""""""""""
 
 Keeps a frame within an axis-aligned bounding box using CBF constraints.
 
@@ -362,7 +362,7 @@ This encourages motion toward a safe configuration when near boundaries.
 +-------------------------------+-------------------------------------+-----------+
 
 Linearization Error and ``enforceBarriers()``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""""""""""""""""""""""
 
 The CBF constraint is based on a first-order Taylor expansion:
 
@@ -383,17 +383,17 @@ This has :math:`O(\|\Delta q\|^2)` error. Near boundaries with large commands, t
    oink.enforceBarriers(barriers, scene, delta_q, tolerance);
 
 Implementation Notes
---------------------
+^^^^^^^^^^^^^^^^^^^^
 
 Numerical Properties
-^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""
 
 - **Positive definiteness**: Guaranteed by Tikhonov regularization :math:`\lambda I`
 - **Convexity**: Quadratic objective + linear constraints → unique global optimum
 - **Weight scaling**: Applied as :math:`\sqrt{w}` for better conditioning
 
 Solver
-^^^^^^
+""""""
 
 OInK uses `OSQP <https://osqp.org/>`_ with:
 
@@ -403,7 +403,7 @@ OInK uses `OSQP <https://osqp.org/>`_ with:
 - Workspace caching for constraints
 
 Usage Example
--------------
+^^^^^^^^^^^^^
 
 .. code-block:: python
 
