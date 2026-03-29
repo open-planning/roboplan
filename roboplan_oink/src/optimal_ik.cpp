@@ -35,9 +35,9 @@ Eigen::VectorXd Barrier::computeSafeDisplacement(const Scene& /*scene*/) const {
   return Eigen::VectorXd::Zero(num_variables);
 }
 
-double Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/,
-                                        pinocchio::Data& /*data*/,
-                                        const Eigen::VectorXd& /*q*/) const {
+tl::expected<double, std::string>
+Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/, pinocchio::Data& /*data*/,
+                                 const Eigen::VectorXd& /*q*/) const {
   // Default: return infinity to indicate not supported by this barrier type
   return std::numeric_limits<double>::infinity();
 }
@@ -391,11 +391,11 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
   return solveIk(tasks, {}, barriers, scene, delta_q, regularization);
 }
 
-void Oink::enforceBarriers(
+tl::expected<void, std::string> Oink::enforceBarriers(
     const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
     Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q, double tolerance) {
   if (barriers.empty()) {
-    return;
+    return {};
   }
 
   const auto& model = scene.getModel();
@@ -410,14 +410,23 @@ void Oink::enforceBarriers(
   // Evaluate all barriers at the candidate configuration
   double min_h = std::numeric_limits<double>::infinity();
   for (const auto& barrier : barriers) {
-    const double h = barrier->evaluateAtConfiguration(model, temp_data, q_candidate);
-    min_h = std::min(min_h, h);
+    auto h_result = barrier->evaluateAtConfiguration(model, temp_data, q_candidate);
+    if (!h_result.has_value()) {
+      // Propagate evaluation error
+      return tl::make_unexpected(h_result.error());
+    }
+    // Only consider finite barrier values (infinity means not supported)
+    if (std::isfinite(h_result.value())) {
+      min_h = std::min(min_h, h_result.value());
+    }
   }
 
   // If any barrier is violated, stop completely
   if (min_h < -tolerance) {
     delta_q.setZero();
   }
+
+  return {};
 }
 
 }  // namespace roboplan

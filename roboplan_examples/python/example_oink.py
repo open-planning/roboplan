@@ -10,7 +10,7 @@ import numpy as np
 import pinocchio as pin
 
 from common import MODELS
-from utils import SE3LowPassFilter
+from filters import SE3LowPassFilter
 from roboplan.core import Scene, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
 from roboplan.optimal_ik import (

@@ -215,10 +215,12 @@ struct Barrier {
   /// @param model Pinocchio model
   /// @param data Pinocchio data (will be modified by FK computation)
   /// @param q Candidate joint configuration to evaluate
-  /// @return Minimum barrier value across all barrier constraints, or infinity if
-  ///         this barrier type does not support configuration evaluation
-  virtual double evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
-                                         const Eigen::VectorXd& q) const;
+  /// @return Expected containing minimum barrier value across all barrier constraints,
+  ///         or infinity if this barrier type does not support configuration evaluation.
+  ///         Returns error message if evaluation fails (e.g., frame not found).
+  virtual tl::expected<double, std::string> evaluateAtConfiguration(const pinocchio::Model& model,
+                                                                    pinocchio::Data& data,
+                                                                    const Eigen::VectorXd& q) const;
 
   virtual ~Barrier() = default;
 
@@ -341,12 +343,14 @@ struct Oink {
   ///                zero if barrier violation is detected.
   /// @param tolerance Tolerance for barrier violation detection. A barrier is considered
   ///                  violated if h(q + delta_q) < -tolerance. Default is 0.0.
+  /// @return void on success, error message if barrier evaluation fails
   ///
   /// @note Only barriers that implement evaluateAtConfiguration() are checked.
   ///       Barriers returning infinity are assumed safe.
-  void enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
-                       Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
-                       double tolerance = 0.0);
+  tl::expected<void, std::string>
+  enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
+                  Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+                  double tolerance = 0.0);
 
   // QP solver
   OsqpEigen::Solver solver;

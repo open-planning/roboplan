@@ -344,7 +344,7 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
 
   // Solve IK
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
   // Apply delta_q and check we moved closer to target

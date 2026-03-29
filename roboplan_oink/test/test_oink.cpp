@@ -83,7 +83,7 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Test with empty delta_q (size 0)
   {
     Eigen::VectorXd delta_q_empty;
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q_empty);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_empty);
     ASSERT_FALSE(result.has_value()) << "Expected error for empty delta_q";
     EXPECT_TRUE(result.error().find("wrong size") != std::string::npos)
         << "Error message should mention wrong size: " << result.error();
@@ -95,7 +95,7 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Test with delta_q too small
   {
     Eigen::VectorXd delta_q_small(num_variables_ - 1);
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q_small);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_small);
     ASSERT_FALSE(result.has_value()) << "Expected error for too-small delta_q";
     EXPECT_TRUE(result.error().find("wrong size") != std::string::npos)
         << "Error message should mention wrong size: " << result.error();
@@ -104,7 +104,7 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Test with delta_q too large
   {
     Eigen::VectorXd delta_q_large(num_variables_ + 1);
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q_large);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_large);
     ASSERT_FALSE(result.has_value()) << "Expected error for too-large delta_q";
     EXPECT_TRUE(result.error().find("wrong size") != std::string::npos)
         << "Error message should mention wrong size: " << result.error();
@@ -113,7 +113,7 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Verify correct size still works
   {
     Eigen::VectorXd delta_q_correct(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q_correct);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_correct);
     ASSERT_TRUE(result.has_value()) << "Correct size should work: " << result.error();
   }
 }
@@ -135,7 +135,7 @@ TEST_F(OinkTest, SolveWithNoConstraints) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -165,7 +165,7 @@ TEST_F(OinkTest, SolveWithVelocityConstraints) {
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -198,7 +198,7 @@ TEST_F(OinkTest, SolveWithPositionConstraints) {
   std::vector<std::shared_ptr<Constraints>> constraints = {pos_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -239,7 +239,7 @@ TEST_F(OinkTest, SolveWithMultipleConstraints) {
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -272,7 +272,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
 
   // First solve - workspace allocation
   Eigen::VectorXd delta_q1(num_variables_);
-  auto result1 = oink.solveIk(tasks, constraints, {}, *scene_, delta_q1);
+  auto result1 = oink.solveIk(tasks, constraints, *scene_, delta_q1);
   ASSERT_TRUE(result1.has_value()) << "First solve failed: " << result1.error();
 
   // Verify workspace dimensions
@@ -292,7 +292,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   scene_->setJointPositions(q);
 
   Eigen::VectorXd delta_q2(num_variables_);
-  auto result2 = oink.solveIk(tasks, constraints, {}, *scene_, delta_q2);
+  auto result2 = oink.solveIk(tasks, constraints, *scene_, delta_q2);
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
 
   // Verify workspace was reused (same pointers)
@@ -337,7 +337,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   std::vector<std::shared_ptr<Constraints>> constraints1 = {vel_constraint};
 
   Eigen::VectorXd delta_q1(num_variables_);
-  auto result1 = oink.solveIk(tasks, constraints1, {}, *scene_, delta_q1);
+  auto result1 = oink.solveIk(tasks, constraints1, *scene_, delta_q1);
   ASSERT_TRUE(result1.has_value()) << "First solve failed: " << result1.error();
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 
@@ -346,7 +346,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   std::vector<std::shared_ptr<Constraints>> constraints2 = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q2(num_variables_);
-  auto result2 = oink.solveIk(tasks, constraints2, {}, *scene_, delta_q2);
+  auto result2 = oink.solveIk(tasks, constraints2, *scene_, delta_q2);
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
   EXPECT_EQ(oink.last_constraint_rows, 2 * num_variables_);
 
@@ -357,7 +357,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
 
   // Third solve back to one constraint (workspace should resize down)
   Eigen::VectorXd delta_q3(num_variables_);
-  auto result3 = oink.solveIk(tasks, constraints1, {}, *scene_, delta_q3);
+  auto result3 = oink.solveIk(tasks, constraints1, *scene_, delta_q3);
   ASSERT_TRUE(result3.has_value()) << "Third solve failed: " << result3.error();
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 }
@@ -383,7 +383,7 @@ TEST_F(OinkTest, EigenRefSafety) {
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
@@ -418,7 +418,7 @@ TEST_F(OinkTest, SolveWithConfigurationTask) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -452,7 +452,7 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -483,7 +483,7 @@ TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
@@ -550,7 +550,7 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(ur5_nv);
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
     ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
 
     // Update configuration using Pinocchio integration for proper Lie group handling
@@ -623,7 +623,7 @@ TEST_F(OinkTest, TaskStorageReuse) {
 
   // First solve
   Eigen::VectorXd delta_q1(num_variables_);
-  auto result1 = oink.solveIk(tasks, constraints, {}, *scene_, delta_q1);
+  auto result1 = oink.solveIk(tasks, constraints, *scene_, delta_q1);
   ASSERT_TRUE(result1.has_value()) << "First solve failed: " << result1.error();
 
   // Verify storage wasn't reallocated
@@ -637,7 +637,7 @@ TEST_F(OinkTest, TaskStorageReuse) {
   scene_->setJointPositions(q);
 
   Eigen::VectorXd delta_q2(num_variables_);
-  auto result2 = oink.solveIk(tasks, constraints, {}, *scene_, delta_q2);
+  auto result2 = oink.solveIk(tasks, constraints, *scene_, delta_q2);
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
 
   // Verify storage still wasn't reallocated
@@ -709,7 +709,7 @@ TEST_P(MultiRobotOinkTest, SolveWithMultipleConstraintsAndTasks) {
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed for " << GetParam().name << ": "
                                   << result.error();
@@ -787,7 +787,7 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
     scene_->setJointPositions(q_current);
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
     ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
 
     // Update configuration using Pinocchio integration for proper Lie group handling
@@ -845,7 +845,7 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
     scene_->setJointPositions(q_current);
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
     ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
 
     // Update configuration using Pinocchio integration for proper Lie group handling
@@ -890,7 +890,7 @@ TEST_F(OinkTest, SingleStepMovesTowardTarget) {
 
   // Single IK solve
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, {}, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
   // Apply delta_q
@@ -925,14 +925,12 @@ TEST_F(OinkTest, HigherRegularizationReducesSolutionMagnitude) {
 
   // Solve with low regularization
   Eigen::VectorXd delta_q_low_regularization(num_variables_);
-  auto result_low =
-      oink.solveIk(tasks, constraints, {}, *scene_, delta_q_low_regularization, 1e-12);
+  auto result_low = oink.solveIk(tasks, constraints, *scene_, delta_q_low_regularization, 1e-12);
   ASSERT_TRUE(result_low.has_value()) << "Low regularization solve failed: " << result_low.error();
 
   // Solve with high regularization
   Eigen::VectorXd delta_q_high_regularization(num_variables_);
-  auto result_high =
-      oink.solveIk(tasks, constraints, {}, *scene_, delta_q_high_regularization, 1.0);
+  auto result_high = oink.solveIk(tasks, constraints, *scene_, delta_q_high_regularization, 1.0);
   ASSERT_TRUE(result_high.has_value())
       << "High regularization solve failed: " << result_high.error();
 

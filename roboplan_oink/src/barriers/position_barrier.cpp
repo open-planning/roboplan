@@ -167,26 +167,26 @@ Eigen::Vector3d PositionBarrier::getFramePosition(const Scene& scene) const {
   return scene.getData().oMf[frame_id].translation();
 }
 
-double PositionBarrier::evaluateAtConfiguration(const pinocchio::Model& model,
-                                                pinocchio::Data& data,
-                                                const Eigen::VectorXd& q) const {
+tl::expected<double, std::string>
+PositionBarrier::evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
+                                         const Eigen::VectorXd& q) const {
+  // Cache frame ID on first call (same mechanism as computeBarrier)
+  if (!frame_id_cached) {
+    if (!model.existFrame(frame_name)) {
+      return tl::make_unexpected("Frame not found: " + frame_name);
+    }
+    frame_id = model.getFrameId(frame_name);
+    frame_id_cached = true;
+  }
+
   // Compute FK for the candidate configuration
   pinocchio::forwardKinematics(model, data, q);
 
-  // Get frame ID (use cached value if available, otherwise look up)
-  pinocchio::FrameIndex fid = frame_id;
-  if (!frame_id_cached) {
-    if (!model.existFrame(frame_name)) {
-      return std::numeric_limits<double>::infinity();  // Frame not found
-    }
-    fid = model.getFrameId(frame_name);
-  }
-
   // Update frame placement
-  pinocchio::updateFramePlacement(model, data, fid);
+  pinocchio::updateFramePlacement(model, data, frame_id);
 
   // Get frame position
-  const Eigen::Vector3d pos = data.oMf[fid].translation();
+  const Eigen::Vector3d pos = data.oMf[frame_id].translation();
 
   // Compute minimum barrier value across all enabled constraints
   double min_h = std::numeric_limits<double>::infinity();

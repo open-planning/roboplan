@@ -65,9 +65,11 @@ struct PositionBarrier : public Barrier {
   /// @param model Pinocchio model
   /// @param data Pinocchio data (will be modified by FK computation)
   /// @param q Candidate joint configuration to evaluate
-  /// @return Minimum barrier value (negative if any constraint is violated)
-  double evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
-                                 const Eigen::VectorXd& q) const override;
+  /// @return Expected containing minimum barrier value (negative if any constraint is violated),
+  ///         or error message if frame is not found
+  tl::expected<double, std::string>
+  evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
+                          const Eigen::VectorXd& q) const override;
 
   /// @brief Get current frame position in world coordinates.
   /// @param scene The scene containing robot state.

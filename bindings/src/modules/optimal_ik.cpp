@@ -245,7 +245,12 @@ void init_optimal_ik(nanobind::module_& m) {
           "enforceBarriers",
           [](Oink& self, const std::vector<std::shared_ptr<Barrier>>& barriers,
              std::shared_ptr<Scene>& scene, nanobind::DRef<Eigen::VectorXd> delta_q,
-             double tolerance) { self.enforceBarriers(barriers, *scene, delta_q, tolerance); },
+             double tolerance) {
+            auto result = self.enforceBarriers(barriers, *scene, delta_q, tolerance);
+            if (!result.has_value()) {
+              throw std::runtime_error("Barrier enforcement failed: " + result.error());
+            }
+          },
           "barriers"_a, "scene"_a, "delta_q"_a, "tolerance"_a = 0.0,
           "Validate delta_q against barriers using forward kinematics.\n\n"
           "This method provides a post-solve safety check by evaluating the actual barrier\n"
@@ -260,6 +265,8 @@ void init_optimal_ik(nanobind::module_& m) {
           "             zero if barrier violation is detected.\n"
           "    tolerance: Tolerance for barrier violation detection. A barrier is considered\n"
           "               violated if h(q + delta_q) < -tolerance. Default is 0.0.\n\n"
+          "Raises:\n"
+          "    RuntimeError: If barrier evaluation fails (e.g., frame not found).\n\n"
           "Example:\n"
           "    delta_q = np.zeros(oink.num_variables)\n"
           "    oink.solveIk(tasks, constraints, barriers, scene, delta_q)\n"

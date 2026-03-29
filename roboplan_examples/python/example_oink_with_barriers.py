@@ -10,7 +10,7 @@ import numpy as np
 import pinocchio as pin
 
 from common import MODELS
-from utils import SE3LowPassFilter
+from filters import SE3LowPassFilter
 from roboplan.core import Scene, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
 from roboplan.optimal_ik import (
@@ -49,7 +49,7 @@ def main(
     tracking target poses.
 
     Parameters:
-        model: The name of the model to use (ur5, franka, or dual).
+        model: The name of the model to use.
         task_gain: Task gain (alpha) for the IK solver (0-1).
         lm_damping: Levenberg-Marquardt damping for regularization.
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values

@@ -802,7 +802,8 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
     ASSERT_TRUE(result.has_value());
 
     // KEY: Call enforceBarriers() to validate solution using FK
-    oink.enforceBarriers(barriers, *scene_, delta_q, 0.0);
+    auto enforce_result = oink.enforceBarriers(barriers, *scene_, delta_q, 0.0);
+    ASSERT_TRUE(enforce_result.has_value()) << "enforceBarriers failed: " << enforce_result.error();
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
   }

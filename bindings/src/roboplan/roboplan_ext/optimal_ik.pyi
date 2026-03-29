@@ -366,6 +366,9 @@ class Oink:
             tolerance: Tolerance for barrier violation detection. A barrier is considered
                        violated if h(q + delta_q) < -tolerance. Default is 0.0.
 
+        Raises:
+            RuntimeError: If barrier evaluation fails (e.g., frame not found).
+
         Example:
             delta_q = np.zeros(oink.num_variables)
             oink.solveIk(tasks, constraints, barriers, scene, delta_q)
