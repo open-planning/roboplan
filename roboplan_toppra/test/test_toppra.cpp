@@ -97,6 +97,44 @@ JointPath createTestPathLong() {
   return path;
 }
 
+JointPath createTestPathWithCollisions() {
+  JointPath path;
+  path.joint_names = {"shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+                      "wrist_1_joint",      "wrist_2_joint",       "wrist_3_joint"};
+
+  {
+    Eigen::VectorXd point(6);
+    point << 1.57974, 2.83593, 0.760326, 2.13506, 1.8242, -2.20896;
+    path.positions.push_back(point);
+  }
+  {
+    Eigen::VectorXd point(6);
+    point << -0.765589, 1.19361, 0.599109, 2.7477, 1.69345, -1.58946;
+    path.positions.push_back(point);
+  }
+  {
+    Eigen::VectorXd point(6);
+    point << -1.49807, 1.85241, 1.07445, 0.736193, 1.12895, 0.264916;
+    path.positions.push_back(point);
+  }
+  {
+    Eigen::VectorXd point(6);
+    point << 0.209106, 2.43908, 1.76354, -0.905323, 0.0319808, 1.43478;
+    path.positions.push_back(point);
+  }
+  {
+    Eigen::VectorXd point(6);
+    point << 1.55133, 2.6235, 2.05615, 0.0521877, -1.88902, -0.137395;
+    path.positions.push_back(point);
+  }
+  {
+    Eigen::VectorXd point(6);
+    point << 1.60935, 2.63147, 2.06879, 0.0935765, -1.97206, -0.205353;
+    path.positions.push_back(point);
+  }
+  return path;
+}
+
 class RoboPlanToppraTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -199,6 +237,15 @@ TEST_F(RoboPlanToppraTest, LongPathCubic) {
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
+  ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(RoboPlanToppraTest, Adaptive) {
+  auto path = createTestPathWithCollisions();
+  double dt = 0.01;
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto result = toppra.generate(path, dt, SplineFittingMode::Adaptive);
   ASSERT_TRUE(result.has_value());
 }
 

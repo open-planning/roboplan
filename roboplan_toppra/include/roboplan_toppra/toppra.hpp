@@ -16,6 +16,7 @@ namespace roboplan {
 enum class SplineFittingMode {
   Hermite,
   Cubic,
+  Adaptive,
 };
 
 /// @brief Trajectory time parameterizer using the TOPP-RA algorithm.
@@ -37,13 +38,24 @@ public:
   ///   - `SplineFittingMode::Cubic`: Fits a cubic spline with zero velocity only at the endpoints.
   ///     This is smoother, but can cause deviations from the desired path that could lead to
   ///     collision.
+  ///   - `SplineFittingMode::Adaptive`: Uses the cubic mode but iteratively collision checks
+  ///     and adds intermediate points if it finds collisions, up to a maximum number of iterations.
+  ///     If the path is not collision-free after the maximum iterations, falls back to Hermite
+  ///     mode. Refer to Section 3.5 of https://groups.csail.mit.edu/rrg/papers/Richter_ISRR13.pdf
+  ///     for more details on this approach.
   /// @param velocity_scale A scaling factor (between 0 and 1) for velocity limits.
   /// @param acceleration_scale A scaling factor (between 0 and 1) for acceleration limits.
+  /// @param max_adaptive_iterations Maximum number of adaptive iterations, if adaptive mode is
+  /// enabled.
+  /// @param max_adaptive_step_size If adaptive mode is enabled, this is the maximum joint
+  /// configuration
+  ///   step size to sample generated splines for collision checking.
   /// @return A time-parameterized joint trajectory.
   tl::expected<JointTrajectory, std::string>
   generate(const JointPath& path, const double dt,
            const SplineFittingMode mode = SplineFittingMode::Hermite,
-           const double velocity_scale = 1.0, const double acceleration_scale = 1.0);
+           const double velocity_scale = 1.0, const double acceleration_scale = 1.0,
+           const int max_adaptive_iterations = 10, const double max_adaptive_step_size = 0.05);
 
 private:
   /// @brief Helper function to convert the raw joint path to TOPP-RA compatible position vectors.
@@ -56,18 +68,18 @@ private:
   /// @details This defines zero velocity and acceleration at the endpoints only, meaning that
   /// intermediate waypoints are passed through smoothly, but could deviate from the original path
   /// and therefore lead to collisions.
-  /// @param path The joint path.
-  /// @return The resulting cubic spline if successful, else a string describing the error.
-  tl::expected<std::shared_ptr<toppra::PiecewisePolyPath>, std::string>
-  generateCubicSpline(const JointPath& path);
+  /// @param path_pos_vecs The joint path position vectors.
+  /// @return The resulting cubic spline.
+  std::shared_ptr<toppra::PiecewisePolyPath>
+  generateCubicSpline(const toppra::Vectors& path_pos_vecs);
 
   /// @brief Helper function to extract a cubic Hermite spline from a joint path.
   /// @details This enforces zero velocity and acceleration at all waypoints, meaning the desired
   /// path is exactly adhered to. If the path was checked for collisions, this spline is also safe.
-  /// @param path The joint path.
-  /// @return The resulting cubic Hermite spline if successful, else a string describing the error.
-  tl::expected<std::shared_ptr<toppra::PiecewisePolyPath>, std::string>
-  generateCubicHermiteSpline(const JointPath& path);
+  /// @param path_pos_vecs The joint path position vectors.
+  /// @return The resulting cubic Hermite spline.
+  std::shared_ptr<toppra::PiecewisePolyPath>
+  generateCubicHermiteSpline(const toppra::Vectors& path_pos_vecs);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
