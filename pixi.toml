@@ -262,6 +262,7 @@ libtoppra = ">=0.6.4,<0.7"
 
 [pypi-dependencies]
 pycollada = ">=0.9.2, <0.10"
+nodeenv = ">=1.10.0, <2"
 
 [feature.lint.dependencies]
 pre-commit = ">=4.1.0,<5"
