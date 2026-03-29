@@ -101,7 +101,7 @@ OInK: Optimal Inverse Kinematics
 The OInK solver uses Quadratic Programming (QP) to compute joint displacements that achieve multiple objectives while respecting constraints and safety barriers.
 
 QP Problem Formulation
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 OInK solves the following QP at each control step:
 
@@ -114,8 +114,6 @@ Subject to:
 .. math::
 
    \underbrace{l \leq G_c \Delta q \leq u}_{\text{Hard Constraints}} \quad \text{and} \quad \underbrace{G_b \Delta q \leq h_b}_{\text{Barrier Constraints}}
-
-Standard QP Form
 ^^^^^^^^^^^^^^^^
 
 Reformulated as:
