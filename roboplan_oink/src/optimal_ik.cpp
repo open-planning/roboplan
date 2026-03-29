@@ -391,9 +391,10 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
   return solveIk(tasks, {}, barriers, scene, delta_q, regularization);
 }
 
-tl::expected<void, std::string> Oink::enforceBarriers(
-    const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
-    Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q, double tolerance) {
+tl::expected<void, std::string>
+Oink::enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
+                      Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+                      double tolerance) {
   if (barriers.empty()) {
     return {};
   }
