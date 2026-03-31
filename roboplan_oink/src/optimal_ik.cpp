@@ -4,6 +4,11 @@
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 
+namespace {
+// Minimum squared norm threshold to avoid division by zero in barrier regularization
+constexpr double kMinNormSq = 1e-12;
+}  // namespace
+
 namespace roboplan {
 
 // Barrier base class implementation
@@ -90,7 +95,6 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
   const double jacobian_norm_sq = jacobian_container.squaredNorm();
 
   // Avoid division by zero - if Jacobian is near zero, no regularization needed
-  constexpr double kMinNormSq = 1e-12;
   if (jacobian_norm_sq < kMinNormSq) {
     H.setZero();
     c.setZero();
@@ -100,20 +104,21 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
   // Compute safe displacement
   const Eigen::VectorXd dq_safe = computeSafeDisplacement(scene);
 
-  // Regularization weight: r / (2·‖J_h‖²)
+  // Regularization weight: r / ‖J_h‖²
   // The 1/‖J_h‖² normalizes based on barrier sensitivity
-  const double weight = safe_displacement_gain / (2.0 * jacobian_norm_sq);
+  const double weight = safe_displacement_gain / jacobian_norm_sq;
 
-  // QP objective contribution: weight · ‖δq - δq_safe‖²
-  // = weight · (δq^T δq - 2 δq^T δq_safe + δq_safe^T δq_safe)
-  // = weight · δq^T I δq - 2·weight · δq_safe^T δq + const
+  // QP objective contribution: (r / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
+  // Expanding: (r / (2·‖J_h‖²)) · (δq^T δq - 2 δq^T δq_safe + δq_safe^T δq_safe)
+  //          = (r / (2·‖J_h‖²)) · δq^T I δq - (r / ‖J_h‖²) · δq_safe^T δq + const
   //
-  // H_contribution = 2·weight · I  (factor of 2 because QP is 1/2 x^T H x)
-  // c_contribution = -2·weight · δq_safe
+  // For QP formulation (min 1/2 x^T H x + c^T x):
+  // H_contribution = (r / ‖J_h‖²) · I = weight · I
+  // c_contribution = -(r / ‖J_h‖²) · δq_safe = -weight · δq_safe
 
   H.setIdentity();
-  H *= 2.0 * weight;
-  c = -2.0 * weight * dq_safe;
+  H *= weight;
+  c = -weight * dq_safe;
 
   return {};
 }

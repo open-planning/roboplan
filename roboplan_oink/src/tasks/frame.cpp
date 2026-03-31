@@ -10,6 +10,8 @@ namespace {
 constexpr int kPositionDimension = 3;
 // Orientation subspace dimension (roll, pitch, yaw)
 constexpr int kOrientationDimension = 3;
+// Minimum norm threshold to avoid division by zero in error saturation
+constexpr double kMinNormForSaturation = 1e-9;
 }  // namespace
 
 namespace roboplan {
@@ -59,7 +61,7 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   if (std::isfinite(max_position_error)) {
     Eigen::Vector3d pos_error = error_container.head<kPositionDimension>();
     const double pos_norm = pos_error.norm();
-    if (pos_norm > 1e-9) {  // Avoid division by zero
+    if (pos_norm > kMinNormForSaturation) {
       const double scale = max_position_error * std::tanh(pos_norm / max_position_error) / pos_norm;
       error_container.head<kPositionDimension>() = pos_error * scale;
     }
@@ -69,7 +71,7 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   if (std::isfinite(max_rotation_error)) {
     Eigen::Vector3d rot_error = error_container.tail<kOrientationDimension>();
     const double rot_norm = rot_error.norm();
-    if (rot_norm > 1e-9) {  // Avoid division by zero
+    if (rot_norm > kMinNormForSaturation) {
       const double scale = max_rotation_error * std::tanh(rot_norm / max_rotation_error) / rot_norm;
       error_container.tail<kOrientationDimension>() = rot_error * scale;
     }

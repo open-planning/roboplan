@@ -51,10 +51,36 @@ struct PositionBarrier : public Barrier {
                   double gain = 1.0, double safe_displacement_gain = 1.0,
                   double safety_margin = 0.0);
 
+  /// @brief Get the number of active barrier constraints.
+  /// @param scene The scene containing robot model and state.
+  /// @return Number of active barriers (up to 6: 2 per enabled axis).
   int getNumBarriers(const Scene& scene) const override;
 
+  /// @brief Compute barrier function values h(q) for all active constraints.
+  ///
+  /// Evaluates the barrier functions:
+  ///   - h_lower_i = p_i(q) - p_min_i  (for min bounds on enabled axes)
+  ///   - h_upper_i = p_max_i - p_i(q)  (for max bounds on enabled axes)
+  ///
+  /// Also computes right-hand side bounds using the saturating class-K function:
+  ///   rhs_i = dt * gamma * h_i / (1 + |h_i|) - safety_margin
+  ///
+  /// Results are stored in the inherited `barrier_values` and `barrier_rhs` vectors.
+  ///
+  /// @param scene The scene containing robot model and current state.
+  /// @return Expected void on success, or error message if frame is not found.
   tl::expected<void, std::string> computeBarrier(const Scene& scene) override;
 
+  /// @brief Compute barrier constraint Jacobian matrix.
+  ///
+  /// Computes the Jacobian -J_h used in the QP constraint: -J_h * delta_q <= rhs
+  /// Each barrier uses one row of the frame's position Jacobian (first 3 rows only).
+  /// The sign is negated for upper bounds to convert p_max - p(q) >= 0 into the standard form.
+  ///
+  /// Results are stored in the inherited `barrier_jacobian` matrix (num_barriers x nv).
+  ///
+  /// @param scene The scene containing robot model and current state.
+  /// @return Expected void on success, or error message if frame is not found.
   tl::expected<void, std::string> computeJacobian(const Scene& scene) override;
 
   /// @brief Evaluate minimum barrier value at a candidate configuration.

@@ -248,7 +248,7 @@ struct Oink {
   /// @param custom_settings Custom OSQP solver settings
   Oink(int num_variables, const OsqpEigen::Settings& custom_settings);
 
-  /// @brief Solve inverse kinematics for tasks only-
+  /// @brief Solve inverse kinematics for tasks only
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
   /// weighted task errors.

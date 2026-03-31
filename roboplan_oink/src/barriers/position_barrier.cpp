@@ -2,12 +2,17 @@
 
 #include <array>
 #include <limits>
+#include <string_view>
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 
 namespace roboplan {
+
+namespace {
+constexpr std::array<std::string_view, 3> kAxisNames = {"x", "y", "z"};
+}  // namespace
 
 PositionBarrier::PositionBarrier(const std::string& frame_name, const Eigen::Vector3d& p_min,
                                  const Eigen::Vector3d& p_max, int num_variables, double dt,
@@ -17,12 +22,11 @@ PositionBarrier::PositionBarrier(const std::string& frame_name, const Eigen::Vec
       axis_selection(axis_selection), p_min(p_min), p_max(p_max) {
   // Validate that p_min < p_max for enabled axes with finite bounds
   const std::array<bool, 3> axes_enabled = {axis_selection.x, axis_selection.y, axis_selection.z};
-  const std::array<char, 3> axis_names = {'x', 'y', 'z'};
   for (int i = 0; i < 3; ++i) {
     if (axes_enabled[i] && std::isfinite(p_min[i]) && std::isfinite(p_max[i])) {
       if (p_min[i] >= p_max[i]) {
-        throw std::invalid_argument("PositionBarrier: p_min[" + std::string(1, axis_names[i]) +
-                                    "] must be less than p_max[" + std::string(1, axis_names[i]) +
+        throw std::invalid_argument("PositionBarrier: p_min[" + std::string(kAxisNames[i]) +
+                                    "] must be less than p_max[" + std::string(kAxisNames[i]) +
                                     "] (got " + std::to_string(p_min[i]) +
                                     " >= " + std::to_string(p_max[i]) + ")");
       }
@@ -32,21 +36,21 @@ PositionBarrier::PositionBarrier(const std::string& frame_name, const Eigen::Vec
   int num_barriers = 0;
   if (axis_selection.x) {
     if (std::isfinite(p_min[0]))
-      num_barriers++;
+      ++num_barriers;
     if (std::isfinite(p_max[0]))
-      num_barriers++;
+      ++num_barriers;
   }
   if (axis_selection.y) {
     if (std::isfinite(p_min[1]))
-      num_barriers++;
+      ++num_barriers;
     if (std::isfinite(p_max[1]))
-      num_barriers++;
+      ++num_barriers;
   }
   if (axis_selection.z) {
     if (std::isfinite(p_min[2]))
-      num_barriers++;
+      ++num_barriers;
     if (std::isfinite(p_max[2]))
-      num_barriers++;
+      ++num_barriers;
   }
   initializeStorage(num_barriers, num_variables);
   frame_jacobian = Eigen::MatrixXd::Zero(6, num_variables);
@@ -74,11 +78,11 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& sce
   if (axis_selection.x) {
     if (std::isfinite(p_min[0])) {
       barrier_values[idx] = p[0] - p_min[0];
-      idx++;
+      ++idx;
     }
     if (std::isfinite(p_max[0])) {
       barrier_values[idx] = p_max[0] - p[0];
-      idx++;
+      ++idx;
     }
   }
 
@@ -86,11 +90,11 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& sce
   if (axis_selection.y) {
     if (std::isfinite(p_min[1])) {
       barrier_values[idx] = p[1] - p_min[1];
-      idx++;
+      ++idx;
     }
     if (std::isfinite(p_max[1])) {
       barrier_values[idx] = p_max[1] - p[1];
-      idx++;
+      ++idx;
     }
   }
 
@@ -98,11 +102,11 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& sce
   if (axis_selection.z) {
     if (std::isfinite(p_min[2])) {
       barrier_values[idx] = p[2] - p_min[2];
-      idx++;
+      ++idx;
     }
     if (std::isfinite(p_max[2])) {
       barrier_values[idx] = p_max[2] - p[2];
-      idx++;
+      ++idx;
     }
   }
 
@@ -128,11 +132,11 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   if (axis_selection.x) {
     if (std::isfinite(p_min[0])) {
       jacobian_container.row(idx) = frame_jacobian.row(0);
-      idx++;
+      ++idx;
     }
     if (std::isfinite(p_max[0])) {
       jacobian_container.row(idx) = -frame_jacobian.row(0);
-      idx++;
+      ++idx;
     }
   }
 
@@ -140,11 +144,11 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   if (axis_selection.y) {
     if (std::isfinite(p_min[1])) {
       jacobian_container.row(idx) = frame_jacobian.row(1);
-      idx++;
+      ++idx;
     }
     if (std::isfinite(p_max[1])) {
       jacobian_container.row(idx) = -frame_jacobian.row(1);
-      idx++;
+      ++idx;
     }
   }
 
@@ -152,11 +156,11 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   if (axis_selection.z) {
     if (std::isfinite(p_min[2])) {
       jacobian_container.row(idx) = frame_jacobian.row(2);
-      idx++;
+      ++idx;
     }
     if (std::isfinite(p_max[2])) {
       jacobian_container.row(idx) = -frame_jacobian.row(2);
-      idx++;
+      ++idx;
     }
   }
 

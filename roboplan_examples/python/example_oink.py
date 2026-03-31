@@ -31,8 +31,6 @@ def main(
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
     control_freq: float = 100.0,
-    max_position_error: float = 0.15,
-    max_rotation_error: float = 0.5,
     reference_filter_tau: float = 0.1,
     host: str = "localhost",
     port: str = "8000",
@@ -47,10 +45,6 @@ def main(
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values
             improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
-        max_position_error: Maximum position error magnitude in meters. Prevents large
-            jumps that can invalidate error derivative calculations.
-        max_rotation_error: Maximum rotation error magnitude in radians. Prevents large
-            jumps that can invalidate error derivative calculations.
         reference_filter_tau: Time constant for reference filtering in seconds. Smooths
             target pose changes to prevent sudden jumps. Set to 0 to disable filtering.
         host: The host for the ViserVisualizer.
@@ -133,12 +127,6 @@ def main(
 
     constraints = [position_limit, velocity_limit]
 
-    print(f"\nReference Filtering:")
-    if reference_filter_tau > 0:
-        print(f"  tau: {reference_filter_tau}s (smooths target pose changes)")
-    else:
-        print(f"  Disabled (tau=0)")
-
     # Validate starting joint configuration size (should match nq)
     q_canonical = np.array(model_data.starting_joint_config)
     if len(q_canonical) != len(q_full):
@@ -158,16 +146,12 @@ def main(
     config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
     config_task = ConfigurationTask(q_canonical, joint_weights, config_options)
 
-    # Task parameters (define before using in callbacks)
-    # max_position_error and max_rotation_error prevent large error jumps that can
-    # invalidate the linearized CBF constraint, improving barrier stability.
+    # Task parameters
     task_options = FrameTaskOptions(
         position_cost=1.0,
         orientation_cost=0.1,
         task_gain=task_gain,
         lm_damping=lm_damping,
-        max_position_error=max_position_error,
-        max_rotation_error=max_rotation_error,
     )
 
     # First, create all frame tasks and controls
