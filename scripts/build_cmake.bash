@@ -8,61 +8,34 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_ROOT_DIR="${SCRIPT_DIR}/.."
 pushd ${REPO_ROOT_DIR} || exit
 
+# Helper function to build a CMake project.
+build_project() {
+  local PROJECT_NAME=$1
+
+  if [ -z "$PROJECT_NAME" ]; then
+    echo "Error: No project name provided."
+    return 1
+  fi
+
+  cmake "${PROJECT_NAME}/CMakeLists.txt" \
+    -B"build/${PROJECT_NAME}" \
+    -DCMAKE_INSTALL_PREFIX="${PWD}/install/${PROJECT_NAME}"
+  cmake --build "build/${PROJECT_NAME}"
+  cmake --install "build/${PROJECT_NAME}"
+}
+
 # Build all the packages with CMake
 # rm -rf build install  # If you want a clean build
 mkdir -p build install
 export CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:${PWD}/install/
 
-# TODO: Make into reusable function?
-cmake roboplan_example_models/CMakeLists.txt \
-    -Bbuild/roboplan_example_models \
-    -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_example_models
-cmake --build build/roboplan_example_models
-cmake --install build/roboplan_example_models
-
-cmake roboplan/CMakeLists.txt \
-  -Bbuild/roboplan \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan
-cmake --build build/roboplan
-cmake --install build/roboplan
-
-cmake roboplan_simple_ik/CMakeLists.txt \
-  -Bbuild/roboplan_simple_ik \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_simple_ik
-cmake --build build/roboplan_simple_ik
-cmake --install build/roboplan_simple_ik
-
-cmake roboplan_rrt/CMakeLists.txt \
-  -Bbuild/roboplan_rrt \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_rrt
-cmake --build build/roboplan_rrt
-cmake --install build/roboplan_rrt
-
-cmake roboplan_oink/CMakeLists.txt \
-  -Bbuild/roboplan_oink \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_oink
-cmake --build build/roboplan_oink
-cmake --install build/roboplan_oink
-
-cmake external/toppra/cpp/CMakeLists.txt \
-  -Bbuild/toppra \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/toppra \
-  -DBUILD_TESTS=OFF \
-  -DPYTHON_BINDINGS=OFF
-cmake --build build/toppra
-cmake --install build/toppra
-
-cmake roboplan_toppra/CMakeLists.txt \
-  -Bbuild/roboplan_toppra \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_toppra
-cmake --build build/roboplan_toppra
-cmake --install build/roboplan_toppra
-
-cmake roboplan_examples/CMakeLists.txt \
-  -Bbuild/roboplan_examples \
-  -DCMAKE_INSTALL_PREFIX=${PWD}/install/roboplan_examples
-cmake --build build/roboplan_examples
-cmake --install build/roboplan_examples
+build_project roboplan_example_models
+build_project roboplan
+build_project roboplan_simple_ik
+build_project roboplan_oink
+build_project roboplan_toppra
+build_project roboplan_rrt
+build_project roboplan_examples
 
 echo "
 =======================

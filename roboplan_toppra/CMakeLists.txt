@@ -7,7 +7,20 @@ endif()
 
 # Find dependencies.
 find_package(roboplan REQUIRED)
-find_package(toppra REQUIRED)
+
+# If toppra is not found, fetch it from GitHub.
+include(FetchContent)
+find_package(toppra QUIET)
+if(NOT toppra_FOUND)
+    message(STATUS "toppra not found. Fetching from GitHub...")
+    FetchContent_Declare(
+        toppra
+        GIT_REPOSITORY https://github.com/hungpham2511/toppra.git
+        GIT_TAG 0.6.5  # TODO: update to 0.6.6 when it's out
+        SOURCE_SUBDIR cpp
+    )
+    FetchContent_MakeAvailable(toppra)
+endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
