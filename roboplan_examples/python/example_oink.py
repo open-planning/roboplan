@@ -233,9 +233,7 @@ def main(
 
                     # Solve IK for one step with constraints
                     try:
-                        oink.solveIk(
-                            tasks, constraints, barriers, scene, delta_q, regularization
-                        )
+                        oink.solveIk(tasks, constraints, scene, delta_q, regularization)
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
@@ -303,9 +301,6 @@ def main(
             raw_targets[idx] = initial_pose.copy()
             if reference_filter_tau > 0:
                 reference_filters[idx].reset(initial_pose)
-
-    # No barriers in this example (see example_oink_with_barriers.py for a tutorial on barriers)
-    barriers = []
 
     viz.display(q_full)
     reset_position(None)
