@@ -8,6 +8,7 @@ endif()
 # Find dependencies.
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(console_bridge REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 # Ament CMake is not immediately required, but we include it at the top so that
@@ -58,6 +59,7 @@ target_link_libraries(roboplan
     Eigen3::Eigen
     pinocchio::pinocchio
     tinyxml2::tinyxml2
+    console_bridge::console_bridge
 )
 if (yaml-cpp_VERSION VERSION_LESS "0.8")  # for Ubuntu 22.04
     target_link_libraries(roboplan PRIVATE yaml-cpp)
