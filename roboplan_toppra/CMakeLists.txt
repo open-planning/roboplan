@@ -13,6 +13,7 @@ include(FetchContent)
 find_package(toppra QUIET)
 if(NOT toppra_FOUND)
     message(STATUS "toppra not found. Fetching from GitHub...")
+    set(BUILD_TESTS OFF CACHE BOOL "Disable toppra tests" FORCE)
     FetchContent_Declare(
         toppra
         GIT_REPOSITORY https://github.com/hungpham2511/toppra.git
@@ -20,6 +21,10 @@ if(NOT toppra_FOUND)
         SOURCE_SUBDIR cpp
     )
     FetchContent_MakeAvailable(toppra)
+
+    # toppra creates non-namespaced targets when built via FetchContent,
+    # so we will make an alias to correct this.
+    add_library(toppra::toppra ALIAS toppra)
 endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that
