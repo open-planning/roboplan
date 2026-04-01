@@ -24,7 +24,7 @@ if(NOT toppra_FOUND)
     FetchContent_Declare(
         toppra
         GIT_REPOSITORY https://github.com/hungpham2511/toppra.git
-        GIT_TAG 0.6.5  # TODO: update to 0.6.6 when it's out
+        GIT_TAG 0.6.6
         SOURCE_SUBDIR cpp
     )
     FetchContent_MakeAvailable(toppra)
