@@ -14,6 +14,7 @@ find_package(toppra QUIET)
 if(NOT toppra_FOUND)
     message(STATUS "toppra not found. Fetching from GitHub...")
     set(BUILD_TESTS OFF CACHE BOOL "Disable toppra tests" FORCE)
+    set(PYTHON_BINDINGS OFF CACHE BOOL "Disable toppra Python bindings" FORCE)
     FetchContent_Declare(
         toppra
         GIT_REPOSITORY https://github.com/hungpham2511/toppra.git
