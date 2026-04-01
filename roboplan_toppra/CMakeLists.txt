@@ -8,6 +8,12 @@ endif()
 # Find dependencies.
 find_package(roboplan REQUIRED)
 
+# Ament CMake is not immediately required, but we include it at the top so that
+# if it is found we can use it in build testing before requiring a
+# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion
+# issues with symlink installs.
+find_package(ament_cmake QUIET)
+
 # If toppra is not found, fetch it from GitHub.
 include(FetchContent)
 find_package(toppra QUIET)
@@ -25,14 +31,10 @@ if(NOT toppra_FOUND)
 
     # toppra creates non-namespaced targets when built via FetchContent,
     # so we will make an alias to correct this.
-    add_library(toppra::toppra ALIAS toppra)
+    if(TARGET toppra AND NOT TARGET toppra::toppra)
+        add_library(toppra::toppra ALIAS toppra)
+    endif()
 endif()
-
-# Ament CMake is not immediately required, but we include it at the top so that
-# if it is found we can use it in build testing before requiring a
-# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion
-# issues with symlink installs.
-find_package(ament_cmake QUIET)
 
 # Add libraries
 add_library(roboplan_toppra SHARED
