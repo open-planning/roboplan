@@ -10,7 +10,8 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>roboplan</depend>
-  <depend>toppra</depend>
+  <!-- uncomment when toppra is on the ROS buildfarm for all distros -->
+  <!-- <depend>toppra</depend> -->
 
   <export>
     <build_type>ament_cmake</build_type>
