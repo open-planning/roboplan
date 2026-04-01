@@ -13,6 +13,8 @@
   <!-- uncomment when toppra is on the ROS buildfarm for all distros -->
   <!-- <depend>toppra</depend> -->
 
+  <test_depend>roboplan_example_models</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
