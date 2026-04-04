@@ -315,7 +315,13 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     solver.data()->clearLinearConstraintsMatrix();
 
     const OSQPSettings* stored_settings = settings.getSettings();
+#ifdef OSQP_EIGEN_OSQP_IS_V1
     solver.settings()->setWarmStart(stored_settings->warm_starting);
+    solver.settings()->setPolish(stored_settings->polishing);
+#else
+    solver.settings()->setWarmStart(stored_settings->warm_start);
+    solver.settings()->setWarmStart(stored_settings->polish);
+#endif
     solver.settings()->setVerbosity(stored_settings->verbose);
     solver.settings()->setAlpha(stored_settings->alpha);
     solver.settings()->setAbsoluteTolerance(stored_settings->eps_abs);
@@ -324,7 +330,6 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     solver.settings()->setDualInfeasibilityTolerance(stored_settings->eps_dual_inf);
     solver.settings()->setMaxIteration(stored_settings->max_iter);
     solver.settings()->setRho(stored_settings->rho);
-    solver.settings()->setPolish(stored_settings->polishing);
     solver.settings()->setAdaptiveRho(stored_settings->adaptive_rho);
     solver.settings()->setTimeLimit(stored_settings->time_limit);
 
