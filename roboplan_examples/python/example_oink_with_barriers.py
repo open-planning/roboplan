@@ -8,7 +8,6 @@ import xacro
 
 import numpy as np
 import pinocchio as pin
-from pinocchio.visualize import ViserVisualizer
 
 from common import MODELS
 from filters import SE3LowPassFilter
@@ -20,9 +19,11 @@ from roboplan.optimal_ik import (
     FrameTask,
     FrameTaskOptions,
     Oink,
+    PositionBarrier,
     PositionLimit,
     VelocityLimit,
 )
+from roboplan.viser_visualizer import ViserVisualizer
 
 
 def main(
@@ -30,29 +31,53 @@ def main(
     task_gain: float = 1.0,
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
-    control_freq: float = 100.0,
+    control_freq: float = 400.0,
+    barrier_gain: float = 10.0,
+    barrier_size: float = 0.5,
+    safety_margin: float = 0.05,
+    max_position_error: float = 0.15,
+    max_rotation_error: float = 0.5,
     reference_filter_tau: float = 0.1,
     host: str = "localhost",
     port: str = "8000",
 ):
     """
-    Run the optimal IK example.
+    Tutorial on optimal IK with Control Barrier Functions (CBF) safety constraints.
+
+    This example demonstrates how to use PositionBarrier to enforce safety constraints
+    on end-effector motion. Barriers prevent the robot from leaving a safe region while
+    tracking target poses.
 
     Parameters:
-        model: The name of the model to use (ur5, franka, or dual).
+        model: The name of the model to use.
         task_gain: Task gain (alpha) for the IK solver (0-1).
         lm_damping: Levenberg-Marquardt damping for regularization.
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values
             improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
-        reference_filter_tau: Time constant for reference filtering in seconds. Smooths
-            target pose changes to prevent sudden jumps. Set to 0 to disable filtering.
+        barrier_gain: Barrier gain for CBF constraint. Since the linear class-K function
+            provides proportional force, use lower values (5-20) compared to saturating
+            functions. Higher values = stronger barrier response.
+        barrier_size: Size of the cubic barrier box around the EE start position (meters).
+        safety_margin: Distance from boundary where barrier activates (meters). With linear
+            barriers, smaller values (0.02-0.1m) are typically sufficient.
+        max_position_error: Maximum position error magnitude in meters. Prevents large
+            jumps that can invalidate CBF linearization.
+        max_rotation_error: Maximum rotation error magnitude in radians. Prevents large
+            jumps that can invalidate CBF linearization.
+        reference_filter_tau: Time constant (tau) for exponential low-pass filter in seconds.
+            The filter reaches ~63% of target per tau seconds. For tau=0.1, the filter
+            smooths target pose changes to prevent sudden jumps. Set to 0 to disable.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
 
     if model not in MODELS:
         print(f"Invalid model requested: {model}")
+        sys.exit(1)
+
+    if reference_filter_tau < 0:
+        print(f"Invalid reference_filter_tau: {reference_filter_tau} (must be >= 0)")
         sys.exit(1)
 
     model_data = MODELS[model]
@@ -127,6 +152,15 @@ def main(
 
     constraints = [position_limit, velocity_limit]
 
+    print(f"\nReference Filtering:")
+    if reference_filter_tau > 0:
+        print(
+            f"  tau: {reference_filter_tau}s (time constant for exponential filter; "
+            f"reaches ~63% of step per tau seconds for tau=0.1.)"
+        )
+    else:
+        print(f"  tau: {reference_filter_tau}s (disabled, raw targets used)")
+
     # Validate starting joint configuration size (should match nq)
     q_canonical = np.array(model_data.starting_joint_config)
     if len(q_canonical) != len(q_full):
@@ -146,12 +180,16 @@ def main(
     config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
     config_task = ConfigurationTask(q_canonical, joint_weights, config_options)
 
-    # Task parameters
+    # Task parameters (define before using in callbacks)
+    # max_position_error and max_rotation_error prevent large error jumps that can
+    # invalidate the linearized CBF constraint, improving barrier stability.
     task_options = FrameTaskOptions(
         position_cost=1.0,
         orientation_cost=0.1,
         task_gain=task_gain,
         lm_damping=lm_damping,
+        max_position_error=max_position_error,
+        max_rotation_error=max_rotation_error,
     )
 
     # First, create all frame tasks and controls
@@ -176,7 +214,7 @@ def main(
         transform_controls.append(controls)
 
     # Create reference filters for smooth target pose changes
-    # These filters smooth sudden changes in target pose to prevent large jumps
+    # With tau=0, filters act as pass-through; with tau>0, they smooth sudden changes
     reference_filters = []
     raw_targets = []  # Store unfiltered targets from user input
     for name in model_data.ee_names:
@@ -220,23 +258,26 @@ def main(
                     # Get current joint configuration
                     q_current = scene.getCurrentJointPositions()
 
-                    # Update reference filters if enabled (smooths target pose changes)
-                    # The filter gradually approaches the raw target to prevent sudden jumps
-                    if reference_filter_tau > 0:
-                        for idx, ref_filter in enumerate(reference_filters):
-                            filtered_target = ref_filter.update(raw_targets[idx], dt)
-                            frame_tasks[idx].setTargetFrameTransform(filtered_target)
-                    else:
-                        # No filtering - use raw targets directly
-                        for idx in range(len(frame_tasks)):
-                            frame_tasks[idx].setTargetFrameTransform(raw_targets[idx])
+                    # Update reference filters (tau=0 acts as pass-through)
+                    for idx in range(len(frame_tasks)):
+                        filtered_target = reference_filters[idx].update(
+                            raw_targets[idx], dt
+                        )
+                        frame_tasks[idx].setTargetFrameTransform(filtered_target)
 
-                    # Solve IK for one step with constraints
+                    # Solve IK for one step with constraints and barriers
+                    # Argument order: tasks, constraints, barriers, scene, delta_q, regularization (optional)
                     try:
-                        oink.solveIk(tasks, constraints, scene, delta_q, regularization)
+                        oink.solveIk(
+                            tasks, constraints, barriers, scene, delta_q, regularization
+                        )
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
+
+                    # CRITICAL: Validate solution with enforceBarriers() using FK
+                    # This catches cases where linearization error causes barrier violation
+                    oink.enforceBarriers(barriers, scene, delta_q, tolerance=0.0)
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     q_current = scene.integrate(q_current, delta_q)
@@ -275,8 +316,7 @@ def main(
                 controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
                 # Reset raw target and filter state to current pose
                 raw_targets[idx] = fk_tform.copy()
-                if reference_filter_tau > 0:
-                    reference_filters[idx].reset(fk_tform)
+                reference_filters[idx].reset(fk_tform)
         viz.display(q_current)
 
     random_button = viz.viewer.gui.add_button("Randomize Pose")
@@ -299,8 +339,59 @@ def main(
         for idx, name in enumerate(model_data.ee_names):
             initial_pose = scene.forwardKinematics(q_full, name)
             raw_targets[idx] = initial_pose.copy()
-            if reference_filter_tau > 0:
-                reference_filters[idx].reset(initial_pose)
+            reference_filters[idx].reset(initial_pose)
+
+    # Create position barriers for each end-effector with conservative parameters
+    # - High gain ensures strong resistance to boundary approach
+    # - Safety margin shifts the effective boundary inward to account for linearization errors
+    barriers = []
+    barrier_colors = [
+        ((255, 100, 100), (255, 50, 50)),  # Red for first EE
+        ((100, 255, 100), (50, 255, 50)),  # Green for second EE
+        ((100, 100, 255), (50, 50, 255)),  # Blue for third EE (if needed)
+    ]
+
+    for idx, ee_name in enumerate(model_data.ee_names):
+        # Get the initial pose for this end-effector
+        ee_pose = scene.forwardKinematics(q_full, ee_name)
+        ee_pos = ee_pose[:3, 3]
+
+        # Create barrier bounds centered at this EE's initial position
+        half_size = barrier_size / 2.0
+        p_min = ee_pos - half_size
+        p_max = ee_pos + half_size
+
+        # Create the barrier for this end-effector
+        position_barrier = PositionBarrier(
+            ee_name,
+            p_min,
+            p_max,
+            num_variables,
+            dt,
+            gain=barrier_gain,
+            safe_displacement_gain=1.0,
+            safety_margin=safety_margin,
+        )
+        barriers.append(position_barrier)
+
+        # Visualize the barrier box in Viser with unique name and color per EE
+        box_color, wireframe_color = barrier_colors[idx % len(barrier_colors)]
+        viz.viewer.scene.add_box(
+            f"/barrier_box_{ee_name}",
+            dimensions=(barrier_size, barrier_size, barrier_size),
+            position=ee_pos,
+            color=box_color,
+            opacity=0.15,
+        )
+        # Add wireframe edges for better visibility
+        viz.viewer.scene.add_box(
+            f"/barrier_box_wireframe_{ee_name}",
+            dimensions=(barrier_size, barrier_size, barrier_size),
+            position=ee_pos,
+            color=wireframe_color,
+            opacity=0.5,
+            side="back",  # Only render back faces for wireframe effect
+        )
 
     viz.display(q_full)
     reset_position(None)

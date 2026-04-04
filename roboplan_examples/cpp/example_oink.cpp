@@ -77,7 +77,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   // Solve IK with constraints
   Eigen::VectorXd delta_q;
-  auto result = oink.solveIk(tasks, constraints, scene, delta_q);
+  auto result = oink.solveIk(tasks, constraints, {}, scene, delta_q);
 
   if (!result.has_value()) {
     std::cout << "IK solve failed: " << result.error() << "\n";

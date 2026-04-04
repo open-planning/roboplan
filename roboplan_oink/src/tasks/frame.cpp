@@ -1,5 +1,7 @@
 #include <roboplan_oink/tasks/frame.hpp>
 
+#include <cmath>
+
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/spatial/explog.hpp>
 
@@ -8,6 +10,8 @@ namespace {
 constexpr int kPositionDimension = 3;
 // Orientation subspace dimension (roll, pitch, yaw)
 constexpr int kOrientationDimension = 3;
+// Minimum norm threshold to avoid division by zero in error saturation
+constexpr double kMinNormForSaturation = 1e-9;
 }  // namespace
 
 namespace roboplan {
@@ -16,7 +20,9 @@ FrameTask::FrameTask(const CartesianConfiguration& target_pose, int num_vars,
                      const FrameTaskOptions& options)
     : Task(createWeightMatrix(options.position_cost, options.orientation_cost), options.task_gain,
            options.lm_damping),
-      frame_name(target_pose.tip_frame), target_pose(target_pose) {
+      frame_name(target_pose.tip_frame), target_pose(target_pose),
+      max_position_error(options.max_position_error),
+      max_rotation_error(options.max_rotation_error) {
   // Pre-allocate storage: 6 rows (SE(3) task) × num_vars columns
   initializeStorage(kSpatialDimension, num_vars);
 }
@@ -48,6 +54,28 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   Eigen::Vector3d e_rot = transform_world_to_frame.rotation() * pinocchio::log3(R_err);
   error_container.head<3>() = e_pos;
   error_container.tail<3>() = e_rot;
+
+  // Soft saturation of position error using tanh for smooth gradients
+  // This prevents large jumps that can invalidate CBF linearization while maintaining
+  // smooth error dynamics. Uses saturate(e) = e_max * tanh(||e|| / e_max) * (e / ||e||)
+  if (std::isfinite(max_position_error)) {
+    Eigen::Vector3d pos_error = error_container.head<kPositionDimension>();
+    const double pos_norm = pos_error.norm();
+    if (pos_norm > kMinNormForSaturation) {
+      const double scale = max_position_error * std::tanh(pos_norm / max_position_error) / pos_norm;
+      error_container.head<kPositionDimension>() = pos_error * scale;
+    }
+  }
+
+  // Soft saturation of rotation error using tanh for smooth gradients
+  if (std::isfinite(max_rotation_error)) {
+    Eigen::Vector3d rot_error = error_container.tail<kOrientationDimension>();
+    const double rot_norm = rot_error.norm();
+    if (rot_norm > kMinNormForSaturation) {
+      const double scale = max_rotation_error * std::tanh(rot_norm / max_rotation_error) / rot_norm;
+      error_container.tail<kOrientationDimension>() = rot_error * scale;
+    }
+  }
 
   return {};
 }

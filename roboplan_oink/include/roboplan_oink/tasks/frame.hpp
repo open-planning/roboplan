@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -28,6 +29,16 @@ struct FrameTaskOptions {
 
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
   double lm_damping = 0.0;
+
+  /// @brief Maximum position error magnitude in meters (default: unlimited).
+  /// Limits the position error norm to prevent large jumps that can invalidate
+  /// CBF linearization. Recommended: 0.1-0.2m for systems with barriers.
+  double max_position_error = std::numeric_limits<double>::infinity();
+
+  /// @brief Maximum rotation error magnitude in radians (default: unlimited).
+  /// Limits the rotation error norm to prevent large jumps.
+  /// Recommended: 0.5-1.0 rad for systems with barriers.
+  double max_rotation_error = std::numeric_limits<double>::infinity();
 };
 
 /// @brief Task for tracking a target Cartesian pose with a specified frame.
@@ -97,7 +108,13 @@ struct FrameTask : public Task {
   /// @brief Target Cartesian configuration to reach.
   CartesianConfiguration target_pose;
 
-  /// @brief Pre-allocated logarithmic Jacobian (mutable for use in const computeJacobian)
+  /// @brief Maximum position error magnitude (meters). Infinite means no limit.
+  double max_position_error;
+
+  /// @brief Maximum rotation error magnitude (radians). Infinite means no limit.
+  double max_rotation_error;
+
+  // Pre-allocated logarithmic Jacobian (mutable for use in const computeJacobian)
   mutable Eigen::Matrix<double, 6, 6> Jlog = Eigen::Matrix<double, 6, 6>::Identity();
 };
 

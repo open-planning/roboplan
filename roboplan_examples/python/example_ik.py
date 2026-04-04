@@ -100,7 +100,7 @@ def main(
     solution = JointConfiguration()
 
     # Create interactive markers.
-    def solve_ik(_):
+    def solveIk(_):
         for goal, controls in zip(goals, transform_controls):
             goal.tform = pin.SE3(
                 pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), controls.position
@@ -120,7 +120,7 @@ def main(
             disable_sliders=True,
             visible=True,
         )
-        controls.on_update(solve_ik)
+        controls.on_update(solveIk)
         transform_controls.append(controls)
 
     # Create a marker reset button.
