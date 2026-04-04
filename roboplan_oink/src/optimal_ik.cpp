@@ -44,7 +44,7 @@ tl::expected<double, std::string>
 Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/, pinocchio::Data& /*data*/,
                                  const Eigen::VectorXd& /*q*/) const {
   // Default: return infinity to indicate not supported by this barrier type
-  return std::numeric_limits<double>::infinity();
+  return OSQP_INFTY;
 }
 
 tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scene,
@@ -419,7 +419,7 @@ Oink::enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Sce
   pinocchio::Data temp_data(model);
 
   // Evaluate all barriers at the candidate configuration
-  double min_h = std::numeric_limits<double>::infinity();
+  double min_h = OSQP_INFTY;
   for (const auto& barrier : barriers) {
     auto h_result = barrier->evaluateAtConfiguration(model, temp_data, q_candidate);
     if (!h_result.has_value()) {
