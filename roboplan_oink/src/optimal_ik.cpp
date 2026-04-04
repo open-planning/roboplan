@@ -320,7 +320,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     solver.settings()->setPolish(stored_settings->polishing);
 #else
     solver.settings()->setWarmStart(stored_settings->warm_start);
-    solver.settings()->setWarmStart(stored_settings->polish);
+    solver.settings()->setPolish(stored_settings->polish);
 #endif
     solver.settings()->setVerbosity(stored_settings->verbose);
     solver.settings()->setAlpha(stored_settings->alpha);
