@@ -41,7 +41,6 @@ if(NOT OsqpEigen_FOUND)
     message(STATUS "Detected osqp package without osqp_VERSION; forcing vendored OSQP + OsqpEigen.")
   endif()
 
-  message(STATUS "found OSQP version: ${OSQP_VERSION}")
   if(NOT osqp_FOUND OR NOT osqp_VERSION VERSION_EQUAL "0.6.3")
     message(STATUS "OSQP not found or version < 0.6.3. Fetching from GitHub...")
 
