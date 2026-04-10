@@ -1,6 +1,13 @@
 @PACKAGE_INIT@
 
 find_package(roboplan REQUIRED)
-find_package(toppra REQUIRED)
+
+# Try to find toppra - it may be in the same install prefix as roboplan_toppra
+# if it was built via FetchContent. PACKAGE_PREFIX_DIR is set by @PACKAGE_INIT@
+# and points to the installation prefix of this package.
+find_package(toppra QUIET PATHS "${PACKAGE_PREFIX_DIR}" NO_DEFAULT_PATH)
+if(NOT toppra_FOUND)
+  find_package(toppra QUIET)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/roboplan_toppraTargets.cmake")
