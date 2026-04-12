@@ -237,76 +237,95 @@ struct Barrier {
 
 /// @brief Oink - Optimal Inverse Kinematics solver
 struct Oink {
-  /// @brief Constructor that initializes matrices and solver with given dimensions
+  /// @brief Constructs an Oink solver for a named joint group.
   ///
-  /// @param num_variables Number of optimization variables (typically number of actuatable DOFs)
-  explicit Oink(int num_variables);
+  /// Resolves the group to its velocity indices and sizes all internal matrices
+  /// to the group's velocity DOF count, which can be much smaller than model.nv
+  /// when planning for a subset of joints. The scene reference is stored and used
+  /// internally by solveIk and enforceBarriers.
+  ///
+  /// @param scene The scene used to resolve the group and held for IK solving.
+  /// @param group_name Joint group name. Pass an empty string for the full robot.
+  /// @throws std::runtime_error if group_name is not found in the scene.
+  Oink(Scene& scene, const std::string& group_name);
 
-  /// @brief Constructor with custom settings
+  /// @brief Constructs an Oink solver for a named joint group with custom OSQP settings.
   ///
-  /// @param num_variables Number of optimization variables (typically number of DOFs)
-  /// @param custom_settings Custom OSQP solver settings
-  Oink(int num_variables, const OsqpEigen::Settings& custom_settings);
+  /// @param scene The scene used to resolve the group and held for IK solving.
+  /// @param group_name Joint group name. Pass an empty string for the full robot.
+  /// @param custom_settings Custom OSQP solver settings.
+  /// @throws std::runtime_error if group_name is not found in the scene.
+  Oink(Scene& scene, const std::string& group_name, const OsqpEigen::Settings& custom_settings);
+
+  /// @brief Constructs an Oink solver for the full robot (all joints).
+  ///
+  /// Equivalent to Oink(scene, "").
+  explicit Oink(Scene& scene) : Oink(scene, "") {}
+
+  /// @brief Constructs an Oink solver for the full robot with custom OSQP settings.
+  ///
+  /// Equivalent to Oink(scene, "", custom_settings).
+  Oink(Scene& scene, const OsqpEigen::Settings& custom_settings)
+      : Oink(scene, "", custom_settings) {}
 
   /// @brief Solve inverse kinematics for tasks only
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors.
+  /// weighted task errors. Uses the scene stored at construction time.
   ///
   /// @param tasks Vector of weighted tasks to optimize for
-  /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement
   /// @param regularization Tikhonov regularization weight (default: 1e-12)
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
-  solveIk(const std::vector<std::shared_ptr<Task>>& tasks, const Scene& scene,
+  solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
   /// @brief Solve inverse kinematics for tasks with constraints.
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors while satisfying all constraints.
+  /// weighted task errors while satisfying all constraints. Uses the scene stored at
+  /// construction time.
   ///
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param constraints Vector of constraints to satisfy
-  /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement
   /// @param regularization Tikhonov regularization weight (default: 1e-12)
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
   solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
-          const std::vector<std::shared_ptr<Constraints>>& constraints, const Scene& scene,
+          const std::vector<std::shared_ptr<Constraints>>& constraints,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
   /// @brief Solve inverse kinematics for tasks with barriers.
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors while satisfying all barrier functions.
+  /// weighted task errors while satisfying all barrier functions. Uses the scene stored
+  /// at construction time.
   ///
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param barriers Vector of barrier functions for safety constraints
-  /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement
   /// @param regularization Tikhonov regularization weight (default: 1e-12)
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
   solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
-          const std::vector<std::shared_ptr<Barrier>>& barriers, const Scene& scene,
+          const std::vector<std::shared_ptr<Barrier>>& barriers,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
-  /// @brief Solve inverse kinematics for tasks with constraints and barriers
+  /// @brief Solve inverse kinematics for tasks with constraints and barriers.
   ///
   /// Solves a QP optimization problem to compute the joint velocity that minimizes
   /// weighted task errors while satisfying all constraints and barrier functions.
-  /// The result is written directly into the provided delta_q buffer.
+  /// The result is written directly into the provided delta_q buffer. Uses the scene
+  /// stored at construction time.
   ///
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param constraints Vector of constraints to satisfy
   /// @param barriers Vector of barrier functions for safety constraints
-  /// @param scene Scene containing robot model and state
   /// @param delta_q Pre-allocated output buffer for configuration displacement.
   ///                Must be sized to num_variables (velocity space dimension).
   ///                Using Eigen::Ref allows zero-copy access from Python numpy arrays.
@@ -322,7 +341,7 @@ struct Oink {
   tl::expected<void, std::string>
   solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
           const std::vector<std::shared_ptr<Constraints>>& constraints,
-          const std::vector<std::shared_ptr<Barrier>>& barriers, const Scene& scene,
+          const std::vector<std::shared_ptr<Barrier>>& barriers,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
@@ -338,7 +357,6 @@ struct Oink {
   /// which can have significant error O(||δq||²) for large displacements.
   ///
   /// @param barriers Vector of barrier functions to check
-  /// @param scene Scene containing robot model and state (current configuration q)
   /// @param delta_q Configuration displacement to validate. Modified in place: set to
   ///                zero if barrier violation is detected.
   /// @param tolerance Tolerance for barrier violation detection. A barrier is considered
@@ -348,7 +366,7 @@ struct Oink {
   /// @note Only barriers that implement evaluateAtConfiguration() are checked.
   ///       Barriers returning infinity are assumed safe.
   tl::expected<void, std::string>
-  enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Scene& scene,
+  enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers,
                   Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
                   double tolerance = 0.0);
 
@@ -358,6 +376,12 @@ struct Oink {
 
   // Problem dimensions
   int num_variables;
+
+  /// @brief Velocity indices of the joint group (used to scatter delta_q back into model.nv space).
+  Eigen::VectorXi v_indices;
+
+  /// @brief Reference to the scene used for IK solving.
+  Scene& scene_;
 
   // Pre-allocated QP contribution matrices (reused for each task)
   Eigen::VectorXd task_c;

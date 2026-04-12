@@ -2,7 +2,6 @@
 
 #include <limits>
 #include <memory>
-#include <optional>
 #include <string>
 
 #include <Eigen/Dense>
@@ -50,10 +49,16 @@ struct FrameTaskOptions {
 /// allocated at construction time to avoid runtime allocations during IK solving.
 struct FrameTask : public Task {
   /// @brief Constructs a FrameTask for tracking a target pose.
+  ///
+  /// The Oink solver provides both the scene (for frame ID resolution and FK) and
+  /// the velocity indices (for Jacobian column selection). This ensures the task is
+  /// always compatible with the solver it will be used with.
+  ///
+  /// @param oink The Oink solver instance this task will be used with.
   /// @param target_pose The target Cartesian configuration to reach.
-  /// @param num_vars Number of robot DOFs (velocity dimension, model.nv).
   /// @param options Optional task options (default: all options set to defaults).
-  FrameTask(const CartesianConfiguration& target_pose, int num_vars,
+  /// @throws std::runtime_error if the frame name is not found in the scene.
+  FrameTask(const Oink& oink, const CartesianConfiguration& target_pose,
             const FrameTaskOptions& options = {});
 
   /// @brief Computes the SE(3) error between target and current frame pose.
@@ -103,7 +108,10 @@ struct FrameTask : public Task {
   std::string frame_name;
 
   /// @brief Index of the frame in the scene's Pinocchio model.
-  std::optional<pinocchio::Index> frame_id;
+  pinocchio::Index frame_id;
+
+  /// @brief Velocity vector indices for the joint group (used to select Jacobian columns).
+  Eigen::VectorXi v_indices;
 
   /// @brief Target Cartesian configuration to reach.
   CartesianConfiguration target_pose;
@@ -113,6 +121,9 @@ struct FrameTask : public Task {
 
   /// @brief Maximum rotation error magnitude (radians). Infinite means no limit.
   double max_rotation_error;
+
+  // Pre-allocated full Jacobian (6 x model.nv) for column selection (mutable for const methods)
+  mutable Eigen::MatrixXd full_jacobian_;
 
   // Pre-allocated logarithmic Jacobian (mutable for use in const computeJacobian)
   mutable Eigen::Matrix<double, 6, 6> Jlog = Eigen::Matrix<double, 6, 6>::Identity();

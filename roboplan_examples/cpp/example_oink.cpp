@@ -44,6 +44,9 @@ int main(int /*argc*/, char* /*argv*/[]) {
   // Update forward kinematics in scene data
   scene.forwardKinematics(q_start, "tool0");
 
+  // Create Oink instance
+  Oink oink(scene, "arm");
+
   // Get number of variables for constraints and solver
   const int num_variables = model.nv;
 
@@ -54,7 +57,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>(goal, num_variables, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(oink, goal, frame_options);
 
   // Create a ConfigurationTask to regularize toward start configuration (low priority)
   // Using lower joint_weights (0.1) makes this task less important than the frame task
@@ -72,12 +75,9 @@ int main(int /*argc*/, char* /*argv*/[]) {
   auto position_limit = std::make_shared<PositionLimit>(num_variables, 1.0);  // gain = 1.0
   std::vector<std::shared_ptr<Constraints>> constraints = {position_limit};
 
-  // Create Oink instance
-  Oink oink(num_variables);
-
   // Solve IK with constraints
   Eigen::VectorXd delta_q;
-  auto result = oink.solveIk(tasks, constraints, {}, scene, delta_q);
+  auto result = oink.solveIk(tasks, constraints, {}, delta_q);
 
   if (!result.has_value()) {
     std::cout << "IK solve failed: " << result.error() << "\n";

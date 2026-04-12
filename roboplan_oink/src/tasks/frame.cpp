@@ -1,6 +1,7 @@
 #include <roboplan_oink/tasks/frame.hpp>
 
 #include <cmath>
+#include <stdexcept>
 
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/spatial/explog.hpp>
@@ -16,32 +17,33 @@ constexpr double kMinNormForSaturation = 1e-9;
 
 namespace roboplan {
 
-FrameTask::FrameTask(const CartesianConfiguration& target_pose, int num_vars,
+FrameTask::FrameTask(const Oink& oink, const CartesianConfiguration& target_pose,
                      const FrameTaskOptions& options)
     : Task(createWeightMatrix(options.position_cost, options.orientation_cost), options.task_gain,
            options.lm_damping),
       frame_name(target_pose.tip_frame), target_pose(target_pose),
       max_position_error(options.max_position_error),
       max_rotation_error(options.max_rotation_error) {
-  // Pre-allocate storage: 6 rows (SE(3) task) × num_vars columns
-  initializeStorage(kSpatialDimension, num_vars);
+  const auto maybe_frame_id = oink.scene_.getFrameId(frame_name);
+  if (!maybe_frame_id) {
+    throw std::runtime_error("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
+  }
+  frame_id = maybe_frame_id.value();
+
+  v_indices = oink.v_indices;
+
+  // Pre-allocate storage: 6 rows (SE(3) task) × group velocity DOFs columns
+  initializeStorage(kSpatialDimension, v_indices.size());
+  // Pre-allocate full Jacobian buffer for column selection
+  full_jacobian_ = Eigen::MatrixXd::Zero(kSpatialDimension, oink.scene_.getModel().nv);
 }
 
 tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
-  // Get the frame ID.
-  if (!frame_id.has_value()) {
-    const auto maybe_frame_id = scene.getFrameId(frame_name);
-    if (!maybe_frame_id) {
-      return tl::make_unexpected("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
-    }
-    frame_id = maybe_frame_id.value();
-  }
-
   // Get data from scene (assumes kinematics are already up-to-date)
   auto& data = scene.getData();
 
   // Get current frame pose in world frame
-  const pinocchio::SE3& transform_world_to_frame = data.oMf.at(frame_id.value());
+  const pinocchio::SE3& transform_world_to_frame = data.oMf.at(frame_id);
 
   // Get target pose as SE3
   const pinocchio::SE3 transform_world_to_target(target_pose.tform);
@@ -81,25 +83,17 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
 }
 
 tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
-  // Get the frame ID.
-  if (!frame_id.has_value()) {
-    const auto maybe_frame_id = scene.getFrameId(frame_name);
-    if (!maybe_frame_id) {
-      return tl::make_unexpected("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
-    }
-    frame_id = maybe_frame_id.value();
-  }
-
   // Get current joint configuration
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
 
-  // Compute frame Jacobian into jacobian_container
-  scene.computeFrameJacobian(q, frame_id.value(), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                             jacobian_container);
+  // Compute full-robot frame Jacobian, then select the group's velocity columns
+  full_jacobian_.setZero();
+  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                             full_jacobian_);
 
   // The negative sign ensures that with the QP formulation (min ||J*dq + gain*e||^2),
   // the solution dq = -gain * J^{-1} * e moves toward the target.
-  jacobian_container *= -1.0;
+  jacobian_container.noalias() = -full_jacobian_(Eigen::placeholders::all, v_indices);
 
   return {};
 }

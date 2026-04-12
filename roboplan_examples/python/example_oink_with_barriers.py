@@ -133,7 +133,7 @@ def main(
     print(f"Velocity space dimension (nv): {num_variables}")
 
     # Set up the Oink solver
-    oink = Oink(num_variables)
+    oink = Oink(scene, model_data.default_joint_group)
 
     # Thread-safe access to scene
     scene_lock = threading.Lock()

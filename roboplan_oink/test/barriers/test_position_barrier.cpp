@@ -141,15 +141,15 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
   auto target_config =
       makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(current_pose.block<3, 3>(0, 0)));
 
+  Oink oink(*scene_);
+
   // Use lower task gain so barrier has more influence
   FrameTaskOptions params{.task_gain = 0.5, .lm_damping = 0.1};
-  auto frame_task = std::make_shared<FrameTask>(target_config, num_variables_, params);
+  auto frame_task = std::make_shared<FrameTask>(oink, target_config, params);
 
   // Velocity limit to ensure smooth motion
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.0);
   auto vel_limit = std::make_shared<VelocityLimit>(num_variables_, dt_, v_max);
-
-  Oink oink(num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -163,7 +163,7 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
     ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter << ": " << result.error();
 
     // Integrate
@@ -211,10 +211,9 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
   auto target_config =
       makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(current_pose.block<3, 3>(0, 0)));
 
+  Oink oink(*scene_);
   FrameTaskOptions params{.lm_damping = 0.1};
-  auto frame_task = std::make_shared<FrameTask>(target_config, num_variables_, params);
-
-  Oink oink(num_variables_);
+  auto frame_task = std::make_shared<FrameTask>(oink, target_config, params);
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -229,7 +228,7 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
     ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter;
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
@@ -385,17 +384,16 @@ TEST_F(PositionBarrierTest, SolveWithEmptyBarriers) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
 
+  Oink oink(*scene_);
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
-
-  Oink oink(num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
   std::vector<std::shared_ptr<Barrier>> barriers;  // Empty
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -504,10 +502,9 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
   auto target_config =
       makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(current_pose.block<3, 3>(0, 0)));
 
+  Oink oink(*scene_);
   auto frame_task = std::make_shared<FrameTask>(
-      target_config, num_variables_, FrameTaskOptions{.task_gain = 0.5, .lm_damping = 0.1});
-
-  Oink oink(num_variables_);
+      oink, target_config, FrameTaskOptions{.task_gain = 0.5, .lm_damping = 0.1});
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -520,7 +517,7 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
     ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter << ": " << result.error();
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
@@ -675,6 +672,7 @@ TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
 
   auto target_config = makeCartesianConfig("tool0", target_pos, current_orientation);
 
+  Oink oink(*scene_);
   FrameTaskOptions task_params{.position_cost = 1.0,
                                .orientation_cost = 0.1,
                                .task_gain = 2.0,
@@ -682,12 +680,11 @@ TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
                                .max_position_error = std::numeric_limits<double>::infinity(),
                                .max_rotation_error = std::numeric_limits<double>::infinity()};
 
-  auto frame_task = std::make_shared<FrameTask>(target_config, num_variables_, task_params);
+  auto frame_task = std::make_shared<FrameTask>(oink, target_config, task_params);
 
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.5);
   auto vel_limit = std::make_shared<VelocityLimit>(num_variables_, dt_, v_max);
 
-  Oink oink(num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -711,7 +708,7 @@ TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
     }
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q, 1e-6);
+    auto result = oink.solveIk(tasks, constraints, barriers, delta_q, 1e-6);
     ASSERT_TRUE(result.has_value());
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
@@ -762,6 +759,7 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
 
   auto target_config = makeCartesianConfig("tool0", target_pos, current_orientation);
 
+  Oink oink(*scene_);
   FrameTaskOptions task_params{.position_cost = 1.0,
                                .orientation_cost = 0.1,
                                .task_gain = 2.0,
@@ -769,12 +767,11 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
                                .max_position_error = std::numeric_limits<double>::infinity(),
                                .max_rotation_error = std::numeric_limits<double>::infinity()};
 
-  auto frame_task = std::make_shared<FrameTask>(target_config, num_variables_, task_params);
+  auto frame_task = std::make_shared<FrameTask>(oink, target_config, task_params);
 
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.5);
   auto vel_limit = std::make_shared<VelocityLimit>(num_variables_, dt_, v_max);
 
-  Oink oink(num_variables_);
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -798,11 +795,11 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
     }
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, *scene_, delta_q, 1e-6);
+    auto result = oink.solveIk(tasks, constraints, barriers, delta_q, 1e-6);
     ASSERT_TRUE(result.has_value());
 
     // KEY: Call enforceBarriers() to validate solution using FK
-    auto enforce_result = oink.enforceBarriers(barriers, *scene_, delta_q, 0.0);
+    auto enforce_result = oink.enforceBarriers(barriers, delta_q, 0.0);
     ASSERT_TRUE(enforce_result.has_value()) << "enforceBarriers failed: " << enforce_result.error();
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);

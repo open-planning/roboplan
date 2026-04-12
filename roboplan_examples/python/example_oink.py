@@ -102,13 +102,14 @@ def main(
 
     # Determine the velocity space dimension (nv) by computing a Jacobian
     # For models with quaternion joints, nv < nq
+    v_indices = scene.getJointGroupInfo(model_data.default_joint_group).v_indices
     jac = scene.computeFrameJacobian(q_full, model_data.ee_names[0])
     num_variables = jac.shape[1]  # nv (velocity space dimension)
     print(f"\nConfiguration space dimension (nq): {len(q_full)}")
     print(f"Velocity space dimension (nv): {num_variables}")
 
     # Set up the Oink solver
-    oink = Oink(num_variables)
+    oink = Oink(scene, model_data.default_joint_group)
 
     # Thread-safe access to scene
     scene_lock = threading.Lock()
@@ -125,7 +126,7 @@ def main(
     )
     velocity_limit = VelocityLimit(num_variables, dt, v_max)
 
-    constraints = [position_limit, velocity_limit]
+    constraints = []  # [position_limit, velocity_limit]
 
     # Validate starting joint configuration size (should match nq)
     q_canonical = np.array(model_data.starting_joint_config)
@@ -162,7 +163,7 @@ def main(
         goal.base_frame = model_data.base_link
         goal.tip_frame = name
 
-        frame_task = FrameTask(goal, num_variables, task_options)
+        frame_task = FrameTask(oink, goal, task_options)
         frame_tasks.append(frame_task)
 
         # Create an interactive marker
@@ -202,7 +203,7 @@ def main(
     for controls in transform_controls:
         controls.on_update(update_goals)
 
-    tasks = frame_tasks + [config_task]
+    tasks = frame_tasks  # + [config_task]
 
     # Control loop
     running = True
@@ -211,6 +212,7 @@ def main(
 
     def control_loop():
         delta_q = np.zeros(num_variables)
+        delta_q_local = np.zeros(len(v_indices))
         while running:
             loop_start = time.time()
 
@@ -233,7 +235,8 @@ def main(
 
                     # Solve IK for one step with constraints
                     try:
-                        oink.solveIk(tasks, constraints, scene, delta_q, regularization)
+                        oink.solveIk(tasks, constraints, delta_q_local, regularization)
+                        delta_q[v_indices] = delta_q_local
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")

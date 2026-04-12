@@ -2,6 +2,7 @@
 **/build/
 **/install/
 
+.claude
 .vscode
 
 # pixi environments

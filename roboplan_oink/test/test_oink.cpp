@@ -59,7 +59,7 @@ protected:
 // Test basic construction and initialization
 TEST_F(OinkTest, Construction) {
   ASSERT_NO_THROW({
-    Oink oink(num_variables_);
+    Oink oink(*scene_);
     EXPECT_EQ(oink.num_variables, num_variables_);
     EXPECT_EQ(oink.last_constraint_rows, -1);  // -1 = uninitialized
   });
@@ -67,7 +67,7 @@ TEST_F(OinkTest, Construction) {
 
 // Test that solveIk returns an error when delta_q has wrong size (not undefined behavior)
 TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -76,14 +76,14 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Create a simple frame task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   // Test with empty delta_q (size 0)
   {
     Eigen::VectorXd delta_q_empty;
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_empty);
+    auto result = oink.solveIk(tasks, constraints, delta_q_empty);
     ASSERT_FALSE(result.has_value()) << "Expected error for empty delta_q";
     EXPECT_TRUE(result.error().find("wrong size") != std::string::npos)
         << "Error message should mention wrong size: " << result.error();
@@ -95,7 +95,7 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Test with delta_q too small
   {
     Eigen::VectorXd delta_q_small(num_variables_ - 1);
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_small);
+    auto result = oink.solveIk(tasks, constraints, delta_q_small);
     ASSERT_FALSE(result.has_value()) << "Expected error for too-small delta_q";
     EXPECT_TRUE(result.error().find("wrong size") != std::string::npos)
         << "Error message should mention wrong size: " << result.error();
@@ -104,7 +104,7 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Test with delta_q too large
   {
     Eigen::VectorXd delta_q_large(num_variables_ + 1);
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_large);
+    auto result = oink.solveIk(tasks, constraints, delta_q_large);
     ASSERT_FALSE(result.has_value()) << "Expected error for too-large delta_q";
     EXPECT_TRUE(result.error().find("wrong size") != std::string::npos)
         << "Error message should mention wrong size: " << result.error();
@@ -113,14 +113,14 @@ TEST_F(OinkTest, DeltaQWrongSizeReturnsError) {
   // Verify correct size still works
   {
     Eigen::VectorXd delta_q_correct(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q_correct);
+    auto result = oink.solveIk(tasks, constraints, delta_q_correct);
     ASSERT_TRUE(result.has_value()) << "Correct size should work: " << result.error();
   }
 }
 
 // Test solving with no constraints
 TEST_F(OinkTest, SolveWithNoConstraints) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -130,12 +130,12 @@ TEST_F(OinkTest, SolveWithNoConstraints) {
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
 
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -146,7 +146,7 @@ TEST_F(OinkTest, SolveWithNoConstraints) {
 
 // Test solving with velocity constraints
 TEST_F(OinkTest, SolveWithVelocityConstraints) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -160,12 +160,12 @@ TEST_F(OinkTest, SolveWithVelocityConstraints) {
   // Create a frame task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -179,7 +179,7 @@ TEST_F(OinkTest, SolveWithVelocityConstraints) {
 
 // Test solving with position constraints
 TEST_F(OinkTest, SolveWithPositionConstraints) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration near joint limits
   const auto& model = scene_->getModel();
@@ -193,12 +193,12 @@ TEST_F(OinkTest, SolveWithPositionConstraints) {
   // Create a task that would push toward the limit
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.8, 0.0, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {pos_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -219,7 +219,7 @@ TEST_F(OinkTest, SolveWithPositionConstraints) {
 
 // Test solving with multiple constraints
 TEST_F(OinkTest, SolveWithMultipleConstraints) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -234,12 +234,12 @@ TEST_F(OinkTest, SolveWithMultipleConstraints) {
   // Create a frame task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.4, 0.1, 0.6), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -252,7 +252,7 @@ TEST_F(OinkTest, SolveWithMultipleConstraints) {
 
 // Test workspace caching - solve twice to ensure no reallocation on second call
 TEST_F(OinkTest, WorkspaceCaching) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -266,13 +266,13 @@ TEST_F(OinkTest, WorkspaceCaching) {
   // Create task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
   // First solve - workspace allocation
   Eigen::VectorXd delta_q1(num_variables_);
-  auto result1 = oink.solveIk(tasks, constraints, *scene_, delta_q1);
+  auto result1 = oink.solveIk(tasks, constraints, delta_q1);
   ASSERT_TRUE(result1.has_value()) << "First solve failed: " << result1.error();
 
   // Verify workspace dimensions
@@ -292,7 +292,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   scene_->setJointPositions(q);
 
   Eigen::VectorXd delta_q2(num_variables_);
-  auto result2 = oink.solveIk(tasks, constraints, *scene_, delta_q2);
+  auto result2 = oink.solveIk(tasks, constraints, delta_q2);
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
 
   // Verify workspace was reused (same pointers)
@@ -318,7 +318,7 @@ TEST_F(OinkTest, ConstraintDimensionValidation) {
 
 // Test solving with dynamically changing constraint count
 TEST_F(OinkTest, DynamicConstraintCount) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -327,7 +327,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   // Create task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
 
   // First solve with one constraint
@@ -337,7 +337,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   std::vector<std::shared_ptr<Constraints>> constraints1 = {vel_constraint};
 
   Eigen::VectorXd delta_q1(num_variables_);
-  auto result1 = oink.solveIk(tasks, constraints1, *scene_, delta_q1);
+  auto result1 = oink.solveIk(tasks, constraints1, delta_q1);
   ASSERT_TRUE(result1.has_value()) << "First solve failed: " << result1.error();
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 
@@ -346,7 +346,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   std::vector<std::shared_ptr<Constraints>> constraints2 = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q2(num_variables_);
-  auto result2 = oink.solveIk(tasks, constraints2, *scene_, delta_q2);
+  auto result2 = oink.solveIk(tasks, constraints2, delta_q2);
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
   EXPECT_EQ(oink.last_constraint_rows, 2 * num_variables_);
 
@@ -357,14 +357,14 @@ TEST_F(OinkTest, DynamicConstraintCount) {
 
   // Third solve back to one constraint (workspace should resize down)
   Eigen::VectorXd delta_q3(num_variables_);
-  auto result3 = oink.solveIk(tasks, constraints1, *scene_, delta_q3);
+  auto result3 = oink.solveIk(tasks, constraints1, delta_q3);
   ASSERT_TRUE(result3.has_value()) << "Third solve failed: " << result3.error();
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 }
 
 // Test Eigen::Ref safety - verify constraints cannot resize views
 TEST_F(OinkTest, EigenRefSafety) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -378,12 +378,12 @@ TEST_F(OinkTest, EigenRefSafety) {
   // Create task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
@@ -398,7 +398,7 @@ TEST_F(OinkTest, EigenRefSafety) {
 
 // Test solving with ConfigurationTask only
 TEST_F(OinkTest, SolveWithConfigurationTask) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -418,7 +418,7 @@ TEST_F(OinkTest, SolveWithConfigurationTask) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -430,7 +430,7 @@ TEST_F(OinkTest, SolveWithConfigurationTask) {
 
 // Test solving with combined FrameTask and ConfigurationTask
 TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -440,7 +440,7 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
   FrameTaskOptions frame_options{.lm_damping = 0.01};
-  auto frame_task = std::make_shared<FrameTask>(target_pose, num_variables_, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(oink, target_pose, frame_options);
 
   // Create a configuration task with lower weight (regularization)
   Eigen::VectorXd target_q = q;  // Keep current configuration
@@ -452,7 +452,7 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -463,7 +463,7 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
 
 // Test ConfigurationTask with selective joint weights
 TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -483,7 +483,7 @@ TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
@@ -507,7 +507,7 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
 
   const int ur5_nv = scene_->getModel().nv;
   const int ur5_nq = scene_->getModel().nq;
-  Oink oink(ur5_nv);
+  Oink oink(*scene_);
 
   // Start from zero configuration
   Eigen::VectorXd q_canonical = Eigen::VectorXd::Zero(ur5_nq);
@@ -532,7 +532,7 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>(target_pose, ur5_nv, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(oink, target_pose, frame_options);
 
   // Create position limit constraint
   auto position_limit = std::make_shared<PositionLimit>(ur5_nv, 1.0);
@@ -550,7 +550,7 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(ur5_nv);
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, delta_q);
     ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
 
     // Update configuration using Pinocchio integration for proper Lie group handling
@@ -576,7 +576,8 @@ TEST_F(OinkTest, FrameTaskStorageAllocation) {
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
 
   // Create FrameTask with known num_variables
-  FrameTask task(target_pose, num_variables_);
+  Oink oink(*scene_);
+  FrameTask task(oink, target_pose);
 
   // Verify pre-allocated storage dimensions
   EXPECT_EQ(task.jacobian_container.rows(), 6) << "FrameTask Jacobian should have 6 rows (SE(3))";
@@ -604,7 +605,7 @@ TEST_F(OinkTest, ConfigurationTaskStorageAllocation) {
 
 // Test that task storage is reused across multiple solves (no reallocation)
 TEST_F(OinkTest, TaskStorageReuse) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -613,7 +614,7 @@ TEST_F(OinkTest, TaskStorageReuse) {
   // Create task
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -623,7 +624,7 @@ TEST_F(OinkTest, TaskStorageReuse) {
 
   // First solve
   Eigen::VectorXd delta_q1(num_variables_);
-  auto result1 = oink.solveIk(tasks, constraints, *scene_, delta_q1);
+  auto result1 = oink.solveIk(tasks, constraints, delta_q1);
   ASSERT_TRUE(result1.has_value()) << "First solve failed: " << result1.error();
 
   // Verify storage wasn't reallocated
@@ -637,7 +638,7 @@ TEST_F(OinkTest, TaskStorageReuse) {
   scene_->setJointPositions(q);
 
   Eigen::VectorXd delta_q2(num_variables_);
-  auto result2 = oink.solveIk(tasks, constraints, *scene_, delta_q2);
+  auto result2 = oink.solveIk(tasks, constraints, delta_q2);
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
 
   // Verify storage still wasn't reallocated
@@ -688,7 +689,7 @@ protected:
 
 // Test each robot model with velocity + position + frame task
 TEST_P(MultiRobotOinkTest, SolveWithMultipleConstraintsAndTasks) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration (use nq for configuration, nv for constraints)
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_config_);
@@ -704,12 +705,12 @@ TEST_P(MultiRobotOinkTest, SolveWithMultipleConstraintsAndTasks) {
   auto target_pose = makeCartesianConfig(end_effector_frame_, Eigen::Vector3d(0.35, 0.15, 0.55),
                                          Eigen::Quaterniond::Identity());
 
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed for " << GetParam().name << ": "
                                   << result.error();
@@ -755,7 +756,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Test that FrameTask makes progress toward target over multiple iterations
 // This test verifies the IK solver consistently moves toward the target.
 TEST_F(OinkTest, FrameTaskConvergesToTarget) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -772,7 +773,7 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
 
   // Use higher damping for stable convergence
   FrameTaskOptions options{.lm_damping = 1.0};
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_, options);
+  auto task = std::make_shared<FrameTask>(oink, target_pose, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -787,7 +788,7 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
     scene_->setJointPositions(q_current);
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, delta_q);
     ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
 
     // Update configuration using Pinocchio integration for proper Lie group handling
@@ -817,7 +818,7 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
 
 // Test that ConfigurationTask converges to target configuration
 TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration to zero
   Eigen::VectorXd q_initial = Eigen::VectorXd::Zero(num_variables_);
@@ -845,7 +846,7 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
     scene_->setJointPositions(q_current);
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+    auto result = oink.solveIk(tasks, constraints, delta_q);
     ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
 
     // Update configuration using Pinocchio integration for proper Lie group handling
@@ -868,7 +869,7 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
 // Test that single IK step moves toward target (not away)
 // This is a regression test for the sign bug where error direction was inverted.
 TEST_F(OinkTest, SingleStepMovesTowardTarget) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -884,13 +885,13 @@ TEST_F(OinkTest, SingleStepMovesTowardTarget) {
       makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(initial_pose.block<3, 3>(0, 0)));
 
   FrameTaskOptions options{.lm_damping = 0.1};
-  auto task = std::make_shared<FrameTask>(target_config, num_variables_, options);
+  auto task = std::make_shared<FrameTask>(oink, target_config, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   // Single IK solve
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, *scene_, delta_q);
+  auto result = oink.solveIk(tasks, constraints, delta_q);
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
   // Apply delta_q
@@ -910,7 +911,7 @@ TEST_F(OinkTest, SingleStepMovesTowardTarget) {
 
 // Test that higher regularization reduces solution magnitude (more regularization)
 TEST_F(OinkTest, HigherRegularizationReducesSolutionMagnitude) {
-  Oink oink(num_variables_);
+  Oink oink(*scene_);
 
   // Set initial configuration
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
@@ -919,18 +920,18 @@ TEST_F(OinkTest, HigherRegularizationReducesSolutionMagnitude) {
   // Create a frame task with a distant target to ensure significant motion is requested
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.5, 0.3, 0.7), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(target_pose, num_variables_);
+  auto task = std::make_shared<FrameTask>(oink, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   // Solve with low regularization
   Eigen::VectorXd delta_q_low_regularization(num_variables_);
-  auto result_low = oink.solveIk(tasks, constraints, *scene_, delta_q_low_regularization, 1e-12);
+  auto result_low = oink.solveIk(tasks, constraints, delta_q_low_regularization, 1e-12);
   ASSERT_TRUE(result_low.has_value()) << "Low regularization solve failed: " << result_low.error();
 
   // Solve with high regularization
   Eigen::VectorXd delta_q_high_regularization(num_variables_);
-  auto result_high = oink.solveIk(tasks, constraints, *scene_, delta_q_high_regularization, 1.0);
+  auto result_high = oink.solveIk(tasks, constraints, delta_q_high_regularization, 1.0);
   ASSERT_TRUE(result_high.has_value())
       << "High regularization solve failed: " << result_high.error();
 
