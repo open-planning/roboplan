@@ -155,7 +155,7 @@ TEST_F(OinkTest, SolveWithVelocityConstraints) {
   // Create velocity limits
   double dt = 0.01;                                                     // 10ms timestep
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;  // 1 rad/s max
-  auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max);
+  auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max);
 
   // Create a frame task
   auto target_pose =
@@ -188,7 +188,7 @@ TEST_F(OinkTest, SolveWithPositionConstraints) {
 
   // Create position limit constraint
   double gain = 0.5;
-  auto pos_constraint = std::make_shared<PositionLimit>(num_variables_, gain);
+  auto pos_constraint = std::make_shared<PositionLimit>(oink, gain);
 
   // Create a task that would push toward the limit
   auto target_pose =
@@ -228,8 +228,8 @@ TEST_F(OinkTest, SolveWithMultipleConstraints) {
   // Create both velocity and position constraints
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 2.0;
-  auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max);
-  auto pos_constraint = std::make_shared<PositionLimit>(num_variables_, 0.8);
+  auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max);
+  auto pos_constraint = std::make_shared<PositionLimit>(oink, 0.8);
 
   // Create a frame task
   auto target_pose =
@@ -261,7 +261,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   // Create constraints
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
-  auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max);
+  auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max);
 
   // Create task
   auto target_pose =
@@ -306,13 +306,15 @@ TEST_F(OinkTest, WorkspaceCaching) {
 
 // Test constraint dimension validation
 TEST_F(OinkTest, ConstraintDimensionValidation) {
+  Oink oink(*scene_);
+
   // Create velocity constraint with WRONG size - should throw at construction
   double dt = 0.01;
   Eigen::VectorXd v_max_wrong = Eigen::VectorXd::Ones(num_variables_ - 1);  // Wrong size!
 
   // Constructor should throw std::invalid_argument due to size mismatch
   EXPECT_THROW(
-      { auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max_wrong); },
+      { auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max_wrong); },
       std::invalid_argument);
 }
 
@@ -333,7 +335,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   // First solve with one constraint
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
-  auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max);
+  auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max);
   std::vector<std::shared_ptr<Constraints>> constraints1 = {vel_constraint};
 
   Eigen::VectorXd delta_q1(num_variables_);
@@ -342,7 +344,7 @@ TEST_F(OinkTest, DynamicConstraintCount) {
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 
   // Second solve with two constraints (workspace should resize)
-  auto pos_constraint = std::make_shared<PositionLimit>(num_variables_, 0.8);
+  auto pos_constraint = std::make_shared<PositionLimit>(oink, 0.8);
   std::vector<std::shared_ptr<Constraints>> constraints2 = {vel_constraint, pos_constraint};
 
   Eigen::VectorXd delta_q2(num_variables_);
@@ -373,7 +375,7 @@ TEST_F(OinkTest, EigenRefSafety) {
   // Create properly sized constraint
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
-  auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max);
+  auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max);
 
   // Create task
   auto target_pose =
@@ -413,7 +415,7 @@ TEST_F(OinkTest, SolveWithConfigurationTask) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
 
   ConfigurationTaskOptions options{.task_gain = 1.0, .lm_damping = 0.01};
-  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, options);
+  auto config_task = std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, options);
   std::vector<std::shared_ptr<Task>> tasks = {config_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -446,7 +448,8 @@ TEST_F(OinkTest, SolveWithFrameAndConfigurationTasks) {
   Eigen::VectorXd target_q = q;  // Keep current configuration
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
   ConfigurationTaskOptions config_options{.lm_damping = 0.0};
-  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, config_options);
+  auto config_task =
+      std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, config_options);
 
   std::vector<std::shared_ptr<Task>> tasks = {frame_task, config_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
@@ -478,7 +481,7 @@ TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
   joint_weights(1) = 1.0;
 
   ConfigurationTaskOptions options{.lm_damping = 0.01};
-  auto config_task = std::make_shared<ConfigurationTask>(target_q, joint_weights, options);
+  auto config_task = std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, options);
   std::vector<std::shared_ptr<Task>> tasks = {config_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
@@ -535,7 +538,7 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
   auto frame_task = std::make_shared<FrameTask>(oink, target_pose, frame_options);
 
   // Create position limit constraint
-  auto position_limit = std::make_shared<PositionLimit>(ur5_nv, 1.0);
+  auto position_limit = std::make_shared<PositionLimit>(oink, 1.0);
 
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints = {position_limit};
@@ -588,11 +591,12 @@ TEST_F(OinkTest, FrameTaskStorageAllocation) {
 
 // Test that ConfigurationTask allocates correct dimensions at construction
 TEST_F(OinkTest, ConfigurationTaskStorageAllocation) {
+  Oink oink(*scene_);
   Eigen::VectorXd target_q = Eigen::VectorXd::Zero(num_variables_);
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
 
   // Create ConfigurationTask
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(oink, target_q, joint_weights);
 
   // Verify pre-allocated storage dimensions
   EXPECT_EQ(task.jacobian_container.rows(), num_variables_)
@@ -698,8 +702,8 @@ TEST_P(MultiRobotOinkTest, SolveWithMultipleConstraintsAndTasks) {
   // Create velocity and position constraints
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.5;
-  auto vel_constraint = std::make_shared<VelocityLimit>(num_variables_, dt, v_max);
-  auto pos_constraint = std::make_shared<PositionLimit>(num_variables_, 0.7);
+  auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max);
+  auto pos_constraint = std::make_shared<PositionLimit>(oink, 0.7);
 
   // Create a frame task
   auto target_pose = makeCartesianConfig(end_effector_frame_, Eigen::Vector3d(0.35, 0.15, 0.55),
@@ -833,7 +837,7 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(num_variables_);
 
   ConfigurationTaskOptions options{.task_gain = 1.0, .lm_damping = 0.01};
-  auto task = std::make_shared<ConfigurationTask>(target_q, joint_weights, options);
+  auto task = std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 

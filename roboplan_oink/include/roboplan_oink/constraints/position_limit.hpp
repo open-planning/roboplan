@@ -12,9 +12,10 @@ namespace roboplan {
 /// bounds are computed based on the distance to limits.
 struct PositionLimit : public Constraints {
   /// @brief Constructor with pre-allocation for optimal performance
-  /// @param num_variables Number of variables (model.nv) for pre-allocating workspace
+  /// @param oink The Oink solver this constraint will be used with (provides num_variables and
+  ///        v_indices for selecting the correct joint limits from the full model).
   /// @param gain Scaling factor for how aggressively to steer away from limits (0 < gain <= 1)
-  explicit PositionLimit(int num_variables, double gain = 1.0);
+  explicit PositionLimit(const Oink& oink, double gain = 1.0);
 
   /// @brief Get the number of constraint rows (number_variables)
   /// @param scene The scene containing robot state and model
@@ -33,7 +34,8 @@ struct PositionLimit : public Constraints {
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 
   double config_limit_gain;             /// Gain parameter for steering away from limits
-  int num_variables;                    /// Number of variables (cached from model.nv)
+  int num_variables;                    /// Number of group velocity DOFs
+  Eigen::VectorXi v_indices;            /// Velocity indices of the joint group
   mutable Eigen::VectorXd q_max;        /// Pre-allocated maximum joint position limits.
   mutable Eigen::VectorXd q_min;        /// Pre-allocated minimum joint position limits.
   mutable Eigen::VectorXd delta_q_max;  /// Pre-allocated workspace for max joint deltas

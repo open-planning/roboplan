@@ -130,7 +130,7 @@ class ConfigurationTaskOptions:
 class ConfigurationTask(Task):
     """Task to reach a target joint configuration."""
 
-    def __init__(self, target_q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], joint_weights: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], options: ConfigurationTaskOptions = ...) -> None: ...
+    def __init__(self, oink: Oink, target_q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], joint_weights: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], options: ConfigurationTaskOptions = ...) -> None: ...
 
     @property
     def target_q(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
@@ -152,7 +152,7 @@ class Constraints:
 class PositionLimit(Constraints):
     """Constraint to enforce joint position limits."""
 
-    def __init__(self, num_variables: int, gain: float = 1.0) -> None: ...
+    def __init__(self, oink: Oink, gain: float = 1.0) -> None: ...
 
     @property
     def config_limit_gain(self) -> float:
@@ -164,7 +164,7 @@ class PositionLimit(Constraints):
 class VelocityLimit(Constraints):
     """Constraint to enforce joint velocity limits."""
 
-    def __init__(self, num_variables: int, dt: float, v_max: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None: ...
+    def __init__(self, oink: Oink, dt: float, v_max: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None: ...
 
     @property
     def dt(self) -> float:
@@ -234,7 +234,7 @@ class PositionBarrier(Barrier):
     Position barrier constraint that keeps a frame within an axis-aligned bounding box.
     """
 
-    def __init__(self, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], num_variables: int, dt: float, axis_selection: ConstraintAxisSelection = ..., gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
+    def __init__(self, oink: Oink, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], dt: float, axis_selection: ConstraintAxisSelection = ..., gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
         """Create a position barrier with optional axis selection."""
 
     def get_frame_position(self, scene: roboplan_ext.core.Scene) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
@@ -270,6 +270,10 @@ class Oink:
     @property
     def num_variables(self) -> int:
         """Number of optimization variables."""
+
+    @property
+    def q_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
+        """Position indices of the joint group."""
 
     @property
     def v_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:

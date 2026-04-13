@@ -98,15 +98,12 @@ def main(
 
     # Print joint information
     print(f"\n=== Model: {model} ===")
-    joint_names = scene.getJointNames()
-    actuated_joint_names = scene.getActuatedJointNames()
-    print(f"Total joints: {len(joint_names)}")
-    print(f"Actuated joints: {len(actuated_joint_names)}")
-    print(f"\nAll joint names:")
+    joint_names = scene.getJointGroupInfo(model_data.default_joint_group).joint_names
+    print(
+        f"Number of joints in group '{model_data.default_joint_group}': {len(joint_names)}"
+    )
+    print(f"Joint names:")
     for i, name in enumerate(joint_names):
-        print(f"  {i}: {name}")
-    print(f"\nActuated joint names:")
-    for i, name in enumerate(actuated_joint_names):
         print(f"  {i}: {name}")
     print()
 
@@ -125,15 +122,11 @@ def main(
     viz = ViserVisualizer(model_pin, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
-    # Determine the velocity space dimension (nv) by computing a Jacobian
-    # For models with quaternion joints, nv < nq
-    jac = scene.computeFrameJacobian(q_full, model_data.ee_names[0])
-    num_variables = jac.shape[1]  # nv (velocity space dimension)
-    print(f"\nConfiguration space dimension (nq): {len(q_full)}")
-    print(f"Velocity space dimension (nv): {num_variables}")
-
     # Set up the Oink solver
     oink = Oink(scene, model_data.default_joint_group)
+    num_variables = len(oink.v_indices)
+    print(f"\nConfiguration space dimension (nq): {len(q_full)}")
+    print(f"Velocity space dimension (nv): {num_variables}")
 
     # Thread-safe access to scene
     scene_lock = threading.Lock()
@@ -142,13 +135,13 @@ def main(
     dt = 1.0 / control_freq
 
     # Create position limit constraint
-    position_limit = PositionLimit(num_variables, gain=1.0)
+    position_limit = PositionLimit(oink, gain=1.0)
 
     # Create velocity limit constraint
     v_max = np.hstack(
         [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
     )
-    velocity_limit = VelocityLimit(num_variables, dt, v_max)
+    velocity_limit = VelocityLimit(oink, dt, v_max)
 
     constraints = [position_limit, velocity_limit]
 
@@ -178,7 +171,9 @@ def main(
     # Create a ConfigurationTask to regularize toward the starting pose
     joint_weights = np.full(num_variables, 0.05)
     config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
-    config_task = ConfigurationTask(q_canonical, joint_weights, config_options)
+    config_task = ConfigurationTask(
+        oink, q_canonical[oink.q_indices], joint_weights, config_options
+    )
 
     # Task parameters (define before using in callbacks)
     # max_position_error and max_rotation_error prevent large error jumps that can
@@ -200,7 +195,7 @@ def main(
         goal.base_frame = model_data.base_link
         goal.tip_frame = name
 
-        frame_task = FrameTask(goal, num_variables, task_options)
+        frame_task = FrameTask(oink, goal, task_options)
         frame_tasks.append(frame_task)
 
         # Create an interactive marker
@@ -249,6 +244,7 @@ def main(
 
     def control_loop():
         delta_q = np.zeros(num_variables)
+        delta_q_full = np.zeros(model_pin.nv)
         while running:
             loop_start = time.time()
 
@@ -269,18 +265,20 @@ def main(
                     # Argument order: tasks, constraints, barriers, scene, delta_q, regularization (optional)
                     try:
                         oink.solveIk(
-                            tasks, constraints, barriers, scene, delta_q, regularization
+                            tasks, constraints, barriers, delta_q, regularization
                         )
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 
+                    delta_q_full[oink.v_indices] = delta_q
+
                     # CRITICAL: Validate solution with enforceBarriers() using FK
                     # This catches cases where linearization error causes barrier violation
-                    oink.enforceBarriers(barriers, scene, delta_q, tolerance=0.0)
+                    oink.enforceBarriers(barriers, delta_q_full, tolerance=0.0)
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
-                    q_current = scene.integrate(q_current, delta_q)
+                    q_current = scene.integrate(q_current, delta_q_full)
 
                     # Update scene state and forward kinematics after applying velocities
                     # This ensures FK is current for the next iteration's solveIk
@@ -363,10 +361,10 @@ def main(
 
         # Create the barrier for this end-effector
         position_barrier = PositionBarrier(
+            oink,
             ee_name,
             p_min,
             p_max,
-            num_variables,
             dt,
             gain=barrier_gain,
             safe_displacement_gain=1.0,

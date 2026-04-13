@@ -6,6 +6,7 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
+#include <roboplan_oink/optimal_ik.hpp>
 
 namespace roboplan {
 
@@ -21,6 +22,7 @@ protected:
 
     scene_ = std::make_shared<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
                                      yaml_config_path_);
+    oink_ = std::make_shared<Oink>(*scene_);
 
     const auto& model = scene_->getModel();
     num_variables_ = model.nv;
@@ -35,6 +37,7 @@ protected:
   std::vector<std::filesystem::path> package_paths_;
   std::filesystem::path yaml_config_path_;
   std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Oink> oink_;
   int num_variables_;
 };
 
@@ -43,7 +46,7 @@ TEST_F(VelocityLimitTest, Construction) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   EXPECT_EQ(constraint.dt, dt);
   EXPECT_EQ(constraint.v_max.size(), num_variables_);
@@ -55,7 +58,7 @@ TEST_F(VelocityLimitTest, GetNumConstraints) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   int num_constraints = constraint.getNumConstraints(*scene_);
   EXPECT_EQ(num_constraints, num_variables_);
@@ -66,7 +69,7 @@ TEST_F(VelocityLimitTest, ConstraintMatrixDimensions) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -87,7 +90,7 @@ TEST_F(VelocityLimitTest, ConstraintMatrixIsIdentity) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -107,7 +110,7 @@ TEST_F(VelocityLimitTest, BoundsAreSymmetric) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -126,7 +129,7 @@ TEST_F(VelocityLimitTest, BoundsScaling) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 2.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -150,7 +153,7 @@ TEST_F(VelocityLimitTest, PerJointLimits) {
   Eigen::VectorXd v_max(num_variables_);
   v_max << 1.0, 2.0, 3.0, 1.5, 2.5, 0.5;  // Different limit for each joint
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -172,7 +175,7 @@ TEST_F(VelocityLimitTest, ZeroVelocityLimit) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Zero(num_variables_);
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -192,7 +195,7 @@ TEST_F(VelocityLimitTest, SmallTimestep) {
   double dt = 1e-6;  // Very small timestep
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -212,7 +215,7 @@ TEST_F(VelocityLimitTest, LargeTimestep) {
   double dt = 1.0;  // 1 second timestep
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 0.5;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -233,7 +236,7 @@ TEST_F(VelocityLimitTest, MismatchedVMaxSize) {
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_ - 1);  // Wrong size
 
   // Constructor should throw std::invalid_argument due to size mismatch
-  EXPECT_THROW({ VelocityLimit constraint(num_variables_, dt, v_max); }, std::invalid_argument);
+  EXPECT_THROW({ VelocityLimit constraint(*oink_, dt, v_max); }, std::invalid_argument);
 }
 
 // Test error handling for mismatched workspace size
@@ -241,7 +244,7 @@ TEST_F(VelocityLimitTest, MismatchedWorkspaceSize) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_);
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   // Create workspace with wrong dimensions
   Eigen::MatrixXd constraint_matrix(num_variables_ - 1, num_variables_);
@@ -260,7 +263,7 @@ TEST_F(VelocityLimitTest, ModifyDt) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   // Change dt
   constraint.dt = 0.02;
@@ -283,7 +286,7 @@ TEST_F(VelocityLimitTest, ModifyVMax) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
-  VelocityLimit constraint(num_variables_, dt, v_max);
+  VelocityLimit constraint(*oink_, dt, v_max);
 
   // Change v_max
   constraint.v_max = Eigen::VectorXd::Ones(num_variables_) * 2.0;

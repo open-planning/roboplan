@@ -12,10 +12,11 @@ namespace roboplan {
 /// where G is an identity matrix, l = -dt*v_max, and u = dt*v_max.
 struct VelocityLimit : public Constraints {
   /// @brief Constructor with dimension validation
-  /// @param num_variables Number of variables (model.nv) - must match v_max size
+  /// @param oink The Oink solver this constraint will be used with (provides num_variables).
   /// @param dt Time step for the velocity integration (seconds)
-  /// @param v_max Maximum velocity vector for each joint (rad/s or m/s)
-  VelocityLimit(int num_variables, double dt, const Eigen::VectorXd& v_max);
+  /// @param v_max Maximum velocity vector for each group joint (rad/s or m/s).
+  ///        Size must equal oink.num_variables.
+  VelocityLimit(const Oink& oink, double dt, const Eigen::VectorXd& v_max);
 
   /// @brief Get the number of constraint rows (number_variables)
   /// @param scene The scene containing robot state and model

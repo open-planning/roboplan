@@ -72,9 +72,9 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind ConfigurationTask inheriting from Task
   nanobind::class_<ConfigurationTask, Task>(m, "ConfigurationTask",
                                             "Task to reach a target joint configuration.")
-      .def(nanobind::init<const Eigen::VectorXd&, const Eigen::VectorXd&,
+      .def(nanobind::init<const Oink&, const Eigen::VectorXd&, const Eigen::VectorXd&,
                           const ConfigurationTaskOptions&>(),
-           "target_q"_a, "joint_weights"_a, "options"_a = ConfigurationTaskOptions{})
+           "oink"_a, "target_q"_a, "joint_weights"_a, "options"_a = ConfigurationTaskOptions{})
       .def_rw("target_q", &ConfigurationTask::target_q, "Target joint configuration.")
       .def_rw("joint_weights", &ConfigurationTask::joint_weights,
               "Weights for each joint in the configuration task.");
@@ -85,14 +85,14 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind PositionLimit constraint
   nanobind::class_<PositionLimit, Constraints>(m, "PositionLimit",
                                                "Constraint to enforce joint position limits.")
-      .def(nanobind::init<int, double>(), "num_variables"_a, "gain"_a = 1.0)
+      .def(nanobind::init<const Oink&, double>(), "oink"_a, "gain"_a = 1.0)
       .def_rw("config_limit_gain", &PositionLimit::config_limit_gain,
               "Gain for position limit enforcement.");
 
   // Bind VelocityLimit constraint
   nanobind::class_<VelocityLimit, Constraints>(m, "VelocityLimit",
                                                "Constraint to enforce joint velocity limits.")
-      .def(nanobind::init<int, double, const Eigen::VectorXd&>(), "num_variables"_a, "dt"_a,
+      .def(nanobind::init<const Oink&, double, const Eigen::VectorXd&>(), "oink"_a, "dt"_a,
            "v_max"_a)
       .def_rw("dt", &VelocityLimit::dt, "Time step for velocity calculation.")
       .def_rw("v_max", &VelocityLimit::v_max, "Maximum joint velocities.");
@@ -121,9 +121,10 @@ void init_optimal_ik(nanobind::module_& m) {
   nanobind::class_<PositionBarrier, Barrier>(
       m, "PositionBarrier",
       "Position barrier constraint that keeps a frame within an axis-aligned bounding box.")
-      .def(nanobind::init<const std::string&, const Eigen::Vector3d&, const Eigen::Vector3d&, int,
-                          double, const ConstraintAxisSelection&, double, double, double>(),
-           "frame_name"_a, "p_min"_a, "p_max"_a, "num_variables"_a, "dt"_a,
+      .def(nanobind::init<const Oink&, const std::string&, const Eigen::Vector3d&,
+                          const Eigen::Vector3d&, double, const ConstraintAxisSelection&, double,
+                          double, double>(),
+           "oink"_a, "frame_name"_a, "p_min"_a, "p_max"_a, "dt"_a,
            "axis_selection"_a = ConstraintAxisSelection(), "gain"_a = 1.0,
            "safe_displacement_gain"_a = 1.0, "safety_margin"_a = 0.0,
            "Create a position barrier with optional axis selection.")
@@ -140,6 +141,7 @@ void init_optimal_ik(nanobind::module_& m) {
            "Constructor for a named joint group.")
       .def(nanobind::init<Scene&>(), "scene"_a, "Constructor for the full robot (all joints).")
       .def_ro("num_variables", &Oink::num_variables, "Number of optimization variables.")
+      .def_ro("q_indices", &Oink::q_indices, "Position indices of the joint group.")
       .def_ro("v_indices", &Oink::v_indices, "Velocity indices of the joint group.")
       .def(
           "solveIk",

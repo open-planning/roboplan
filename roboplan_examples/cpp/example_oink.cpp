@@ -46,9 +46,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   // Create Oink instance
   Oink oink(scene, "arm");
-
-  // Get number of variables for constraints and solver
-  const int num_variables = model.nv;
+  const auto num_variables = oink.v_indices.size();
 
   // Create a FrameTask (high priority)
   FrameTaskOptions frame_options{
@@ -61,22 +59,23 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   // Create a ConfigurationTask to regularize toward start configuration (low priority)
   // Using lower joint_weights (0.1) makes this task less important than the frame task
-  Eigen::VectorXd joint_weights = Eigen::VectorXd::Constant(model.nv, 0.1);
+  Eigen::VectorXd joint_weights = Eigen::VectorXd::Constant(num_variables, 0.1);
   ConfigurationTaskOptions config_options{
       .task_gain = 1.0,
       .lm_damping = 0.0,
   };
-  auto config_task = std::make_shared<ConfigurationTask>(q_start, joint_weights, config_options);
+  auto config_task = std::make_shared<ConfigurationTask>(oink, q_start(oink.q_indices),
+                                                         joint_weights, config_options);
 
   // Add tasks to vector (frame task dominates due to higher weights)
   std::vector<std::shared_ptr<Task>> tasks = {frame_task, config_task};
 
   // Create position limit constraint
-  auto position_limit = std::make_shared<PositionLimit>(num_variables, 1.0);  // gain = 1.0
+  auto position_limit = std::make_shared<PositionLimit>(oink, 1.0);  // gain = 1.0
   std::vector<std::shared_ptr<Constraints>> constraints = {position_limit};
 
   // Solve IK with constraints
-  Eigen::VectorXd delta_q;
+  Eigen::VectorXd delta_q = Eigen::VectorXd::Zero(num_variables);
   auto result = oink.solveIk(tasks, constraints, {}, delta_q);
 
   if (!result.has_value()) {

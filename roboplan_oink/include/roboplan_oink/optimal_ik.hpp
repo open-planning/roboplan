@@ -377,6 +377,9 @@ struct Oink {
   // Problem dimensions
   int num_variables;
 
+  /// @brief Position indices of the joint group (used to scatter group q into model.nq space).
+  Eigen::VectorXi q_indices;
+
   /// @brief Velocity indices of the joint group (used to scatter delta_q back into model.nv space).
   Eigen::VectorXi v_indices;
 

@@ -2,19 +2,21 @@
 
 #include <stdexcept>
 
+#include <roboplan_oink/optimal_ik.hpp>
+
 namespace roboplan {
 
-VelocityLimit::VelocityLimit(int num_variables, double dt, const Eigen::VectorXd& v_max)
-    : dt(dt), v_max(v_max), num_variables(num_variables) {
+VelocityLimit::VelocityLimit(const Oink& oink, double dt, const Eigen::VectorXd& v_max)
+    : dt(dt), v_max(v_max), num_variables(oink.num_variables) {
   // Validate that dt is positive
   if (dt <= 0.0) {
     throw std::invalid_argument("VelocityLimit: dt must be positive, got " + std::to_string(dt));
   }
   // Validate that v_max size matches num_variables at construction time
-  if (v_max.size() != num_variables) {
+  if (v_max.size() != static_cast<Eigen::Index>(num_variables)) {
     throw std::invalid_argument("VelocityLimit: v_max size (" + std::to_string(v_max.size()) +
-                                ") does not match num_variables (" + std::to_string(num_variables) +
-                                ")");
+                                ") does not match oink.num_variables (" +
+                                std::to_string(num_variables) + ")");
   }
 }
 
@@ -23,14 +25,7 @@ int VelocityLimit::getNumConstraints(const Scene& /*scene*/) const { return num_
 tl::expected<void, std::string> VelocityLimit::computeQpConstraints(
     const Scene& scene, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
-  const auto& model = scene.getModel();
-
-  // Validate that model dimensions match constructor
-  if (model.nv != num_variables) {
-    return tl::make_unexpected("VelocityLimit: model.nv (" + std::to_string(model.nv) +
-                               ") does not match num_variables (" + std::to_string(num_variables) +
-                               ") from constructor");
-  }
+  (void)scene;
 
   // Validate pre-allocated workspace dimensions
   if (constraint_matrix.rows() != num_variables || constraint_matrix.cols() != num_variables) {

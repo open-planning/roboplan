@@ -33,10 +33,11 @@ struct ConstraintAxisSelection {
 /// Safe displacement regularization encourages moving toward the center of the safe region.
 struct PositionBarrier : public Barrier {
   /// @brief Constructs a position barrier for box constraint.
+  /// @param oink The Oink solver this barrier will be used with (provides num_variables, v_indices,
+  ///        and scene for eager frame ID resolution).
   /// @param frame_name Name of the frame to constrain.
   /// @param p_min Minimum position bounds [x, y, z] in world frame (use -inf for no constraint).
   /// @param p_max Maximum position bounds [x, y, z] in world frame (use +inf for no constraint).
-  /// @param num_variables Number of optimization variables (model.nv).
   /// @param dt Timestep matching your control loop period (required; must match actual control
   /// loop).
   /// @param axis_selection Which axes to constrain (default: all three axes).
@@ -45,8 +46,9 @@ struct PositionBarrier : public Barrier {
   /// @param safety_margin Conservative margin for hard constraint guarantee. Default 0.0
   /// @note The dt parameter significantly affects barrier behavior - ensure it matches
   ///       your actual control/integration timestep.
-  PositionBarrier(const std::string& frame_name, const Eigen::Vector3d& p_min,
-                  const Eigen::Vector3d& p_max, int num_variables, double dt,
+  /// @throws std::runtime_error if frame_name is not found in oink's scene.
+  PositionBarrier(const Oink& oink, const std::string& frame_name, const Eigen::Vector3d& p_min,
+                  const Eigen::Vector3d& p_max, double dt,
                   const ConstraintAxisSelection& axis_selection = ConstraintAxisSelection(),
                   double gain = 1.0, double safe_displacement_gain = 1.0,
                   double safety_margin = 0.0);
@@ -114,15 +116,15 @@ struct PositionBarrier : public Barrier {
   /// @brief Maximum position bounds in world frame for each axis.
   const Eigen::Vector3d p_max;
 
+  /// @brief Velocity indices of the joint group (for Jacobian column selection).
+  Eigen::VectorXi v_indices;
+
 private:
-  /// @brief Cached frame index for fast lookups.
-  mutable pinocchio::FrameIndex frame_id = 0;
+  /// @brief Frame index (resolved eagerly at construction).
+  pinocchio::FrameIndex frame_id;
 
-  /// @brief Whether frame_id has been cached.
-  mutable bool frame_id_cached = false;
-
-  /// @brief Pre-allocated workspace for frame Jacobian (6 x nv).
-  mutable Eigen::MatrixXd frame_jacobian;
+  /// @brief Pre-allocated full-robot Jacobian workspace (6 x model.nv).
+  mutable Eigen::MatrixXd full_jacobian_;
 };
 
 }  // namespace roboplan

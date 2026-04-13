@@ -29,20 +29,30 @@ struct ConfigurationTask : public Task {
   /// @brief Target joint configuration to reach.
   Eigen::VectorXd target_q;
 
-  /// @brief Per-joint weights for cost function.
+  /// @brief Per-joint weights for cost function (one per group velocity DOF).
   Eigen::VectorXd joint_weights;
+
+  /// @brief Position indices of the joint group.
+  Eigen::VectorXi q_indices;
+
+  /// @brief Velocity indices of the joint group.
+  Eigen::VectorXi v_indices;
 
   /// @brief Constructs a ConfigurationTask for tracking a target configuration.
   ///
-  /// Pre-allocates storage for the nv×nv Jacobian and nv error vector based on
-  /// joint_weights.size() (which equals model.nv).
+  /// Pre-allocates storage for the (nv_group × nv_group) Jacobian and nv_group error vector.
+  /// The group's velocity indices are taken from the Oink solver to correctly extract
+  /// sub-group errors from the full-robot tangent space.
   ///
-  /// @param target_q The target joint configuration.
-  /// @param joint_weights Per-joint weights. All weights must be non-negative.
+  /// @param oink The Oink solver this task will be used with (provides q_indices, v_indices).
+  /// @param target_q The target joint configuration for the group (size oink.q_indices.size()).
+  /// @param joint_weights Per-joint weights for the group joints. Size must equal
+  ///        oink.num_variables. All weights must be non-negative.
   /// @param options Optional task options.
-  /// @throws std::invalid_argument if target_q and joint_weights have different sizes
+  /// @throws std::invalid_argument if joint_weights size doesn't match oink.num_variables
   ///         or if any joint weight is negative.
-  ConfigurationTask(const Eigen::VectorXd& target_q, const Eigen::VectorXd& joint_weights,
+  ConfigurationTask(const Oink& oink, const Eigen::VectorXd& target_q,
+                    const Eigen::VectorXd& joint_weights,
                     const ConfigurationTaskOptions& options = {});
 
   /// @brief Computes the configuration space error.

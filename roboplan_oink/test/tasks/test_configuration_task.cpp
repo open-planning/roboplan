@@ -21,6 +21,7 @@ protected:
 
     scene_ = std::make_shared<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
                                      yaml_config_path_);
+    oink_ = std::make_shared<Oink>(*scene_);
 
     const auto& model = scene_->getModel();
     nq_ = model.nq;
@@ -39,6 +40,7 @@ protected:
   std::vector<std::filesystem::path> package_paths_;
   std::filesystem::path yaml_config_path_;
   std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Oink> oink_;
   int nq_;
   int nv_;
 };
@@ -49,7 +51,7 @@ TEST_F(ConfigurationTaskTest, Construction) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
   // Test default construction
-  ConfigurationTask task1(target_q, joint_weights);
+  ConfigurationTask task1(*oink_, target_q, joint_weights);
   EXPECT_EQ(task1.target_q.size(), nq_);
   EXPECT_EQ(task1.joint_weights.size(), nv_);
   EXPECT_EQ(task1.gain, 1.0);
@@ -60,7 +62,7 @@ TEST_F(ConfigurationTaskTest, Construction) {
       .task_gain = 0.8,
       .lm_damping = 0.01,
   };
-  ConfigurationTask task2(target_q, joint_weights, options);
+  ConfigurationTask task2(*oink_, target_q, joint_weights, options);
   EXPECT_EQ(task2.gain, 0.8);
   EXPECT_EQ(task2.lm_damping, 0.01);
 }
@@ -71,7 +73,7 @@ TEST_F(ConfigurationTaskTest, NegativeWeightThrows) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
   joint_weights(2) = -1.0;  // Negative weight
 
-  EXPECT_THROW({ ConfigurationTask task(target_q, joint_weights); }, std::invalid_argument);
+  EXPECT_THROW({ ConfigurationTask task(*oink_, target_q, joint_weights); }, std::invalid_argument);
 }
 
 // Test error computation at current configuration (zero error)
@@ -81,7 +83,7 @@ TEST_F(ConfigurationTaskTest, ErrorAtCurrentConfig) {
   Eigen::VectorXd target_q = q;
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -103,7 +105,7 @@ TEST_F(ConfigurationTaskTest, ErrorWithOffset) {
   target_q(0) += 0.1;  // 0.1 rad offset on first joint
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -126,7 +128,7 @@ TEST_F(ConfigurationTaskTest, JacobianIsIdentity) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Zero(nq_);
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   auto result = task.computeJacobian(*scene_);
 
@@ -150,13 +152,12 @@ TEST_F(ConfigurationTaskTest, QpObjectiveComputation) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
   ConfigurationTaskOptions options{.lm_damping = 0.01};
-  ConfigurationTask task(target_q, joint_weights, options);
+  ConfigurationTask task(*oink_, target_q, joint_weights, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
   Eigen::SparseMatrix<double> H(nv_, nv_);
   Eigen::VectorXd c(nv_);
   auto result = task.computeQpObjective(*scene_, H, c);
-
   ASSERT_TRUE(result.has_value());
 
   // H should be positive semi-definite (diagonal elements >= 0)
@@ -180,7 +181,7 @@ TEST_F(ConfigurationTaskTest, WeightMatrixPerJoint) {
   joint_weights(2) = 0.1;   // Low weight on third
   // Remaining joints have zero weight
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   // Check weight matrix diagonal
   const Eigen::MatrixXd& W = task.weight;
@@ -215,12 +216,13 @@ TEST_F(ConfigurationTaskTest, ZeroWeightJointsIgnored) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
   joint_weights(0) = 0.0;
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   // Compute QP objective
   Eigen::SparseMatrix<double> H(nv_, nv_);
   Eigen::VectorXd c(nv_);
-  task.computeQpObjective(*scene_, H, c);
+  auto result = task.computeQpObjective(*scene_, H, c);
+  ASSERT_TRUE(result.has_value());
 
   // First row/column of H should be effectively just damping
   // The weighted contribution from joint 0 error should be zero
@@ -235,7 +237,7 @@ TEST_F(ConfigurationTaskTest, InvalidTargetSize) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Zero(nq_ + 1);  // Wrong size
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   auto result = task.computeError(*scene_);
 
@@ -248,12 +250,7 @@ TEST_F(ConfigurationTaskTest, InvalidWeightsSize) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Zero(nq_);
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_ + 1);  // Wrong size
 
-  ConfigurationTask task(target_q, joint_weights);
-
-  auto result = task.computeJacobian(*scene_);
-
-  ASSERT_FALSE(result.has_value());
-  EXPECT_TRUE(result.error().find("size") != std::string::npos);
+  EXPECT_THROW({ ConfigurationTask task(*oink_, target_q, joint_weights); }, std::invalid_argument);
 }
 
 // Test task gain parameter
@@ -263,10 +260,10 @@ TEST_F(ConfigurationTaskTest, TaskGainParameter) {
 
   // Create tasks with different gains
   ConfigurationTaskOptions options_low{.task_gain = 0.1};
-  ConfigurationTask task_low_gain(target_q, joint_weights, options_low);
+  ConfigurationTask task_low_gain(*oink_, target_q, joint_weights, options_low);
 
   ConfigurationTaskOptions options_high{.task_gain = 0.9};
-  ConfigurationTask task_high_gain(target_q, joint_weights, options_high);
+  ConfigurationTask task_high_gain(*oink_, target_q, joint_weights, options_high);
 
   EXPECT_LT(task_low_gain.gain, task_high_gain.gain);
 
@@ -291,7 +288,7 @@ TEST_F(ConfigurationTaskTest, ErrorDirectionMatchesJacobian) {
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
   ConfigurationTaskOptions options{.task_gain = 1.0, .lm_damping = 0.0};
-  ConfigurationTask task(target_q, joint_weights, options);
+  ConfigurationTask task(*oink_, target_q, joint_weights, options);
 
   // Compute error and Jacobian
   auto error_result = task.computeError(*scene_);
@@ -323,7 +320,7 @@ TEST_F(ConfigurationTaskTest, ErrorPointsTowardTarget) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Constant(nq_, 0.3);
   Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
 
-  ConfigurationTask task(target_q, joint_weights);
+  ConfigurationTask task(*oink_, target_q, joint_weights);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -337,7 +334,7 @@ TEST_F(ConfigurationTaskTest, ErrorPointsTowardTarget) {
   scene_->setJointPositions(Eigen::VectorXd::Constant(nq_, 0.5));
   target_q = Eigen::VectorXd::Zero(nq_);
 
-  ConfigurationTask task2(target_q, joint_weights);
+  ConfigurationTask task2(*oink_, target_q, joint_weights);
   auto result2 = task2.computeError(*scene_);
   ASSERT_TRUE(result2.has_value());
 

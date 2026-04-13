@@ -126,6 +126,12 @@ public:
   Eigen::VectorXd interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                               const double fraction) const;
 
+  /// @brief Integrates a velocity vector from a configuration using Lie group operations.
+  /// @param q The starting joint configuration (size model.nq).
+  /// @param v The velocity / displacement vector to integrate (size model.nv).
+  /// @return The resulting joint configuration after integration.
+  Eigen::VectorXd integrate(const Eigen::VectorXd& q, const Eigen::VectorXd& v) const;
+
   /// @brief Calculates forward kinematics for a specific frame.
   /// @param q The joint configuration.
   /// @param frame_name The name of the frame for which to perform forward kinematics.

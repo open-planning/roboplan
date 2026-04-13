@@ -183,12 +183,9 @@ void init_core_scene(nanobind::module_& m) {
            "Converts partial joint positions to full joint positions.", "group_name"_a, "q"_a)
       .def("interpolate", &Scene::interpolate, "Interpolates between two joint configurations.",
            "q_start"_a, "q_end"_a, "fraction"_a)
-      .def(
-          "integrate",
-          [](const Scene& self, const Eigen::VectorXd& q, const Eigen::VectorXd& v)
-              -> Eigen::VectorXd { return pinocchio::integrate(self.getModel(), q, v); },
-          "Integrates a velocity vector from a configuration using Lie group operations.", "q"_a,
-          "v"_a)
+      .def("integrate", &Scene::integrate,
+           "Integrates a velocity vector from a configuration using Lie group operations.", "q"_a,
+           "v"_a)
       .def("forwardKinematics", &Scene::forwardKinematics,
            "Calculates forward kinematics for a specific frame.", "q"_a, "frame_name"_a)
       .def(

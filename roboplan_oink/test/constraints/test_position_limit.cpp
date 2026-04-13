@@ -6,6 +6,7 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
+#include <roboplan_oink/optimal_ik.hpp>
 
 namespace roboplan {
 
@@ -21,6 +22,7 @@ protected:
 
     scene_ = std::make_shared<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
                                      yaml_config_path_);
+    oink_ = std::make_shared<Oink>(*scene_);
 
     const auto& model = scene_->getModel();
     num_variables_ = model.nv;
@@ -35,23 +37,24 @@ protected:
   std::vector<std::filesystem::path> package_paths_;
   std::filesystem::path yaml_config_path_;
   std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Oink> oink_;
   int num_variables_;
 };
 
 // Test position limit construction
 TEST_F(PositionLimitTest, Construction) {
   // Test default gain
-  PositionLimit constraint1(num_variables_);
+  PositionLimit constraint1(*oink_);
   EXPECT_EQ(constraint1.config_limit_gain, 1.0);
 
   // Test custom gain
-  PositionLimit constraint2(num_variables_, 0.5);
+  PositionLimit constraint2(*oink_, 0.5);
   EXPECT_EQ(constraint2.config_limit_gain, 0.5);
 }
 
 // Test getNumConstraints returns correct value
 TEST_F(PositionLimitTest, GetNumConstraints) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   int num_constraints = constraint.getNumConstraints(*scene_);
   EXPECT_EQ(num_constraints, num_variables_);
@@ -59,7 +62,7 @@ TEST_F(PositionLimitTest, GetNumConstraints) {
 
 // Test constraint matrix dimensions
 TEST_F(PositionLimitTest, ConstraintMatrixDimensions) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -77,7 +80,7 @@ TEST_F(PositionLimitTest, ConstraintMatrixDimensions) {
 
 // Test constraint matrix is identity
 TEST_F(PositionLimitTest, ConstraintMatrixIsIdentity) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -100,7 +103,7 @@ TEST_F(PositionLimitTest, BoundsAtCenter) {
   Eigen::VectorXd q = (model.lowerPositionLimit + model.upperPositionLimit) / 2.0;
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -127,7 +130,7 @@ TEST_F(PositionLimitTest, BoundsNearUpperLimit) {
       model.lowerPositionLimit + 0.9 * (model.upperPositionLimit - model.lowerPositionLimit);
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -154,7 +157,7 @@ TEST_F(PositionLimitTest, BoundsNearLowerLimit) {
       model.lowerPositionLimit + 0.1 * (model.upperPositionLimit - model.lowerPositionLimit);
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -178,8 +181,8 @@ TEST_F(PositionLimitTest, GainEffect) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
 
-  PositionLimit constraint1(num_variables_, 0.5);  // Conservative gain
-  PositionLimit constraint2(num_variables_, 1.0);  // Aggressive gain
+  PositionLimit constraint1(*oink_, 0.5);  // Conservative gain
+  PositionLimit constraint2(*oink_, 1.0);  // Aggressive gain
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds1(num_variables_);
@@ -205,7 +208,7 @@ TEST_F(PositionLimitTest, GainEffect) {
 
 // Test with gain = 0 (no motion allowed)
 TEST_F(PositionLimitTest, ZeroGain) {
-  PositionLimit constraint(num_variables_, 0.0);
+  PositionLimit constraint(*oink_, 0.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -222,7 +225,7 @@ TEST_F(PositionLimitTest, ZeroGain) {
 
 // Test infinite joint limits are clamped
 TEST_F(PositionLimitTest, InfiniteJointLimits) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -247,7 +250,7 @@ TEST_F(PositionLimitTest, PreventExceedingUpperLimit) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -275,7 +278,7 @@ TEST_F(PositionLimitTest, PreventExceedingLowerLimit) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -297,7 +300,7 @@ TEST_F(PositionLimitTest, PreventExceedingLowerLimit) {
 
 // Test error handling for mismatched workspace size
 TEST_F(PositionLimitTest, MismatchedWorkspaceSize) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   // Create workspace with wrong dimensions
   Eigen::MatrixXd constraint_matrix(num_variables_ - 1, num_variables_);
@@ -313,7 +316,7 @@ TEST_F(PositionLimitTest, MismatchedWorkspaceSize) {
 
 // Test modification of gain parameter
 TEST_F(PositionLimitTest, ModifyGain) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   // Change gain
   constraint.config_limit_gain = 0.3;
@@ -346,7 +349,7 @@ TEST_F(PositionLimitTest, AtJointLimit) {
   Eigen::VectorXd q = model.upperPositionLimit;
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);
@@ -366,7 +369,7 @@ TEST_F(PositionLimitTest, AtJointLimit) {
 
 // Test different configurations produce different bounds
 TEST_F(PositionLimitTest, DifferentConfigurationsDifferentBounds) {
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds1(num_variables_);
@@ -405,6 +408,7 @@ protected:
 
     scene_ = std::make_shared<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
                                      yaml_config_path_);
+    oink_ = std::make_shared<Oink>(*scene_);
 
     const auto& model = scene_->getModel();
     num_variables_ = model.nv;
@@ -419,6 +423,7 @@ protected:
   std::vector<std::filesystem::path> package_paths_;
   std::filesystem::path yaml_config_path_;
   std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Oink> oink_;
   int num_variables_;
 };
 
@@ -430,7 +435,7 @@ TEST_F(KinovaPositionLimitTest, BoundsAtNeutral) {
   Eigen::VectorXd q = pinocchio::neutral(model);
   scene_->setJointPositions(q);
 
-  PositionLimit constraint(num_variables_, 1.0);
+  PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
   Eigen::VectorXd lower_bounds(num_variables_);

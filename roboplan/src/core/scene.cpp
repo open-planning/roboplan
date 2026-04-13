@@ -371,6 +371,10 @@ Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::
   return pinocchio::interpolate(model_, q_start, q_end, fraction);
 }
 
+Eigen::VectorXd Scene::integrate(const Eigen::VectorXd& q, const Eigen::VectorXd& v) const {
+  return pinocchio::integrate(model_, q, v);
+}
+
 Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
                                          const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.
