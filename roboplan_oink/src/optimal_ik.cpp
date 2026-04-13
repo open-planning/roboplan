@@ -171,13 +171,24 @@ Oink::Oink(Scene& scene, const std::string& group_name, const OsqpEigen::Setting
   c = Eigen::VectorXd::Zero(num_variables);
 }
 
-Oink::Oink(Scene& scene, const std::string& group_name)
-    : Oink(scene, group_name, [&] {
-        OsqpEigen::Settings s;
-        s.setWarmStart(true);
-        s.setVerbosity(false);
-        return s;
-      }()) {}
+Oink::Oink(Scene& scene, const std::string& group_name) : scene_(scene) {
+  const auto maybe_group_info = scene_.getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    throw std::runtime_error("Oink: joint group '" + group_name +
+                             "' not found: " + maybe_group_info.error());
+  }
+  q_indices = maybe_group_info->q_indices;
+  v_indices = maybe_group_info->v_indices;
+  num_variables = static_cast<int>(v_indices.size());
+
+  task_c = Eigen::VectorXd::Zero(num_variables);
+  task_H = Eigen::SparseMatrix<double>(num_variables, num_variables);
+  H = Eigen::SparseMatrix<double>(num_variables, num_variables);
+  c = Eigen::VectorXd::Zero(num_variables);
+
+  settings.setWarmStart(true);
+  settings.setVerbosity(false);
+}
 
 tl::expected<void, std::string>
 Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
