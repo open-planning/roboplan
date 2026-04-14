@@ -44,7 +44,7 @@ tl::expected<double, std::string>
 Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/, pinocchio::Data& /*data*/,
                                  const Eigen::VectorXd& /*q*/) const {
   // Default: return infinity to indicate not supported by this barrier type
-  return std::numeric_limits<double>::infinity();
+  return OSQP_INFTY;
 }
 
 tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scene,
@@ -315,7 +315,13 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     solver.data()->clearLinearConstraintsMatrix();
 
     const OSQPSettings* stored_settings = settings.getSettings();
+#ifdef OSQP_EIGEN_OSQP_IS_V1
     solver.settings()->setWarmStart(stored_settings->warm_starting);
+    solver.settings()->setPolish(stored_settings->polishing);
+#else
+    solver.settings()->setWarmStart(stored_settings->warm_start);
+    solver.settings()->setPolish(stored_settings->polish);
+#endif
     solver.settings()->setVerbosity(stored_settings->verbose);
     solver.settings()->setAlpha(stored_settings->alpha);
     solver.settings()->setAbsoluteTolerance(stored_settings->eps_abs);
@@ -324,7 +330,6 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
     solver.settings()->setDualInfeasibilityTolerance(stored_settings->eps_dual_inf);
     solver.settings()->setMaxIteration(stored_settings->max_iter);
     solver.settings()->setRho(stored_settings->rho);
-    solver.settings()->setPolish(stored_settings->polishing);
     solver.settings()->setAdaptiveRho(stored_settings->adaptive_rho);
     solver.settings()->setTimeLimit(stored_settings->time_limit);
 
@@ -414,7 +419,7 @@ Oink::enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers, Sce
   pinocchio::Data temp_data(model);
 
   // Evaluate all barriers at the candidate configuration
-  double min_h = std::numeric_limits<double>::infinity();
+  double min_h = OSQP_INFTY;
   for (const auto& barrier : barriers) {
     auto h_result = barrier->evaluateAtConfiguration(model, temp_data, q_candidate);
     if (!h_result.has_value()) {

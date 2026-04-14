@@ -25,7 +25,7 @@ find_package(ament_cmake QUIET)
 find_package(OsqpEigen QUIET)
 
 if(NOT OsqpEigen_FOUND)
-  # When building OsqpEigen from source, we need OSQP >= 1.0.0.
+  # When building OsqpEigen from source, we need OSQP == 0.6.3 for ROS compatibility.
   find_package(osqp QUIET)
 
   # ROS osqp vendor package can set osqp_FOUND without osqp_VERSION.
@@ -41,8 +41,8 @@ if(NOT OsqpEigen_FOUND)
     message(STATUS "Detected osqp package without osqp_VERSION; forcing vendored OSQP + OsqpEigen.")
   endif()
 
-  if(NOT osqp_FOUND OR osqp_VERSION VERSION_LESS "1.0.0")
-    message(STATUS "OSQP not found or version < 1.0.0. Fetching from GitHub...")
+  if(NOT osqp_FOUND OR NOT osqp_VERSION VERSION_EQUAL "0.6.3")
+    message(STATUS "OSQP not found or version < 0.6.3. Fetching from GitHub...")
 
     # Disable OSQP tests and demos
     set(OSQP_BUILD_DEMO OFF CACHE INTERNAL "Disable OSQP demo")
@@ -52,7 +52,7 @@ if(NOT OsqpEigen_FOUND)
     FetchContent_Declare(
       osqp
       GIT_REPOSITORY https://github.com/osqp/osqp.git
-      GIT_TAG v1.0.0
+      GIT_TAG v0.6.3
       GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(osqp)
@@ -68,8 +68,8 @@ if(NOT OsqpEigen_FOUND)
 
     # Set OSQP version detection variables to skip OsqpEigen's try_compile tests
     # (try_compile doesn't work with ALIAS targets from FetchContent)
-    set(OSQP_IS_V1 TRUE CACHE BOOL "OSQP is version 1.0+" FORCE)
-    set(OSQP_IS_V1_FINAL TRUE CACHE BOOL "OSQP is version 1.0.0 final" FORCE)
+    set(OSQP_IS_V1 FALSE CACHE BOOL "OSQP is version 1.0+" FORCE)
+    set(OSQP_IS_V1_FINAL FALSE CACHE BOOL "OSQP is version 1.0.0 final" FORCE)
   endif()
 
   message(STATUS "OsqpEigen not found. Fetching from GitHub...")
