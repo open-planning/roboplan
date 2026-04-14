@@ -7,12 +7,12 @@ import xacro
 
 import numpy as np
 import pinocchio as pin
+from pinocchio.visualize import ViserVisualizer
 
 from common import MODELS
 from roboplan.core import Scene, JointConfiguration, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
 from roboplan.simple_ik import SimpleIkOptions, SimpleIk
-from roboplan.viser_visualizer import ViserVisualizer
 
 
 def main(

@@ -8,6 +8,7 @@ import xacro
 
 import numpy as np
 import pinocchio as pin
+from pinocchio.visualize import ViserVisualizer
 
 from common import MODELS
 from filters import SE3LowPassFilter
@@ -22,7 +23,6 @@ from roboplan.optimal_ik import (
     PositionLimit,
     VelocityLimit,
 )
-from roboplan.viser_visualizer import ViserVisualizer
 
 
 def main(
