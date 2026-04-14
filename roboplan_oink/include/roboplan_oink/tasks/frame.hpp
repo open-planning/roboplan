@@ -50,15 +50,16 @@ struct FrameTaskOptions {
 struct FrameTask : public Task {
   /// @brief Constructs a FrameTask for tracking a target pose.
   ///
-  /// The Oink solver provides both the scene (for frame ID resolution and FK) and
-  /// the velocity indices (for Jacobian column selection). This ensures the task is
-  /// always compatible with the solver it will be used with.
+  /// The Oink solver provides the velocity indices (for Jacobian column selection).
+  /// The scene is used at construction time to resolve the frame ID and allocate
+  /// the full Jacobian buffer.
   ///
   /// @param oink The Oink solver instance this task will be used with.
+  /// @param scene The scene used to resolve the frame ID and allocate storage.
   /// @param target_pose The target Cartesian configuration to reach.
   /// @param options Optional task options (default: all options set to defaults).
   /// @throws std::runtime_error if the frame name is not found in the scene.
-  FrameTask(const Oink& oink, const CartesianConfiguration& target_pose,
+  FrameTask(const Oink& oink, const Scene& scene, const CartesianConfiguration& target_pose,
             const FrameTaskOptions& options = {});
 
   /// @brief Computes the SE(3) error between target and current frame pose.
@@ -123,7 +124,7 @@ struct FrameTask : public Task {
   double max_rotation_error;
 
   // Pre-allocated full Jacobian (6 x model.nv) for column selection (mutable for const methods)
-  mutable Eigen::MatrixXd full_jacobian_;
+  mutable Eigen::MatrixXd full_jacobian;
 
   // Pre-allocated logarithmic Jacobian (mutable for use in const computeJacobian)
   mutable Eigen::Matrix<double, 6, 6> Jlog = Eigen::Matrix<double, 6, 6>::Identity();

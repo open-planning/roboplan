@@ -17,14 +17,14 @@ constexpr double kMinNormForSaturation = 1e-9;
 
 namespace roboplan {
 
-FrameTask::FrameTask(const Oink& oink, const CartesianConfiguration& target_pose,
-                     const FrameTaskOptions& options)
+FrameTask::FrameTask(const Oink& oink, const Scene& scene,
+                     const CartesianConfiguration& target_pose, const FrameTaskOptions& options)
     : Task(createWeightMatrix(options.position_cost, options.orientation_cost), options.task_gain,
            options.lm_damping),
       frame_name(target_pose.tip_frame), target_pose(target_pose),
       max_position_error(options.max_position_error),
       max_rotation_error(options.max_rotation_error) {
-  const auto maybe_frame_id = oink.scene_.getFrameId(frame_name);
+  const auto maybe_frame_id = scene.getFrameId(frame_name);
   if (!maybe_frame_id) {
     throw std::runtime_error("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
   }
@@ -34,8 +34,8 @@ FrameTask::FrameTask(const Oink& oink, const CartesianConfiguration& target_pose
 
   // Pre-allocate storage: 6 rows (SE(3) task) × group velocity DOFs columns
   initializeStorage(kSpatialDimension, v_indices.size());
-  // Pre-allocate full Jacobian buffer for column selection
-  full_jacobian_ = Eigen::MatrixXd::Zero(kSpatialDimension, oink.scene_.getModel().nv);
+  // Pre-allocate full Jacobian buffer (must be 6 x model.nv for computeFrameJacobian)
+  full_jacobian = Eigen::MatrixXd::Zero(kSpatialDimension, scene.getModel().nv);
 }
 
 tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
@@ -87,13 +87,13 @@ tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
 
   // Compute full-robot frame Jacobian, then select the group's velocity columns
-  full_jacobian_.setZero();
+  full_jacobian.setZero();
   scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                             full_jacobian_);
+                             full_jacobian);
 
   // The negative sign ensures that with the QP formulation (min ||J*dq + gain*e||^2),
   // the solution dq = -gain * J^{-1} * e moves toward the target.
-  jacobian_container.noalias() = -full_jacobian_(Eigen::placeholders::all, v_indices);
+  jacobian_container.noalias() = -full_jacobian(Eigen::placeholders::all, v_indices);
 
   return {};
 }

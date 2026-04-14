@@ -195,7 +195,7 @@ def main(
         goal.base_frame = model_data.base_link
         goal.tip_frame = name
 
-        frame_task = FrameTask(oink, goal, task_options)
+        frame_task = FrameTask(oink, scene, goal, task_options)
         frame_tasks.append(frame_task)
 
         # Create an interactive marker
@@ -262,10 +262,9 @@ def main(
                         frame_tasks[idx].setTargetFrameTransform(filtered_target)
 
                     # Solve IK for one step with constraints and barriers
-                    # Argument order: tasks, constraints, barriers, scene, delta_q, regularization (optional)
                     try:
                         oink.solveIk(
-                            tasks, constraints, barriers, delta_q, regularization
+                            scene, tasks, constraints, barriers, delta_q, regularization
                         )
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
@@ -275,7 +274,7 @@ def main(
 
                     # CRITICAL: Validate solution with enforceBarriers() using FK
                     # This catches cases where linearization error causes barrier violation
-                    oink.enforceBarriers(barriers, delta_q_full, tolerance=0.0)
+                    oink.enforceBarriers(scene, barriers, delta_q_full, tolerance=0.0)
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     q_current = scene.integrate(q_current, delta_q_full)
@@ -362,6 +361,7 @@ def main(
         # Create the barrier for this end-effector
         position_barrier = PositionBarrier(
             oink,
+            scene,
             ee_name,
             p_min,
             p_max,

@@ -58,7 +58,7 @@ TEST_F(PositionBarrierTest, ConstructionFullBox) {
   Eigen::Vector3d p_min(-1.0, -1.0, 0.0);
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_);
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_);
 
   // Full box creates 6 constraints (2 per axis: lower and upper bound)
   EXPECT_EQ(barrier->getNumBarriers(*scene_), 6);
@@ -80,7 +80,8 @@ TEST_F(PositionBarrierTest, SelectiveAxisConstraint) {
   axes.y = false;
   axes.z = true;
 
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_, axes);
+  auto barrier =
+      std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_, axes);
 
   // Only 1 constraint (lower bound on z; upper bound is +inf so not counted)
   EXPECT_EQ(barrier->getNumBarriers(*scene_), 1);
@@ -100,7 +101,7 @@ TEST_F(PositionBarrierTest, BarrierValueComputation) {
   Eigen::Vector3d p_min = current_pos.array() - 0.5;
   Eigen::Vector3d p_max = current_pos.array() + 0.5;
 
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_);
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_);
 
   auto result = barrier->computeBarrier(*scene_);
   ASSERT_TRUE(result.has_value()) << "computeBarrier failed: " << result.error();
@@ -128,7 +129,7 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
   Eigen::Vector3d p_max(2.0, 2.0, 2.0);
 
   // Use a high barrier gain to strongly discourage crossing the boundary
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                                    roboplan::ConstraintAxisSelection(), 50.0);
 
   // Verify we start inside the safe region
@@ -146,7 +147,7 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
 
   // Use lower task gain so barrier has more influence
   FrameTaskOptions params{.task_gain = 0.5, .lm_damping = 0.1};
-  auto frame_task = std::make_shared<FrameTask>(oink, target_config, params);
+  auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, params);
 
   // Velocity limit to ensure smooth motion
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.0);
@@ -164,7 +165,7 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
+    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
     ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter << ": " << result.error();
 
     // Integrate
@@ -204,7 +205,7 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
   Eigen::Vector3d p_min(-2.0, -2.0, -0.5);
   Eigen::Vector3d p_max(2.0, 2.0, 2.0);
 
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                                    roboplan::ConstraintAxisSelection(), 1.0, 0.1);
 
   // Create a frame task to move to a position inside the safe region
@@ -214,7 +215,7 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
 
   Oink oink(*scene_);
   FrameTaskOptions params{.lm_damping = 0.1};
-  auto frame_task = std::make_shared<FrameTask>(oink, target_config, params);
+  auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, params);
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -229,7 +230,7 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
+    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
     ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter;
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
@@ -259,8 +260,8 @@ TEST_F(PositionBarrierTest, InvalidFrameName) {
 
   EXPECT_THROW(
       {
-        auto barrier =
-            std::make_shared<PositionBarrier>(*oink_, "nonexistent_frame", p_min, p_max, dt_);
+        auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "nonexistent_frame",
+                                                         p_min, p_max, dt_);
       },
       std::runtime_error);
 }
@@ -272,15 +273,15 @@ TEST_F(PositionBarrierTest, InvalidGain) {
 
   EXPECT_THROW(
       {
-        auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
-                                                         roboplan::ConstraintAxisSelection(), 0.0);
+        auto barrier = std::make_shared<PositionBarrier>(
+            *oink_, *scene_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(), 0.0);
       },
       std::invalid_argument);
 
   EXPECT_THROW(
       {
-        auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
-                                                         roboplan::ConstraintAxisSelection(), -1.0);
+        auto barrier = std::make_shared<PositionBarrier>(
+            *oink_, *scene_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(), -1.0);
       },
       std::invalid_argument);
 }
@@ -291,11 +292,17 @@ TEST_F(PositionBarrierTest, InvalidDt) {
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
   EXPECT_THROW(
-      { auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, 0.0); },
+      {
+        auto barrier =
+            std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, 0.0);
+      },
       std::invalid_argument);
 
   EXPECT_THROW(
-      { auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, -0.01); },
+      {
+        auto barrier =
+            std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, -0.01);
+      },
       std::invalid_argument);
 }
 
@@ -306,7 +313,8 @@ TEST_F(PositionBarrierTest, InvalidBounds) {
       {
         Eigen::Vector3d p_min(0.5, -1.0, 0.0);
         Eigen::Vector3d p_max(0.5, 1.0, 2.0);  // x: 0.5 == 0.5
-        auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_);
+        auto barrier =
+            std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_);
       },
       std::invalid_argument);
 
@@ -315,7 +323,8 @@ TEST_F(PositionBarrierTest, InvalidBounds) {
       {
         Eigen::Vector3d p_min(-1.0, 1.0, 0.0);
         Eigen::Vector3d p_max(1.0, -1.0, 2.0);  // y: 1.0 > -1.0
-        auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_);
+        auto barrier =
+            std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_);
       },
       std::invalid_argument);
 
@@ -325,7 +334,7 @@ TEST_F(PositionBarrierTest, InvalidBounds) {
                           -std::numeric_limits<double>::infinity(), 0.0);
     Eigen::Vector3d p_max(std::numeric_limits<double>::infinity(),
                           std::numeric_limits<double>::infinity(), 2.0);
-    auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_);
+    auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_);
   });
 
   // Test that disabled axes don't trigger validation
@@ -334,7 +343,8 @@ TEST_F(PositionBarrierTest, InvalidBounds) {
     Eigen::Vector3d p_max(-1.0, 1.0, 2.0);
     roboplan::ConstraintAxisSelection axes;
     axes.x = false;  // Disable X axis, so invalid bounds are ignored
-    auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_, axes);
+    auto barrier =
+        std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_, axes);
   });
 }
 
@@ -350,7 +360,7 @@ TEST_F(PositionBarrierTest, QpInequalityComputation) {
   Eigen::Vector3d p_min = ee_pos.array() - 0.5;
   Eigen::Vector3d p_max = ee_pos.array() + 0.5;
 
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                                    roboplan::ConstraintAxisSelection(), 5.0);
 
   int num_barriers = barrier->getNumBarriers(*scene_);
@@ -379,13 +389,13 @@ TEST_F(PositionBarrierTest, SolveWithEmptyBarriers) {
   Oink oink(*scene_);
   auto target_pose =
       makeCartesianConfig("tool0", Eigen::Vector3d(0.3, 0.2, 0.5), Eigen::Quaterniond::Identity());
-  auto task = std::make_shared<FrameTask>(oink, target_pose);
+  auto task = std::make_shared<FrameTask>(oink, *scene_, target_pose);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
   std::vector<std::shared_ptr<Barrier>> barriers;  // Empty
 
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
+  auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
 
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
   EXPECT_EQ(delta_q.size(), num_variables_);
@@ -404,7 +414,7 @@ TEST_F(PositionBarrierTest, SaturatingClassKFunction) {
   Eigen::Vector3d p_max = ee_pos.array() + 0.5;
 
   // Create barrier (uses saturating class-K)
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                                    roboplan::ConstraintAxisSelection(), 5.0);
 
   int num_barriers = barrier->getNumBarriers(*scene_);
@@ -443,8 +453,9 @@ TEST_F(PositionBarrierTest, SafeDisplacementRegularization) {
 
   // Create barrier with custom safe displacement gain
   double safe_disp_gain = 3.0;
-  auto barrier = std::make_shared<PositionBarrier>(
-      *oink_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(), 5.0, safe_disp_gain);
+  auto barrier =
+      std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
+                                        roboplan::ConstraintAxisSelection(), 5.0, safe_disp_gain);
 
   EXPECT_DOUBLE_EQ(barrier->safe_displacement_gain, safe_disp_gain);
 
@@ -484,7 +495,7 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
   Eigen::Vector3d p_min(-2.0, -2.0, z_floor);
   Eigen::Vector3d p_max(2.0, 2.0, 2.0);
 
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                                    roboplan::ConstraintAxisSelection(), 50.0);
 
   // Create task to move down (toward barrier)
@@ -495,7 +506,7 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
 
   Oink oink(*scene_);
   auto frame_task = std::make_shared<FrameTask>(
-      oink, target_config, FrameTaskOptions{.task_gain = 0.5, .lm_damping = 0.1});
+      oink, *scene_, target_config, FrameTaskOptions{.task_gain = 0.5, .lm_damping = 0.1});
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints;
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
@@ -508,7 +519,7 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
     scene_->forwardKinematics(q_current, "tool0");
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, delta_q);
+    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
     ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter << ": " << result.error();
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
@@ -532,7 +543,7 @@ TEST_F(PositionBarrierTest, SafetyMarginParameter) {
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
   double safety_margin = 0.05;
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                                    roboplan::ConstraintAxisSelection(), 1.0, 1.0,
                                                    safety_margin);
 
@@ -548,7 +559,7 @@ TEST_F(PositionBarrierTest, InvalidSafetyMargin) {
   EXPECT_THROW(
       {
         auto barrier =
-            std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_,
+            std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
                                               roboplan::ConstraintAxisSelection(), 1.0, 1.0, -0.1);
       },
       std::invalid_argument);
@@ -566,10 +577,12 @@ TEST_F(PositionBarrierTest, SafetyMarginTightensConstraint) {
   Eigen::Vector3d p_max = ee_pos.array() + 0.5;
 
   // Create barriers with and without safety margin
-  auto barrier_no_margin = std::make_shared<PositionBarrier>(
-      *oink_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.0);
-  auto barrier_with_margin = std::make_shared<PositionBarrier>(
-      *oink_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.1);
+  auto barrier_no_margin =
+      std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
+                                        roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.0);
+  auto barrier_with_margin =
+      std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
+                                        roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.1);
 
   int num_barriers = barrier_no_margin->getNumBarriers(*scene_);
   Eigen::MatrixXd G_no(num_barriers, num_variables_);
@@ -595,11 +608,12 @@ TEST_F(PositionBarrierTest, BackwardCompatibility) {
   Eigen::Vector3d p_max(1.0, 1.0, 2.0);
 
   // Old-style construction (without safety_margin)
-  auto barrier_old = std::make_shared<PositionBarrier>(*oink_, "tool0", p_min, p_max, dt_);
+  auto barrier_old = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_);
 
   // New-style construction with default safety_margin
-  auto barrier_new = std::make_shared<PositionBarrier>(
-      *oink_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(), 1.0, 1.0, 0.0);
+  auto barrier_new =
+      std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
+                                        roboplan::ConstraintAxisSelection(), 1.0, 1.0, 0.0);
 
   EXPECT_DOUBLE_EQ(barrier_old->safety_margin, 0.0);
   EXPECT_DOUBLE_EQ(barrier_new->safety_margin, 0.0);
@@ -647,7 +661,7 @@ TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
   const Eigen::Vector3d p_max = barrier_center.array() + half_size;
 
   auto barrier = std::make_shared<PositionBarrier>(
-      *oink_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(),
+      *oink_, *scene_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(),
       /*gain=*/5.0, /*safe_displacement_gain=*/1.0, /*safety_margin=*/0.01);
 
   auto compute_result = barrier->computeBarrier(*scene_);
@@ -668,7 +682,7 @@ TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
                                .max_position_error = std::numeric_limits<double>::infinity(),
                                .max_rotation_error = std::numeric_limits<double>::infinity()};
 
-  auto frame_task = std::make_shared<FrameTask>(oink, target_config, task_params);
+  auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, task_params);
 
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.5);
   auto vel_limit = std::make_shared<VelocityLimit>(oink, dt_, v_max);
@@ -696,7 +710,7 @@ TEST_F(PositionBarrierTest, BarrierCanBeViolatedWithoutEnforcement) {
     }
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, delta_q, 1e-6);
+    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q, 1e-6);
     ASSERT_TRUE(result.has_value());
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
@@ -735,7 +749,7 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
   const Eigen::Vector3d p_max = barrier_center.array() + half_size;
 
   auto barrier = std::make_shared<PositionBarrier>(
-      *oink_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(),
+      *oink_, *scene_, "tool0", p_min, p_max, dt_, roboplan::ConstraintAxisSelection(),
       /*gain=*/5.0, /*safe_displacement_gain=*/1.0, /*safety_margin=*/0.01);
 
   auto compute_result = barrier->computeBarrier(*scene_);
@@ -755,7 +769,7 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
                                .max_position_error = std::numeric_limits<double>::infinity(),
                                .max_rotation_error = std::numeric_limits<double>::infinity()};
 
-  auto frame_task = std::make_shared<FrameTask>(oink, target_config, task_params);
+  auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, task_params);
 
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.5);
   auto vel_limit = std::make_shared<VelocityLimit>(oink, dt_, v_max);
@@ -783,11 +797,11 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
     }
 
     Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(tasks, constraints, barriers, delta_q, 1e-6);
+    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q, 1e-6);
     ASSERT_TRUE(result.has_value());
 
     // KEY: Call enforceBarriers() to validate solution using FK
-    auto enforce_result = oink.enforceBarriers(barriers, delta_q, 0.0);
+    auto enforce_result = oink.enforceBarriers(*scene_, barriers, delta_q, 0.0);
     ASSERT_TRUE(enforce_result.has_value()) << "enforceBarriers failed: " << enforce_result.error();
 
     q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);

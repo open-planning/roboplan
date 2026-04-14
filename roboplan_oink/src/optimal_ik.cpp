@@ -154,9 +154,10 @@ Task::computeQpObjective(const Scene& scene, Eigen::SparseMatrix<double>& H, Eig
   return {};
 }
 
-Oink::Oink(Scene& scene, const std::string& group_name, const OsqpEigen::Settings& custom_settings)
-    : settings(custom_settings), scene_(scene) {
-  const auto maybe_group_info = scene_.getJointGroupInfo(group_name);
+Oink::Oink(const Scene& scene, const std::string& group_name,
+           const OsqpEigen::Settings& custom_settings)
+    : settings(custom_settings) {
+  const auto maybe_group_info = scene.getJointGroupInfo(group_name);
   if (!maybe_group_info) {
     throw std::runtime_error("Oink: joint group '" + group_name +
                              "' not found: " + maybe_group_info.error());
@@ -171,8 +172,8 @@ Oink::Oink(Scene& scene, const std::string& group_name, const OsqpEigen::Setting
   c = Eigen::VectorXd::Zero(num_variables);
 }
 
-Oink::Oink(Scene& scene, const std::string& group_name) : scene_(scene) {
-  const auto maybe_group_info = scene_.getJointGroupInfo(group_name);
+Oink::Oink(const Scene& scene, const std::string& group_name) {
+  const auto maybe_group_info = scene.getJointGroupInfo(group_name);
   if (!maybe_group_info) {
     throw std::runtime_error("Oink: joint group '" + group_name +
                              "' not found: " + maybe_group_info.error());
@@ -191,7 +192,7 @@ Oink::Oink(Scene& scene, const std::string& group_name) : scene_(scene) {
 }
 
 tl::expected<void, std::string>
-Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Constraints>>& constraints,
               const std::vector<std::shared_ptr<Barrier>>& barriers,
               Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
@@ -210,7 +211,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
 
   // Calculate accumulated Hessian and Gradient from tasks
   for (const auto& task : tasks) {
-    auto objective_result = task->computeQpObjective(scene_, task_H, task_c);
+    auto objective_result = task->computeQpObjective(scene, task_H, task_c);
     if (!objective_result.has_value()) {
       return tl::make_unexpected(objective_result.error());
     }
@@ -228,7 +229,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
 
   for (const auto& barrier : barriers) {
     auto obj_result =
-        barrier->computeQpObjective(scene_, barrier_H_contribution, barrier_c_contribution);
+        barrier->computeQpObjective(scene, barrier_H_contribution, barrier_c_contribution);
     if (obj_result.has_value()) {
       // Add dense contribution to sparse H (convert to sparse for efficient addition)
       H += barrier_H_contribution.sparseView();
@@ -242,7 +243,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
   constraint_sizes.reserve(constraints.size());
   int total_constraint_rows = 0;
   for (const auto& constraint : constraints) {
-    int num_rows = constraint->getNumConstraints(scene_);
+    int num_rows = constraint->getNumConstraints(scene);
     constraint_sizes.push_back(num_rows);
     total_constraint_rows += num_rows;
   }
@@ -251,7 +252,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
   barrier_sizes.reserve(barriers.size());
   int total_barrier_rows = 0;
   for (const auto& barrier : barriers) {
-    int num_rows = barrier->getNumBarriers(scene_);
+    int num_rows = barrier->getNumBarriers(scene);
     barrier_sizes.push_back(num_rows);
     total_barrier_rows += num_rows;
   }
@@ -290,7 +291,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
         constraint_workspace_upper.segment(row_offset, num_rows);
 
     auto constraint_result = constraints.at(i)->computeQpConstraints(
-        scene_, constraint_A_view, constraint_lower_view, constraint_upper_view);
+        scene, constraint_A_view, constraint_lower_view, constraint_upper_view);
     if (!constraint_result.has_value()) {
       return tl::make_unexpected("Failed to compute constraints: " + constraint_result.error());
     }
@@ -312,7 +313,7 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
         constraint_workspace_upper.segment(row_offset, num_rows);
 
     auto barrier_result =
-        barriers.at(i)->computeQpInequalities(scene_, barrier_G_view, barrier_h_view);
+        barriers.at(i)->computeQpInequalities(scene, barrier_G_view, barrier_h_view);
     if (!barrier_result.has_value()) {
       return tl::make_unexpected("Failed to compute barriers: " + barrier_result.error());
     }
@@ -400,40 +401,40 @@ Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
 
 // Overload: tasks only
 tl::expected<void, std::string>
-Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
               Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
               double regularization) {
-  return solveIk(tasks, {}, {}, delta_q, regularization);
+  return solveIk(scene, tasks, {}, {}, delta_q, regularization);
 }
 
 // Overload: tasks + constraints
 tl::expected<void, std::string>
-Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Constraints>>& constraints,
               Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
               double regularization) {
-  return solveIk(tasks, constraints, {}, delta_q, regularization);
+  return solveIk(scene, tasks, constraints, {}, delta_q, regularization);
 }
 
 // Overload: tasks + barriers
 tl::expected<void, std::string>
-Oink::solveIk(const std::vector<std::shared_ptr<Task>>& tasks,
+Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Barrier>>& barriers,
               Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
               double regularization) {
-  return solveIk(tasks, {}, barriers, delta_q, regularization);
+  return solveIk(scene, tasks, {}, barriers, delta_q, regularization);
 }
 
 tl::expected<void, std::string>
-Oink::enforceBarriers(const std::vector<std::shared_ptr<Barrier>>& barriers,
+Oink::enforceBarriers(const Scene& scene, const std::vector<std::shared_ptr<Barrier>>& barriers,
                       Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
                       double tolerance) {
   if (barriers.empty()) {
     return {};
   }
 
-  const auto& model = scene_.getModel();
-  const Eigen::VectorXd q = scene_.getCurrentJointPositions();
+  const auto& model = scene.getModel();
+  const Eigen::VectorXd q = scene.getCurrentJointPositions();
 
   // Compute candidate configuration by integrating delta_q
   const Eigen::VectorXd q_candidate = pinocchio::integrate(model, q, delta_q);

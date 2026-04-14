@@ -51,7 +51,7 @@ TEST_F(FrameTaskTest, Construction) {
   target_pose.tform = pinocchio::SE3::Identity();
 
   // Test default construction
-  FrameTask task1(*oink_, target_pose);
+  FrameTask task1(*oink_, *scene_, target_pose);
   EXPECT_EQ(task1.frame_name, "tool0");
   EXPECT_EQ(task1.gain, 1.0);
   EXPECT_EQ(task1.lm_damping, 0.0);
@@ -63,7 +63,7 @@ TEST_F(FrameTaskTest, Construction) {
       .task_gain = 0.8,
       .lm_damping = 0.01,
   };
-  FrameTask task2(*oink_, target_pose, options);
+  FrameTask task2(*oink_, *scene_, target_pose, options);
   EXPECT_EQ(task2.gain, 0.8);
   EXPECT_EQ(task2.lm_damping, 0.01);
 }
@@ -79,7 +79,7 @@ TEST_F(FrameTaskTest, ErrorAtIdentity) {
   target_pose.tip_frame = "tool0";
   target_pose.tform = current_tform;
 
-  FrameTask task(*oink_, target_pose);
+  FrameTask task(*oink_, *scene_, target_pose);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -107,7 +107,7 @@ TEST_F(FrameTaskTest, ErrorWithTranslation) {
   target_config.tip_frame = "tool0";
   target_config.tform = target_pose;
 
-  FrameTask task(*oink_, target_config);
+  FrameTask task(*oink_, *scene_, target_config);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -140,7 +140,7 @@ TEST_F(FrameTaskTest, ErrorWithRotation) {
   target_config.tip_frame = "tool0";
   target_config.tform = target_pose;
 
-  FrameTask task(*oink_, target_config);
+  FrameTask task(*oink_, *scene_, target_config);
 
   // Compute error
   auto result = task.computeError(*scene_);
@@ -163,7 +163,7 @@ TEST_F(FrameTaskTest, JacobianDimensions) {
   target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
-  FrameTask task(*oink_, target_pose);
+  FrameTask task(*oink_, *scene_, target_pose);
 
   auto result = task.computeJacobian(*scene_);
 
@@ -178,7 +178,7 @@ TEST_F(FrameTaskTest, JacobianNonZero) {
   target_pose.tip_frame = "tool0";
   target_pose.tform = pinocchio::SE3::Identity();
 
-  FrameTask task(*oink_, target_pose);
+  FrameTask task(*oink_, *scene_, target_pose);
 
   auto result = task.computeJacobian(*scene_);
 
@@ -195,7 +195,7 @@ TEST_F(FrameTaskTest, QpObjectiveComputation) {
   target_pose.tform = pinocchio::SE3::Identity();
 
   FrameTaskOptions options{.lm_damping = 0.01};
-  FrameTask task(*oink_, target_pose, options);
+  FrameTask task(*oink_, *scene_, target_pose, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
   Eigen::SparseMatrix<double> H(num_variables_, num_variables_);
@@ -220,7 +220,7 @@ TEST_F(FrameTaskTest, InvalidFrameName) {
   target_pose.tip_frame = "nonexistent_frame";
   target_pose.tform = pinocchio::SE3::Identity();
 
-  EXPECT_THROW(FrameTask(*oink_, target_pose), std::runtime_error);
+  EXPECT_THROW(FrameTask(*oink_, *scene_, target_pose), std::runtime_error);
 }
 
 // Test weight matrix effects
@@ -231,11 +231,11 @@ TEST_F(FrameTaskTest, WeightMatrixEffects) {
 
   // Task with high position cost, low orientation cost
   FrameTaskOptions options1{.position_cost = 10.0, .orientation_cost = 0.1};
-  FrameTask task1(*oink_, target_pose, options1);
+  FrameTask task1(*oink_, *scene_, target_pose, options1);
 
   // Task with low position cost, high orientation cost
   FrameTaskOptions options2{.position_cost = 0.1, .orientation_cost = 10.0};
-  FrameTask task2(*oink_, target_pose, options2);
+  FrameTask task2(*oink_, *scene_, target_pose, options2);
 
   // Weight matrices should be different
   EXPECT_FALSE(task1.weight.isApprox(task2.weight));
@@ -263,10 +263,10 @@ TEST_F(FrameTaskTest, TaskGainParameter) {
 
   // Create tasks with different gains
   FrameTaskOptions options_low{.task_gain = 0.1};
-  FrameTask task_low_gain(*oink_, target_pose, options_low);
+  FrameTask task_low_gain(*oink_, *scene_, target_pose, options_low);
 
   FrameTaskOptions options_high{.task_gain = 0.9};
-  FrameTask task_high_gain(*oink_, target_pose, options_high);
+  FrameTask task_high_gain(*oink_, *scene_, target_pose, options_high);
 
   EXPECT_LT(task_low_gain.gain, task_high_gain.gain);
 
@@ -295,7 +295,7 @@ TEST_F(FrameTaskTest, ErrorPointsTowardTarget) {
   target_config.tip_frame = "tool0";
   target_config.tform = target_pose;
 
-  FrameTask task(*oink_, target_config);
+  FrameTask task(*oink_, *scene_, target_config);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -336,13 +336,13 @@ TEST_F(FrameTaskTest, GradientDirectionTowardTarget) {
 
   // Use higher damping for stability (same as SingleStepMovesTowardTarget test)
   FrameTaskOptions options{.lm_damping = 0.1};
-  auto task = std::make_shared<FrameTask>(*oink_, target_config, options);
+  auto task = std::make_shared<FrameTask>(*oink_, *scene_, target_config, options);
   std::vector<std::shared_ptr<Task>> tasks = {task};
   std::vector<std::shared_ptr<Constraints>> constraints;
 
   // Solve IK
   Eigen::VectorXd delta_q(num_variables_);
-  auto result = oink.solveIk(tasks, constraints, delta_q);
+  auto result = oink.solveIk(*scene_, tasks, constraints, delta_q);
   ASSERT_TRUE(result.has_value()) << "Solve failed: " << result.error();
 
   // Apply delta_q and check we moved closer to target
@@ -378,7 +378,7 @@ TEST_F(FrameTaskTest, PositionErrorWithoutSaturation) {
 
   // Create task with infinite position limit (no saturation)
   FrameTaskOptions options{.max_position_error = std::numeric_limits<double>::infinity()};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -406,7 +406,7 @@ TEST_F(FrameTaskTest, PositionErrorSaturationBounds) {
 
   // Create task with position error limit of 0.1m
   FrameTaskOptions options{.max_position_error = 0.1};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -436,7 +436,7 @@ TEST_F(FrameTaskTest, RotationErrorWithoutSaturation) {
 
   // Create task with infinite rotation limit (no saturation)
   FrameTaskOptions options{.max_rotation_error = std::numeric_limits<double>::infinity()};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -465,7 +465,7 @@ TEST_F(FrameTaskTest, RotationErrorSaturationBounds) {
 
   // Create task with rotation error limit of 0.5 rad (~28 degrees)
   FrameTaskOptions options{.max_rotation_error = 0.5};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -495,7 +495,7 @@ TEST_F(FrameTaskTest, SmallErrorsNotSaturated) {
   // Create task with infinite limits (no saturation)
   FrameTaskOptions options{.max_position_error = std::numeric_limits<double>::infinity(),
                            .max_rotation_error = std::numeric_limits<double>::infinity()};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -522,7 +522,7 @@ TEST_F(FrameTaskTest, BackwardCompatibilityNoSaturation) {
   target_config.tform = target_pose;
 
   // Create task with default options (infinite limits)
-  FrameTask task(*oink_, target_config);
+  FrameTask task(*oink_, *scene_, target_config);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -552,7 +552,7 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationError) {
   // Create task with infinite limits (no saturation)
   FrameTaskOptions options{.max_position_error = std::numeric_limits<double>::infinity(),
                            .max_rotation_error = std::numeric_limits<double>::infinity()};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());
@@ -586,7 +586,7 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationSaturationBounds) {
 
   // Create task with both saturation limits
   FrameTaskOptions options{.max_position_error = 0.15, .max_rotation_error = 0.3};
-  FrameTask task(*oink_, target_config, options);
+  FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(*scene_);
   ASSERT_TRUE(result.has_value());

@@ -55,7 +55,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
       .task_gain = 1.0,
       .lm_damping = 0.01,
   };
-  auto frame_task = std::make_shared<FrameTask>(oink, goal, frame_options);
+  auto frame_task = std::make_shared<FrameTask>(oink, scene, goal, frame_options);
 
   // Create a ConfigurationTask to regularize toward start configuration (low priority)
   // Using lower joint_weights (0.1) makes this task less important than the frame task
@@ -76,7 +76,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   // Solve IK with constraints
   Eigen::VectorXd delta_q = Eigen::VectorXd::Zero(num_variables);
-  auto result = oink.solveIk(tasks, constraints, {}, delta_q);
+  auto result = oink.solveIk(scene, tasks, constraints, {}, delta_q);
 
   if (!result.has_value()) {
     std::cout << "IK solve failed: " << result.error() << "\n";

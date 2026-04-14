@@ -15,14 +15,15 @@ namespace {
 constexpr std::array<std::string_view, 3> kAxisNames = {"x", "y", "z"};
 }  // namespace
 
-PositionBarrier::PositionBarrier(const Oink& oink, const std::string& frame_name,
-                                 const Eigen::Vector3d& p_min, const Eigen::Vector3d& p_max,
-                                 double dt, const ConstraintAxisSelection& axis_selection,
-                                 double gain, double safe_displacement_gain, double safety_margin)
+PositionBarrier::PositionBarrier(const Oink& oink, const Scene& scene,
+                                 const std::string& frame_name, const Eigen::Vector3d& p_min,
+                                 const Eigen::Vector3d& p_max, double dt,
+                                 const ConstraintAxisSelection& axis_selection, double gain,
+                                 double safe_displacement_gain, double safety_margin)
     : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name),
       axis_selection(axis_selection), p_min(p_min), p_max(p_max), v_indices(oink.v_indices) {
   // Resolve frame_id eagerly
-  const auto maybe_frame_id = oink.scene_.getFrameId(frame_name);
+  const auto maybe_frame_id = scene.getFrameId(frame_name);
   if (!maybe_frame_id) {
     throw std::runtime_error("PositionBarrier: frame '" + frame_name + "' not found in scene");
   }
@@ -61,7 +62,7 @@ PositionBarrier::PositionBarrier(const Oink& oink, const std::string& frame_name
       ++num_barriers;
   }
   initializeStorage(num_barriers, oink.num_variables);
-  full_jacobian_ = Eigen::MatrixXd::Zero(6, oink.scene_.getModel().nv);
+  full_jacobian = Eigen::MatrixXd::Zero(6, scene.getModel().nv);
 }
 
 int PositionBarrier::getNumBarriers(const Scene& /*scene*/) const { return barrier_values.size(); }
@@ -117,7 +118,7 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   // Using WORLD reference frame so no additional rotation is needed
   // since our position bounds are specified in world coordinates
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
-  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::WORLD, full_jacobian_);
+  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::WORLD, full_jacobian);
 
   // Pinocchio frame Jacobian layout with WORLD reference frame:
   //   Rows 0-2: linear velocity (dp_world/dq) - this is what we need
@@ -130,11 +131,11 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   // X axis
   if (axis_selection.x) {
     if (std::isfinite(p_min[0])) {
-      jacobian_container.row(idx) = full_jacobian_.row(0)(v_indices);
+      jacobian_container.row(idx) = full_jacobian.row(0)(v_indices);
       ++idx;
     }
     if (std::isfinite(p_max[0])) {
-      jacobian_container.row(idx) = -full_jacobian_.row(0)(v_indices);
+      jacobian_container.row(idx) = -full_jacobian.row(0)(v_indices);
       ++idx;
     }
   }
@@ -142,11 +143,11 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   // Y axis
   if (axis_selection.y) {
     if (std::isfinite(p_min[1])) {
-      jacobian_container.row(idx) = full_jacobian_.row(1)(v_indices);
+      jacobian_container.row(idx) = full_jacobian.row(1)(v_indices);
       ++idx;
     }
     if (std::isfinite(p_max[1])) {
-      jacobian_container.row(idx) = -full_jacobian_.row(1)(v_indices);
+      jacobian_container.row(idx) = -full_jacobian.row(1)(v_indices);
       ++idx;
     }
   }
@@ -154,11 +155,11 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   // Z axis
   if (axis_selection.z) {
     if (std::isfinite(p_min[2])) {
-      jacobian_container.row(idx) = full_jacobian_.row(2)(v_indices);
+      jacobian_container.row(idx) = full_jacobian.row(2)(v_indices);
       ++idx;
     }
     if (std::isfinite(p_max[2])) {
-      jacobian_container.row(idx) = -full_jacobian_.row(2)(v_indices);
+      jacobian_container.row(idx) = -full_jacobian.row(2)(v_indices);
       ++idx;
     }
   }

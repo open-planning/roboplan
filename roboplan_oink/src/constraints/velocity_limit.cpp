@@ -25,8 +25,6 @@ int VelocityLimit::getNumConstraints(const Scene& /*scene*/) const { return num_
 tl::expected<void, std::string> VelocityLimit::computeQpConstraints(
     const Scene& scene, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
-  (void)scene;
-
   // Validate pre-allocated workspace dimensions
   if (constraint_matrix.rows() != num_variables || constraint_matrix.cols() != num_variables) {
     return tl::make_unexpected("VelocityLimit: constraint_matrix size mismatch. Expected (" +

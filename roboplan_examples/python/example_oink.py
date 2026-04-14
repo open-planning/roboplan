@@ -157,7 +157,7 @@ def main(
         goal.base_frame = model_data.base_link
         goal.tip_frame = name
 
-        frame_task = FrameTask(oink, goal, task_options)
+        frame_task = FrameTask(oink, scene, goal, task_options)
         frame_tasks.append(frame_task)
 
         # Create an interactive marker
@@ -229,7 +229,7 @@ def main(
 
                     # Solve IK for one step with constraints
                     try:
-                        oink.solveIk(tasks, constraints, delta_q, regularization)
+                        oink.solveIk(scene, tasks, constraints, delta_q, regularization)
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
