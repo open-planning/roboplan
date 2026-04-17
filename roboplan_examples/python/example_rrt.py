@@ -20,6 +20,7 @@ from roboplan.visualization import (
     visualizePath,
     plotJointTrajectory,
     visualizeTree,
+    visualizeOcTree,
 )
 
 
@@ -39,6 +40,7 @@ def main(
     port: str = "8000",
     rng_seed: int | None = None,
     include_obstacles: bool = False,
+    include_octrees: bool = False,
 ):
     """
     Run the RRT example with the provided parameters.
@@ -59,7 +61,8 @@ def main(
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
         rng_seed: The seed for selecting random start and end poses and solving RRT.
-        include_obstacles: Whether or not to include additional obstacles in the scene.
+        include_obstacles: Whether or not to include additional obstacles in the scene. Don't use with `include_octrees` argument
+        include_octrees: Whether or not to include additional octrees in the scene. Don't use with `include_obstacles` argument
     """
 
     if model not in MODELS:
@@ -104,6 +107,14 @@ def main(
 
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
+
+    if include_octrees:
+        for obstacle in model_data.octrees:
+            obstacle.addToScene(scene)
+
+            geom_obj = obstacle.createGeometryObject(model)
+            visualizeOcTree(viz, geom_obj, viz.collisionRootNodeName)
+            visualizeOcTree(viz, geom_obj, viz.visualRootNodeName)
 
     # Set up an RRT and perform path planning.
     options = RRTOptions(

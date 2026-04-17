@@ -221,6 +221,17 @@ public:
   addSphereGeometry(const std::string& name, const std::string& parent_frame, const Sphere& sphere,
                     const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
 
+  /// @brief Adds a octree geometry to the scene.
+  /// @param name The name of the object to add.
+  /// @param parent_frame The name of the parent frame to add the object to.
+  /// @param octree The octree geometry instance to add.
+  /// @param tform The transform between the parent frame and the geometry.
+  /// @param color The color of the geometry, in RGBA vector format.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string>
+  addOcTreeGeometry(const std::string& name, const std::string& parent_frame, const OcTree& octree,
+                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
+
   /// @brief Adds a Pinocchio geometry object to the scene.
   /// @details This can be made the sole public entrypoint to add a geometry once
   /// Pinocchio and Coal have working nanobind bindings compatible with this library.

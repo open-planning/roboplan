@@ -21,7 +21,8 @@ RUN pip3 install \
     opencv-contrib-python-headless \
     tyro \
     "viser>=1.0.1" \
-    xacro
+    xacro \
+    plyfile
 
 # Find the location of the relevant pip installed packages and ensure they are available to
 # cmake and LD. This will cause build warnings with system installed packages.

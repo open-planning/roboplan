@@ -7,8 +7,32 @@ import numpy as np
 from numpy.typing import NDArray
 import pinocchio as pin
 
-from roboplan.core import Box, Scene, Sphere
-from roboplan.example_models import get_package_models_dir
+from roboplan.core import Box, Scene, Sphere, OcTree
+from roboplan.example_models import get_package_models_dir, get_package_share_dir
+from plyfile import PlyData
+import os
+
+
+def load_point_cloud(pointcloud_path=None, voxel_resolution=0.04):
+    """
+    Loads a point cloud from a PLY file and converts it into an octree structure.
+
+    Returns
+    -------
+    octree : hppfcl.Octree
+        An octree data structure representing the hierarchical spatial partitioning
+        of the point cloud. The voxel resolution default value is set to 0.04 units.
+    """
+
+    # Read the PLY file
+    ply_data = PlyData.read(pointcloud_path)
+
+    # Access vertex data
+    vertices = ply_data["vertex"]
+    vertex_array = np.array([vertices["x"], vertices["y"], vertices["z"]]).T
+    octree = hppfcl.makeOctree(vertex_array, voxel_resolution)
+
+    return octree
 
 
 @dataclass
@@ -43,6 +67,16 @@ class ObstacleConfig:
                 self.tform,
                 self.color,
             )
+        elif isinstance(self.geom, hppfcl.OcTree):
+            boxes = self.geom.toBoxes()
+            resolution = self.geom.getResolution()
+            scene.addOcTreeGeometry(
+                self.name,
+                self.parent_frame,
+                OcTree(boxes, resolution),
+                self.tform,
+                self.color,
+            )
         else:
             raise TypeError(f"Unsupported geometry type: {type(self.geom)}")
 
@@ -57,6 +91,11 @@ class ObstacleConfig:
         visual_model: pin.GeometryModel,
     ) -> None:
         """Helper function to add the obstacle to Pinocchio geometry models."""
+        geom_obj = self.createGeometryObject(model)
+        collision_model.addGeometryObject(geom_obj)
+        visual_model.addGeometryObject(geom_obj)
+
+    def createGeometryObject(self, model: pin.Model):
         geom_obj = pin.GeometryObject(
             self.name,
             model.getFrameId(self.parent_frame),
@@ -64,8 +103,7 @@ class ObstacleConfig:
             self.geom,
         )
         geom_obj.meshColor = self.color
-        collision_model.addGeometryObject(geom_obj)
-        visual_model.addGeometryObject(geom_obj)
+        return geom_obj
 
 
 @dataclass
@@ -91,10 +129,24 @@ class RobotModelConfig:
     base_link: str
     starting_joint_config: List[float]
     obstacles: List[ObstacleConfig]
+    octrees: List[ObstacleConfig]
 
 
 # Base directory for all robot models
 ROBOPLAN_MODELS_DIR = get_package_models_dir()
+
+POINTCLOUDS = [
+    ObstacleConfig(
+        name="octree_cloud",
+        geom=load_point_cloud(
+            ROBOPLAN_MODELS_DIR / "pointclouds" / "example_point_cloud.ply",
+            0.04,  # resolution
+        ),
+        parent_frame="universe",
+        tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.0])).homogeneous,
+        color=np.array([0.251, 0.878, 0.816, 1.0]),
+    ),
+]
 
 MODELS = {
     "ur5": RobotModelConfig(
@@ -105,6 +157,7 @@ MODELS = {
         ee_names=["tool0"],
         base_link="base",
         starting_joint_config=[0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0],
+        octrees=POINTCLOUDS,
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -149,6 +202,7 @@ MODELS = {
             0.04,
             0.04,
         ],
+        octrees=POINTCLOUDS,
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -206,6 +260,7 @@ MODELS = {
             0.04,
             0.04,
         ],
+        octrees=POINTCLOUDS,
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -253,6 +308,7 @@ MODELS = {
             0.0,
             0.0,
         ],
+        octrees=POINTCLOUDS,
         obstacles=[
             ObstacleConfig(
                 name="test_box",
@@ -289,6 +345,7 @@ MODELS = {
         ee_names=["gripper_link"],
         base_link="base_link",
         starting_joint_config=[0.0, -np.pi / 4, 0.0, -np.pi / 2, 0.0, np.pi / 4],
+        octrees=POINTCLOUDS,
         obstacles=[
             ObstacleConfig(
                 name="test_box",

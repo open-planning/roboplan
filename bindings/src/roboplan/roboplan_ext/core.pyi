@@ -304,6 +304,11 @@ class Sphere:
 
     def __init__(self, radius: float) -> None: ...
 
+class OcTree:
+    """Temporary wrapper struct to represent a octree geometry."""
+
+    def __init__(self, boxes: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]], resolution: float) -> None: ...
+
 class Scene:
     """Primary scene representation for planning and control."""
 
@@ -397,6 +402,9 @@ class Scene:
 
     def addSphereGeometry(self, name: str, parent_frame: str, sphere: Sphere, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
         """Adds a sphere geometry to the scene."""
+
+    def addOcTreeGeometry(self, name: str, parent_frame: str, octree: OcTree, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+        """Adds a octree geometry to the scene."""
 
     def updateGeometryPlacement(self, name: str, parent_frame: str, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> None:
         """Updates the placement of an object geometry in the scene."""

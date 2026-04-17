@@ -625,6 +625,24 @@ tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name
   return addGeometry(geom_obj);
 }
 
+tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name,
+                                                         const std::string& parent_frame,
+                                                         const OcTree& octree,
+                                                         const Eigen::Matrix4d& tform,
+                                                         const Eigen::Vector4d& color) {
+  const auto maybe_parent_frame_id = getFrameId(parent_frame);
+  if (!maybe_parent_frame_id) {
+    return tl::make_unexpected("Failed to add octree: " + maybe_parent_frame_id.error());
+  }
+  const auto& parent_frame_id = maybe_parent_frame_id.value();
+  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
+
+  pinocchio::GeometryObject geom_obj{name, parent_frame_id, parent_joint_id, pinocchio::SE3(tform),
+                                     octree.geom_ptr};
+  geom_obj.meshColor = color;
+  return addGeometry(geom_obj);
+}
+
 tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
   auto it = collision_geometry_map_.find(geom_obj.name);
   if (it != collision_geometry_map_.end()) {

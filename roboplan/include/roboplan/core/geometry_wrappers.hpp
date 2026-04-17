@@ -1,5 +1,6 @@
 #pragma once
 
+#include <hpp/fcl/octree.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
 
 namespace roboplan {
@@ -27,6 +28,32 @@ struct Sphere {
 
   /// @brief The underlying Coal sphere geometry.
   std::shared_ptr<hpp::fcl::Sphere> geom_ptr;
+};
+
+struct OcTree {
+  OcTree(const std::vector<Eigen::Matrix<double, 6, 1>>& boxes, const double resolution) {
+    auto octree = std::make_shared<octomap::OcTree>(resolution);
+
+    if (!boxes.empty()) {
+      const double thresh = boxes[0][5];
+      octree->setOccupancyThres(thresh);
+    }
+
+    for (const auto& box : boxes) {
+      octree->updateNode(box[0], box[1], box[2],    // x, y and z coordinates
+                         octomap::logodds(box[4]),  // occupancy of cell
+                         true                       // enable lazy update
+      );
+    }
+
+    octree->updateInnerOccupancy();
+
+    geom_ptr = std::make_shared<hpp::fcl::OcTree>(octree);
+  }
+
+  OcTree(const std::shared_ptr<hpp::fcl::OcTree>& octree_geom) { geom_ptr = octree_geom; }
+
+  std::shared_ptr<hpp::fcl::OcTree> geom_ptr;
 };
 
 }  // namespace roboplan

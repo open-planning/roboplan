@@ -226,6 +226,7 @@ matplotlib        = ">=3.10.5,<4"
 tyro              = ">=0.9.26,<0.10"
 viser             = ">=1.0.21,<2"
 zstandard         = ">=0.25.0,<0.26"
+plyfile           = "1.1.*"
 
 # We use pip as a workaround for pixi building the bindings before we build the core packages
 # In theory, it should be like this:
