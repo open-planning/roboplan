@@ -16,11 +16,11 @@ def test_roboplan_version_attr() -> None:
     import roboplan
 
     ver = roboplan.__version__
-    assert ver == "0.2.0", "Incorrect RoboPlan version in module attribute"
+    assert ver == "0.3.0", "Incorrect RoboPlan version in module attribute"
 
 
 def test_roboplan_version_metadata() -> None:
-    assert version("roboplan") == "0.2.0", "Incorrect RoboPlan version in metadata"
+    assert version("roboplan") == "0.3.0", "Incorrect RoboPlan version in metadata"
 
 
 def test_import_pinocchio() -> None:

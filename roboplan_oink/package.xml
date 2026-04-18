@@ -5,6 +5,7 @@
   <version>0.3.0</version>
   <description>OInK - Optimal Inverse Kinematics solver for RoboPlan.</description>
   <maintainer email="sebastian.jahr@tuta.io">Sebastian Jahr</maintainer>
+  <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
