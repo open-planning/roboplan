@@ -2,8 +2,8 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2026-04-18)
+------------------
 * return true only when a valid solution found (`#160 <https://github.com/open-planning/roboplan/issues/160>`_)
 * Contributors: Matteo Villani
 

@@ -2,8 +2,8 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2026-04-18)
+------------------
 * Incorporate scene and joint groups into OInK (`#177 <https://github.com/open-planning/roboplan/issues/177>`_)
 * Switch to OSQP v0.6.3 for OInK (`#176 <https://github.com/open-planning/roboplan/issues/176>`_)
 * Get toppra from binaries or FetchContent (`#174 <https://github.com/open-planning/roboplan/issues/174>`_)

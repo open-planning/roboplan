@@ -2,8 +2,8 @@
 Changelog for package roboplan_bindings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2026-04-18)
+------------------
 * Incorporate scene and joint groups into OInK (`#177 <https://github.com/open-planning/roboplan/issues/177>`_)
 * Add octree support (`#139 <https://github.com/open-planning/roboplan/issues/139>`_)
 * Upgrade to Pinocchio 3.9 (`#97 <https://github.com/open-planning/roboplan/issues/97>`_)

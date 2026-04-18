@@ -2,8 +2,8 @@
 Changelog for package roboplan_rrt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2026-04-18)
+------------------
 * Get toppra from binaries or FetchContent (`#174 <https://github.com/open-planning/roboplan/issues/174>`_)
 * Add bisection option when checking collisions along path and optimize RRT visualization (`#164 <https://github.com/open-planning/roboplan/issues/164>`_)
 * Add viser buttons to RRT example (`#163 <https://github.com/open-planning/roboplan/issues/163>`_)

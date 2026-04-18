@@ -2,8 +2,8 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2026-04-18)
+------------------
 * Add octree support (`#139 <https://github.com/open-planning/roboplan/issues/139>`_)
 * Add scene methods to get joint limit vectors (`#162 <https://github.com/open-planning/roboplan/issues/162>`_)
 * Contributors: Cihat Kurtuluş Altıparmak, Sebastian Castro
