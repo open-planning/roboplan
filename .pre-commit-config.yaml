@@ -56,6 +56,13 @@ repos:
       - id: clang-format
         files: \.(c|cpp|h|hpp)$
 
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-tidy
+        args: ["-p=build/roboplan"]
+        files: \.(c|cpp)$
+
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:
