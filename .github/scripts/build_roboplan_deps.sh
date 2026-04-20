@@ -28,7 +28,6 @@ curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
   "gcc>=11,<12" "gxx>=11,<12" \
   "eigen>=3.4" \
   "pinocchio>=3.9.0,<4" \
-  "osqp-eigen>=0.11.0,<0.12" \
   "yaml-cpp>=0.8"
 
 CMAKE="$CONDA_ENV/bin/cmake"
@@ -50,7 +49,8 @@ build_and_install() {
     "-DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX" \
     "-DCMAKE_PREFIX_PATH=$CONDA_ENV;$INSTALL_PREFIX" \
     "-DCMAKE_C_COMPILER=$GCC" \
-    "-DCMAKE_CXX_COMPILER=$GXX"
+    "-DCMAKE_CXX_COMPILER=$GXX" \
+    "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
   "$CMAKE" --build "/tmp/build/$NAME" --parallel "$(nproc)"
   "$CMAKE" --install "/tmp/build/$NAME"
 }
