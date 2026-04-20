@@ -7,9 +7,10 @@ As such, the Python API docs below may not contain as many comments as the C++ A
 Refer to the C++ API Reference page for more complete information.
 
 .. toctree::
-    :maxdepth: 2
-    :glob:
+   :titlesonly:
 
-    autoapi/roboplan/roboplan_ext/*
-    autoapi/roboplan/viser_visualizer/*
-    autoapi/roboplan/visualization/*
+   {% for page in pages|selectattr("is_top_level_object") %}
+   {{ page.include_path }}
+   {% endfor %}
+
+.. [#f1] Created with `sphinx-autoapi <https://github.com/readthedocs/sphinx-autoapi>`_

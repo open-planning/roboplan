@@ -36,4 +36,3 @@ Quick Links:
    inverse_kinematics
    project_ideas
    api_cpp
-   api_py

@@ -56,7 +56,8 @@ exclude_patterns: list[str] = []
 # Mock imports for external dependencies.
 autodoc_mock_imports = ["roboplan.roboplan_ext"]
 autoapi_type = "python"
-autoapi_add_toctree_entry = False
+autoapi_template_dir = "_templates/autoapi"
+autoapi_add_toctree_entry = True
 autoapi_dirs = ["../../bindings/src"]
 autodoc_typehints = "description"
 
