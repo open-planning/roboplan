@@ -27,6 +27,7 @@ curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
   "cmake>=3.22" ninja \
   "gcc>=11,<12" "gxx>=11,<12" \
   "eigen>=3.4" \
+  "libtoppra>=0.6.7,<0.7" \
   "pinocchio>=3.9.0,<4" \
   "osqp-eigen>=0.11.0,<0.12" \
   "yaml-cpp>=0.8"
