@@ -46,7 +46,7 @@ build-dir = "build/{wheel_tag}"
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel]
 build = ["cp310-manylinux_x86_64"]
-manylinux-x86_64-image = "quay.io/pypa/manylinux_2_34_x86_64"
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_39_x86_64"
 before-all = "bash {project}/.github/scripts/build_roboplan_deps.sh {project}"
 repair-wheel-command = "auditwheel show {wheel}; auditwheel repair -w {dest_dir} {wheel}"
 
