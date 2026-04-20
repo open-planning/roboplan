@@ -4,25 +4,24 @@ import numpy as np
 import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
 
-from roboplan.core import Scene, computeFramePath, JointPath, JointTrajectory, OcTree
+from roboplan.core import Scene, computeFramePath, JointPath, JointTrajectory
 from roboplan.rrt import RRT
 
 
-# TODO :  Remove this function when this OcTree visualization support on Viser is added into pinocchio.
+# TODO: Remove this function when this OcTree visualization support in Viser is added into pinocchio.
 # For more information, see https://github.com/stack-of-tasks/pinocchio/issues/2868
 # Inspired from https://github.com/stack-of-tasks/pinocchio/blob/655877b314baed68c7e2d4dd56b0a0200bb9f98e/bindings/python/pinocchio/visualize/meshcat_visualizer.py#L235-L295
 def visualizeOcTree(
     viz: ViserVisualizer,
     octree_geometry: pin.GeometryObject,
     prefix: str | None,
-):
+) -> None:
     """
     Helper function to visualize octree geometries on Viser.
 
-    Args
-        viz: The viser visualizer instance.
-        octree_geometry: the octree geometry object
-        prefix: the prefix for geometry name
+    :param viz: The viser visualizer instance.
+    :param octree_geometry: the octree geometry object
+    :param prefix: the prefix for geometry name
     """
 
     name = octree_geometry.name
@@ -111,14 +110,13 @@ def visualizePath(
     """
     Helper function to visualize a sparse joint path in Cartesian space, using interpolation.
 
-    Args
-        viz: The viser visualizer instance.
-        scene: The scene instance.
-        path: The joint path to visualize.
-        frame_names: The list of frame names to use for forward kinematics.
-        max_step_size: The maximum step size between joint configurations when interpolating paths.
-        color: The color of the rendered path.
-        name: The name of the path in the viser window.
+    :param viz: The Viser visualizer instance.
+    :param scene: The scene instance.
+    :param path: The joint path to visualize.
+    :param frame_names: The list of frame names to use for forward kinematics.
+    :param max_step_size: The maximum step size between joint configurations when interpolating paths.
+    :param color: The color of the rendered path.
+    :param name: The name of the path in Viser.
     """
     if path is None:
         return
@@ -158,13 +156,12 @@ def visualizeJointTrajectory(
     """
     Helper function to visualize a joint trajectory in Cartesian space.
 
-    Args
-        viz: The viser visualizer instance.
-        scene: The scene instance.
-        traj: The joint trajectory to visualize.
-        frame_names: The list of frame names to use for forward kinematics.
-        color: The color of the rendered trajectory.
-        name: The name of the trajectory in the viser window.
+    :param viz: The Viser visualizer instance.
+    :param scene: The scene instance.
+    :param traj: The joint trajectory to visualize.
+    :param frame_names: The list of frame names to use for forward kinematics.
+    :param color: The color of the rendered trajectory.
+    :param name: The name of the trajectory in Viser.
     """
     if traj is None:
         return
@@ -202,17 +199,15 @@ def visualizeTree(
     """
     Helper function to visualize the start and goal trees from an RRT planner.
 
-    Args
-        viz: The viser visualizer instance.
-        scene: The scene instance.
-        rrt: The RRT planner instance.
-        path: The joint path to visualize. If None, does not visualize the path.
-        frame_names: List of frame names to use for forward kinematics.
-        max_step_size: The maximum step size between joint configurations when interpolating paths.
-        start_tree_color: The color of the rendered start tree.
-        start_tree_name: The name of the start tree in the vizer window.
-        goal_tree_color: The color of the rendered goal tree.
-        goal_tree_name: The name of the goal tree in the vizer window.
+    :param viz: The Viser visualizer instance.
+    :param scene: The scene instance.
+    :param rrt: The RRT planner instance.
+    :param frame_names: List of frame names to use for forward kinematics.
+    :param max_step_size: The maximum step size between joint configurations when interpolating paths.
+    :param start_tree_color: The color of the rendered start tree.
+    :param start_tree_name: The name of the start tree in Viser.
+    :param goal_tree_color: The color of the rendered goal tree.
+    :param goal_tree_name: The name of the goal tree in Viser.
     """
     start_nodes, goal_nodes = rrt.getNodes()
 
@@ -264,13 +259,10 @@ def plotJointTrajectory(
     """
     Plot a joint trajectory of positions over time.
 
-    Args
-        trajectory: The trajectory object visualize.
-        scene: The Scene object used to get joint information.
-        plot_title: The title of the plot.
-
-    Returns
-        The matplotlib figure object. Use plt.show() to display it.
+    :param trajectory: The trajectory object visualize.
+    :param scene: The Scene object used to get joint information.
+    :param plot_title: The title of the plot.
+    :return: The matplotlib figure object. Use ``matplotlib.pyplot.show()`` to display it.
     """
     plt.plot(trajectory.times, trajectory.positions)
     plt.xlabel("Time")
