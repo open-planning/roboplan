@@ -24,3 +24,30 @@ minimum-version = "build-system.requires"
 
 # Setuptools-style build caching in a local directory
 build-dir = "build/{wheel_tag}"
+
+# ---------------------------------------------------------------------------
+# cibuildwheel — produces manylinux_2_28 wheels for PyPI
+#
+# Only one Python version is built because the extension uses nanobind's
+# STABLE_ABI + NB_STATIC flags, which produce a cp310-abi3 wheel that is
+# compatible with Python 3.10 and all later versions.
+#
+# The before-all script:
+#   1. Installs micromamba and creates a conda-forge environment with the
+#      C++ build tools and runtime libraries (eigen, pinocchio, yaml-cpp …).
+#   2. Builds every roboplan sub-package and installs them to
+#      /opt/roboplan_deps so cmake can find them via CMAKE_PREFIX_PATH.
+#   roboplan_oink and roboplan_toppra use FetchContent fallbacks for
+#   osqp-eigen and libtoppra, so those are not listed in the conda env.
+#
+# auditwheel repair (run automatically by cibuildwheel) bundles all
+# non-manylinux shared libraries into the wheel, making it self-contained.
+# ---------------------------------------------------------------------------
+[tool.cibuildwheel]
+build = ["cp310-manylinux_x86_64"]
+manylinux-x86_64-image = "manylinux_2_28"
+before-all = "bash {project}/.github/scripts/build_roboplan_deps.sh {project}"
+
+[tool.cibuildwheel.environment]
+CMAKE_PREFIX_PATH = "/opt/roboplan_deps:/opt/cibw_env"
+LD_LIBRARY_PATH = "/opt/roboplan_deps/lib:/opt/cibw_env/lib:$LD_LIBRARY_PATH"
