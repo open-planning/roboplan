@@ -26,11 +26,16 @@ minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 
 # ---------------------------------------------------------------------------
-# cibuildwheel — produces manylinux_2_28 wheels for PyPI
+# cibuildwheel — produces manylinux_2_34 wheels for PyPI
 #
 # Only one Python version is built because the extension uses nanobind's
 # STABLE_ABI + NB_STATIC flags, which produce a cp310-abi3 wheel that is
 # compatible with Python 3.10 and all later versions.
+#
+# manylinux_2_34 (AlmaLinux 9, glibc 2.34) is required because the
+# conda-forge packages (pinocchio etc.) introduce symbols newer than
+# manylinux_2_28 can guarantee. glibc 2.34 = Ubuntu 22.04+, which is a
+# reasonable minimum for a C++20 + Pinocchio 3.9 project.
 #
 # The before-all script:
 #   1. Installs micromamba and creates a conda-forge environment with the
@@ -45,8 +50,9 @@ build-dir = "build/{wheel_tag}"
 # ---------------------------------------------------------------------------
 [tool.cibuildwheel]
 build = ["cp310-manylinux_x86_64"]
-manylinux-x86_64-image = "manylinux_2_28"
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_34_x86_64"
 before-all = "bash {project}/.github/scripts/build_roboplan_deps.sh {project}"
+repair-wheel-command = "auditwheel show {wheel}; auditwheel repair --plat {delocate_archs} -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.environment]
 CMAKE_PREFIX_PATH = "/opt/roboplan_deps:/opt/cibw_env"
