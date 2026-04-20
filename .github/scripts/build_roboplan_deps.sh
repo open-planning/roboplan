@@ -28,6 +28,7 @@ curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
   "gcc>=11,<12" "gxx>=11,<12" \
   "eigen>=3.4" \
   "pinocchio>=3.9.0,<4" \
+  "osqp-eigen>=0.11.0,<0.12" \
   "yaml-cpp>=0.8"
 
 CMAKE="$CONDA_ENV/bin/cmake"
