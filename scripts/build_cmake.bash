@@ -20,7 +20,7 @@ build_project() {
   cmake "${PROJECT_NAME}/CMakeLists.txt" \
     -B"build/${PROJECT_NAME}" \
     -DCMAKE_INSTALL_PREFIX="${PWD}/install/${PROJECT_NAME}"
-  cmake --build "build/${PROJECT_NAME}"
+  cmake --build "build/${PROJECT_NAME}" --parallel "$(nproc)"
   cmake --install "build/${PROJECT_NAME}"
 }
 
