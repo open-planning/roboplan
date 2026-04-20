@@ -19,11 +19,11 @@ def visualizeOcTree(
     """
     Helper function to visualize octree geometries on Viser.
 
-    :param viz: The viser visualizer instance.
-    :param octree_geometry: the octree geometry object
-    :param prefix: the prefix for geometry name
+    Args:
+        viz: The viser visualizer instance.
+        octree_geometry: the octree geometry object
+        prefix: the prefix for geometry name
     """
-
     name = octree_geometry.name
     if prefix:
         name = prefix + "/" + name
@@ -110,13 +110,14 @@ def visualizePath(
     """
     Helper function to visualize a sparse joint path in Cartesian space, using interpolation.
 
-    :param viz: The Viser visualizer instance.
-    :param scene: The scene instance.
-    :param path: The joint path to visualize.
-    :param frame_names: The list of frame names to use for forward kinematics.
-    :param max_step_size: The maximum step size between joint configurations when interpolating paths.
-    :param color: The color of the rendered path.
-    :param name: The name of the path in Viser.
+    Args:
+        viz: The Viser visualizer instance.
+        scene: The scene instance.
+        path: The joint path to visualize.
+        frame_names: The list of frame names to use for forward kinematics.
+        max_step_size: The maximum step size between joint configurations when interpolating paths.
+        color: The color of the rendered path.
+        name: The name of the path in Viser.
     """
     if path is None:
         return
@@ -156,12 +157,13 @@ def visualizeJointTrajectory(
     """
     Helper function to visualize a joint trajectory in Cartesian space.
 
-    :param viz: The Viser visualizer instance.
-    :param scene: The scene instance.
-    :param traj: The joint trajectory to visualize.
-    :param frame_names: The list of frame names to use for forward kinematics.
-    :param color: The color of the rendered trajectory.
-    :param name: The name of the trajectory in Viser.
+    Args:
+        viz: The Viser visualizer instance.
+        scene: The scene instance.
+        traj: The joint trajectory to visualize.
+        frame_names: The list of frame names to use for forward kinematics.
+        color: The color of the rendered trajectory.
+        name: The name of the trajectory in Viser.
     """
     if traj is None:
         return
@@ -199,15 +201,16 @@ def visualizeTree(
     """
     Helper function to visualize the start and goal trees from an RRT planner.
 
-    :param viz: The Viser visualizer instance.
-    :param scene: The scene instance.
-    :param rrt: The RRT planner instance.
-    :param frame_names: List of frame names to use for forward kinematics.
-    :param max_step_size: The maximum step size between joint configurations when interpolating paths.
-    :param start_tree_color: The color of the rendered start tree.
-    :param start_tree_name: The name of the start tree in Viser.
-    :param goal_tree_color: The color of the rendered goal tree.
-    :param goal_tree_name: The name of the goal tree in Viser.
+    Args:
+        viz: The Viser visualizer instance.
+        scene: The scene instance.
+        rrt: The RRT planner instance.
+        frame_names: List of frame names to use for forward kinematics.
+        max_step_size: The maximum step size between joint configurations when interpolating paths.
+        start_tree_color: The color of the rendered start tree.
+        start_tree_name: The name of the start tree in Viser.
+        goal_tree_color: The color of the rendered goal tree.
+        goal_tree_name: The name of the goal tree in Viser.
     """
     start_nodes, goal_nodes = rrt.getNodes()
 
@@ -259,10 +262,13 @@ def plotJointTrajectory(
     """
     Plot a joint trajectory of positions over time.
 
-    :param trajectory: The trajectory object to visualize.
-    :param scene: The Scene object used to get joint information.
-    :param plot_title: The title of the plot.
-    :return: The matplotlib figure object. Use ``matplotlib.pyplot.show()`` to display it.
+    Args:
+        trajectory: The trajectory object to visualize.
+        scene: The Scene object used to get joint information.
+        plot_title: The title of the plot.
+
+    Returns:
+        The matplotlib figure object. Use ``matplotlib.pyplot.show()`` to display it.
     """
     plt.plot(trajectory.times, trajectory.positions)
     plt.xlabel("Time")
