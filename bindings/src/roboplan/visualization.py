@@ -259,7 +259,7 @@ def plotJointTrajectory(
     """
     Plot a joint trajectory of positions over time.
 
-    :param trajectory: The trajectory object visualize.
+    :param trajectory: The trajectory object to visualize.
     :param scene: The Scene object used to get joint information.
     :param plot_title: The title of the plot.
     :return: The matplotlib figure object. Use ``matplotlib.pyplot.show()`` to display it.
