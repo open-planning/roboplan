@@ -1,77 +1,81 @@
 # RoboPlan clang-tidy configuration
 #
-# Performance checks: Enable all performance checks (inefficient algorithms, unnecessary copies, move semantics)
-# Modernization checks: C++11/14/17/20 features (nullptr, override, range-for, make_unique, etc.)
-# Bug prevention checks: Catches dangerous patterns (use-after-move, dangling references, assert side effects, etc.)
-# Readability checks: Code clarity (braces, naming, magic numbers, redundant operations, etc.)
-# C++ Core Guidelines: Best practices (no malloc, member init, narrowing conversions, object slicing, etc.)
-# Concurrency checks: Thread-unsafe function usage warnings
-
+# This configuration uses a wildcard approach: enable entire check categories,
+# then explicitly exclude noisy or impractical checks.
+#
+# Check categories enabled:
+# - bugprone-*: Catches dangerous patterns (use-after-move, dangling references, etc.)
+# - cert-*: Security checks from CERT Secure Coding Standards
+# - clang-analyzer-*: Deep path-sensitive static analysis
+# - concurrency-*: Thread-unsafe function usage warnings
+# - cppcoreguidelines-*: C++ Core Guidelines best practices
+# - misc-*: Miscellaneous useful checks
+# - modernize-*: C++11/14/17/20 features (nullptr, override, auto, etc.)
+# - performance-*: Efficiency improvements (unnecessary copies, move semantics)
+# - portability-*: Cross-platform compatibility
+# - readability-*: Code clarity (braces, naming, magic numbers, etc.)
+#
+# Checks are excluded when they:
+# - Generate excessive false positives
+# - Conflict with necessary C++ patterns
+# - Are too restrictive for practical development
+#
 ---
 Checks: '-*,
+bugprone-*,
+-bugprone-easily-swappable-parameters,
+-bugprone-narrowing-conversions,
+cert-*,
+-cert-err58-cpp,
+clang-analyzer-*,
+concurrency-*,
+cppcoreguidelines-*,
+-cppcoreguidelines-avoid-c-arrays,
+-cppcoreguidelines-avoid-magic-numbers,
+-cppcoreguidelines-avoid-non-const-global-variables,
+-cppcoreguidelines-narrowing-conversions,
+-cppcoreguidelines-non-private-member-variables-in-classes,
+-cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+-cppcoreguidelines-pro-bounds-constant-array-index,
+-cppcoreguidelines-pro-bounds-pointer-arithmetic,
+-cppcoreguidelines-pro-type-const-cast,
+-cppcoreguidelines-pro-type-union-access,
+-cppcoreguidelines-pro-type-vararg,
+misc-*,
+-misc-include-cleaner,
+-misc-no-recursion,
+-misc-non-private-member-variables-in-classes,
+modernize-*,
+-modernize-use-trailing-return-type,
 performance-*,
 -performance-enum-size,
-llvm-namespace-comment,
-modernize-redundant-void-arg,
-modernize-use-nullptr,
-modernize-use-default,
-modernize-use-override,
-modernize-loop-convert,
-modernize-make-shared,
-modernize-make-unique,
-modernize-avoid-bind,
-modernize-use-auto,
-modernize-use-emplace,
-modernize-concat-nested-namespaces,
-modernize-use-using,
-modernize-use-nodiscard,
-modernize-return-braced-init-list,
-bugprone-argument-comment,
-bugprone-assert-side-effect,
-bugprone-copy-constructor-init,
-bugprone-dangling-handle,
-bugprone-exception-escape,
-bugprone-fold-init-type,
-bugprone-forward-declaration-namespace,
-bugprone-move-forwarding-reference,
-bugprone-suspicious-include,
-bugprone-use-after-move,
-bugprone-virtual-near-miss,
-misc-unused-parameters,
-readability-braces-around-statements,
-readability-named-parameter,
-readability-redundant-smartptr-get,
-readability-redundant-string-cstr,
-readability-simplify-boolean-expr,
-readability-container-size-empty,
-# readability-identifier-naming,
-readability-static-definition-in-anonymous-namespace,
-readability-else-after-return,
-#readability-magic-numbers,
-readability-const-return-type,
-readability-inconsistent-declaration-parameter-name,
-readability-uppercase-literal-suffix,
-cppcoreguidelines-avoid-const-or-ref-data-members,
-cppcoreguidelines-avoid-goto,
-cppcoreguidelines-interfaces-global-init,
-#cppcoreguidelines-narrowing-conversions,
-cppcoreguidelines-no-malloc,
-cppcoreguidelines-owning-memory,
-cppcoreguidelines-pro-type-member-init,
-cppcoreguidelines-slicing,
-concurrency-mt-unsafe'
+portability-*,
+readability-*,
+-readability-function-cognitive-complexity,
+-readability-identifier-length,
+llvm-namespace-comment'
 
-HeaderFilterRegex: ''
+HeaderFilterRegex: '(roboplan[^/]*/(?!.*/(tinyxml2|tl|dynotree|roboplan_ext)/).*|external/toppra/cpp/.*)\.(h|hpp)$'
 
 CheckOptions:
+  # Namespace comments
   - key:             llvm-namespace-comment.ShortNamespaceLines
     value:           '10'
   - key:             llvm-namespace-comment.SpacesBeforeComments
     value:           '2'
+
+  # Unused parameters
   - key:             misc-unused-parameters.StrictMode
     value:           '1'
+
+  # Braces around statements
   - key:             readability-braces-around-statements.ShortStatementLines
     value:           '2'
+
+  # Allow shared_ptr to be passed by value (ownership transfer pattern)
+  - key:             performance-unnecessary-value-param.AllowedTypes
+    value:           'std::shared_ptr'
+
   # Type names (classes, structs, enums, unions) use PascalCase
   - key:             readability-identifier-naming.ClassCase
     value:           CamelCase
@@ -85,11 +89,13 @@ CheckOptions:
     value:           CamelCase
   - key:             readability-identifier-naming.TypeAliasCase
     value:           CamelCase
+
   # Function and method names use camelCase (starting with lowercase)
   - key:             readability-identifier-naming.FunctionCase
     value:           camelBack
   - key:             readability-identifier-naming.MethodCase
     value:           camelBack
+
   # Variable names use snake_case
   - key:             readability-identifier-naming.VariableCase
     value:           lower_case
@@ -97,17 +103,21 @@ CheckOptions:
     value:           lower_case
   - key:             readability-identifier-naming.LocalVariableCase
     value:           lower_case
+
   # Private and protected member variables have trailing underscore
   - key:             readability-identifier-naming.ProtectedMemberSuffix
     value:           '_'
   - key:             readability-identifier-naming.PrivateMemberSuffix
     value:           '_'
+
   # Public member variables use snake_case (no underscore suffix)
   - key:             readability-identifier-naming.PublicMemberCase
     value:           lower_case
+
   # Enum constants use UPPER_CASE
   - key:             readability-identifier-naming.EnumConstantCase
     value:           UPPER_CASE
+
   # Global and static constants use Google style: k prefix + PascalCase
   - key:             readability-identifier-naming.GlobalConstantCase
     value:           CamelCase
@@ -117,12 +127,15 @@ CheckOptions:
     value:           CamelCase
   - key:             readability-identifier-naming.StaticConstantPrefix
     value:           'k'
+
   # Const class members (like const double gain = 1.0) use snake_case
   - key:             readability-identifier-naming.ConstantMemberCase
     value:           lower_case
+
   # Namespace names use snake_case
   - key:             readability-identifier-naming.NamespaceCase
     value:           lower_case
+
   # Magic numbers configuration
   - key:             readability-magic-numbers.IgnoredIntegerValues
     value:           '0;1;2;-1'
