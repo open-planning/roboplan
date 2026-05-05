@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 import hppfcl
 import numpy as np
@@ -97,19 +96,26 @@ class RobotModelConfig:
 
     urdf_path: Path
     """The path to the URDF file."""
+
     srdf_path: Path
     """The path to the SRDF file."""
+
     yaml_config_path: Path
     """The path to the YAML config file."""
+
     default_joint_group: str
     """The default joint group name."""
-    ee_names: List[str]
+
+    ee_names: list[str]
     """The names of the end effector frames."""
+
     base_link: str
     """The robot's base link."""
-    starting_joint_config: List[float]
+
+    starting_joint_config: list[float]
     """The starting joint configuration of the robot."""
-    obstacles: List[ObstacleConfig]
+
+    obstacles: list[ObstacleConfig]
     """Configurations for the obstacles in the example scene."""
 
 
