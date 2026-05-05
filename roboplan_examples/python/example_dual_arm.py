@@ -2,7 +2,7 @@
 
 import xacro
 
-from common import MODELS
+from common import get_model_data
 from roboplan.core import Scene
 from roboplan.example_models import get_package_share_dir
 
@@ -10,7 +10,7 @@ from roboplan.example_models import get_package_share_dir
 if __name__ == "__main__":
 
     model = "dual"
-    model_data = MODELS[model]
+    model_data = get_model_data()[model]
 
     urdf = xacro.process_file(model_data.urdf_path).toxml()
     srdf = xacro.process_file(model_data.srdf_path).toxml()

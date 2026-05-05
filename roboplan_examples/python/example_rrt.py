@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
 
-from common import MODELS
+from common import get_model_data, get_octree
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
@@ -64,12 +64,12 @@ def main(
         include_obstacles: Whether or not to include additional obstacles in the scene. Don't use with `include_octrees` argument
         include_octrees: Whether or not to include additional octrees in the scene. Don't use with `include_obstacles` argument
     """
-
-    if model not in MODELS:
+    model_data = get_model_data().get(model)
+    if model_data is None:
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    model_data = MODELS[model]
+    model_data = get_model_data()[model]
     package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.
@@ -109,12 +109,11 @@ def main(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
     if include_octrees:
-        for obstacle in model_data.octrees:
-            obstacle.addToScene(scene)
-
-            geom_obj = obstacle.createGeometryObject(model)
-            visualizeOcTree(viz, geom_obj, viz.collisionRootNodeName)
-            visualizeOcTree(viz, geom_obj, viz.visualRootNodeName)
+        obstacle = get_octree()
+        obstacle.addToScene(scene)
+        geom_obj = obstacle.createGeometryObject(model)
+        visualizeOcTree(viz, geom_obj, viz.collisionRootNodeName)
+        visualizeOcTree(viz, geom_obj, viz.visualRootNodeName)
 
     # Set up an RRT and perform path planning.
     options = RRTOptions(

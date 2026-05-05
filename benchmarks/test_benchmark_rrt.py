@@ -13,7 +13,7 @@ from pathlib import Path
 examples_dir = Path(__file__).parent.parent / "roboplan_examples" / "python"
 sys.path.insert(0, str(examples_dir))
 
-from common import MODELS
+from common import get_model_data
 
 
 def solve(scene: Scene, rrt: RRT, seed: int = 1234):
@@ -54,7 +54,7 @@ def solve_many(scene: Scene, rrt: RRT, iterations: int = 10, seed: int = 1234):
 
 
 def create_scene(model_name: str) -> Scene:
-    model_data = MODELS[model_name]
+    model_data = get_model_data()[model_name]
     package_paths = [get_package_share_dir()]
 
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()

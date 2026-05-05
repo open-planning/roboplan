@@ -8,45 +8,30 @@ from numpy.typing import NDArray
 import pinocchio as pin
 
 from roboplan.core import Box, Scene, Sphere, OcTree
-from roboplan.example_models import get_package_models_dir, get_package_share_dir
-from plyfile import PlyData
-import os
-
-
-def load_point_cloud(pointcloud_path=None, voxel_resolution=0.04):
-    """
-    Loads a point cloud from a PLY file and converts it into an octree structure.
-
-    Returns
-    -------
-    octree : hppfcl.Octree
-        An octree data structure representing the hierarchical spatial partitioning
-        of the point cloud. The voxel resolution default value is set to 0.04 units.
-    """
-
-    # Read the PLY file
-    ply_data = PlyData.read(pointcloud_path)
-
-    # Access vertex data
-    vertices = ply_data["vertex"]
-    vertex_array = np.array([vertices["x"], vertices["y"], vertices["z"]]).T
-    octree = hppfcl.makeOctree(vertex_array, voxel_resolution)
-
-    return octree
+from roboplan.example_models import get_package_models_dir
 
 
 @dataclass
 class ObstacleConfig:
     """Configuration for obstacles in an example."""
 
-    name: str  # Name of the obstacle.
-    geom: hppfcl.ShapeBase  # The obstacle geometry.
-    parent_frame: str  # The name of the parent frame.
-    tform: NDArray  # The transform from parent frame to the geometry.
-    color: NDArray  # The geometry color.
-    disabled_collisions: list[str] | None = (
-        None  # Optional list of disabled collision bodies.
-    )
+    name: str
+    """Name of the obstacle."""
+
+    geom: hppfcl.ShapeBase
+    """The obstacle geometry."""
+
+    parent_frame: str
+    """The name of the parent frame."""
+
+    tform: NDArray
+    """The transform from parent frame to the geometry."""
+
+    color: NDArray
+    """The geometry color, in RGBA format."""
+
+    disabled_collisions: list[str] | None = None
+    """Optional list of disabled collision bodies."""
 
     def addToScene(self, scene: Scene) -> None:
         """Helper function to add the obstacle to the scene."""
@@ -108,260 +93,297 @@ class ObstacleConfig:
 
 @dataclass
 class RobotModelConfig:
-    """
-    Configuration for a robot model including file paths and parameters.
-
-    Entries:
-      - The URDF path.
-      - The SRDF path.
-      - The YAML config file path.
-      - The default joint group name.
-      - The end-effector name.
-      - The robot's base link.
-      - The starting joint configuration of the robot.
-    """
+    """Configuration for a robot model including file paths and parameters."""
 
     urdf_path: Path
+    """The path to the URDF file."""
     srdf_path: Path
+    """The path to the SRDF file."""
     yaml_config_path: Path
+    """The path to the YAML config file."""
     default_joint_group: str
+    """The default joint group name."""
     ee_names: List[str]
+    """The names of the end effector frames."""
     base_link: str
+    """The robot's base link."""
     starting_joint_config: List[float]
+    """The starting joint configuration of the robot."""
     obstacles: List[ObstacleConfig]
-    octrees: List[ObstacleConfig]
+    """Configurations for the obstacles in the example scene."""
 
 
 # Base directory for all robot models
 ROBOPLAN_MODELS_DIR = get_package_models_dir()
 
-POINTCLOUDS = [
-    ObstacleConfig(
+
+def get_model_data():
+    """Returns example model data."""
+    return {
+        "ur5": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_gripper.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_gripper.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_config.yaml",
+            default_joint_group="arm",
+            ee_names=["tool0"],
+            base_link="base",
+            starting_joint_config=[
+                0.0,
+                -np.pi / 2,
+                np.pi / 2,
+                -np.pi / 2,
+                -np.pi / 2,
+                0.0,
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=hppfcl.Box(0.5, 0.5, 0.5),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="test_sphere",
+                    geom=hppfcl.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                    disabled_collisions=["test_box"],
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=hppfcl.Box(1.5, 1.5, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=["base_link", "test_box", "test_sphere"],
+                ),
+            ],
+        ),
+        "franka": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "franka_robot_model"
+            / "fr3_config.yaml",
+            default_joint_group="fr3_arm",
+            ee_names=["fr3_hand"],
+            base_link="fr3_link0",
+            starting_joint_config=[
+                0.0,
+                -np.pi / 4,
+                0.0,
+                -3 * np.pi / 4,
+                0.0,
+                np.pi / 2,
+                np.pi / 4,
+                0.04,
+                0.04,
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=hppfcl.Box(1.0, 1.0, 0.5),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="test_sphere",
+                    geom=hppfcl.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                    disabled_collisions=["test_box"],
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=hppfcl.Box(1.5, 1.5, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=["fr3_link0", "test_box", "test_sphere"],
+                ),
+            ],
+        ),
+        "dual": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "dual_fr3.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "dual_fr3.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "franka_robot_model"
+            / "dual_fr3_config.yaml",
+            default_joint_group="dual_fr3_arm",
+            ee_names=["left_fr3_hand", "right_fr3_hand"],
+            base_link="left_fr3_link0",
+            starting_joint_config=[
+                # Left arm
+                0.0,
+                -np.pi / 4,
+                0.0,
+                -3 * np.pi / 4,
+                0.0,
+                np.pi / 2,
+                np.pi / 4,
+                0.04,
+                0.04,
+                # Right arm
+                0.0,
+                -np.pi / 4,
+                0.0,
+                -3 * np.pi / 4,
+                0.0,
+                np.pi / 2,
+                np.pi / 4,
+                0.04,
+                0.04,
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=hppfcl.Box(1.0, 1.0, 0.5),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=hppfcl.Box(2.0, 2.0, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=[
+                        "left_fr3_link0",
+                        "right_fr3_link0",
+                        "test_box",
+                    ],
+                ),
+            ],
+        ),
+        "kinova": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR
+            / "kinova_robot_model"
+            / "kinova_robotiq.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR
+            / "kinova_robot_model"
+            / "kinova_robotiq.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "kinova_robot_model"
+            / "kinova_robotiq_config.yaml",
+            default_joint_group="manipulator",
+            ee_names=["robotiq_85_base_link"],
+            base_link="base_link",
+            starting_joint_config=[
+                # Default pose (17 values for nq=17 with quaternion joints)
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=hppfcl.Box(1.0, 1.0, 0.5),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="test_sphere",
+                    geom=hppfcl.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                    disabled_collisions=["test_box"],
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=hppfcl.Box(1.5, 1.5, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=["base_link", "test_box", "test_sphere"],
+                ),
+            ],
+        ),
+        "so101": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR / "so101_robot_model" / "so101.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "so101_robot_model" / "so101.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "so101_robot_model"
+            / "so101_config.yaml",
+            default_joint_group="arm",
+            ee_names=["gripper_link"],
+            base_link="base_link",
+            starting_joint_config=[0.0, -np.pi / 4, 0.0, -np.pi / 2, 0.0, np.pi / 4],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=hppfcl.Box(0.25, 0.25, 0.25),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.5])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=hppfcl.Box(0.5, 0.5, 0.1),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.05])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=["base_link", "test_box"],
+                ),
+            ],
+        ),
+    }
+
+
+def load_octree_from_point_cloud(pointcloud_path: Path, voxel_resolution: float = 0.04):
+    """
+    Loads a point cloud from a PLY file and converts it into an octree structure.
+
+    Args:
+        pointcloud_path: The path to the point cloud.
+        voxel_resolution: The voxel resolution, in meters.
+
+    Returns:
+        An octree data structure representing the hierarchical spatial partitioning
+        of the point cloud.
+    """
+    from plyfile import PlyData  # Lazy import to not require plyfile
+
+    # Read the PLY file
+    ply_data = PlyData.read(pointcloud_path)
+
+    # Access vertex data
+    vertices = ply_data["vertex"]
+    vertex_array = np.array([vertices["x"], vertices["y"], vertices["z"]]).T
+    octree = hppfcl.makeOctree(vertex_array, voxel_resolution)
+
+    return octree
+
+
+def get_octree():
+    """Returns example octree."""
+    return ObstacleConfig(
         name="octree_cloud",
-        geom=load_point_cloud(
+        geom=load_octree_from_point_cloud(
             ROBOPLAN_MODELS_DIR / "pointclouds" / "example_point_cloud.ply",
             0.04,  # resolution
         ),
         parent_frame="universe",
         tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.0])).homogeneous,
         color=np.array([0.251, 0.878, 0.816, 1.0]),
-    ),
-]
-
-MODELS = {
-    "ur5": RobotModelConfig(
-        urdf_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_gripper.urdf",
-        srdf_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_gripper.srdf",
-        yaml_config_path=ROBOPLAN_MODELS_DIR / "ur_robot_model" / "ur5_config.yaml",
-        default_joint_group="arm",
-        ee_names=["tool0"],
-        base_link="base",
-        starting_joint_config=[0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0],
-        octrees=POINTCLOUDS,
-        obstacles=[
-            ObstacleConfig(
-                name="test_box",
-                geom=hppfcl.Box(0.5, 0.5, 0.5),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
-                color=np.array([0.0, 0.0, 1.0, 0.5]),
-            ),
-            ObstacleConfig(
-                name="test_sphere",
-                geom=hppfcl.Sphere(0.3),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
-                color=np.array([1.0, 0.0, 0.0, 0.5]),
-                disabled_collisions=["test_box"],
-            ),
-            ObstacleConfig(
-                name="ground_plane",
-                geom=hppfcl.Box(1.5, 1.5, 0.2),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
-                color=np.array([0.5, 0.5, 0.5, 0.5]),
-                disabled_collisions=["base_link", "test_box", "test_sphere"],
-            ),
-        ],
-    ),
-    "franka": RobotModelConfig(
-        urdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3.urdf",
-        srdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3.srdf",
-        yaml_config_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "fr3_config.yaml",
-        default_joint_group="fr3_arm",
-        ee_names=["fr3_hand"],
-        base_link="fr3_link0",
-        starting_joint_config=[
-            0.0,
-            -np.pi / 4,
-            0.0,
-            -3 * np.pi / 4,
-            0.0,
-            np.pi / 2,
-            np.pi / 4,
-            0.04,
-            0.04,
-        ],
-        octrees=POINTCLOUDS,
-        obstacles=[
-            ObstacleConfig(
-                name="test_box",
-                geom=hppfcl.Box(1.0, 1.0, 0.5),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
-                color=np.array([0.0, 0.0, 1.0, 0.5]),
-            ),
-            ObstacleConfig(
-                name="test_sphere",
-                geom=hppfcl.Sphere(0.3),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
-                color=np.array([1.0, 0.0, 0.0, 0.5]),
-                disabled_collisions=["test_box"],
-            ),
-            ObstacleConfig(
-                name="ground_plane",
-                geom=hppfcl.Box(1.5, 1.5, 0.2),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
-                color=np.array([0.5, 0.5, 0.5, 0.5]),
-                disabled_collisions=["fr3_link0", "test_box", "test_sphere"],
-            ),
-        ],
-    ),
-    "dual": RobotModelConfig(
-        urdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "dual_fr3.urdf",
-        srdf_path=ROBOPLAN_MODELS_DIR / "franka_robot_model" / "dual_fr3.srdf",
-        yaml_config_path=ROBOPLAN_MODELS_DIR
-        / "franka_robot_model"
-        / "dual_fr3_config.yaml",
-        default_joint_group="dual_fr3_arm",
-        ee_names=["left_fr3_hand", "right_fr3_hand"],
-        base_link="left_fr3_link0",
-        starting_joint_config=[
-            # Left arm
-            0.0,
-            -np.pi / 4,
-            0.0,
-            -3 * np.pi / 4,
-            0.0,
-            np.pi / 2,
-            np.pi / 4,
-            0.04,
-            0.04,
-            # Right arm
-            0.0,
-            -np.pi / 4,
-            0.0,
-            -3 * np.pi / 4,
-            0.0,
-            np.pi / 2,
-            np.pi / 4,
-            0.04,
-            0.04,
-        ],
-        octrees=POINTCLOUDS,
-        obstacles=[
-            ObstacleConfig(
-                name="test_box",
-                geom=hppfcl.Box(1.0, 1.0, 0.5),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
-                color=np.array([0.0, 0.0, 1.0, 0.5]),
-            ),
-            ObstacleConfig(
-                name="ground_plane",
-                geom=hppfcl.Box(2.0, 2.0, 0.2),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
-                color=np.array([0.5, 0.5, 0.5, 0.5]),
-                disabled_collisions=["left_fr3_link0", "right_fr3_link0", "test_box"],
-            ),
-        ],
-    ),
-    "kinova": RobotModelConfig(
-        urdf_path=ROBOPLAN_MODELS_DIR / "kinova_robot_model" / "kinova_robotiq.urdf",
-        srdf_path=ROBOPLAN_MODELS_DIR / "kinova_robot_model" / "kinova_robotiq.srdf",
-        yaml_config_path=ROBOPLAN_MODELS_DIR
-        / "kinova_robot_model"
-        / "kinova_robotiq_config.yaml",
-        default_joint_group="manipulator",
-        ee_names=["robotiq_85_base_link"],
-        base_link="base_link",
-        starting_joint_config=[
-            # Default pose (17 values for nq=17 with quaternion joints)
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ],
-        octrees=POINTCLOUDS,
-        obstacles=[
-            ObstacleConfig(
-                name="test_box",
-                geom=hppfcl.Box(1.0, 1.0, 0.5),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
-                color=np.array([0.0, 0.0, 1.0, 0.5]),
-            ),
-            ObstacleConfig(
-                name="test_sphere",
-                geom=hppfcl.Sphere(0.3),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
-                color=np.array([1.0, 0.0, 0.0, 0.5]),
-                disabled_collisions=["test_box"],
-            ),
-            ObstacleConfig(
-                name="ground_plane",
-                geom=hppfcl.Box(1.5, 1.5, 0.2),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
-                color=np.array([0.5, 0.5, 0.5, 0.5]),
-                disabled_collisions=["base_link", "test_box", "test_sphere"],
-            ),
-        ],
-    ),
-    "so101": RobotModelConfig(
-        urdf_path=ROBOPLAN_MODELS_DIR / "so101_robot_model" / "so101.urdf",
-        srdf_path=ROBOPLAN_MODELS_DIR / "so101_robot_model" / "so101.srdf",
-        yaml_config_path=ROBOPLAN_MODELS_DIR
-        / "so101_robot_model"
-        / "so101_config.yaml",
-        default_joint_group="arm",
-        ee_names=["gripper_link"],
-        base_link="base_link",
-        starting_joint_config=[0.0, -np.pi / 4, 0.0, -np.pi / 2, 0.0, np.pi / 4],
-        octrees=POINTCLOUDS,
-        obstacles=[
-            ObstacleConfig(
-                name="test_box",
-                geom=hppfcl.Box(0.25, 0.25, 0.25),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.5])).homogeneous,
-                color=np.array([0.0, 0.0, 1.0, 0.5]),
-            ),
-            ObstacleConfig(
-                name="ground_plane",
-                geom=hppfcl.Box(0.5, 0.5, 0.1),
-                parent_frame="universe",
-                tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.05])).homogeneous,
-                color=np.array([0.5, 0.5, 0.5, 0.5]),
-                disabled_collisions=["base_link", "test_box"],
-            ),
-        ],
-    ),
-}
+    )

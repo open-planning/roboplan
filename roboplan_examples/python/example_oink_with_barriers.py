@@ -10,7 +10,7 @@ import numpy as np
 import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
 
-from common import MODELS
+from common import get_model_data
 from roboplan.filters import SE3LowPassFilter
 from roboplan.core import Scene, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
@@ -71,8 +71,8 @@ def main(
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
-
-    if model not in MODELS:
+    model_data = get_model_data().get(model)
+    if model_data is None:
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
@@ -80,7 +80,7 @@ def main(
         print(f"Invalid reference_filter_tau: {reference_filter_tau} (must be >= 0)")
         sys.exit(1)
 
-    model_data = MODELS[model]
+    model_data = get_model_data()[model]
     package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.
