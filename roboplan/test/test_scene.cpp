@@ -199,6 +199,76 @@ TEST_F(RoboPlanSceneTest, TestCollisionGeometry) {
   ASSERT_FALSE(scene_->hasCollisions(q));
 }
 
+TEST_F(RoboPlanSceneTest, TestCollisionGeometryRemoveReaddReparent) {
+  const auto color = Eigen::Vector4d(0.5, 0.5, 0.5, 0.5);
+  const std::vector<std::string> box_names = {"test_box_1", "test_box_2", "test_box_3"};
+
+  // Verifies that the scene's internal collision_geometry_map_ and the underlying pinocchio
+  // collision model agree on the geometry's index, parent frame, and parent joint.
+  auto verify_geometry = [&](const std::string& name, const std::string& expected_parent_frame) {
+    // Index reported by the scene's internal collision_geometry_map_.
+    const auto maybe_scene_ids = scene_->getCollisionGeometryIds(name);
+    ASSERT_TRUE(maybe_scene_ids.has_value()) << maybe_scene_ids.error();
+    ASSERT_EQ(maybe_scene_ids.value().size(), 1u);
+    const auto scene_idx = maybe_scene_ids.value().front();
+
+    // Index reported by the pinocchio collision model.
+    const auto& collision_model = scene_->getCollisionModel();
+    ASSERT_TRUE(collision_model.existGeometryName(name));
+    const auto pinocchio_idx = collision_model.getGeometryId(name);
+    EXPECT_EQ(scene_idx, pinocchio_idx);
+
+    // The geometry object at that index should report the expected parent frame and joint.
+    const auto& geom_obj = collision_model.geometryObjects.at(pinocchio_idx);
+    EXPECT_EQ(geom_obj.name, name);
+
+    const auto maybe_frame_id = scene_->getFrameId(expected_parent_frame);
+    ASSERT_TRUE(maybe_frame_id.has_value()) << maybe_frame_id.error();
+    const auto expected_frame_id = maybe_frame_id.value();
+    const auto expected_joint_id = scene_->getModel().frames.at(expected_frame_id).parentJoint;
+    EXPECT_EQ(geom_obj.parentFrame, expected_frame_id);
+    EXPECT_EQ(geom_obj.parentJoint, expected_joint_id);
+  };
+
+  Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
+
+  // Add 3 boxes parented to "universe".
+  for (size_t i = 0; i < box_names.size(); ++i) {
+    tform(2, 3) = 1.0 + 0.1 * static_cast<double>(i);
+    const auto add_result =
+        scene_->addBoxGeometry(box_names[i], "universe", Box(0.1, 0.1, 0.1), tform, color);
+    ASSERT_TRUE(add_result.has_value()) << add_result.error();
+  }
+  for (const auto& name : box_names) {
+    verify_geometry(name, "universe");
+  }
+
+  // Remove all boxes and re-add them. The internal index map must be re-shifted on each removal
+  // to stay in sync with pinocchio, which renumbers indices after removals.
+  for (const auto& name : box_names) {
+    const auto remove_result = scene_->removeGeometry(name);
+    ASSERT_TRUE(remove_result.has_value()) << remove_result.error();
+  }
+  for (size_t i = 0; i < box_names.size(); ++i) {
+    tform(2, 3) = 1.0 + 0.1 * static_cast<double>(i);
+    const auto add_result =
+        scene_->addBoxGeometry(box_names[i], "universe", Box(0.1, 0.1, 0.1), tform, color);
+    ASSERT_TRUE(add_result.has_value()) << add_result.error();
+  }
+  for (const auto& name : box_names) {
+    verify_geometry(name, "universe");
+  }
+
+  // Reparent each box to "tool0".
+  for (const auto& name : box_names) {
+    const auto update_result = scene_->updateGeometryPlacement(name, "tool0", tform);
+    ASSERT_TRUE(update_result.has_value()) << update_result.error();
+  }
+  for (const auto& name : box_names) {
+    verify_geometry(name, "tool0");
+  }
+}
+
 TEST_F(RoboPlanSceneTest, TestCollisionForOcTreeGeometry) {
   // Nominally, this configuration is collision free.
   Eigen::VectorXd q(6);
