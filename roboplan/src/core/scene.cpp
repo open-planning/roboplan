@@ -694,10 +694,10 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
     return tl::make_unexpected("Could not find object '" + name + "' to remove.");
   }
 
-  // Update all the indices that came after since Pinocchio shifts them down when an object is
-  // removed.
+  // Update all the collision object indices that came after the current object,
+  // since Pinocchio shifts them down when an object is removed.
   const auto old_geom_idx = it->second;
-  for (auto& [name, index] : collision_geometry_map_) {
+  for (auto& [other_name, index] : collision_geometry_map_) {
     if (index > old_geom_idx) {
       --index;
     }
