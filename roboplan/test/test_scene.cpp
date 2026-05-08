@@ -303,13 +303,13 @@ TEST_F(RoboPlanSceneTest, TestCollisionForMeshGeometry) {
   // Place both meshes overlapping the robot base so they are in collision.
   Eigen::Matrix4d in_collision_tform = Eigen::Matrix4d::Identity();
 
-  const auto add_stl_result = scene_->addMeshGeometry(
-      "test_stl_mesh", "universe", Mesh(stl_path.string()), in_collision_tform, color);
+  const auto add_stl_result = scene_->addMeshGeometry("test_stl_mesh", "universe", Mesh(stl_path),
+                                                      in_collision_tform, color);
   ASSERT_TRUE(add_stl_result.has_value()) << add_stl_result.error();
   ASSERT_TRUE(scene_->hasCollisions(q));
 
-  const auto add_dae_result = scene_->addMeshGeometry(
-      "test_dae_mesh", "universe", Mesh(dae_path.string()), in_collision_tform, color);
+  const auto add_dae_result = scene_->addMeshGeometry("test_dae_mesh", "universe", Mesh(dae_path),
+                                                      in_collision_tform, color);
   ASSERT_TRUE(add_dae_result.has_value()) << add_dae_result.error();
   ASSERT_TRUE(scene_->hasCollisions(q));
 

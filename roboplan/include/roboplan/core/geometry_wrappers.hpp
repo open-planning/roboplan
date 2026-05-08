@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include <hpp/fcl/BVH/BVH_model.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/octree.h>
@@ -50,9 +52,10 @@ struct Mesh {
   /// @brief Construct a Mesh object wrapper by loading from a mesh file (e.g. STL, OBJ, DAE).
   /// @param filename Path to the mesh file to load.
   /// @param scale Per-axis scale factors applied to the loaded mesh. Defaults to (1, 1, 1).
-  Mesh(const std::string& filename, const Eigen::Vector3d& scale = Eigen::Vector3d::Ones()) {
+  Mesh(const std::filesystem::path& filename,
+       const Eigen::Vector3d& scale = Eigen::Vector3d::Ones()) {
     hpp::fcl::MeshLoader loader;
-    geom_ptr = loader.load(filename, scale);
+    geom_ptr = loader.load(filename.string(), scale);
   };
 
   /// @brief Construct a Mesh object wrapper from a pre-loaded Coal BVH model.

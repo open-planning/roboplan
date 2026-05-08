@@ -212,12 +212,12 @@ def test_collision_mesh_geometry(test_scene: Scene) -> None:
     # Place both meshes overlapping the robot base so they are in collision.
     in_collision_tform = np.eye(4)
     test_scene.addMeshGeometry(
-        "test_stl_mesh", "universe", Mesh(str(stl_path)), in_collision_tform, color
+        "test_stl_mesh", "universe", Mesh(stl_path), in_collision_tform, color
     )
     assert test_scene.hasCollisions(q)
 
     test_scene.addMeshGeometry(
-        "test_dae_mesh", "universe", Mesh(str(dae_path)), in_collision_tform, color
+        "test_dae_mesh", "universe", Mesh(dae_path), in_collision_tform, color
     )
     assert test_scene.hasCollisions(q)
 

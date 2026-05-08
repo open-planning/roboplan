@@ -137,7 +137,7 @@ void init_core_geometry_wrappers(nanobind::module_& m) {
       .def(nanobind::init<const double, const double>(), "radius"_a, "length"_a);
   nanobind::class_<Mesh>(m, "Mesh",
                          "Temporary wrapper struct to represent a triangle mesh geometry.")
-      .def(nanobind::init<const std::string&, const Eigen::Vector3d&>(), "filename"_a,
+      .def(nanobind::init<const std::filesystem::path&, const Eigen::Vector3d&>(), "filename"_a,
            "scale"_a = Eigen::Vector3d::Ones());
   nanobind::class_<OcTree>(m, "OcTree", "Temporary wrapper struct to represent a octree geometry.")
       .def(nanobind::init<const std::vector<Eigen::Matrix<double, 6, 1>>&, const double>(),

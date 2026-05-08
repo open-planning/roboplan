@@ -312,7 +312,7 @@ class Cylinder:
 class Mesh:
     """Temporary wrapper struct to represent a triangle mesh geometry."""
 
-    def __init__(self, filename: str, scale: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
+    def __init__(self, filename: str | os.PathLike, scale: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
 
 class OcTree:
     """Temporary wrapper struct to represent a octree geometry."""
