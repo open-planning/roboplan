@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 import pinocchio as pin
 
-from roboplan.core import Box, Scene, Sphere, OcTree
+from roboplan.core import Box, Cylinder, Mesh, Scene, Sphere, OcTree
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
 from plyfile import PlyData
 import os
@@ -40,7 +40,7 @@ class ObstacleConfig:
     """Configuration for obstacles in an example."""
 
     name: str  # Name of the obstacle.
-    geom: hppfcl.ShapeBase  # The obstacle geometry.
+    geom: hppfcl.ShapeBase | Path  # The obstacle geometry, or a path to a mesh.
     parent_frame: str  # The name of the parent frame.
     tform: NDArray  # The transform from parent frame to the geometry.
     color: NDArray  # The geometry color.
@@ -50,7 +50,15 @@ class ObstacleConfig:
 
     def addToScene(self, scene: Scene) -> None:
         """Helper function to add the obstacle to the scene."""
-        if isinstance(self.geom, hppfcl.Box):
+        if isinstance(self.geom, Path):  # Special case for meshes
+            scene.addMeshGeometry(
+                self.name,
+                self.parent_frame,
+                Mesh(self.geom),
+                self.tform,
+                self.color,
+            )
+        elif isinstance(self.geom, hppfcl.Box):
             x, y, z = self.geom.halfSide * 2.0
             scene.addBoxGeometry(
                 self.name,
@@ -64,6 +72,14 @@ class ObstacleConfig:
                 self.name,
                 self.parent_frame,
                 Sphere(self.geom.radius),
+                self.tform,
+                self.color,
+            )
+        elif isinstance(self.geom, hppfcl.Cylinder):
+            scene.addCylinderGeometry(
+                self.name,
+                self.parent_frame,
+                Cylinder(self.geom.radius, self.geom.halfLength * 2.0),
                 self.tform,
                 self.color,
             )
@@ -96,13 +112,21 @@ class ObstacleConfig:
         visual_model.addGeometryObject(geom_obj)
 
     def createGeometryObject(self, model: pin.Model):
+        if isinstance(self.geom, Path):  # Special case for meshes
+            loader = hppfcl.MeshLoader()
+            geom = loader.load(str(self.geom))
+        else:
+            geom = self.geom
+
         geom_obj = pin.GeometryObject(
             self.name,
             model.getFrameId(self.parent_frame),
             pin.SE3(self.tform),
-            self.geom,
+            geom,
         )
         geom_obj.meshColor = self.color
+        if isinstance(self.geom, Path):
+            geom_obj.meshPath = str(self.geom)
         return geom_obj
 
 
