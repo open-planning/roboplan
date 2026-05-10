@@ -80,7 +80,6 @@ def main(
         print(f"Invalid reference_filter_tau: {reference_filter_tau} (must be >= 0)")
         sys.exit(1)
 
-    model_data = get_model_data()[model]
     package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.

@@ -31,7 +31,7 @@ import tyro
 import xacro
 from pinocchio.visualize import ViserVisualizer
 
-from common import MODELS, RobotModelConfig
+from common import get_model_data, RobotModelConfig
 from roboplan.core import CartesianConfiguration, JointTrajectory, Scene
 from roboplan.example_models import get_package_share_dir
 from roboplan.interpolation import (
@@ -236,12 +236,12 @@ def main(
         host: Viser host.
         port: Viser port.
     """
-    if model not in MODELS:
+    model_data = get_model_data().get(model)
+    if model_data is None:
         print(f"Invalid model requested: {model}")
-        print(f"Available models: {list(MODELS.keys())}")
+        print(f"Available models: {list(get_model_data().keys())}")
         sys.exit(1)
 
-    model_data = MODELS[model]
     package_paths = [get_package_share_dir()]
 
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()

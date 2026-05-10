@@ -55,7 +55,6 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    model_data = get_model_data()[model]
     package_paths = [get_package_share_dir()]
 
     # Pre-process with xacro. This is not necessary for raw URDFs.
