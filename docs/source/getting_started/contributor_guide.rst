@@ -44,7 +44,26 @@ Testing instructions are available in the :doc:`Installation </getting_started/i
 If you are making changes that you think could affect the examples, we also recommend manually running the relevant examples to check that they still work.
 (Or even better, if you have ideas for automatically testing all the examples, that would be a great contribution!)
 
-You can generate the documentation on your end by going to the ``docs`` subfolder and following the ``README.md`` file there.
+To generate the documentation on your end, ``cd`` to the ``docs`` subfolder of the repository.
+
+First, install the requirements (we recommend using a virtual environment).
+
+::
+
+    pip3 install -r python_docs_requirements.txt
+
+Then, build the documentation.
+
+::
+
+    rm -rf build/
+    make html
+
+You can view the generated documentation in your browser.
+
+::
+
+    open build/html/index.html
 
 .. note::
 
