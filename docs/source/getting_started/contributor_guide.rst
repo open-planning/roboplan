@@ -77,6 +77,8 @@ When you submit a pull request, you can also access the built documentation from
 On Coding Assistant Usage
 -------------------------
 
-Coding assistants such as Claude Code, GitHub Copilot, etc. are totally fine to use!
-However, please make sure you aren't just "vibe coding" large changes without checking your work.
-The maintainers reviewing your pull requests will push back on contributions that are obviously AI generated without verification.
+Coding assistants such as Claude Code, GitHub Copilot, etc. are powerful tools that contributors are welcome to use!
+However, be advised that *you are ultimately responsible for your code*.
+Please make sure you aren't just "vibe coding" changes without reviewing your work first.
+
+The maintainers will close contributions that are obviously AI generated without verification.
