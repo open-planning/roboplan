@@ -37,6 +37,7 @@ Running Tests and Generating Documentation
 
 When working on your contributions, make sure the unit tests pass and the documentation looks good.
 Of course, you should add your own tests and documentation depending on what you are working on!
+When adding unit tests, ensure you test both the C++ and Python sides (Coding Assistants are great at porting tests over to other languages).
 
 Running the tests depends on the installation workflow you used.
 Testing instructions are available in the :doc:`Installation </getting_started/installation>` page.
