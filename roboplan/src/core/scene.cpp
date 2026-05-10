@@ -601,7 +601,7 @@ tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
   const auto& parent_frame_id = maybe_parent_frame_id.value();
   const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
 
-  pinocchio::GeometryObject geom_obj{name, parent_frame_id, parent_joint_id, pinocchio::SE3(tform),
+  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
                                      box.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
@@ -619,7 +619,7 @@ tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name
   const auto& parent_frame_id = maybe_parent_frame_id.value();
   const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
 
-  pinocchio::GeometryObject geom_obj{name, parent_frame_id, parent_joint_id, pinocchio::SE3(tform),
+  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
                                      sphere.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
@@ -637,7 +637,7 @@ tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name
   const auto& parent_frame_id = maybe_parent_frame_id.value();
   const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
 
-  pinocchio::GeometryObject geom_obj{name, parent_frame_id, parent_joint_id, pinocchio::SE3(tform),
+  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
                                      octree.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
@@ -675,13 +675,15 @@ tl::expected<void, std::string> Scene::updateGeometryPlacement(const std::string
   }
   const auto& collision_geom_idx = it->second;
 
-  const auto parent_frame_id = getFrameId(parent_frame);
-  if (!parent_frame_id) {
-    return tl::make_unexpected(parent_frame_id.error());
+  const auto maybe_parent_frame_id = getFrameId(parent_frame);
+  if (!maybe_parent_frame_id) {
+    return tl::make_unexpected(maybe_parent_frame_id.error());
   }
+  const auto parent_frame_id = maybe_parent_frame_id.value();
 
   auto& collision_geom = collision_model_.geometryObjects[collision_geom_idx];
-  collision_geom.parentFrame = parent_frame_id.value();
+  collision_geom.parentFrame = parent_frame_id;
+  collision_geom.parentJoint = model_.frames[parent_frame_id].parentJoint;
   collision_geom.placement = pinocchio::SE3(tform);
   return {};
 }
@@ -691,6 +693,16 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
   if (it == collision_geometry_map_.end()) {
     return tl::make_unexpected("Could not find object '" + name + "' to remove.");
   }
+
+  // Update all the collision object indices that came after the current object,
+  // since Pinocchio shifts them down when an object is removed.
+  const auto old_geom_idx = it->second;
+  for (auto& [other_name, index] : collision_geometry_map_) {
+    if (index > old_geom_idx) {
+      --index;
+    }
+  }
+
   collision_model_.removeGeometryObject(name);
   collision_geometry_map_.erase(name);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
