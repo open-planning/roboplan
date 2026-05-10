@@ -14,3 +14,9 @@ Then, build the documentation.
 rm -rf build/
 make html
 ```
+
+You can view the generated documentation in your browser.
+
+```bash
+open build/html/index.html
+```

@@ -13,7 +13,7 @@ This ensures that the trajectory exactly tracks the path by coming to a full sto
 One benefit of this approach is that if the path is collision-free, the resulting trajectory is also guaranteed to be collision-free.
 However, this can come at the expense of execution speed for multi-waypoint paths, since the robot has to stop often.
 
-.. figure:: media/toppra_hermite.png
+.. figure:: ../media/toppra_hermite.png
    :width: 600px
 
    Timed trajectory with the Hermite mode. This trajectory takes approximately 8.5 seconds.
@@ -23,7 +23,7 @@ This means that the robot does not necessarily stop at intermediate waypoints, w
 However, for paths with high curvature, this can cause sufficient overshoot and deviation from the path that collisions could occur.
 Our approach specifically checks for collisions and falls back to the Hermite fitting method if any are found.
 
-.. figure:: media/toppra_cubic.png
+.. figure:: ../media/toppra_cubic.png
    :width: 600px
 
    Timed trajectory with the Cubic mode. This trajectory is significantly faster, at about 5.5 seconds, but has collisions.
@@ -35,7 +35,7 @@ These intermediate waypoints are added along the path itself (for example, at th
 While this can effectively trade off fast and smooth execution with collision avoidance, iterating can take a long time and can fail after several iterations.
 This method is discussed in Section 3.5 of `Richter et al. (2013) <https://groups.csail.mit.edu/rrg/papers/Richter_ISRR13.pdf>`_.
 
-.. figure:: media/toppra_adaptive.png
+.. figure:: ../media/toppra_adaptive.png
    :width: 600px
 
    Timed trajectory with the Adaptive mode. This trajectory takes almost 6 seconds, which is slightly longer than the Cubic mode, but has no collisions.
