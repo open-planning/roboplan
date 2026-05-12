@@ -9,7 +9,7 @@ RoboPlan is a robot motion planning library based on `Pinocchio <https://github.
 Quick Links:
 ------------
 
-- :doc:`getting_started`
+- :doc:`getting_started/installation`
 - `GitHub Repository <https://github.com/open-planning/roboplan>`_
 - `Discord Server <https://discord.gg/VjbdJnbk9n>`_
 
@@ -31,8 +31,6 @@ Quick Links:
    :caption: Contents:
 
    design
-   getting_started
-   trajectory_generation
-   inverse_kinematics
-   project_ideas
+   getting_started/index
+   concepts/index
    api_cpp

@@ -1,5 +1,5 @@
-Getting Started
-===============
+Installation
+============
 
 First, clone this repo *including submodules*.
 
