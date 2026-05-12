@@ -125,6 +125,19 @@ void init_core_types(nanobind::module_& m) {
         ss << traj;
         return ss.str();
       });
+
+  nanobind::class_<CartesianTrajectory>(m, "CartesianTrajectory",
+                                        "Contains a trajectory of Cartesian configurations.")
+      .def(nanobind::init<>())  // Default constructor
+      .def_rw("base_frame", &CartesianTrajectory::base_frame, "The name of the base frame.")
+      .def_rw("tip_frame", &CartesianTrajectory::tip_frame, "The name of the tip frame.")
+      .def_rw("times", &CartesianTrajectory::times, "The list of times.")
+      .def_rw("tforms", &CartesianTrajectory::tforms, "The list of Cartesian transforms.")
+      .def("__repr__", [](const CartesianTrajectory& traj) {
+        std::stringstream ss;
+        ss << traj;
+        return ss.str();
+      });
 }
 
 void init_core_geometry_wrappers(nanobind::module_& m) {

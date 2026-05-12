@@ -294,6 +294,41 @@ class JointTrajectory:
 
     def __repr__(self) -> str: ...
 
+class CartesianTrajectory:
+    """Contains a trajectory of Cartesian configurations."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def base_frame(self) -> str:
+        """The name of the base frame."""
+
+    @base_frame.setter
+    def base_frame(self, arg: str, /) -> None: ...
+
+    @property
+    def tip_frame(self) -> str:
+        """The name of the tip frame."""
+
+    @tip_frame.setter
+    def tip_frame(self, arg: str, /) -> None: ...
+
+    @property
+    def times(self) -> list[float]:
+        """The list of times."""
+
+    @times.setter
+    def times(self, arg: Sequence[float], /) -> None: ...
+
+    @property
+    def tforms(self) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
+        """The list of Cartesian transforms."""
+
+    @tforms.setter
+    def tforms(self, arg: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]], /) -> None: ...
+
+    def __repr__(self) -> str: ...
+
 class Box:
     """Temporary wrapper struct to represent a box geometry."""
 

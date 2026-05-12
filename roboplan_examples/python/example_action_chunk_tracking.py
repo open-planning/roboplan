@@ -32,11 +32,16 @@ import xacro
 from pinocchio.visualize import ViserVisualizer
 
 from common import get_model_data, RobotModelConfig
-from roboplan.core import CartesianConfiguration, JointTrajectory, Scene
+from roboplan.core import (
+    CartesianConfiguration,
+    CartesianTrajectory,
+    JointTrajectory,
+    Scene,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.interpolation import (
+    interpolateCartesianTrajectory,
     interpolateJointTrajectory,
-    interpolateSE3Waypoints,
 )
 from roboplan.optimal_ik import (
     ConfigurationTask,
@@ -347,8 +352,14 @@ def main(
         sparse_targets = make_mock_cartesian_target_poses(
             scene, q_start, ee_frame_name, chunk_horizon, action_scale=action_scale
         )
-        segment_times = [segment_time * idx for idx in range(len(sparse_targets))]
-        dense_targets = interpolateSE3Waypoints(sparse_targets, segment_times, dt)
+        sparse_trajectory = CartesianTrajectory()
+        sparse_trajectory.base_frame = model_data.base_link
+        sparse_trajectory.tip_frame = ee_frame_name
+        sparse_trajectory.times = [
+            idx * segment_time for idx in range(len(sparse_targets))
+        ]
+        sparse_trajectory.tforms = sparse_targets
+        dense_targets = interpolateCartesianTrajectory(sparse_trajectory, dt)
         sparse_target_positions = cartesian_target_positions_for_visualization(
             sparse_targets
         )

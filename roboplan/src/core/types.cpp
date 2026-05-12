@@ -75,4 +75,17 @@ std::ostream& operator<<(std::ostream& os, const JointTrajectory& traj) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const CartesianTrajectory& traj) {
+  os << "Cartesian Trajectory with " << traj.times.size() << " points:\n";
+  os << " base_frame: " << traj.base_frame << "\n";
+  os << " tip_frame: " << traj.tip_frame << "\n";
+
+  for (size_t idx = 0; idx < traj.times.size(); ++idx) {
+    const auto& t = traj.times.at(idx);
+    const auto& tform = traj.tforms.at(idx);
+    os << " [t=" << t << "]\n" << tform << "\n";
+  }
+  return os;
+}
+
 }  // namespace roboplan
