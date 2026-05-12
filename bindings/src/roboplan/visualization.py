@@ -286,3 +286,92 @@ def plotJointTrajectory(
     plt.legend(dof_names)
 
     return plt.gcf()
+
+
+def addPositionPolyline(
+    viz: ViserVisualizer,
+    name: str,
+    positions: np.ndarray,
+    color: tuple[int, int, int],
+    line_width: float,
+) -> None:
+    """
+    Draw a Cartesian position trajectory as straight line segments.
+
+    Args:
+        viz: The Viser visualizer instance.
+        name: The name of the trace in Viser.
+        positions: Array of xyz positions with shape (N, 3).
+        color: RGB color tuple.
+        line_width: Width of the rendered line.
+    """
+    if positions is None or len(positions) < 2:
+        return
+
+    line_segments = np.stack([positions[:-1], positions[1:]], axis=1)
+
+    viz.viewer.scene.add_line_segments(
+        name,
+        points=line_segments,
+        colors=np.asarray(color, dtype=np.uint8),
+        line_width=line_width,
+    )
+
+
+def visualizePositionTrace(
+    viz: ViserVisualizer,
+    positions: np.ndarray,
+    trace_name: str,
+    waypoint_root: str,
+    trace_color: tuple[int, int, int],
+    waypoint_color: tuple[int, int, int],
+    line_width: float = 5.0,
+    waypoint_radius: float = 0.01,
+    draw_trace: bool = True,
+    draw_waypoints: bool = True,
+    waypoint_stride: int = 1,
+) -> None:
+    """
+    Visualize a Cartesian position trace and optional waypoint markers.
+
+    Args:
+        viz: The Viser visualizer instance.
+        positions: Array of xyz positions with shape (N, 3).
+        trace_name: Name of the line trace in Viser.
+        waypoint_root: Root name for waypoint markers in Viser.
+        trace_color: RGB color tuple for the trace.
+        waypoint_color: RGB color tuple for waypoint markers.
+        line_width: Width of the rendered line.
+        waypoint_radius: Radius of waypoint marker spheres.
+        draw_trace: Whether to draw the line trace.
+        draw_waypoints: Whether to draw waypoint markers.
+        waypoint_stride: Draw one waypoint marker every this many positions.
+    """
+    if positions is None or len(positions) == 0:
+        return
+
+    if draw_trace:
+        addPositionPolyline(
+            viz,
+            trace_name,
+            positions,
+            trace_color,
+            line_width,
+        )
+
+    if not draw_waypoints:
+        return
+
+    stride = max(1, waypoint_stride)
+    waypoint_indices = list(range(0, len(positions), stride))
+
+    if waypoint_indices[-1] != len(positions) - 1:
+        waypoint_indices.append(len(positions) - 1)
+
+    for idx in range(0, len(positions), stride):
+        viz.viewer.scene.add_icosphere(
+            f"{waypoint_root}/{idx}",
+            radius=waypoint_radius,
+            color=waypoint_color,
+            position=positions[idx],
+        )

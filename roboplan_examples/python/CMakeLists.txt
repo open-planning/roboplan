@@ -5,5 +5,6 @@ install(
   example_ik.py
   example_rrt.py
   example_scene.py
+  example_action_chunk_tracking.py
   DESTINATION lib/roboplan_examples
 )

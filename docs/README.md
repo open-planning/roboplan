@@ -1,16 +1,3 @@
 ## Generating Documentation
 
-Make sure you `cd` to this folder.
-
-First, install the requirements (recommend using a virtual environment).
-
-```bash
-pip install -r python_docs_requirements.txt
-```
-
-Then, build the documentation.
-
-```bash
-rm -rf build/
-make html
-```
+See the [Running Tests and Generating Documentation](source/getting_started/contributor_guide.rst#running-tests-and-generating-documentation) section of the Contributor Guide for instructions on building the documentation.
