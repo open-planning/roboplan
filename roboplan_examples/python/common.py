@@ -17,7 +17,7 @@ class ObstacleConfig:
     name: str
     """Name of the obstacle."""
 
-    geom: hppfcl.ShapeBase
+    geom: hppfcl.ShapeBase | Path
     """The obstacle geometry, or a path to a mesh."""
 
     parent_frame: str
