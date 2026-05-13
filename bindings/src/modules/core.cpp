@@ -145,6 +145,13 @@ void init_core_geometry_wrappers(nanobind::module_& m) {
       .def(nanobind::init<const double, const double, const double>(), "x"_a, "y"_a, "z"_a);
   nanobind::class_<Sphere>(m, "Sphere", "Temporary wrapper struct to represent a sphere geometry.")
       .def(nanobind::init<const double>(), "radius"_a);
+  nanobind::class_<Cylinder>(m, "Cylinder",
+                             "Temporary wrapper struct to represent a cylinder geometry.")
+      .def(nanobind::init<const double, const double>(), "radius"_a, "length"_a);
+  nanobind::class_<Mesh>(m, "Mesh",
+                         "Temporary wrapper struct to represent a triangle mesh geometry.")
+      .def(nanobind::init<const std::filesystem::path&, const Eigen::Vector3d&>(), "filename"_a,
+           "scale"_a = Eigen::Vector3d::Ones());
   nanobind::class_<OcTree>(m, "OcTree", "Temporary wrapper struct to represent a octree geometry.")
       .def(nanobind::init<const std::vector<Eigen::Matrix<double, 6, 1>>&, const double>(),
            "boxes"_a, "resolution"_a);
@@ -244,6 +251,12 @@ void init_core_scene(nanobind::module_& m) {
            "color"_a)
       .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry),
            "Adds a sphere geometry to the scene.", "name"_a, "parent_frame"_a, "sphere"_a,
+           "tform"_a, "color"_a)
+      .def("addCylinderGeometry", unwrap_expected(&Scene::addCylinderGeometry),
+           "Adds a cylinder geometry to the scene.", "name"_a, "parent_frame"_a, "cylinder"_a,
+           "tform"_a, "color"_a)
+      .def("addMeshGeometry", unwrap_expected(&Scene::addMeshGeometry),
+           "Adds a triangle mesh geometry to the scene.", "name"_a, "parent_frame"_a, "mesh"_a,
            "tform"_a, "color"_a)
       .def("addOcTreeGeometry", unwrap_expected(&Scene::addOcTreeGeometry),
            "Adds a octree geometry to the scene.", "name"_a, "parent_frame"_a, "octree"_a,

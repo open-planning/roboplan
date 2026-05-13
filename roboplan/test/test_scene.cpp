@@ -184,6 +184,12 @@ TEST_F(RoboPlanSceneTest, TestCollisionGeometry) {
       scene_->addSphereGeometry("test_sphere", "universe", Sphere(0.5), sphere_tform, color);
   ASSERT_TRUE(add_sphere_result.has_value()) << add_sphere_result.error();
 
+  Eigen::Matrix4d cylinder_tform = Eigen::Matrix4d::Identity();
+  cylinder_tform(0, 3) = -3.0;  // x position
+  const auto add_cylinder_result = scene_->addCylinderGeometry(
+      "test_cylinder", "universe", Cylinder(0.25, 1.0), cylinder_tform, color);
+  ASSERT_TRUE(add_cylinder_result.has_value()) << add_cylinder_result.error();
+
   ASSERT_FALSE(scene_->hasCollisions(q));  // should still be collision free
 
   // Now move one of the collision objects to be in collision.
@@ -196,6 +202,18 @@ TEST_F(RoboPlanSceneTest, TestCollisionGeometry) {
   // Remove the collision object and verify that the robot is no longer in collision.
   const auto remove_sphere_result = scene_->removeGeometry("test_sphere");
   ASSERT_TRUE(remove_sphere_result.has_value()) << remove_sphere_result.error();
+  ASSERT_FALSE(scene_->hasCollisions(q));
+
+  // Move the cylinder so it is in collision with the robot.
+  cylinder_tform(0, 3) = 0.0;
+  const auto move_cylinder_result =
+      scene_->updateGeometryPlacement("test_cylinder", "universe", cylinder_tform);
+  ASSERT_TRUE(move_cylinder_result.has_value()) << move_cylinder_result.error();
+  ASSERT_TRUE(scene_->hasCollisions(q));
+
+  // Remove the cylinder and verify that the robot is no longer in collision.
+  const auto remove_cylinder_result = scene_->removeGeometry("test_cylinder");
+  ASSERT_TRUE(remove_cylinder_result.has_value()) << remove_cylinder_result.error();
   ASSERT_FALSE(scene_->hasCollisions(q));
 }
 
@@ -267,6 +285,47 @@ TEST_F(RoboPlanSceneTest, TestCollisionGeometryRemoveReaddReparent) {
   for (const auto& name : box_names) {
     verify_geometry(name, "tool0");
   }
+}
+
+TEST_F(RoboPlanSceneTest, TestCollisionForMeshGeometry) {
+  // Nominally, this configuration is collision free.
+  Eigen::VectorXd q(6);
+  q << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  ASSERT_FALSE(scene_->hasCollisions(q));
+
+  const auto color = Eigen::Vector4d(0.5, 0.5, 0.5, 0.5);
+
+  // Resolve mesh paths from the example models package.
+  const auto model_prefix = example_models::get_package_models_dir();
+  const auto stl_path = model_prefix / "ur_robot_model" / "meshes" / "collision" / "wrist3.stl";
+  const auto dae_path = model_prefix / "ur_robot_model" / "meshes" / "visual" / "wrist3.dae";
+
+  // Place both meshes overlapping the robot base so they are in collision.
+  Eigen::Matrix4d in_collision_tform = Eigen::Matrix4d::Identity();
+
+  const auto add_stl_result = scene_->addMeshGeometry("test_stl_mesh", "universe", Mesh(stl_path),
+                                                      in_collision_tform, color);
+  ASSERT_TRUE(add_stl_result.has_value()) << add_stl_result.error();
+  ASSERT_TRUE(scene_->hasCollisions(q));
+
+  const auto add_dae_result = scene_->addMeshGeometry("test_dae_mesh", "universe", Mesh(dae_path),
+                                                      in_collision_tform, color);
+  ASSERT_TRUE(add_dae_result.has_value()) << add_dae_result.error();
+  ASSERT_TRUE(scene_->hasCollisions(q));
+
+  // Move both meshes away from the robot so they are no longer in collision.
+  Eigen::Matrix4d collision_free_tform = Eigen::Matrix4d::Identity();
+  collision_free_tform(0, 3) = 5.0;
+  const auto move_stl_result =
+      scene_->updateGeometryPlacement("test_stl_mesh", "universe", collision_free_tform);
+  ASSERT_TRUE(move_stl_result.has_value()) << move_stl_result.error();
+
+  collision_free_tform(0, 3) = -5.0;
+  const auto move_dae_result =
+      scene_->updateGeometryPlacement("test_dae_mesh", "universe", collision_free_tform);
+  ASSERT_TRUE(move_dae_result.has_value()) << move_dae_result.error();
+
+  ASSERT_FALSE(scene_->hasCollisions(q));
 }
 
 TEST_F(RoboPlanSceneTest, TestCollisionForOcTreeGeometry) {

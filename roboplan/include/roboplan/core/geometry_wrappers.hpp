@@ -1,5 +1,9 @@
 #pragma once
 
+#include <filesystem>
+
+#include <hpp/fcl/BVH/BVH_model.h>
+#include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/octree.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
 
@@ -28,6 +32,37 @@ struct Sphere {
 
   /// @brief The underlying Coal sphere geometry.
   std::shared_ptr<hpp::fcl::Sphere> geom_ptr;
+};
+
+/// @brief Temporary wrapper struct to represent a cylinder geometry (oriented along the Z axis).
+struct Cylinder {
+  /// @brief Construct a Cylinder object wrapper
+  /// @param radius The radius of the cylinder.
+  /// @param length The total length of the cylinder along its Z axis.
+  Cylinder(double radius, double length) {
+    geom_ptr = std::make_shared<hpp::fcl::Cylinder>(radius, length);
+  };
+
+  /// @brief The underlying Coal cylinder geometry.
+  std::shared_ptr<hpp::fcl::Cylinder> geom_ptr;
+};
+
+/// @brief Temporary wrapper struct to represent a triangle mesh geometry loaded from a file.
+struct Mesh {
+  /// @brief Construct a Mesh object wrapper by loading from a mesh file (e.g. STL, OBJ, DAE).
+  /// @param filename Path to the mesh file to load.
+  /// @param scale Per-axis scale factors applied to the loaded mesh. Defaults to (1, 1, 1).
+  Mesh(const std::filesystem::path& filename,
+       const Eigen::Vector3d& scale = Eigen::Vector3d::Ones()) {
+    hpp::fcl::MeshLoader loader;
+    geom_ptr = loader.load(filename.string(), scale);
+  };
+
+  /// @brief Construct a Mesh object wrapper from a pre-loaded Coal BVH model.
+  Mesh(const std::shared_ptr<hpp::fcl::BVHModelBase>& mesh_geom) { geom_ptr = mesh_geom; };
+
+  /// @brief The underlying Coal BVH mesh geometry.
+  std::shared_ptr<hpp::fcl::BVHModelBase> geom_ptr;
 };
 
 struct OcTree {

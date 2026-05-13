@@ -339,6 +339,16 @@ class Sphere:
 
     def __init__(self, radius: float) -> None: ...
 
+class Cylinder:
+    """Temporary wrapper struct to represent a cylinder geometry."""
+
+    def __init__(self, radius: float, length: float) -> None: ...
+
+class Mesh:
+    """Temporary wrapper struct to represent a triangle mesh geometry."""
+
+    def __init__(self, filename: str | os.PathLike, scale: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
+
 class OcTree:
     """Temporary wrapper struct to represent a octree geometry."""
 
@@ -437,6 +447,12 @@ class Scene:
 
     def addSphereGeometry(self, name: str, parent_frame: str, sphere: Sphere, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
         """Adds a sphere geometry to the scene."""
+
+    def addCylinderGeometry(self, name: str, parent_frame: str, cylinder: Cylinder, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+        """Adds a cylinder geometry to the scene."""
+
+    def addMeshGeometry(self, name: str, parent_frame: str, mesh: Mesh, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+        """Adds a triangle mesh geometry to the scene."""
 
     def addOcTreeGeometry(self, name: str, parent_frame: str, octree: OcTree, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
         """Adds a octree geometry to the scene."""

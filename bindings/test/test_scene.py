@@ -11,7 +11,9 @@ import pinocchio as pin
 from roboplan.core import (
     hasCollisionsAlongPath,
     Box,
+    Cylinder,
     JointType,
+    Mesh,
     Scene,
     Sphere,
 )
@@ -163,6 +165,12 @@ def test_collision_geometry(test_scene: Scene) -> None:
         "test_sphere", "universe", Sphere(0.5), sphere_tform, color
     )
 
+    cylinder_tform = np.eye(4)
+    cylinder_tform[0, 3] = -3.0  # x position
+    test_scene.addCylinderGeometry(
+        "test_cylinder", "universe", Cylinder(0.25, 1.0), cylinder_tform, color
+    )
+
     assert not test_scene.hasCollisions(q)  # should still be collision free
 
     # Now move one of the collision objects to be in collision.
@@ -172,6 +180,57 @@ def test_collision_geometry(test_scene: Scene) -> None:
 
     # Remove the collision object and verify that the robot is no longer in collision.
     test_scene.removeGeometry("test_sphere")
+    assert not test_scene.hasCollisions(q)
+
+    # Move the cylinder so it is in collision with the robot.
+    cylinder_tform[0, 3] = 0.0
+    test_scene.updateGeometryPlacement("test_cylinder", "universe", cylinder_tform)
+    assert test_scene.hasCollisions(q)
+
+    # Remove the cylinder and verify that the robot is no longer in collision.
+    test_scene.removeGeometry("test_cylinder")
+    assert not test_scene.hasCollisions(q)
+
+
+def test_collision_mesh_geometry(test_scene: Scene) -> None:
+    # Nominally, this configuration is collision free
+    q = np.zeros(6)
+    assert not test_scene.hasCollisions(q)
+
+    color = np.array([0.5, 0.5, 0.5, 0.5])
+
+    # Resolve mesh paths from the example models package.
+    roboplan_examples_dir = Path(get_install_prefix()) / "share"
+    roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
+    stl_path = (
+        roboplan_models_dir / "ur_robot_model" / "meshes" / "collision" / "wrist3.stl"
+    )
+    dae_path = (
+        roboplan_models_dir / "ur_robot_model" / "meshes" / "visual" / "wrist3.dae"
+    )
+
+    # Place both meshes overlapping the robot base so they are in collision.
+    in_collision_tform = np.eye(4)
+    test_scene.addMeshGeometry(
+        "test_stl_mesh", "universe", Mesh(stl_path), in_collision_tform, color
+    )
+    assert test_scene.hasCollisions(q)
+
+    test_scene.addMeshGeometry(
+        "test_dae_mesh", "universe", Mesh(dae_path), in_collision_tform, color
+    )
+    assert test_scene.hasCollisions(q)
+
+    # Move both meshes far away so they are no longer in collision.
+    collision_free_tform = np.eye(4)
+    collision_free_tform[0, 3] = 5.0
+    test_scene.updateGeometryPlacement(
+        "test_stl_mesh", "universe", collision_free_tform
+    )
+    collision_free_tform[0, 3] = -5.0
+    test_scene.updateGeometryPlacement(
+        "test_dae_mesh", "universe", collision_free_tform
+    )
     assert not test_scene.hasCollisions(q)
 
 
