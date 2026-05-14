@@ -2,11 +2,11 @@
 
 #include <filesystem>
 
-#include <pinocchio/config.hpp>
-
-// hppfcl was renamed to coal with some deprecation warnings,
-// but finally transitioned over for good starting with Pinocchio 4.0.0.
-#if PINOCCHIO_VERSION_AT_LEAST(4, 0, 0)
+// hppfcl was renamed to coal. Prefer the coal headers whenever they are available,
+// since modern hpp-fcl releases declare `namespace coal { }` as a real namespace
+// (with `hpp::fcl` as the backward-compatibility alias), which conflicts with
+// declaring `namespace coal = hpp::fcl;` ourselves.
+#if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/BVH/BVH_model.h>
 #include <coal/mesh_loader/loader.h>
 #include <coal/octree.h>

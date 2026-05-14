@@ -209,8 +209,8 @@ sccache     = ">=0.10.0,<0.11"
 yaml-cpp    = ">=0.8.0,<0.9"
 
 # Core dependencies
-eigen      = ">=3.4.0,<4"
-libtoppra  = "==0.6.4"  # Temporary until we fix ABI issues with conda-forge
+eigen      = ">=3.4.0"
+libtoppra  = ">=0.6.4,<0.7"
 pinocchio  = ">=4.0.0,<5"
 osqp-eigen = ">=0.11.0,<0.12"
 
