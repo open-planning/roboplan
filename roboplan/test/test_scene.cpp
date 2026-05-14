@@ -30,7 +30,7 @@ OcTree createPointcloud() {
     }
   }
 
-  return OcTree(hpp::fcl::makeOctree(point_cloud, resolution));
+  return OcTree(coal::makeOctree(point_cloud, resolution));
 }
 
 class RoboPlanSceneTest : public ::testing::Test {
