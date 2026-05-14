@@ -294,24 +294,60 @@ class JointTrajectory:
 
     def __repr__(self) -> str: ...
 
+class CartesianPath:
+    """Contains a path of Cartesian configurations."""
+
+    @overload
+    def __init__(self) -> None: ...
+
+    @overload
+    def __init__(self, base_frames: Sequence[str], tip_frames: Sequence[str], tforms: Sequence[Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]]) -> None: ...
+
+    @property
+    def base_frames(self) -> list[str]:
+        """The names of the base frames."""
+
+    @base_frames.setter
+    def base_frames(self, arg: Sequence[str], /) -> None: ...
+
+    @property
+    def tip_frames(self) -> list[str]:
+        """The names of the tip frames."""
+
+    @tip_frames.setter
+    def tip_frames(self, arg: Sequence[str], /) -> None: ...
+
+    @property
+    def tforms(self) -> list[list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]]:
+        """The list of Cartesian transforms."""
+
+    @tforms.setter
+    def tforms(self, arg: Sequence[Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]], /) -> None: ...
+
+    def __repr__(self) -> str: ...
+
 class CartesianTrajectory:
     """Contains a trajectory of Cartesian configurations."""
 
+    @overload
     def __init__(self) -> None: ...
 
-    @property
-    def base_frame(self) -> str:
-        """The name of the base frame."""
-
-    @base_frame.setter
-    def base_frame(self, arg: str, /) -> None: ...
+    @overload
+    def __init__(self, base_frames: Sequence[str], tip_frames: Sequence[str], times: Sequence[float], tforms: Sequence[Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]]) -> None: ...
 
     @property
-    def tip_frame(self) -> str:
-        """The name of the tip frame."""
+    def base_frames(self) -> list[str]:
+        """The names of the base frames."""
 
-    @tip_frame.setter
-    def tip_frame(self, arg: str, /) -> None: ...
+    @base_frames.setter
+    def base_frames(self, arg: Sequence[str], /) -> None: ...
+
+    @property
+    def tip_frames(self) -> list[str]:
+        """The names of the tip frames."""
+
+    @tip_frames.setter
+    def tip_frames(self, arg: Sequence[str], /) -> None: ...
 
     @property
     def times(self) -> list[float]:
@@ -321,11 +357,11 @@ class CartesianTrajectory:
     def times(self, arg: Sequence[float], /) -> None: ...
 
     @property
-    def tforms(self) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
+    def tforms(self) -> list[list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]]:
         """The list of Cartesian transforms."""
 
     @tforms.setter
-    def tforms(self, arg: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]], /) -> None: ...
+    def tforms(self, arg: Sequence[Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]], /) -> None: ...
 
     def __repr__(self) -> str: ...
 

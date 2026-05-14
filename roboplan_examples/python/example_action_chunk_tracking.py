@@ -16,9 +16,9 @@ The main idea is:
       -> joint-space actions: direct interpolated configuration trajectory
       -> visualization
 
-This is a single end effector example. For multi-arm models
-such as "dual", only the model's default joint group and first end-effector
-are commanded. Coordinated dual-arm tracking is a work in progress.
+For multi-arm models such as "dual", Cartesian chunks create one frame task per
+end effector, and joint-space chunks visualize trails for all configured end
+effectors.
 """
 
 import sys
@@ -57,54 +57,79 @@ from roboplan.visualization import visualizePositionTrace
 ActionSpace = Literal["cartesian", "joint"]
 
 
-def make_mock_cartesian_target_poses(
+def make_mock_cartesian_trajectory(
     scene: Scene,
     q_start: np.ndarray,
-    ee_frame_name: str,
+    ee_frame_names: list[str],
+    base_frame: str,
     horizon: int,
+    segment_time: float,
     translation_scale: float = 0.04,
     action_scale: float = 1.0,
-) -> list[np.ndarray]:
-    """Create sparse absolute Cartesian target poses as 4x4 transforms.
+) -> CartesianTrajectory:
+    """Create a sparse Cartesian target trajectory for all EE frames.
 
     Args:
-        scene: RoboPlan scene used to compute the starting end-effector pose.
+        scene: RoboPlan scene used to compute starting end-effector poses.
         q_start: Full starting robot configuration.
-        ee_frame_name: End-effector frame name.
+        ee_frame_names: End-effector frame names for the trajectory.
+        base_frame: Reference frame for the Cartesian trajectory.
         horizon: Number of sparse target poses after the starting pose.
+        segment_time: Duration between consecutive sparse Cartesian waypoints, in seconds.
         translation_scale: Per-step translation scale in meters.
-        action_scale: Scale applied to the mock Cartesian target path.
+        action_scale: Scale applied to the mock Cartesian target paths.
 
     Returns:
-        Sparse absolute Cartesian target poses as 4x4 homogeneous matrices.
+        Sparse Cartesian trajectory containing one transform sequence per EE frame.
     """
-    start_pose = scene.forwardKinematics(q_start, ee_frame_name)
-    start_rotation = start_pose[:3, :3]
-    start_translation = start_pose[:3, 3]
+    tforms_by_frame = []
 
-    targets = [start_pose.copy()]
+    for ee_idx, ee_frame_name in enumerate(ee_frame_names):
+        start_pose = scene.forwardKinematics(q_start, ee_frame_name)
+        start_rotation = start_pose[:3, :3]
+        start_translation = start_pose[:3, 3]
 
-    for i in range(horizon):
-        phase = (i + 1) / float(horizon)
-
-        local_translation_offset = action_scale * np.array(
-            [
-                translation_scale * (i + 1),
-                0.012 * np.sin(np.pi * phase),
-                -0.010 * np.sin(0.5 * np.pi * phase),
-            ],
-            dtype=float,
+        lateral_offset = (
+            0.03 * (ee_idx - 0.5 * (len(ee_frame_names) - 1))
+            if len(ee_frame_names) > 1
+            else 0.0
         )
 
-        # Keep the orientation fixed in the default mock target path; the targets are
-        # still full 4x4 transforms, so orientation can be varied by changing these matrices.
-        target = np.eye(4)
-        target[:3, :3] = start_rotation
-        target[:3, 3] = start_translation + start_rotation @ local_translation_offset
+        targets = [start_pose.copy()]
 
-        targets.append(target)
+        for i in range(horizon):
+            phase = (i + 1) / float(horizon)
 
-    return targets
+            local_translation_offset = action_scale * np.array(
+                [
+                    translation_scale * (i + 1),
+                    0.012 * np.sin(np.pi * phase),
+                    -0.010 * np.sin(0.5 * np.pi * phase),
+                ],
+                dtype=float,
+            )
+
+            if lateral_offset:
+                local_translation_offset += np.array(
+                    [0.0, lateral_offset * phase, 0.0],
+                    dtype=float,
+                )
+
+            target = np.eye(4)
+            target[:3, :3] = start_rotation
+            target[:3, 3] = (
+                start_translation + start_rotation @ local_translation_offset
+            )
+            targets.append(target)
+
+        tforms_by_frame.append(targets)
+
+    return CartesianTrajectory(
+        base_frames=[base_frame] * len(ee_frame_names),
+        tip_frames=ee_frame_names,
+        times=[idx * segment_time for idx in range(horizon + 1)],
+        tforms=tforms_by_frame,
+    )
 
 
 def make_mock_joint_targets(
@@ -125,7 +150,7 @@ def make_mock_joint_targets(
         num_velocity_variables: Size of the full robot velocity/tangent vector.
         horizon: Number of sparse target configurations after the start.
         joint_delta_scale: Scale of the joint-space target offsets.
-        action_scale: Scale applied to the mock joint target path.
+        action_scale: Global scale applied on top of joint_delta_scale.
 
     Returns:
         Sparse full-configuration joint targets.
@@ -142,51 +167,51 @@ def make_mock_joint_targets(
     return targets
 
 
+def compute_cartesian_trajectory_positions(
+    trajectory: CartesianTrajectory,
+) -> dict[str, np.ndarray]:
+    """Extract xyz positions from a Cartesian trajectory.
+
+    Args:
+        trajectory: Cartesian trajectory to extract positions from.
+
+    Returns:
+        Dictionary mapping tip frame names to position arrays.
+    """
+    return {
+        tip_frame: np.array([tform[:3, 3].copy() for tform in tforms])
+        for tip_frame, tforms in zip(trajectory.tip_frames, trajectory.tforms)
+    }
+
+
 def compute_end_effector_positions(
     scene: Scene,
     configurations: list[np.ndarray],
-    ee_frame_name: str,
-) -> np.ndarray:
-    """
-    Compute end-effector xyz positions for a sequence of full configurations.
+    ee_frame_names: list[str],
+) -> dict[str, np.ndarray]:
+    """Compute end-effector xyz positions for multiple frames.
 
     Args:
-        scene: RoboPlan scene used to perform forward kinematics.
-        configurations: List of joint configurations to evaluate.
-        ee_frame_name: The name of the end effector frame.
+        scene: RoboPlan scene used for forward kinematics.
+        configurations: Joint configurations to evaluate.
+        ee_frame_names: End-effector frame names.
 
     Returns:
-        End effector position vectors corresponding to the joint configurations.
+        Dictionary mapping end-effector frame names to position arrays.
     """
-    positions = []
-    for q in configurations:
-        ee_tform = scene.forwardKinematics(q, ee_frame_name)
-        positions.append(ee_tform[:3, 3].copy())
-
-    return np.asarray(positions)
-
-
-def cartesian_target_positions_for_visualization(
-    target_transforms: list[np.ndarray],
-) -> np.ndarray:
-    """
-    Extract xyz positions from full Cartesian SE(3) targets just for trace visualization.
-
-    Args:
-        target_transforms: List of full transformation matrices for the end effector.
-
-    Returns:
-        End effector position vectors corresponding to the full transforms.
-    """
-    return np.asarray([tform[:3, 3].copy() for tform in target_transforms])
+    return {
+        name: np.array(
+            [scene.forwardKinematics(q, name)[:3, 3].copy() for q in configurations]
+        )
+        for name in ee_frame_names
+    }
 
 
 def get_starting_configuration(
     scene: Scene,
     model_data: RobotModelConfig,
 ) -> np.ndarray:
-    """
-    Return the starting configuration for the selected model.
+    """Return the starting configuration for the selected model.
 
     Args:
         scene: The scene to use to extract current joint positions.
@@ -195,7 +220,6 @@ def get_starting_configuration(
     Returns:
         The starting joint positions for the specified robot.
     """
-
     q_full = scene.getCurrentJointPositions()
     q_start_full = np.array(model_data.starting_joint_config)
 
@@ -207,6 +231,65 @@ def get_starting_configuration(
         f"model configuration size ({len(q_full)}). Using scene default instead."
     )
     return q_full
+
+
+def visualize_ee_traces(
+    viz,
+    ee_frame_name: str,
+    sparse_pos: np.ndarray,
+    dense_pos: np.ndarray,
+    executed_pos: np.ndarray,
+    executed_color: tuple[int, int, int],
+) -> None:
+    """Visualize sparse waypoints, dense references, and executed trajectory for one EE.
+
+    Args:
+        viz: ViserVisualizer instance.
+        ee_frame_name: End-effector frame name used for scene path naming.
+        sparse_pos: Sparse policy waypoint positions.
+        dense_pos: Dense interpolated target positions.
+        executed_pos: Executed end-effector trajectory positions.
+        executed_color: RGB color for the executed trajectory trace.
+    """
+    visualizePositionTrace(
+        viz,
+        sparse_pos,
+        trace_name=f"/action_chunk/{ee_frame_name}/sparse_policy_waypoints/trace",
+        waypoint_root=f"/action_chunk/{ee_frame_name}/sparse_policy_waypoints/markers",
+        trace_color=(255, 160, 0),
+        waypoint_color=(255, 160, 0),
+        line_width=1.0,
+        waypoint_radius=0.006,
+        draw_trace=False,
+        draw_waypoints=True,
+    )
+
+    visualizePositionTrace(
+        viz,
+        dense_pos,
+        trace_name=f"/action_chunk/{ee_frame_name}/dense_interpolated_targets/trace",
+        waypoint_root=f"/action_chunk/{ee_frame_name}/dense_interpolated_targets/markers",
+        trace_color=(90, 90, 90),
+        waypoint_color=(90, 90, 90),
+        line_width=3.0,
+        waypoint_radius=0.004,
+        draw_trace=True,
+        draw_waypoints=True,
+        waypoint_stride=10,
+    )
+
+    visualizePositionTrace(
+        viz,
+        executed_pos,
+        trace_name=f"/action_chunk/{ee_frame_name}/executed_trace/trace",
+        waypoint_root=f"/action_chunk/{ee_frame_name}/executed_trace/markers",
+        trace_color=executed_color,
+        waypoint_color=executed_color,
+        line_width=10.0,
+        waypoint_radius=0.01,
+        draw_trace=True,
+        draw_waypoints=False,
+    )
 
 
 def main(
@@ -247,6 +330,13 @@ def main(
         print(f"Available models: {list(get_model_data().keys())}")
         sys.exit(1)
 
+    if control_freq <= 0.0:
+        raise ValueError("control_freq must be positive.")
+    if segment_time <= 0.0:
+        raise ValueError("segment_time must be positive.")
+    if playback_speed <= 0.0:
+        raise ValueError("playback_speed must be positive.")
+
     package_paths = [get_package_share_dir()]
 
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
@@ -274,7 +364,6 @@ def main(
     model_pin = pin.buildModelFromXML(urdf_xml)
     q_start = get_starting_configuration(scene, model_data)
 
-    # Build geometry models for visualization.
     collision_model = pin.buildGeomFromUrdfString(
         model_pin,
         urdf_xml,
@@ -294,13 +383,6 @@ def main(
 
     scene.setJointPositions(q_start)
 
-    if control_freq <= 0.0:
-        raise ValueError("control_freq must be positive.")
-    if segment_time <= 0.0:
-        raise ValueError("segment_time must be positive.")
-    if playback_speed <= 0.0:
-        raise ValueError("playback_speed must be positive.")
-
     dt = 1.0 / control_freq
     animation_dt = dt / playback_speed
 
@@ -310,7 +392,10 @@ def main(
         f"Interpolation intervals per segment: {max(1, int(np.ceil(segment_time / dt)))}"
     )
 
-    ee_frame_name = model_data.ee_names[0]
+    ee_frame_names = model_data.ee_names
+    if not ee_frame_names:
+        raise ValueError(f"Model '{model}' has no configured end-effectors.")
+    print(f"End-effectors: {ee_frame_names}")
 
     if action_space == "cartesian":
         oink = Oink(scene, joint_group)
@@ -326,8 +411,6 @@ def main(
 
         print(f"Velocity variables: {num_variables}")
 
-        # Keep a very small configuration regularization term so the Cartesian frame
-        # task dominates while still mildly biasing the solution toward the start
         joint_weights = np.full(num_variables, 1e-4)
         config_options = ConfigurationTaskOptions(task_gain=1e-4, lm_damping=0.0)
         config_task = ConfigurationTask(
@@ -344,29 +427,35 @@ def main(
             lm_damping=lm_damping,
         )
 
-        goal = CartesianConfiguration()
-        goal.base_frame = model_data.base_link
-        goal.tip_frame = ee_frame_name
-        frame_task = FrameTask(oink, scene, goal, task_options)
+        frame_tasks = []
+        for ee_frame_name in ee_frame_names:
+            goal = CartesianConfiguration()
+            goal.base_frame = model_data.base_link
+            goal.tip_frame = ee_frame_name
+            frame_tasks.append(FrameTask(oink, scene, goal, task_options))
 
-        sparse_targets = make_mock_cartesian_target_poses(
-            scene, q_start, ee_frame_name, chunk_horizon, action_scale=action_scale
+        sparse_cartesian_trajectory = make_mock_cartesian_trajectory(
+            scene,
+            q_start,
+            ee_frame_names,
+            model_data.base_link,
+            chunk_horizon,
+            segment_time,
+            action_scale=action_scale,
         )
-        sparse_trajectory = CartesianTrajectory()
-        sparse_trajectory.base_frame = model_data.base_link
-        sparse_trajectory.tip_frame = ee_frame_name
-        sparse_trajectory.times = [
-            idx * segment_time for idx in range(len(sparse_targets))
-        ]
-        sparse_trajectory.tforms = sparse_targets
-        dense_targets = interpolateCartesianTrajectory(sparse_trajectory, dt)
-        sparse_target_positions = cartesian_target_positions_for_visualization(
-            sparse_targets
+        dense_cartesian_trajectory = interpolateCartesianTrajectory(
+            sparse_cartesian_trajectory,
+            dt,
         )
-        dense_target_positions = cartesian_target_positions_for_visualization(
-            dense_targets
+
+        sparse_target_positions_by_frame = compute_cartesian_trajectory_positions(
+            sparse_cartesian_trajectory
         )
-        tasks = [frame_task, config_task]
+        dense_target_positions_by_frame = compute_cartesian_trajectory_positions(
+            dense_cartesian_trajectory
+        )
+
+        tasks = [*frame_tasks, config_task]
 
     else:  # Joint action space
         joint_group_info = scene.getJointGroupInfo(joint_group)
@@ -387,34 +476,35 @@ def main(
         ]
         sparse_trajectory.positions = sparse_targets
 
-        dense_targets = interpolateJointTrajectory(
-            scene,
-            sparse_trajectory,
-            dt,
+        dense_targets = interpolateJointTrajectory(scene, sparse_trajectory, dt)
+
+        sparse_target_positions_by_frame = compute_end_effector_positions(
+            scene, sparse_targets, ee_frame_names
+        )
+        dense_target_positions_by_frame = compute_end_effector_positions(
+            scene, dense_targets, ee_frame_names
         )
 
-        sparse_target_positions = compute_end_effector_positions(
-            scene, sparse_targets, ee_frame_name
-        )
-        dense_target_positions = compute_end_effector_positions(
-            scene, dense_targets, ee_frame_name
-        )
-    print(f"Sparse targets: {len(sparse_targets)}")
-    print(f"Dense targets:  {len(dense_targets)}")
+    print(f"Sparse targets: {len(sparse_target_positions_by_frame[ee_frame_names[0]])}")
+    print(f"Dense targets:  {len(dense_target_positions_by_frame[ee_frame_names[0]])}")
 
-    # Trajectory rollout starts from the fixed start configuration.
+    # Trajectory rollout starts from the fixed start configuration
     scene.setJointPositions(q_start)
 
     if action_space == "cartesian":
         q_current = q_start.copy()
         trajectory = [q_current.copy()]
         delta_q = np.zeros(num_variables, dtype=float)
+        # Non-group indices are always zero; only group indices are written each step.
         delta_q_full = np.zeros(model_pin.nv, dtype=float)
 
-        for idx, target in enumerate(dense_targets):
+        for idx in range(len(dense_cartesian_trajectory.times)):
             loop_start = time.time()
 
-            frame_task.setTargetFrameTransform(target)
+            for frame_task, frame_tforms in zip(
+                frame_tasks, dense_cartesian_trajectory.tforms
+            ):
+                frame_task.setTargetFrameTransform(frame_tforms[idx])
 
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)
@@ -422,12 +512,9 @@ def main(
                 print(f"Warning: OInK failed at dense step {idx}: {exc}")
                 delta_q[:] = 0.0
 
-            delta_q_full[:] = 0.0
             delta_q_full[oink.v_indices] = delta_q
-
             q_current = scene.integrate(q_current, delta_q_full)
             scene.setJointPositions(q_current)
-            scene.forwardKinematics(q_current, ee_frame_name)
             trajectory.append(q_current.copy())
 
             if sleep:
@@ -436,7 +523,7 @@ def main(
                 time.sleep(max(0.0, dt - elapsed))
 
     else:
-        trajectory = [q.copy() for q in dense_targets]
+        trajectory = dense_targets
         if sleep:
             for q in trajectory:
                 viz.display(q)
@@ -445,70 +532,51 @@ def main(
     print("Finished tracking action chunk.")
     print(f"Generated trajectory with {len(trajectory)} configurations.")
 
-    executed_ee_positions = compute_end_effector_positions(
+    executed_ee_positions_by_frame = compute_end_effector_positions(
         scene,
         trajectory,
-        ee_frame_name,
+        ee_frame_names,
     )
 
-    # Visualize 1. sparse policy waypoints,
-    # 2. dense interpolated references,
-    # 3. final executed trajectory.
-    visualizePositionTrace(
-        viz,
-        sparse_target_positions,
-        trace_name="/action_chunk/sparse_policy_waypoints/trace",
-        waypoint_root="/action_chunk/sparse_policy_waypoints/markers",
-        trace_color=(255, 160, 0),
-        waypoint_color=(255, 160, 0),
-        line_width=1.0,
-        waypoint_radius=0.006,
-        draw_trace=False,
-        draw_waypoints=True,
-    )
+    trace_colors = [
+        (0, 80, 255),
+        (0, 180, 120),
+        (180, 0, 255),
+        (255, 80, 80),
+    ]
 
-    visualizePositionTrace(
-        viz,
-        dense_target_positions,
-        trace_name="/action_chunk/dense_interpolated_targets/trace",
-        waypoint_root="/action_chunk/dense_interpolated_targets/markers",
-        trace_color=(90, 90, 90),
-        waypoint_color=(90, 90, 90),
-        line_width=3.0,
-        waypoint_radius=0.004,
-        draw_trace=True,
-        draw_waypoints=True,
-        waypoint_stride=10,
-    )
+    current_ee_markers = {}
 
-    visualizePositionTrace(
-        viz,
-        executed_ee_positions,
-        trace_name="/action_chunk/executed_trace/trace",
-        waypoint_root="/action_chunk/executed_trace/markers",
-        trace_color=(0, 80, 255),
-        waypoint_color=(0, 80, 255),
-        line_width=10.0,
-        waypoint_radius=0.01,
-        draw_trace=True,
-        draw_waypoints=False,
-    )
+    for ee_idx, ee_frame_name in enumerate(ee_frame_names):
+        executed_color = trace_colors[ee_idx % len(trace_colors)]
 
-    current_ee_marker = viz.viewer.scene.add_icosphere(
-        "/action_chunk/current_ee",
-        radius=0.020,
-        position=executed_ee_positions[0],
-        color=(255, 0, 0),
-    )
+        # Visualize 1. sparse policy waypoints,
+        # 2. dense interpolated references,
+        # 3. final executed trajectory
+        visualize_ee_traces(
+            viz,
+            ee_frame_name,
+            sparse_target_positions_by_frame[ee_frame_name],
+            dense_target_positions_by_frame[ee_frame_name],
+            executed_ee_positions_by_frame[ee_frame_name],
+            executed_color,
+        )
+
+        current_ee_markers[ee_frame_name] = viz.viewer.scene.add_icosphere(
+            f"/action_chunk/{ee_frame_name}/current_ee",
+            radius=0.022,
+            position=executed_ee_positions_by_frame[ee_frame_name][0],
+            color=(255, 0, 0),
+        )
 
     print("Visualization added:")
     print("  orange: sparse policy waypoints shown as small markers only")
     print("  gray:   dense interpolated targets")
     if action_space == "cartesian":
-        print("  blue:   executed OInK-constrained trajectory")
+        print("  colored traces: executed OInK-constrained end-effector trajectories")
     else:
-        print("  blue:   executed joint-space trajectory")
-    print("  red:    current end-effector position")
+        print("  colored traces: executed joint-space end-effector trajectories")
+    print("  red spheres: current end-effector positions")
     print("Use the Viser GUI controls to animate, scrub, or reset the trajectory.")
 
     animating = False
@@ -525,18 +593,17 @@ def main(
 
     def display_step(target_step_idx: int, update_slider: bool = True):
         """Display one tracked configuration by index."""
-
         target_step_idx = max(0, min(target_step_idx, len(trajectory) - 1))
-
         viz.display(trajectory[target_step_idx])
-        current_ee_marker.position = executed_ee_positions[target_step_idx]
-
+        for ee_frame_name, marker in current_ee_markers.items():
+            marker.position = executed_ee_positions_by_frame[ee_frame_name][
+                target_step_idx
+            ]
         if update_slider:
             step_slider.value = target_step_idx
 
     @animate_button.on_click
     def animate_action_chunk(_):
-
         nonlocal animating
         if animating:
             return
@@ -563,14 +630,12 @@ def main(
     def update_step_from_slider(_):
         if animating:
             return
-
         display_step(int(step_slider.value), update_slider=False)
 
     @reset_button.on_click
     def reset(_):
         if animating:
             return
-
         display_step(0)
 
     try:

@@ -126,11 +126,30 @@ void init_core_types(nanobind::module_& m) {
         return ss.str();
       });
 
+  nanobind::class_<CartesianPath>(m, "CartesianPath",
+                                  "Contains a path of Cartesian configurations.")
+      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<const std::vector<std::string>&, const std::vector<std::string>&,
+                          const std::vector<std::vector<Eigen::Matrix4d>>&>(),
+           nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("tforms"))
+      .def_rw("base_frames", &CartesianPath::base_frames, "The names of the base frames.")
+      .def_rw("tip_frames", &CartesianPath::tip_frames, "The names of the tip frames.")
+      .def_rw("tforms", &CartesianPath::tforms, "The list of Cartesian transforms.")
+      .def("__repr__", [](const CartesianPath& path) {
+        std::stringstream ss;
+        ss << path;
+        return ss.str();
+      });
+
   nanobind::class_<CartesianTrajectory>(m, "CartesianTrajectory",
                                         "Contains a trajectory of Cartesian configurations.")
       .def(nanobind::init<>())  // Default constructor
-      .def_rw("base_frame", &CartesianTrajectory::base_frame, "The name of the base frame.")
-      .def_rw("tip_frame", &CartesianTrajectory::tip_frame, "The name of the tip frame.")
+      .def(nanobind::init<std::vector<std::string>, std::vector<std::string>, std::vector<double>,
+                          std::vector<std::vector<Eigen::Matrix4d>>>(),
+           nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("times"),
+           nanobind::arg("tforms"))
+      .def_rw("base_frames", &CartesianTrajectory::base_frames, "The names of the base frames.")
+      .def_rw("tip_frames", &CartesianTrajectory::tip_frames, "The names of the tip frames.")
       .def_rw("times", &CartesianTrajectory::times, "The list of times.")
       .def_rw("tforms", &CartesianTrajectory::tforms, "The list of Cartesian transforms.")
       .def("__repr__", [](const CartesianTrajectory& traj) {

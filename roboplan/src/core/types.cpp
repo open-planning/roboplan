@@ -75,16 +75,61 @@ std::ostream& operator<<(std::ostream& os, const JointTrajectory& traj) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const CartesianTrajectory& traj) {
-  os << "Cartesian Trajectory with " << traj.times.size() << " points:\n";
-  os << " base_frame: " << traj.base_frame << "\n";
-  os << " tip_frame: " << traj.tip_frame << "\n";
+std::ostream& operator<<(std::ostream& os, const CartesianPath& path) {
+  os << "Cartesian Path with " << path.tip_frames.size() << " frame(s):\n";
 
-  for (size_t idx = 0; idx < traj.times.size(); ++idx) {
-    const auto& t = traj.times.at(idx);
-    const auto& tform = traj.tforms.at(idx);
-    os << " [t=" << t << "]\n" << tform << "\n";
+  for (size_t frame_idx = 0; frame_idx < path.tip_frames.size(); ++frame_idx) {
+    os << " frame " << frame_idx << ":\n";
+
+    if (frame_idx < path.base_frames.size()) {
+      os << "  base_frame: " << path.base_frames.at(frame_idx) << "\n";
+    }
+
+    os << "  tip_frame: " << path.tip_frames.at(frame_idx) << "\n";
+
+    if (frame_idx >= path.tforms.size()) {
+      os << "  no transforms\n";
+      continue;
+    }
+
+    for (size_t path_idx = 0; path_idx < path.tforms.at(frame_idx).size(); ++path_idx) {
+      os << "  [idx=" << path_idx << "]\n";
+      os << path.tforms.at(frame_idx).at(path_idx) << "\n";
+    }
   }
+
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const CartesianTrajectory& traj) {
+  os << "Cartesian Trajectory with " << traj.times.size() << " point(s)";
+  os << " and " << traj.tip_frames.size() << " frame(s):\n";
+
+  for (size_t frame_idx = 0; frame_idx < traj.tip_frames.size(); ++frame_idx) {
+    os << " frame " << frame_idx << ":\n";
+
+    if (frame_idx < traj.base_frames.size()) {
+      os << "  base_frame: " << traj.base_frames.at(frame_idx) << "\n";
+    }
+
+    os << "  tip_frame: " << traj.tip_frames.at(frame_idx) << "\n";
+
+    if (frame_idx >= traj.tforms.size()) {
+      os << "  no transforms\n";
+      continue;
+    }
+
+    for (size_t time_idx = 0; time_idx < traj.times.size(); ++time_idx) {
+      os << "  [t=" << traj.times.at(time_idx) << "]\n";
+
+      if (time_idx < traj.tforms.at(frame_idx).size()) {
+        os << traj.tforms.at(frame_idx).at(time_idx) << "\n";
+      } else {
+        os << "  missing transform\n";
+      }
+    }
+  }
+
   return os;
 }
 
