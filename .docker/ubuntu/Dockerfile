@@ -17,12 +17,12 @@ RUN pip3 install nanobind pytest scikit-build-core
 # Also install additional dependencies for examples.
 RUN pip3 install \
     matplotlib \
-    pin==${PINOCCHIO_VERSION} \
     opencv-contrib-python-headless \
+    pin==${PINOCCHIO_VERSION} \
+    plyfile \
     tyro \
     "viser>=1.0.1" \
-    xacro \
-    plyfile
+    xacro
 
 # Find the location of the relevant pip installed packages and ensure they are available to
 # cmake and LD. This will cause build warnings with system installed packages.
