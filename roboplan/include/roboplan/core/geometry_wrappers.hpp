@@ -2,10 +2,22 @@
 
 #include <filesystem>
 
+// hppfcl was renamed to coal. Prefer the coal headers whenever they are available,
+// since modern hpp-fcl releases declare `namespace coal { }` as a real namespace
+// (with `hpp::fcl` as the backward-compatibility alias), which conflicts with
+// declaring `namespace coal = hpp::fcl;` ourselves.
+#if defined(__has_include) && __has_include(<coal/fwd.hh>)
+#include <coal/BVH/BVH_model.h>
+#include <coal/mesh_loader/loader.h>
+#include <coal/octree.h>
+#include <coal/shape/geometric_shapes.h>
+#else
 #include <hpp/fcl/BVH/BVH_model.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/octree.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
+namespace coal = hpp::fcl;
+#endif
 
 namespace roboplan {
 
@@ -18,20 +30,20 @@ struct Box {
   /// @param x The X dimension of the box.
   /// @param y The y dimension of the box.
   /// @param z The z dimension of the box.
-  Box(double x, double y, double z) { geom_ptr = std::make_shared<hpp::fcl::Box>(x, y, z); };
+  Box(double x, double y, double z) { geom_ptr = std::make_shared<coal::Box>(x, y, z); };
 
   /// @brief The underlying Coal box geometry.
-  std::shared_ptr<hpp::fcl::Box> geom_ptr;
+  std::shared_ptr<coal::Box> geom_ptr;
 };
 
 /// @brief Temporary wrapper struct to represent a sphere geometry.
 struct Sphere {
   /// @brief Construct a Sphere object wrapper
   /// @param radius The radius of the sphere.
-  Sphere(double radius) { geom_ptr = std::make_shared<hpp::fcl::Sphere>(radius); };
+  Sphere(double radius) { geom_ptr = std::make_shared<coal::Sphere>(radius); };
 
   /// @brief The underlying Coal sphere geometry.
-  std::shared_ptr<hpp::fcl::Sphere> geom_ptr;
+  std::shared_ptr<coal::Sphere> geom_ptr;
 };
 
 /// @brief Temporary wrapper struct to represent a cylinder geometry (oriented along the Z axis).
@@ -40,11 +52,11 @@ struct Cylinder {
   /// @param radius The radius of the cylinder.
   /// @param length The total length of the cylinder along its Z axis.
   Cylinder(double radius, double length) {
-    geom_ptr = std::make_shared<hpp::fcl::Cylinder>(radius, length);
+    geom_ptr = std::make_shared<coal::Cylinder>(radius, length);
   };
 
   /// @brief The underlying Coal cylinder geometry.
-  std::shared_ptr<hpp::fcl::Cylinder> geom_ptr;
+  std::shared_ptr<coal::Cylinder> geom_ptr;
 };
 
 /// @brief Temporary wrapper struct to represent a triangle mesh geometry loaded from a file.
@@ -54,15 +66,15 @@ struct Mesh {
   /// @param scale Per-axis scale factors applied to the loaded mesh. Defaults to (1, 1, 1).
   Mesh(const std::filesystem::path& filename,
        const Eigen::Vector3d& scale = Eigen::Vector3d::Ones()) {
-    hpp::fcl::MeshLoader loader;
+    coal::MeshLoader loader;
     geom_ptr = loader.load(filename.string(), scale);
   };
 
   /// @brief Construct a Mesh object wrapper from a pre-loaded Coal BVH model.
-  Mesh(const std::shared_ptr<hpp::fcl::BVHModelBase>& mesh_geom) { geom_ptr = mesh_geom; };
+  Mesh(const std::shared_ptr<coal::BVHModelBase>& mesh_geom) { geom_ptr = mesh_geom; };
 
   /// @brief The underlying Coal BVH mesh geometry.
-  std::shared_ptr<hpp::fcl::BVHModelBase> geom_ptr;
+  std::shared_ptr<coal::BVHModelBase> geom_ptr;
 };
 
 struct OcTree {
@@ -83,12 +95,12 @@ struct OcTree {
 
     octree->updateInnerOccupancy();
 
-    geom_ptr = std::make_shared<hpp::fcl::OcTree>(octree);
+    geom_ptr = std::make_shared<coal::OcTree>(octree);
   }
 
-  OcTree(const std::shared_ptr<hpp::fcl::OcTree>& octree_geom) { geom_ptr = octree_geom; }
+  OcTree(const std::shared_ptr<coal::OcTree>& octree_geom) { geom_ptr = octree_geom; }
 
-  std::shared_ptr<hpp::fcl::OcTree> geom_ptr;
+  std::shared_ptr<coal::OcTree> geom_ptr;
 };
 
 }  // namespace roboplan

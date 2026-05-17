@@ -209,9 +209,9 @@ sccache     = ">=0.10.0,<0.11"
 yaml-cpp    = ">=0.8.0,<0.9"
 
 # Core dependencies
-eigen      = ">=3.4.0,<4"
+eigen      = ">=3.4.0"
 libtoppra  = ">=0.6.4,<0.7"
-pinocchio  = ">=3.9.0,<4"
+pinocchio  = ">=4.0.0,<5"
 osqp-eigen = ">=0.11.0,<0.12"
 
 # Python bindings dependencies
@@ -226,7 +226,7 @@ matplotlib        = ">=3.10.5,<4"
 tyro              = ">=0.9.26,<0.10"
 viser             = ">=1.0.21,<2"
 zstandard         = ">=0.25.0,<0.26"
-plyfile           = "1.1.*"
+plyfile           = ">=1.1,<2"
 
 # We use pip as a workaround for pixi building the bindings before we build the core packages
 # In theory, it should be like this:

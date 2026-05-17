@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-import hppfcl
+try:
+    import coal
+except ModuleNotFoundError:
+    import hppfcl as coal
+
 import numpy as np
 from numpy.typing import NDArray
 import pinocchio as pin
@@ -17,7 +21,7 @@ class ObstacleConfig:
     name: str
     """Name of the obstacle."""
 
-    geom: hppfcl.ShapeBase | Path
+    geom: coal.ShapeBase | Path
     """The obstacle geometry, or a path to a mesh."""
 
     parent_frame: str
@@ -42,7 +46,7 @@ class ObstacleConfig:
                 self.tform,
                 self.color,
             )
-        elif isinstance(self.geom, hppfcl.Box):
+        elif isinstance(self.geom, coal.Box):
             x, y, z = self.geom.halfSide * 2.0
             scene.addBoxGeometry(
                 self.name,
@@ -51,7 +55,7 @@ class ObstacleConfig:
                 self.tform,
                 self.color,
             )
-        elif isinstance(self.geom, hppfcl.Sphere):
+        elif isinstance(self.geom, coal.Sphere):
             scene.addSphereGeometry(
                 self.name,
                 self.parent_frame,
@@ -59,7 +63,7 @@ class ObstacleConfig:
                 self.tform,
                 self.color,
             )
-        elif isinstance(self.geom, hppfcl.Cylinder):
+        elif isinstance(self.geom, coal.Cylinder):
             scene.addCylinderGeometry(
                 self.name,
                 self.parent_frame,
@@ -67,7 +71,7 @@ class ObstacleConfig:
                 self.tform,
                 self.color,
             )
-        elif isinstance(self.geom, hppfcl.OcTree):
+        elif isinstance(self.geom, coal.OcTree):
             boxes = self.geom.toBoxes()
             resolution = self.geom.getResolution()
             scene.addOcTreeGeometry(
@@ -97,7 +101,7 @@ class ObstacleConfig:
 
     def createGeometryObject(self, model: pin.Model):
         if isinstance(self.geom, Path):  # Special case for meshes
-            loader = hppfcl.MeshLoader()
+            loader = coal.MeshLoader()
             geom = loader.load(str(self.geom))
         else:
             geom = self.geom
@@ -168,14 +172,14 @@ def get_model_data():
             obstacles=[
                 ObstacleConfig(
                     name="test_box",
-                    geom=hppfcl.Box(0.5, 0.5, 0.5),
+                    geom=coal.Box(0.5, 0.5, 0.5),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
                     color=np.array([0.0, 0.0, 1.0, 0.5]),
                 ),
                 ObstacleConfig(
                     name="test_sphere",
-                    geom=hppfcl.Sphere(0.3),
+                    geom=coal.Sphere(0.3),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
                     color=np.array([1.0, 0.0, 0.0, 0.5]),
@@ -183,7 +187,7 @@ def get_model_data():
                 ),
                 ObstacleConfig(
                     name="ground_plane",
-                    geom=hppfcl.Box(1.5, 1.5, 0.2),
+                    geom=coal.Box(1.5, 1.5, 0.2),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
                     color=np.array([0.5, 0.5, 0.5, 0.5]),
@@ -214,14 +218,14 @@ def get_model_data():
             obstacles=[
                 ObstacleConfig(
                     name="test_box",
-                    geom=hppfcl.Box(1.0, 1.0, 0.5),
+                    geom=coal.Box(1.0, 1.0, 0.5),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
                     color=np.array([0.0, 0.0, 1.0, 0.5]),
                 ),
                 ObstacleConfig(
                     name="test_sphere",
-                    geom=hppfcl.Sphere(0.3),
+                    geom=coal.Sphere(0.3),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
                     color=np.array([1.0, 0.0, 0.0, 0.5]),
@@ -229,7 +233,7 @@ def get_model_data():
                 ),
                 ObstacleConfig(
                     name="ground_plane",
-                    geom=hppfcl.Box(1.5, 1.5, 0.2),
+                    geom=coal.Box(1.5, 1.5, 0.2),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
                     color=np.array([0.5, 0.5, 0.5, 0.5]),
@@ -271,14 +275,14 @@ def get_model_data():
             obstacles=[
                 ObstacleConfig(
                     name="test_box",
-                    geom=hppfcl.Box(1.0, 1.0, 0.5),
+                    geom=coal.Box(1.0, 1.0, 0.5),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
                     color=np.array([0.0, 0.0, 1.0, 0.5]),
                 ),
                 ObstacleConfig(
                     name="ground_plane",
-                    geom=hppfcl.Box(2.0, 2.0, 0.2),
+                    geom=coal.Box(2.0, 2.0, 0.2),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
                     color=np.array([0.5, 0.5, 0.5, 0.5]),
@@ -326,14 +330,14 @@ def get_model_data():
             obstacles=[
                 ObstacleConfig(
                     name="test_box",
-                    geom=hppfcl.Box(1.0, 1.0, 0.5),
+                    geom=coal.Box(1.0, 1.0, 0.5),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.3])).homogeneous,
                     color=np.array([0.0, 0.0, 1.0, 0.5]),
                 ),
                 ObstacleConfig(
                     name="test_sphere",
-                    geom=hppfcl.Sphere(0.3),
+                    geom=coal.Sphere(0.3),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
                     color=np.array([1.0, 0.0, 0.0, 0.5]),
@@ -341,7 +345,7 @@ def get_model_data():
                 ),
                 ObstacleConfig(
                     name="ground_plane",
-                    geom=hppfcl.Box(1.5, 1.5, 0.2),
+                    geom=coal.Box(1.5, 1.5, 0.2),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
                     color=np.array([0.5, 0.5, 0.5, 0.5]),
@@ -362,14 +366,14 @@ def get_model_data():
             obstacles=[
                 ObstacleConfig(
                     name="test_box",
-                    geom=hppfcl.Box(0.25, 0.25, 0.25),
+                    geom=coal.Box(0.25, 0.25, 0.25),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.5])).homogeneous,
                     color=np.array([0.0, 0.0, 1.0, 0.5]),
                 ),
                 ObstacleConfig(
                     name="ground_plane",
-                    geom=hppfcl.Box(0.5, 0.5, 0.1),
+                    geom=coal.Box(0.5, 0.5, 0.1),
                     parent_frame="universe",
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.05])).homogeneous,
                     color=np.array([0.5, 0.5, 0.5, 0.5]),
@@ -400,7 +404,7 @@ def load_octree_from_point_cloud(pointcloud_path: Path, voxel_resolution: float 
     # Access vertex data
     vertices = ply_data["vertex"]
     vertex_array = np.array([vertices["x"], vertices["y"], vertices["z"]]).T
-    octree = hppfcl.makeOctree(vertex_array, voxel_resolution)
+    octree = coal.makeOctree(vertex_array, voxel_resolution)
 
     return octree
 
