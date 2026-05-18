@@ -240,6 +240,27 @@ def main(
     hand_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "hand")
     cube_jnt_addr = model.jnt_qposadr[model.body_jntadr[cube_body_id]]
 
+    def draw_ee_path(traj, color: np.ndarray) -> None:
+        """Draw end-effector path as line segments in the MuJoCo viewer."""
+        q_full = scene.getCurrentJointPositions().copy()
+        pts = []
+        for q in traj.positions:
+            q_full[q_indices] = q
+            tform = scene.forwardKinematics(q_full, "fr3_hand")
+            pts.append(tform[:3, 3].copy())
+        scn = viewer.user_scn
+        for i in range(len(pts) - 1):
+            if scn.ngeom >= scn.maxgeom:
+                break
+            g = scn.geoms[scn.ngeom]
+            mujoco.mjv_initGeom(
+                g, mujoco.mjtGeom.mjGEOM_LINE,
+                np.zeros(3), np.zeros(3), np.eye(3).flatten(),
+                color.astype(np.float32),
+            )
+            mujoco.mjv_connector(g, mujoco.mjtGeom.mjGEOM_LINE, 3.0, pts[i], pts[i + 1])
+            scn.ngeom += 1
+
     def run_traj(traj, carry_cube=False, grasp_offset=None):
         for i in range(len(traj.times)):
             if not viewer.is_running():
@@ -259,6 +280,15 @@ def main(
         viewer.cam.elevation = -20
         viewer.cam.distance = 2.5
         viewer.cam.lookat = [0.3, 0.0, 0.3]
+
+        # Draw all planned EE paths before execution (transparent ghost lines)
+        draw_ee_path(home_traj,      np.array([0.2, 0.6, 1.0, 0.3]))  # blue
+        draw_ee_path(approach_traj,  np.array([0.2, 1.0, 0.2, 0.3]))  # green
+        draw_ee_path(lift_traj,      np.array([1.0, 1.0, 0.2, 0.3]))  # yellow
+        draw_ee_path(transport_traj, np.array([1.0, 0.5, 0.0, 0.3]))  # orange
+        draw_ee_path(place_traj,     np.array([1.0, 0.2, 0.8, 0.3]))  # pink
+        draw_ee_path(retreat_traj,   np.array([0.5, 0.2, 1.0, 0.3]))  # purple
+        viewer.sync()
 
         time.sleep(1.0)
 
