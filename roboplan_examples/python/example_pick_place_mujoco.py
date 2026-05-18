@@ -10,7 +10,7 @@ import tyro
 import xacro
 
 from common import MODELS
-from roboplan.core import CartesianConfiguration, JointConfiguration, JointPath, Scene
+from roboplan.core import Box, CartesianConfiguration, JointConfiguration, JointPath, PathShortcutter, Scene
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRT, RRTOptions
 from roboplan.simple_ik import SimpleIk, SimpleIkOptions
@@ -60,8 +60,15 @@ def main(
     rrt_max_nodes: int = 4000,
     rrt_max_connection_distance: float = 1.5,
     rrt_collision_check_step_size: float = 0.05,
-    rrt_goal_biasing_probability: float = 0.15,
+    rrt_goal_biasing_probability: float = 0.4,
     rrt_connect: bool = True,
+    rrt_shortcut_iters: int = 200,
+    # Wall obstacle (blocks transport path, forces RRT to route around)
+    wall_x: float = 0.5,
+    wall_y: float = 0.2,
+    wall_half_size_x: float = 0.15,
+    wall_half_size_y: float = 0.01,
+    wall_half_size_z: float = 0.15,
     # TOPP-RA
     toppra_dt: float = 0.02,
     toppra_mode: SplineFittingMode = SplineFittingMode.Hermite,
@@ -92,6 +99,12 @@ def main(
         rrt_collision_check_step_size: RRT collision check step size.
         rrt_goal_biasing_probability: RRT goal biasing probability.
         rrt_connect: Whether to use RRT-Connect (bidirectional).
+        rrt_shortcut_iters: Maximum path shortcutting iterations for RRT legs.
+        wall_x: X center of the wall obstacle.
+        wall_y: Y center of the wall obstacle.
+        wall_half_size_x: Half-size of the wall along x.
+        wall_half_size_y: Half-size of the wall along y (thickness).
+        wall_half_size_z: Half-size of the wall along z (height).
         toppra_dt: Time step for TOPP-RA trajectory generation.
         toppra_mode: Spline fitting mode for TOPP-RA.
         velocity_scale: Scale factor for trajectory velocity (lower = slower/smoother).
@@ -113,6 +126,13 @@ def main(
         type=mujoco.mjtGeom.mjGEOM_BOX,
         size=[CUBE_HALF_SIZE, CUBE_HALF_SIZE, CUBE_HALF_SIZE],
         rgba=[1, 0, 0, 1],
+    )
+
+    wall_body = spec.worldbody.add_body(name="wall", pos=[wall_x, wall_y, wall_half_size_z])
+    wall_body.add_geom(
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        size=[wall_half_size_x, wall_half_size_y, wall_half_size_z],
+        rgba=[0.5, 0.5, 0.9, 0.8],
     )
 
     eq = spec.add_equality()
@@ -143,6 +163,17 @@ def main(
     start_config = np.array(robot.starting_joint_config[:7])
     full_config = np.array(robot.starting_joint_config)
     scene.setJointPositions(full_config)
+
+    wall_tform = np.asfortranarray(
+        pin.SE3(np.eye(3), np.array([wall_x, wall_y, wall_half_size_z])).homogeneous
+    )
+    scene.addBoxGeometry(
+        "wall",
+        "universe",
+        Box(wall_half_size_x * 2, wall_half_size_y * 2, wall_half_size_z * 2),
+        wall_tform,
+        np.array([0.5, 0.5, 0.9, 0.8]),
+    )
 
     data.qpos[:7] = start_config
     mujoco.mj_forward(model, data)
@@ -213,10 +244,16 @@ def main(
         rrt_connect=rrt_connect,
     )
     rrt = RRT(scene, rrt_options)
+    shortcutter = PathShortcutter(scene, "fr3_arm")
     toppra = PathParameterizerTOPPRA(scene, "fr3_arm")
 
     def plan_rrt(start, goal_sol, label):
         path = rrt.plan(start, goal_sol)
+        path = shortcutter.shortcut(
+            path,
+            max_step_size=rrt_collision_check_step_size,
+            max_iters=rrt_shortcut_iters,
+        )
         traj = toppra.generate(path, dt=toppra_dt, mode=toppra_mode, velocity_scale=velocity_scale)
         print(f"{label}: {len(traj.times)} points, {traj.times[-1]:.2f}s")
         return traj
@@ -268,7 +305,8 @@ def main(
             data.qpos[:7] = traj.positions[i]
             mujoco.mj_forward(model, data)
             if carry_cube:
-                data.qpos[cube_jnt_addr:cube_jnt_addr + 3] = data.xpos[hand_body_id] + grasp_offset
+                hand_mat_cur = data.xmat[hand_body_id].reshape(3, 3)
+                data.qpos[cube_jnt_addr:cube_jnt_addr + 3] = data.xpos[hand_body_id] + hand_mat_cur @ grasp_offset
                 data.qpos[cube_jnt_addr + 3:cube_jnt_addr + 7] = data.xquat[hand_body_id]
                 mujoco.mj_forward(model, data)
             viewer.sync()
@@ -312,13 +350,14 @@ def main(
         viewer.sync()
         time.sleep(0.3)
 
-        # record cube offset relative to hand
-        grasp_offset_world = data.xpos[cube_body_id].copy() - data.xpos[hand_body_id].copy()
+        # record cube offset in hand local frame so it stays fixed during rotation
+        hand_mat = data.xmat[hand_body_id].reshape(3, 3).copy()
+        grasp_offset_local = hand_mat.T @ (data.xpos[cube_body_id] - data.xpos[hand_body_id])
 
         # lift, transport, place descent — carry cube throughout
-        run_traj(lift_traj, carry_cube=True, grasp_offset=grasp_offset_world)
-        run_traj(transport_traj, carry_cube=True, grasp_offset=grasp_offset_world)
-        run_traj(place_traj, carry_cube=True, grasp_offset=grasp_offset_world)
+        run_traj(lift_traj, carry_cube=True, grasp_offset=grasp_offset_local)
+        run_traj(transport_traj, carry_cube=True, grasp_offset=grasp_offset_local)
+        run_traj(place_traj, carry_cube=True, grasp_offset=grasp_offset_local)
 
         # open gripper + release cube
         data.qpos[7] = 0.04
