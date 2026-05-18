@@ -26,14 +26,17 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("gain", &Task::gain, "Task gain for low-pass filtering.")
       .def_ro("weight", &Task::weight, "Weight matrix for cost normalization.")
       .def_ro("lm_damping", &Task::lm_damping, "Levenberg-Marquardt damping.")
+      .def_ro("priority", &Task::priority,
+              "Priority level (1 = highest; lower priorities are projected into the nullspace of "
+              "higher priorities).")
       .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.");
 
   // Bind FrameTaskOptions configuration struct
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
-      .def(nanobind::init<double, double, double, double, double, double>(),
+      .def(nanobind::init<double, double, double, double, double, double, int>(),
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
            "lm_damping"_a = 0.0, "max_position_error"_a = std::numeric_limits<double>::infinity(),
-           "max_rotation_error"_a = std::numeric_limits<double>::infinity(),
+           "max_rotation_error"_a = std::numeric_limits<double>::infinity(), "priority"_a = 1,
            "Constructor with custom parameters.")
       .def_rw("position_cost", &FrameTaskOptions::position_cost, "Position cost weight.")
       .def_rw("orientation_cost", &FrameTaskOptions::orientation_cost, "Orientation cost weight.")
@@ -42,7 +45,10 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_rw("max_position_error", &FrameTaskOptions::max_position_error,
               "Maximum position error magnitude (meters). Infinite = no limit.")
       .def_rw("max_rotation_error", &FrameTaskOptions::max_rotation_error,
-              "Maximum rotation error magnitude (radians). Infinite = no limit.");
+              "Maximum rotation error magnitude (radians). Infinite = no limit.")
+      .def_rw("priority", &FrameTaskOptions::priority,
+              "Priority level (1 = highest). Tasks at higher priority numbers are projected "
+              "into the nullspace of lower priority numbers.");
 
   // Bind FrameTask inheriting from Task
   nanobind::class_<FrameTask, Task>(m, "FrameTask",
@@ -65,10 +71,14 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind ConfigurationTaskOptions configuration struct
   nanobind::class_<ConfigurationTaskOptions>(m, "ConfigurationTaskOptions",
                                              "Parameters for ConfigurationTask.")
-      .def(nanobind::init<double, double>(), "task_gain"_a = 1.0, "lm_damping"_a = 0.0)
+      .def(nanobind::init<double, double, int>(), "task_gain"_a = 1.0, "lm_damping"_a = 0.0,
+           "priority"_a = 1)
       .def_rw("task_gain", &ConfigurationTaskOptions::task_gain,
               "Task gain for low-pass filtering.")
-      .def_rw("lm_damping", &ConfigurationTaskOptions::lm_damping, "Levenberg-Marquardt damping.");
+      .def_rw("lm_damping", &ConfigurationTaskOptions::lm_damping, "Levenberg-Marquardt damping.")
+      .def_rw("priority", &ConfigurationTaskOptions::priority,
+              "Priority level (1 = highest). Tasks at higher priority numbers are projected "
+              "into the nullspace of lower priority numbers.");
 
   // Bind ConfigurationTask inheriting from Task
   nanobind::class_<ConfigurationTask, Task>(m, "ConfigurationTask",

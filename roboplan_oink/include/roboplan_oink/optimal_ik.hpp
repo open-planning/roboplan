@@ -19,8 +19,13 @@ namespace roboplan {
 /// 2. Implement computeJacobian() to fill jacobian_container
 /// 3. Implement computeError() to fill error_container
 struct Task {
-  Task(Eigen::MatrixXd weight_matrix, double task_gain = 1.0, double lm_damp = 0.0)
-      : gain(task_gain), weight(weight_matrix), lm_damping(lm_damp) {}
+  Task(int task_priority, Eigen::MatrixXd weight_matrix, double task_gain = 1.0,
+       double lm_damp = 0.0)
+      : gain(task_gain), weight(weight_matrix), lm_damping(lm_damp), priority(task_priority) {
+    if (priority < 1) {
+      throw std::invalid_argument("Task priority must be >= 1");
+    }
+  }
   virtual ~Task() = default;
 
   /// @brief Initialize pre-allocated storage with correct dimensions.
@@ -73,6 +78,8 @@ struct Task {
   const double gain = 1.0;        // Task gain for low-pass filtering
   const Eigen::MatrixXd weight;   // Weight matrix for cost normalization
   const double lm_damping = 0.0;  // Levenberg-Marquardt damping
+  const int priority = 1;         // Priority level (1 = highest; lower priorities are projected
+                                  // into the nullspace of higher ones)
   int num_variables = 0;          // Number of optimization variables
 
   /// @brief Pre-allocated Jacobian container (task_rows × num_variables).
@@ -410,5 +417,15 @@ struct Oink {
   // Pre-allocated barrier regularization workspace
   Eigen::MatrixXd barrier_H_contribution;
   Eigen::VectorXd barrier_c_contribution;
+
+  // Cumulative unweighted Jacobian stack used by the hierarchical-priority projector.
+  // Rows from each priority level are appended after that level's task contributions are
+  // accumulated, then a damped pseudoinverse builds the nullspace projector N used to
+  // project the NEXT priority level's Jacobian into the higher levels' nullspace.
+  Eigen::MatrixXd jacobian_stack;
+
+  // Pre-allocated, priority-sorted view into the tasks passed to solveIk. Reusing this buffer
+  // avoids heap traffic on the hot path; capacity persists across calls.
+  std::vector<Task*> sorted_tasks;
 };
 }  // namespace roboplan

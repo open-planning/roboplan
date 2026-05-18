@@ -133,9 +133,12 @@ def main(
     )
     print(f"  {q_canonical}")
 
-    # Create a ConfigurationTask to regularize toward the starting pose
+    # Create a ConfigurationTask to regularize toward the starting pose.
+    # The task runs at priority 2 so it is projected into the nullspace of the (priority 1)
+    # FrameTask. This way, regularization toward the starting pose never sacrifices end-effector
+    # tracking; it only uses the redundant degrees of freedom that the FrameTask leaves free.
     joint_weights = np.full(num_variables, 0.05)
-    config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
+    config_options = ConfigurationTaskOptions(task_gain=1.0, lm_damping=0.0, priority=2)
     config_task = ConfigurationTask(
         oink, q_canonical[oink.q_indices], joint_weights, config_options
     )

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <limits>
 
 #include <OsqpEigen/OsqpEigen.h>
@@ -204,67 +205,130 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
                                ". delta_q must be pre-allocated to num_variables.");
   }
 
-  // Reset Hessian and Gradient
+  // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
+  // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
+  sorted_tasks.clear();
+  for (const auto& task : tasks) {
+    if (task)
+      sorted_tasks.push_back(task.get());
+  }
+  std::stable_sort(sorted_tasks.begin(), sorted_tasks.end(),
+                   [](Task* a, Task* b) { return a->priority < b->priority; });
+
+  // Reset Hessian and Gradient.
   H.setIdentity();
   H.diagonal().array() *= regularization;
   c.setZero();
 
-  // Calculate accumulated Hessian and Gradient from tasks
-  for (const auto& task : tasks) {
-    auto objective_result = task->computeQpObjective(scene, task_H, task_c);
-    if (!objective_result.has_value()) {
-      return tl::make_unexpected(objective_result.error());
+  // Cumulative nullspace projector and Jacobian stack (only built up if there are 2+ priority
+  // levels — otherwise N stays at identity and nothing changes vs. the original single-level
+  // formulation).
+  Eigen::MatrixXd N = Eigen::MatrixXd::Identity(num_variables, num_variables);
+  jacobian_stack.resize(0, num_variables);
+
+  // Add each task's contribution to H and c, projecting its Jacobian through the cumulative
+  // nullspace from earlier priority levels. Priority 1 has N = I (no projection); subsequent
+  // priorities act only in the nullspace of higher priorities, so their contribution is
+  // structurally zero in the higher-priority directions and cannot fight them.
+  size_t level_start = 0;
+  for (size_t i = 0; i < sorted_tasks.size(); ++i) {
+    Task* task = sorted_tasks[i];
+
+    auto jacobian_result = task->computeJacobian(scene);
+    if (!jacobian_result.has_value()) {
+      return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
+    }
+    auto error_result = task->computeError(scene);
+    if (!error_result.has_value()) {
+      return tl::make_unexpected("Failed to compute error: " + error_result.error());
     }
 
-    H += task_H;
-    c += task_c;
+    //   min ||W J (N z) + W alpha e||^2   with delta_q = N z (z lives in the priority's
+    //   nullspace). We absorb the parameterization into a projected effective Jacobian and
+    //   keep the optimization variable as dq, so the same QP can be reused regardless of
+    //   priority count.
+    const Eigen::MatrixXd WJ_proj = task->weight * task->jacobian_container * N;
+    const Eigen::VectorXd We = task->weight * (task->gain * task->error_container);
+
+    const double mu = task->lm_damping * We.squaredNorm();
+
+    task->H_dense.noalias() = WJ_proj.transpose() * WJ_proj;
+    task->H_dense.diagonal().array() += mu;
+    H += task->H_dense.sparseView();
+    c.noalias() += WJ_proj.transpose() * We;
+
+    const bool last_in_level =
+        (i + 1 == sorted_tasks.size()) || sorted_tasks[i + 1]->priority != task->priority;
+    const bool has_next_level = (i + 1 < sorted_tasks.size());
+
+    if (last_in_level && has_next_level) {
+      // Extend the cumulative Jacobian stack with this level's (unweighted) Jacobians and
+      // refresh the nullspace projector for the next, deeper priority level.
+      int level_rows = 0;
+      for (size_t j = level_start; j <= i; ++j) {
+        level_rows += sorted_tasks[j]->jacobian_container.rows();
+      }
+      const int prev = static_cast<int>(jacobian_stack.rows());
+      jacobian_stack.conservativeResize(prev + level_rows, num_variables);
+      int off = prev;
+      for (size_t j = level_start; j <= i; ++j) {
+        const int n = static_cast<int>(sorted_tasks[j]->jacobian_container.rows());
+        jacobian_stack.middleRows(off, n) = sorted_tasks[j]->jacobian_container;
+        off += n;
+      }
+
+      // Damped pseudoinverse using `regularization` itself as lambda^2. The user already
+      // controls overall numerical conditioning through this knob; reusing it avoids any
+      // new "magic" damping constant. At well-conditioned configurations (sigma >> sqrt(reg))
+      // the projector is numerically the standard nullspace projector; near singularities the
+      // damping smoothly preserves SPD-ness of (J J^T + lambda^2 I).
+      const double lambda_sq = regularization;
+      Eigen::MatrixXd JJt = jacobian_stack * jacobian_stack.transpose();
+      JJt.diagonal().array() += lambda_sq;
+      const Eigen::MatrixXd JJt_inv_J = JJt.llt().solve(jacobian_stack);
+      N.setIdentity(num_variables, num_variables);
+      N.noalias() -= jacobian_stack.transpose() * JJt_inv_J;
+
+      level_start = i + 1;
+    }
   }
 
-  // Add barrier regularization contributions (safe displacement)
-  // Resize workspace if needed
+  // Barriers contribute a safe-displacement regularization in the original dq space.
   if (barrier_H_contribution.rows() != num_variables) {
     barrier_H_contribution.resize(num_variables, num_variables);
     barrier_c_contribution.resize(num_variables);
   }
-
   for (const auto& barrier : barriers) {
-    auto obj_result =
-        barrier->computeQpObjective(scene, barrier_H_contribution, barrier_c_contribution);
-    if (obj_result.has_value()) {
-      // Add dense contribution to sparse H (convert to sparse for efficient addition)
+    auto r = barrier->computeQpObjective(scene, barrier_H_contribution, barrier_c_contribution);
+    if (r.has_value()) {
       H += barrier_H_contribution.sparseView();
       c += barrier_c_contribution;
     }
   }
-
   H.makeCompressed();
 
-  // Query total constraint dimensions and cache sizes
-  constraint_sizes.reserve(constraints.size());
+  // Build inequality rows for constraints and barriers, in the original dq space. No
+  // transformation is needed because dq is the decision variable directly.
+  constraint_sizes.clear();
   int total_constraint_rows = 0;
   for (const auto& constraint : constraints) {
-    int num_rows = constraint->getNumConstraints(scene);
-    constraint_sizes.push_back(num_rows);
-    total_constraint_rows += num_rows;
+    int n = constraint->getNumConstraints(scene);
+    constraint_sizes.push_back(n);
+    total_constraint_rows += n;
   }
-
-  // Query total barrier dimensions and cache sizes
-  barrier_sizes.reserve(barriers.size());
+  barrier_sizes.clear();
   int total_barrier_rows = 0;
   for (const auto& barrier : barriers) {
-    int num_rows = barrier->getNumBarriers(scene);
-    barrier_sizes.push_back(num_rows);
-    total_barrier_rows += num_rows;
+    int n = barrier->getNumBarriers(scene);
+    barrier_sizes.push_back(n);
+    total_barrier_rows += n;
   }
-
-  // Total inequality constraints = constraints (box) + barriers (one-sided)
-  // For barriers: -inf <= G*dq <= h (only upper bounded)
   const int total_rows = total_constraint_rows + total_barrier_rows;
+
   const bool init_required =
       !solver.isInitialized() ||
       (total_constraint_rows != last_constraint_rows || total_barrier_rows != last_barrier_rows);
 
-  // Resize constraint workspace if dimensions changed
   if (init_required) {
     constraint_workspace_A.resize(total_rows, num_variables);
     constraint_workspace_lower.resize(total_rows);
@@ -274,61 +338,31 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     last_barrier_rows = total_barrier_rows;
   }
 
-  // Fill constraint matrices block by block
-  int row_offset = 0;
-  for (size_t i = 0; i < constraints.size(); ++i) {
-    const int num_rows = constraint_sizes.at(i);
-
-    if (row_offset + num_rows > total_rows) {
-      return tl::make_unexpected("Internal error: constraint row offset exceeds total rows");
+  {
+    int row_offset = 0;
+    for (size_t i = 0; i < constraints.size(); ++i) {
+      const int n = constraint_sizes[i];
+      Eigen::Ref<Eigen::MatrixXd> A_view = constraint_workspace_A.middleRows(row_offset, n);
+      Eigen::Ref<Eigen::VectorXd> lo_view = constraint_workspace_lower.segment(row_offset, n);
+      Eigen::Ref<Eigen::VectorXd> up_view = constraint_workspace_upper.segment(row_offset, n);
+      auto r = constraints[i]->computeQpConstraints(scene, A_view, lo_view, up_view);
+      if (!r.has_value()) {
+        return tl::make_unexpected("Failed to compute constraints: " + r.error());
+      }
+      row_offset += n;
     }
-
-    Eigen::Ref<Eigen::MatrixXd> constraint_A_view =
-        constraint_workspace_A.middleRows(row_offset, num_rows);
-    Eigen::Ref<Eigen::VectorXd> constraint_lower_view =
-        constraint_workspace_lower.segment(row_offset, num_rows);
-    Eigen::Ref<Eigen::VectorXd> constraint_upper_view =
-        constraint_workspace_upper.segment(row_offset, num_rows);
-
-    auto constraint_result = constraints.at(i)->computeQpConstraints(
-        scene, constraint_A_view, constraint_lower_view, constraint_upper_view);
-    if (!constraint_result.has_value()) {
-      return tl::make_unexpected("Failed to compute constraints: " + constraint_result.error());
+    for (size_t i = 0; i < barriers.size(); ++i) {
+      const int n = barrier_sizes[i];
+      Eigen::Ref<Eigen::MatrixXd> A_view = constraint_workspace_A.middleRows(row_offset, n);
+      Eigen::Ref<Eigen::VectorXd> up_view = constraint_workspace_upper.segment(row_offset, n);
+      auto r = barriers[i]->computeQpInequalities(scene, A_view, up_view);
+      if (!r.has_value()) {
+        return tl::make_unexpected("Failed to compute barriers: " + r.error());
+      }
+      constraint_workspace_lower.segment(row_offset, n).setConstant(-OsqpEigen::INFTY);
+      row_offset += n;
     }
-
-    row_offset += num_rows;
   }
-
-  // Fill barrier constraints (one-sided: -inf <= G*dq <= h)
-  for (size_t i = 0; i < barriers.size(); ++i) {
-    const int num_rows = barrier_sizes.at(i);
-
-    if (row_offset + num_rows > total_rows) {
-      return tl::make_unexpected("Internal error: barrier row offset exceeds total rows");
-    }
-
-    Eigen::Ref<Eigen::MatrixXd> barrier_G_view =
-        constraint_workspace_A.middleRows(row_offset, num_rows);
-    Eigen::Ref<Eigen::VectorXd> barrier_h_view =
-        constraint_workspace_upper.segment(row_offset, num_rows);
-
-    auto barrier_result =
-        barriers.at(i)->computeQpInequalities(scene, barrier_G_view, barrier_h_view);
-    if (!barrier_result.has_value()) {
-      return tl::make_unexpected("Failed to compute barriers: " + barrier_result.error());
-    }
-
-    // Barrier constraints are one-sided: -inf <= G*dq <= h
-    constraint_workspace_lower.segment(row_offset, num_rows).setConstant(-OsqpEigen::INFTY);
-
-    row_offset += num_rows;
-  }
-
-  // Clear sizes for next iteration
-  constraint_sizes.clear();
-  barrier_sizes.clear();
-
-  // Convert constraint matrix to sparse format
   A_sparse = constraint_workspace_A.sparseView();
 
   if (init_required) {
@@ -373,11 +407,9 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     if (!solver.updateHessianMatrix(H)) {
       return tl::make_unexpected("Failed to update Hessian matrix");
     }
-
     if (!solver.updateGradient(c)) {
       return tl::make_unexpected("Failed to update gradient vector");
     }
-
     if (total_rows > 0) {
       if (!solver.updateLinearConstraintsMatrix(A_sparse)) {
         return tl::make_unexpected("Failed to update linear constraints matrix");
@@ -388,14 +420,12 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     }
   }
 
-  auto result = solver.solveProblem();
-  if (result != OsqpEigen::ErrorExitFlag::NoError) {
+  auto solve_result = solver.solveProblem();
+  if (solve_result != OsqpEigen::ErrorExitFlag::NoError) {
     return tl::make_unexpected("QP solver failed to find a solution");
   }
 
-  // Extract the solution and copy into delta_q
   delta_q.noalias() = solver.getSolution();
-
   return {};
 }
 

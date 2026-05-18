@@ -25,13 +25,19 @@ class Task:
         """Levenberg-Marquardt damping."""
 
     @property
+    def priority(self) -> int:
+        """
+        Priority level (1 = highest; lower priorities are projected into the nullspace of higher priorities).
+        """
+
+    @property
     def num_variables(self) -> int:
         """Number of optimization variables."""
 
 class FrameTaskOptions:
     """Parameters for FrameTask."""
 
-    def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0, max_position_error: float = float('inf'), max_rotation_error: float = float('inf')) -> None:
+    def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0, max_position_error: float = float('inf'), max_rotation_error: float = float('inf'), priority: int = 1) -> None:
         """Constructor with custom parameters."""
 
     @property
@@ -76,6 +82,15 @@ class FrameTaskOptions:
     @max_rotation_error.setter
     def max_rotation_error(self, arg: float, /) -> None: ...
 
+    @property
+    def priority(self) -> int:
+        """
+        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers.
+        """
+
+    @priority.setter
+    def priority(self, arg: int, /) -> None: ...
+
 class FrameTask(Task):
     """Task to reach a target pose for a specified frame."""
 
@@ -111,7 +126,7 @@ class FrameTask(Task):
 class ConfigurationTaskOptions:
     """Parameters for ConfigurationTask."""
 
-    def __init__(self, task_gain: float = 1.0, lm_damping: float = 0.0) -> None: ...
+    def __init__(self, task_gain: float = 1.0, lm_damping: float = 0.0, priority: int = 1) -> None: ...
 
     @property
     def task_gain(self) -> float:
@@ -126,6 +141,15 @@ class ConfigurationTaskOptions:
 
     @lm_damping.setter
     def lm_damping(self, arg: float, /) -> None: ...
+
+    @property
+    def priority(self) -> int:
+        """
+        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers.
+        """
+
+    @priority.setter
+    def priority(self, arg: int, /) -> None: ...
 
 class ConfigurationTask(Task):
     """Task to reach a target joint configuration."""

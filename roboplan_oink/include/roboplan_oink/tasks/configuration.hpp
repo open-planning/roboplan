@@ -14,6 +14,10 @@ struct ConfigurationTaskOptions {
 
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
   double lm_damping = 0.0;
+
+  /// @brief Priority level (default: 1). Tasks at higher priority numbers are projected
+  /// into the nullspace of all lower priority numbers. Must be >= 1.
+  int priority = 1;
 };
 
 /// @brief Task for tracking a target joint configuration.
