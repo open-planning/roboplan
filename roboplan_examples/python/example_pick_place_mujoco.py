@@ -10,7 +10,14 @@ import tyro
 import xacro
 
 from common import MODELS
-from roboplan.core import Box, CartesianConfiguration, JointConfiguration, JointPath, PathShortcutter, Scene
+from roboplan.core import (
+    Box,
+    CartesianConfiguration,
+    JointConfiguration,
+    JointPath,
+    PathShortcutter,
+    Scene,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRT, RRTOptions
 from roboplan.simple_ik import SimpleIk, SimpleIkOptions
@@ -22,19 +29,32 @@ def make_tform(rot: np.ndarray, pos: np.ndarray) -> np.ndarray:
     return np.asfortranarray(pin.SE3(rot, pos).homogeneous)
 
 
-def execute_trajectory(traj, data, viewer, dt: float, carry_cube: bool = False,
-                       cube_jnt_addr: int = 0, hand_body_id: int = 0,
-                       grasp_offset_world: np.ndarray = None) -> None:
+def execute_trajectory(
+    traj,
+    data,
+    viewer,
+    dt: float,
+    carry_cube: bool = False,
+    cube_jnt_addr: int = 0,
+    hand_body_id: int = 0,
+    grasp_offset_world: np.ndarray = None,
+) -> None:
     """Step through a joint trajectory in the MuJoCo viewer."""
     for i in range(len(traj.times)):
         if not viewer.is_running():
             break
         data.qpos[:7] = traj.positions[i]
-        mujoco.mj_forward(data.model if hasattr(data, 'model') else mujoco.MjModel, data)
+        mujoco.mj_forward(
+            data.model if hasattr(data, "model") else mujoco.MjModel, data
+        )
         if carry_cube:
-            data.qpos[cube_jnt_addr:cube_jnt_addr + 3] = data.xpos[hand_body_id] + grasp_offset_world
-            data.qpos[cube_jnt_addr + 3:cube_jnt_addr + 7] = data.xquat[hand_body_id]
-            mujoco.mj_forward(data.model if hasattr(data, 'model') else mujoco.MjModel, data)
+            data.qpos[cube_jnt_addr : cube_jnt_addr + 3] = (
+                data.xpos[hand_body_id] + grasp_offset_world
+            )
+            data.qpos[cube_jnt_addr + 3 : cube_jnt_addr + 7] = data.xquat[hand_body_id]
+            mujoco.mj_forward(
+                data.model if hasattr(data, "model") else mujoco.MjModel, data
+            )
         viewer.sync()
         time.sleep(dt)
 
@@ -112,7 +132,9 @@ def main(
     CUBE_HALF_SIZE = 0.025
 
     # --- MuJoCo scene setup ---
-    spec = mujoco.MjSpec.from_file("external/mujoco_menagerie/franka_emika_panda/panda.xml")
+    spec = mujoco.MjSpec.from_file(
+        "external/mujoco_menagerie/franka_emika_panda/panda.xml"
+    )
 
     spec.worldbody.add_geom(
         type=mujoco.mjtGeom.mjGEOM_PLANE,
@@ -120,7 +142,9 @@ def main(
         rgba=[0.8, 0.8, 0.8, 1],
     )
 
-    cube_body = spec.worldbody.add_body(name="cube", pos=[cube_x, cube_y, CUBE_HALF_SIZE])
+    cube_body = spec.worldbody.add_body(
+        name="cube", pos=[cube_x, cube_y, CUBE_HALF_SIZE]
+    )
     cube_body.add_freejoint()
     cube_body.add_geom(
         type=mujoco.mjtGeom.mjGEOM_BOX,
@@ -128,7 +152,9 @@ def main(
         rgba=[1, 0, 0, 1],
     )
 
-    wall_body = spec.worldbody.add_body(name="wall", pos=[wall_x, wall_y, wall_half_size_z])
+    wall_body = spec.worldbody.add_body(
+        name="wall", pos=[wall_x, wall_y, wall_half_size_z]
+    )
     wall_body.add_geom(
         type=mujoco.mjtGeom.mjGEOM_BOX,
         size=[wall_half_size_x, wall_half_size_y, wall_half_size_z],
@@ -183,11 +209,13 @@ def main(
     cube_pos = data.xpos[cube_body_id].copy()
 
     # --- Pose computation ---
-    grasp_rot = np.array([
-        [1,  0,  0],
-        [0, -1,  0],
-        [0,  0, -1],
-    ])
+    grasp_rot = np.array(
+        [
+            [1, 0, 0],
+            [0, -1, 0],
+            [0, 0, -1],
+        ]
+    )
 
     pregrasp_pos = cube_pos + np.array([0, 0, pregrasp_z_offset])
     grasp_pos = cube_pos + np.array([0, 0, grasp_z_offset])
@@ -197,7 +225,9 @@ def main(
     pregrasp_tform = make_tform(grasp_rot, pregrasp_pos)
     grasp_tform = make_tform(grasp_rot, grasp_pos)
     lift_tform = make_tform(grasp_rot, lift_pos)
-    preplace_tform = make_tform(grasp_rot, place_pos + np.array([0, 0, preplace_z_offset]))
+    preplace_tform = make_tform(
+        grasp_rot, place_pos + np.array([0, 0, preplace_z_offset])
+    )
     place_tform = make_tform(grasp_rot, place_pos + np.array([0, 0, place_z_offset]))
 
     # --- IK setup ---
@@ -254,7 +284,9 @@ def main(
             max_step_size=rrt_collision_check_step_size,
             max_iters=rrt_shortcut_iters,
         )
-        traj = toppra.generate(path, dt=toppra_dt, mode=toppra_mode, velocity_scale=velocity_scale)
+        traj = toppra.generate(
+            path, dt=toppra_dt, mode=toppra_mode, velocity_scale=velocity_scale
+        )
         print(f"{label}: {len(traj.times)} points, {traj.times[-1]:.2f}s")
         return traj
 
@@ -262,7 +294,9 @@ def main(
         path = JointPath()
         path.joint_names = arm_joint_names
         path.positions = [start_sol.positions, end_sol.positions]
-        traj = toppra.generate(path, dt=toppra_dt, mode=toppra_mode, velocity_scale=velocity_scale)
+        traj = toppra.generate(
+            path, dt=toppra_dt, mode=toppra_mode, velocity_scale=velocity_scale
+        )
         print(f"{label}: {len(traj.times)} points, {traj.times[-1]:.2f}s")
         return traj
 
@@ -291,8 +325,11 @@ def main(
                 break
             g = scn.geoms[scn.ngeom]
             mujoco.mjv_initGeom(
-                g, mujoco.mjtGeom.mjGEOM_LINE,
-                np.zeros(3), np.zeros(3), np.eye(3).flatten(),
+                g,
+                mujoco.mjtGeom.mjGEOM_LINE,
+                np.zeros(3),
+                np.zeros(3),
+                np.eye(3).flatten(),
                 color.astype(np.float32),
             )
             mujoco.mjv_connector(g, mujoco.mjtGeom.mjGEOM_LINE, 3.0, pts[i], pts[i + 1])
@@ -306,8 +343,12 @@ def main(
             mujoco.mj_forward(model, data)
             if carry_cube:
                 hand_mat_cur = data.xmat[hand_body_id].reshape(3, 3)
-                data.qpos[cube_jnt_addr:cube_jnt_addr + 3] = data.xpos[hand_body_id] + hand_mat_cur @ grasp_offset
-                data.qpos[cube_jnt_addr + 3:cube_jnt_addr + 7] = data.xquat[hand_body_id]
+                data.qpos[cube_jnt_addr : cube_jnt_addr + 3] = (
+                    data.xpos[hand_body_id] + hand_mat_cur @ grasp_offset
+                )
+                data.qpos[cube_jnt_addr + 3 : cube_jnt_addr + 7] = data.xquat[
+                    hand_body_id
+                ]
                 mujoco.mj_forward(model, data)
             viewer.sync()
             time.sleep(toppra_dt)
@@ -320,12 +361,12 @@ def main(
         viewer.cam.lookat = [0.3, 0.0, 0.3]
 
         # Draw all planned EE paths before execution (transparent ghost lines)
-        draw_ee_path(home_traj,      np.array([0.2, 0.6, 1.0, 0.3]))  # blue
-        draw_ee_path(approach_traj,  np.array([0.2, 1.0, 0.2, 0.3]))  # green
-        draw_ee_path(lift_traj,      np.array([1.0, 1.0, 0.2, 0.3]))  # yellow
+        draw_ee_path(home_traj, np.array([0.2, 0.6, 1.0, 0.3]))  # blue
+        draw_ee_path(approach_traj, np.array([0.2, 1.0, 0.2, 0.3]))  # green
+        draw_ee_path(lift_traj, np.array([1.0, 1.0, 0.2, 0.3]))  # yellow
         draw_ee_path(transport_traj, np.array([1.0, 0.5, 0.0, 0.3]))  # orange
-        draw_ee_path(place_traj,     np.array([1.0, 0.2, 0.8, 0.3]))  # pink
-        draw_ee_path(retreat_traj,   np.array([0.5, 0.2, 1.0, 0.3]))  # purple
+        draw_ee_path(place_traj, np.array([1.0, 0.2, 0.8, 0.3]))  # pink
+        draw_ee_path(retreat_traj, np.array([0.5, 0.2, 1.0, 0.3]))  # purple
         viewer.sync()
 
         time.sleep(1.0)
@@ -352,7 +393,9 @@ def main(
 
         # record cube offset in hand local frame so it stays fixed during rotation
         hand_mat = data.xmat[hand_body_id].reshape(3, 3).copy()
-        grasp_offset_local = hand_mat.T @ (data.xpos[cube_body_id] - data.xpos[hand_body_id])
+        grasp_offset_local = hand_mat.T @ (
+            data.xpos[cube_body_id] - data.xpos[hand_body_id]
+        )
 
         # lift, transport, place descent — carry cube throughout
         run_traj(lift_traj, carry_cube=True, grasp_offset=grasp_offset_local)
