@@ -376,7 +376,7 @@
     <parent link="mast_link"/>
     <child link="lift_link"/>
     <axis xyz="0 0 1"/>
-    <limit effort="0" lower="0" upper="1.2" velocity="0"/>
+    <limit effort="0" lower="0" upper="1.2" velocity="0.15"/>
   </joint>
   <link name="arm_l0_link">
     <inertial>
@@ -433,7 +433,7 @@
     <parent link="arm_l0_link"/>
     <child link="arm_l1_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="0" lower="0" upper="0.13" velocity="0"/>
+    <limit effort="0" lower="0" upper="0.13" velocity="0.05"/>
   </joint>
   <link name="arm_l2_link">
     <inertial>
@@ -462,7 +462,7 @@
     <parent link="arm_l1_link"/>
     <child link="arm_l2_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="0" lower="0" upper="0.13" velocity="0"/>
+    <limit effort="0" lower="0" upper="0.13" velocity="0.05"/>
     <mimic joint="arm_l1_joint" multiplier="1" offset="0"/>
   </joint>
   <link name="arm_l3_link">
@@ -492,7 +492,7 @@
     <parent link="arm_l2_link"/>
     <child link="arm_l3_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="0" lower="0" upper="0.13" velocity="0"/>
+    <limit effort="0" lower="0" upper="0.13" velocity="0.05"/>
     <mimic joint="arm_l1_joint" multiplier="1" offset="0"/>
   </joint>
   <link name="arm_l4_link">
@@ -522,7 +522,7 @@
     <parent link="arm_l3_link"/>
     <child link="arm_l4_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="0" lower="0" upper="0.13" velocity="0"/>
+    <limit effort="0" lower="0" upper="0.13" velocity="0.05"/>
     <mimic joint="arm_l1_joint" multiplier="1" offset="0"/>
   </joint>
   <link name="wrist_link">
@@ -580,7 +580,7 @@
     <parent link="wrist_link"/>
     <child link="wrist_yaw_link"/>
     <axis xyz="0 0 1"/>
-    <limit effort="0" lower="-1.135" upper="4.276" velocity="0"/>
+    <limit effort="0" lower="-1.135" upper="4.276" velocity="1.0"/>
   </joint>
   <link name="wrist_pitch_link">
     <inertial>
@@ -609,7 +609,7 @@
     <parent link="wrist_yaw_link"/>
     <child link="wrist_pitch_link"/>
     <axis xyz="0 1 0"/>
-    <limit effort="0" lower="-4.276" upper="1.135" velocity="0"/>
+    <limit effort="0" lower="-4.276" upper="1.135" velocity="1.0"/>
   </joint>
   <link name="wrist_roll_link">
     <inertial>
@@ -638,7 +638,7 @@
     <parent link="wrist_pitch_link"/>
     <child link="wrist_roll_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="0" lower="-1.135" upper="4.276" velocity="0"/>
+    <limit effort="0" lower="-1.135" upper="4.276" velocity="1.0"/>
   </joint>
   <link name="gripper_camera_link">
     <inertial>
@@ -936,7 +936,7 @@
     <parent link="quick_connect_interface_link"/>
     <child link="gripper_finger_right_link"/>
     <axis xyz="0 -1 0"/>
-    <limit effort="0" lower="0.0" upper="0.5" velocity="0"/>
+    <limit effort="0" lower="0.0" upper="0.5" velocity="0.5"/>
   </joint>
   <link name="gripper_fingertip_right_link">
     <inertial>
@@ -1021,7 +1021,7 @@
     <parent link="quick_connect_interface_link"/>
     <child link="gripper_finger_left_link"/>
     <axis xyz="0 1 0"/>
-    <limit effort="0" lower="0.0" upper="0.5" velocity="0"/>
+    <limit effort="0" lower="0.0" upper="0.5" velocity="0.5"/>
   </joint>
   <link name="gripper_fingertip_left_link">
     <inertial>
