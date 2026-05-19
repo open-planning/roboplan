@@ -98,6 +98,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
       if (converged) {
         if (!options_.check_collisions || !scene_->hasCollisions(q)) {
+          scene_->clampJointLimits(q);
+          scene_->applyMimics(q);
           solution.positions = q(q_indices);
           return true;
         }
@@ -111,7 +113,6 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       }
 
       q = pinocchio::integrate(model, q, vel_ * options_.step_size);
-      scene_->clampJointLimits(q);
       scene_->applyMimics(q);
       ++iter;
 
