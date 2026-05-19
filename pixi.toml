@@ -224,7 +224,7 @@ xacro             = ">=2.1.1,<3"
 # Dependencies for examples
 matplotlib        = ">=3.10.5,<4"
 tyro              = ">=0.9.26,<0.10"
-viser             = ">=1.0.21,<2"
+viser             = ">=1.0.21,<1.0.25"  # See https://github.com/viser-project/viser/issues/719
 zstandard         = ">=0.25.0,<0.26"
 plyfile           = ">=1.1,<2"
 
