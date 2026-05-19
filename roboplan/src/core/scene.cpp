@@ -336,8 +336,8 @@ void Scene::clampJointLimits(Eigen::VectorXd& q) const {
     case JointType::PRISMATIC:
     case JointType::REVOLUTE:
       for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
-        q(q_idx + dof) =
-            std::clamp(q(q_idx + dof), info.limits.min_position[dof], info.limits.max_position[dof]);
+        q(q_idx + dof) = std::clamp(q(q_idx + dof), info.limits.min_position[dof],
+                                    info.limits.max_position[dof]);
       }
       break;
     default:
