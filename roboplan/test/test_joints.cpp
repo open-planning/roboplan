@@ -93,13 +93,6 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   ASSERT_FALSE(arm_group_info.has_continuous_dofs);
 }
 
-TEST_F(RoboPlanJointTest, ClampJointLimits) {
-  Eigen::VectorXd q(4);
-  q << 0.0, 0.0, 10.0, 0.0;
-  scene_->clampJointLimits(q);
-  EXPECT_DOUBLE_EQ(q[2], 3.14);
-}
-
 TEST_F(RoboPlanJointTest, VerifyMimics) {
   // Given a vector with a mimc in place, apply the mimics and verify the correct
   // index is updated.

@@ -111,11 +111,6 @@ public:
   /// @return True if the positions respect joint limits, else false.
   bool isValidPose(const Eigen::VectorXd& q) const;
 
-  /// @brief Clamps actuated joint positions to their limits.
-  /// @details Mimic joints are not clamped directly; call applyMimics() afterward.
-  /// @param q The joint positions.
-  void clampJointLimits(Eigen::VectorXd& q) const;
-
   /// @brief Applies mimic joint relationships to a position vector.
   /// @param q The joint positions.
   void applyMimics(Eigen::VectorXd& q) const;

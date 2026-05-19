@@ -322,30 +322,6 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   return true;
 }
 
-void Scene::clampJointLimits(Eigen::VectorXd& q) const {
-  for (const auto& joint_name : joint_names_) {
-    const auto& info = joint_info_map_.at(joint_name);
-    if (info.mimic_info) {
-      continue;
-    }
-
-    const auto joint_id = model_.getJointId(joint_name);
-    const auto q_idx = model_.idx_qs[joint_id];
-
-    switch (info.type) {
-    case JointType::PRISMATIC:
-    case JointType::REVOLUTE:
-      for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
-        q(q_idx + dof) = std::clamp(q(q_idx + dof), info.limits.min_position[dof],
-                                    info.limits.max_position[dof]);
-      }
-      break;
-    default:
-      break;
-    }
-  }
-}
-
 void Scene::applyMimics(Eigen::VectorXd& q) const {
   for (const auto& [joint_name, joint_info] : joint_info_map_) {
     if (!joint_info.mimic_info) {
