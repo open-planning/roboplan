@@ -394,10 +394,11 @@ def get_model_data():
             default_joint_group="stretch4_arm",
             ee_names=["grasp_center_link"],
             base_link="base_link",
-            # Full-model q vector (indexed by group q_indices in examples).
             starting_joint_config=[
+                # Planar base (x, y, cos(yaw), sin(yaw)).
                 0.0,
                 0.0,
+                1.0,
                 0.0,
                 0.5,
                 0.065,

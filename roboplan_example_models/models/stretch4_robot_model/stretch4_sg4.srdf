@@ -1,9 +1,7 @@
 <?xml version="1.0"?>
 <robot name="stretch">
   <group name="stretch4_arm">
-    <joint name="base_x_joint"/>
-    <joint name="base_y_joint"/>
-    <joint name="base_yaw_joint"/>
+    <joint name="mobile_base_planar_joint"/>
     <joint name="lift_joint"/>
     <joint name="arm_l1_joint"/>
     <joint name="wrist_yaw_joint"/>
@@ -12,9 +10,7 @@
   </group>
 
   <group_state group="stretch4_arm" name="home">
-    <joint name="base_x_joint" value="0.0"/>
-    <joint name="base_y_joint" value="0.0"/>
-    <joint name="base_yaw_joint" value="0.0"/>
+    <joint name="mobile_base_planar_joint" value="0.0"/>
     <joint name="lift_joint" value="0.5"/>
     <joint name="arm_l1_joint" value="0.065"/>
     <joint name="wrist_yaw_joint" value="0.0"/>
@@ -60,10 +56,6 @@
   <disable_collisions link1="arm_l2_link" link2="wrist_link" reason="Never"/>
   <disable_collisions link1="arm_l3_link" link2="wrist_yaw_link" reason="Never"/>
   <disable_collisions link1="arm_l4_link" link2="wrist_pitch_link" reason="Never"/>
-  <disable_collisions link1="base_link" link2="base_xy_link" reason="Never"/>
-  <disable_collisions link1="base_link" link2="base_yaw_link" reason="Never"/>
-  <disable_collisions link1="base_xy_link" link2="wheel_0_link" reason="Never"/>
-  <disable_collisions link1="base_yaw_link" link2="wheel_0_link" reason="Never"/>
   <disable_collisions link1="arm_l3_link" link2="wrist_link" reason="Never"/>
   <disable_collisions link1="tool_attachment_site_link" link2="wrist_pitch_link" reason="Never"/>
   <disable_collisions link1="grasp_center_link" link2="gripper_finger_left_link" reason="Never"/>

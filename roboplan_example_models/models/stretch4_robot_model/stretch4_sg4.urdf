@@ -28,28 +28,12 @@
       </geometry>
     </collision>
   </link>
-  <link name="base_xy_link"/>
-  <link name="base_yaw_link"/>
-  <joint name="base_x_joint" type="prismatic">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <parent link="base_footprint"/>
-    <child link="base_xy_link"/>
-    <axis xyz="1 0 0"/>
-    <limit effort="100" lower="-2.0" upper="2.0" velocity="0.5"/>
-  </joint>
-  <joint name="base_y_joint" type="prismatic">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <parent link="base_xy_link"/>
-    <child link="base_yaw_link"/>
-    <axis xyz="0 1 0"/>
-    <limit effort="100" lower="-2.0" upper="2.0" velocity="0.5"/>
-  </joint>
-  <joint name="base_yaw_joint" type="revolute">
+  <joint name="mobile_base_planar_joint" type="planar">
     <origin rpy="0 0 0" xyz="0 0 0.028"/>
-    <parent link="base_yaw_link"/>
+    <parent link="base_footprint"/>
     <child link="base_link"/>
     <axis xyz="0 0 1"/>
-    <limit effort="100" lower="-3.14159" upper="3.14159" velocity="0.5"/>
+    <limit effort="100" lower="-2.0" upper="2.0" velocity="0.5"/>
   </joint>
   <link name="line_sensor_5_link">
     <inertial>

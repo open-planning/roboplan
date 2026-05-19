@@ -1,15 +1,9 @@
 # RoboPlan configuration for Stretch 4 with SG4 standard gripper.
 
 joint_limits:
-  base_x_joint:
-    max_acceleration: [0.5]
-    max_jerk: [2.0]
-  base_y_joint:
-    max_acceleration: [0.5]
-    max_jerk: [2.0]
-  base_yaw_joint:
-    max_acceleration: [0.5]
-    max_jerk: [2.0]
+  mobile_base_planar_joint:
+    max_acceleration: [0.5, 0.5, 0.5]
+    max_jerk: [2.0, 2.0, 2.0]
   lift_joint:
     max_acceleration: [0.5]
     max_jerk: [2.0]

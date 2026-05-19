@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include <tl/expected.hpp>
@@ -243,12 +245,25 @@ Eigen::VectorXd Scene::randomPositions() {
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx) = std::cos(angle);
       positions(q_idx + 1) = std::sin(angle);
+    } else if (info.type == JointType::PLANAR) {
+      for (size_t dof = 0; dof < 2; ++dof) {
+        auto lo = info.limits.min_position[dof];
+        auto hi = info.limits.max_position[dof];
+        if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi) {
+          lo = -2.0;
+          hi = 2.0;
+        }
+        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      }
+      const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
+      positions(q_idx + 2) = std::cos(angle);
+      positions(q_idx + 3) = std::sin(angle);
     } else {
       // Generic case.
       for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
-        positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+        positions(q_idx + idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
     }
   }
