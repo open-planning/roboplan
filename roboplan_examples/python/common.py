@@ -381,6 +381,67 @@ def get_model_data():
                 ),
             ],
         ),
+        "stretch4_sg4": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR
+            / "stretch4_robot_model"
+            / "stretch4_sg4.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR
+            / "stretch4_robot_model"
+            / "stretch4_sg4.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "stretch4_robot_model"
+            / "stretch4_sg4_config.yaml",
+            default_joint_group="stretch4_arm",
+            ee_names=["grasp_center_link"],
+            base_link="base_link",
+            # Full-model q vector (indexed by group q_indices in examples).
+            starting_joint_config=[
+                0.0,
+                0.0,
+                0.0,
+                0.5,
+                0.065,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                1.0,
+                0.0,
+                1.0,
+                0.0,
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=coal.Box(1.0, 1.0, 0.5),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 1.2])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="test_sphere",
+                    geom=coal.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.75, 0.0, 0.25])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                    disabled_collisions=["test_box"],
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=coal.Box(2.0, 2.0, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=["base_link", "test_box", "test_sphere"],
+                ),
+            ],
+        ),
     }
 
 

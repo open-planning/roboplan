@@ -111,6 +111,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       }
 
       q = pinocchio::integrate(model, q, vel_ * options_.step_size);
+      scene_->clampJointLimits(q);
+      scene_->applyMimics(q);
       ++iter;
 
       // Check for timeouts.

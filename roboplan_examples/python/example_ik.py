@@ -105,7 +105,9 @@ def main(
             ).homogeneous
         result = ik_solver.solveIk(goals, start, solution)
         if result:
-            q_full[q_indices] = solution.positions
+            q_full = scene.toFullJointPositions(
+                model_data.default_joint_group, solution.positions
+            )
             viz.display(q_full)
             scene.setJointPositions(q_full)
             start.positions = solution.positions
@@ -137,9 +139,8 @@ def main(
 
     @random_button.on_click
     def randomize_position(pos):
-        q_full = scene.getCurrentJointPositions()
         q_rand = scene.randomCollisionFreePositions()[q_indices]
-        q_full[q_indices] = q_rand
+        q_full = scene.toFullJointPositions(model_data.default_joint_group, q_rand)
         scene.setJointPositions(q_full)
         viz.display(q_full)
         start.positions = q_rand
