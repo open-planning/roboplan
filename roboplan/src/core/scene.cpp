@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <stdexcept>
 
 #include <tl/expected.hpp>

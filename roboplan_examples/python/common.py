@@ -381,7 +381,7 @@ def get_model_data():
                 ),
             ],
         ),
-        "stretch4_sg4": RobotModelConfig(
+        "stretch": RobotModelConfig(
             urdf_path=ROBOPLAN_MODELS_DIR
             / "stretch4_robot_model"
             / "stretch4_sg4.urdf",
