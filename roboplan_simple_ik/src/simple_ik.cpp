@@ -121,6 +121,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       }
 
       q = pinocchio::integrate(model, q, vel_ * options_.step_size);
+      q(q_indices) = q(q_indices).cwiseMax(lower_position_limits_).cwiseMin(upper_position_limits_);
       scene_->applyMimics(q);
       ++iter;
 
