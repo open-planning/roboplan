@@ -118,6 +118,7 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
       q_sample = grow_start_tree ? q_goal : q_start;
     } else {
       q_sample(q_indices) = scene_->randomPositions()(q_indices);
+      scene_->applyMimics(q_sample);
     }
 
     // Attempt to grow the tree towards the sampled node.
@@ -232,8 +233,8 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
       (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size,
                                options_.collision_check_use_bisection))) {
 
-    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree. Otherwise it is
-    // reversed.
+    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree.
+    // Otherwise it is reversed.
     JointPath start_path =
         grow_start_tree ? getPath(nodes, latest_node) : getPath(target_nodes, nearest_node);
     JointPath goal_path =

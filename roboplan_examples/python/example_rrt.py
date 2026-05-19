@@ -194,6 +194,28 @@ def main(
         # Visualize the tree and path
         viz.display(q_full)
         visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
+
+        # Show the start (green) and goal (red) end-effector positions.
+        q_start_full = scene.toFullJointPositions(
+            model_data.default_joint_group, start.positions
+        )
+        q_goal_full = scene.toFullJointPositions(
+            model_data.default_joint_group, goal.positions
+        )
+        for ee_name in model_data.ee_names:
+            viz.viewer.scene.add_icosphere(
+                f"/rrt/start/{ee_name}",
+                radius=0.03,
+                color=(0, 200, 0),
+                position=scene.forwardKinematics(q_start_full, ee_name)[:3, 3],
+            )
+            viz.viewer.scene.add_icosphere(
+                f"/rrt/goal/{ee_name}",
+                radius=0.03,
+                color=(200, 0, 0),
+                position=scene.forwardKinematics(q_goal_full, ee_name)[:3, 3],
+            )
+
         if include_shortcutting:
             visualizePath(
                 viz, scene, path, model_data.ee_names, 0.05, (100, 0, 0), "/rrt/path"
@@ -241,7 +263,7 @@ def main(
         elif animate and cur_traj is not None:
             print("Animating trajectory...")
             for q in cur_traj.positions:
-                q_full[q_indices] = q
+                q_full = scene.toFullJointPositions(model_data.default_joint_group, q)
                 viz.display(q_full)
                 time.sleep(traj_dt)
             animate = False

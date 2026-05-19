@@ -35,7 +35,8 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
 
   for (size_t idx = 0; idx <= num_steps; ++idx) {
     const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-    const auto q_interp = scene.interpolate(q_start, q_end, fraction);
+    auto q_interp = scene.interpolate(q_start, q_end, fraction);
+    scene.applyMimics(q_interp);
     frame_path.push_back(scene.forwardKinematics(q_interp, frame_name));
   }
 
@@ -47,7 +48,8 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
                                               const std::string& frame_name) {
   std::vector<Eigen::Matrix4d> frame_path;
   frame_path.reserve(q_vec.size());
-  for (const auto& q : q_vec) {
+  for (auto q : q_vec) {
+    scene.applyMimics(q);
     frame_path.push_back(scene.forwardKinematics(q, frame_name));
   }
   return frame_path;
@@ -176,8 +178,8 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
     // Erase elements from idx_low to idx_high (exclusive).
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
-    path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices));
-    path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices));
+    path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices).eval());
+    path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices).eval());
   }
 
   return shortened_path;
