@@ -332,12 +332,11 @@ def test_jerk_limits_vector(test_scene: Scene) -> None:
     assert np.allclose(lower_limits, expected_lower_limits)
     assert np.allclose(upper_limits, expected_upper_limits)
 
-
 def test_mimics() -> None:
-    # Equivalent to the C++ test, but the updated joint state is returned as a new
-    # object rather than updated in place.
+    # Native Pinocchio mimics: mimic has no q slot; link3 pose follows revolute via FK.
     test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
-    q = np.zeros(4)
+    q = np.array([1.0, 0.0, 0.5])
+    T0 = test_scene.forwardKinematics(q, "link3")
     q[2] = 1.0
-    s = test_scene.applyMimics(q)
-    assert s[3] == 1.0
+    T1 = test_scene.forwardKinematics(q, "link3")
+    assert not np.allclose(T0, T1)

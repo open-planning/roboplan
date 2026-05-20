@@ -122,7 +122,6 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
       q_sample = grow_start_tree ? q_goal : q_start;
     } else {
       q_sample(q_indices) = scene_->randomPositions()(q_indices);
-      scene_->applyMimics(q_sample);
     }
 
     // Attempt to grow the tree towards the sampled node.

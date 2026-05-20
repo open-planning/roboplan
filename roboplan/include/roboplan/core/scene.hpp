@@ -111,12 +111,8 @@ public:
   /// @return True if the positions respect joint limits, else false.
   bool isValidPose(const Eigen::VectorXd& q) const;
 
-  /// @brief Applies mimic joint relationships to a position vector.
-  /// @param q The joint positions.
-  void applyMimics(Eigen::VectorXd& q) const;
-
   /// @brief Converts partial joint positions to full joint positions.
-  /// @details This includes adding new joints and applying mimic relationships.
+  /// @details This includes adding new joints.
   /// @param group_name The name of the joint group.
   /// @param q The original (partial) joint positions.
   /// @return The full joint positions.

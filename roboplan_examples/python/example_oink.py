@@ -83,9 +83,9 @@ def main(
 
     q_full = scene.getCurrentJointPositions()
 
-    # Create a redundant Pinocchio model just for visualization.
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model_pin = pin.buildModelFromXML(urdf_xml)
+    model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
     )
@@ -235,7 +235,6 @@ def main(
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     delta_q_full[oink.v_indices] = delta_q
-                    scene.applyMimics(delta_q_full)
                     q_current = scene.integrate(q_current, delta_q_full)
 
                     # Update scene state and forward kinematics after applying velocities

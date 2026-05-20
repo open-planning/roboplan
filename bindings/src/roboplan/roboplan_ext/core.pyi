@@ -431,9 +431,6 @@ class Scene:
         Checks if the specified joint positions are valid with respect to joint limits.
         """
 
-    def applyMimics(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Applies mimic joint relationships to a position vector."""
-
     def toFullJointPositions(self, group_name: str, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Converts partial joint positions to full joint positions."""
 

@@ -108,9 +108,9 @@ def main(
 
     q_full = scene.getCurrentJointPositions()
 
-    # Create a redundant Pinocchio model just for visualization.
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model_pin = pin.buildModelFromXML(urdf_xml)
+    model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
     )
@@ -270,7 +270,6 @@ def main(
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 
                     delta_q_full[oink.v_indices] = delta_q
-                    scene.applyMimics(delta_q_full)
 
                     # CRITICAL: Validate solution with enforceBarriers() using FK
                     # This catches cases where linearization error causes barrier violation

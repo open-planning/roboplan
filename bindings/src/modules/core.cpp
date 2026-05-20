@@ -211,16 +211,6 @@ void init_core_scene(nanobind::module_& m) {
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
       .def("isValidPose", &Scene::isValidPose,
            "Checks if the specified joint positions are valid with respect to joint limits.", "q"_a)
-      // Modification is not guaranteed to be done in place for python objects, as they
-      // may be copied by nanobind. To guarantee values are correctly updated, we use
-      // a lambda function to return a reference to the changed value.
-      .def(
-          "applyMimics",
-          [](const Scene& self, Eigen::VectorXd& q) -> Eigen::VectorXd {
-            self.applyMimics(q);
-            return q;
-          },
-          "Applies mimic joint relationships to a position vector.", "q"_a)
       .def("toFullJointPositions", &Scene::toFullJointPositions,
            "Converts partial joint positions to full joint positions.", "group_name"_a, "q"_a)
       .def("interpolate", &Scene::interpolate, "Interpolates between two joint configurations.",
