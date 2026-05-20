@@ -466,7 +466,7 @@ class Scene:
     def getJointPositionIndices(self, joint_names: Sequence[str]) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
         """Get the joint position indices for a set of joint names."""
 
-    def getPositionLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
+    def getPositionLimitVectors(self, group_name: str = '', collapsed: bool = False) -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
         """Get the joint position limit vectors for a specified group."""
 
     def getVelocityLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:

@@ -25,7 +25,7 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
 
   // Get joint limits from the model (only do this once).
   if (q_min.size() == 0u) {
-    const auto maybe_position_limits = scene.getPositionLimitVectors();
+    const auto maybe_position_limits = scene.getPositionLimitVectors("", /*collapsed*/ true);
     if (!maybe_position_limits) {
       return tl::make_unexpected("PositionLimit: " + maybe_position_limits.error());
     }

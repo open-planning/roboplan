@@ -46,7 +46,8 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     }
   }
 
-  const auto maybe_joint_position_limits = scene_->getPositionLimitVectors(options_.group_name);
+  const auto maybe_joint_position_limits =
+      scene_->getPositionLimitVectors(options_.group_name, /*collapsed*/ true);
   if (!maybe_joint_position_limits) {
     throw std::runtime_error("Failed to instantiate RRT planner: " +
                              maybe_joint_position_limits.error());

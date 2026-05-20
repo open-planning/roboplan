@@ -439,7 +439,7 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
 }
 
 tl::expected<EigenVectorPair, std::string>
-Scene::getPositionLimitVectors(const std::string& group_name) const {
+Scene::getPositionLimitVectors(const std::string& group_name, const bool collapsed) const {
   const auto maybe_joint_group_info = getJointGroupInfo(group_name);
   if (!maybe_joint_group_info) {
     return tl::make_unexpected("Failed to get position limit vectors: " +
@@ -448,9 +448,10 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
   const auto& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
+  const auto num_dofs = collapsed ? joint_group_info.nq_collapsed : joint_group_info.q_indices.size();
   Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
-      joint_group_info.nq_collapsed, -std::numeric_limits<double>::infinity());
-  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.nq_collapsed,
+      num_dofs, -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(num_dofs,
                                                            std::numeric_limits<double>::infinity());
   size_t q_idx = 0;
   for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
@@ -473,7 +474,7 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += 6;
+      q_idx += collapsed ? 6 : 7;
       break;
     case JointType::PLANAR:
       // Position limits can be finite, orientation stays unlimited.
@@ -485,11 +486,11 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += 3;
+      q_idx += collapsed ? 3 : 4;
       break;
     case JointType::CONTINUOUS:
       // Already has infinite limits, no action needed.
-      ++q_idx;
+      q_idx += collapsed ? 1 : 2;
       break;
     default:  // Prismatic or revolute.
       if (joint_info.limits.min_position.size() > 0) {
