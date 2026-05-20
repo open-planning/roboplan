@@ -35,8 +35,11 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     const auto& joint_info = maybe_joint_info.value();
     switch (joint_info.type) {
     case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported by RRT.");
     case JointType::PLANAR:
-      throw std::runtime_error("Multi-DOF joints not yet supported by RRT.");
+      state_space_names.push_back("Rn:2");
+      state_space_names.push_back("SO2");
+      break;
     case JointType::CONTINUOUS:
       // The solution squashes the continuous position vectors to be used as an SO(2).
       state_space_names.push_back("SO2");

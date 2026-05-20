@@ -314,7 +314,23 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
     }
 
     switch (info.type) {
-    // TODO: Validate multi-DOF joints.
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported by isValidPose.");
+    case JointType::PLANAR:
+      // The first 2 DOFs (translation) can be bounded, but the last (rotation) is always valid.
+      // However, we still check that it is on the unit circle.
+      for (size_t idx = 0; idx < 2; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        if (q(q_idx) < lo || q(q_idx) > hi) {
+          return false;
+        }
+      }
+      if (std::abs(std::pow(q(q_idx + 2), 2) + std::pow(q(q_idx + 3), 2) - 1.0) > kUnitCircleTol) {
+        return false;
+      }
+      q_idx += 4;
+      break;
     case JointType::CONTINUOUS:
       // Unbounded so always valid, but check whether the representation is on the unit circle.
       if (std::abs(std::pow(q(q_idx), 2) + std::pow(q(q_idx + 1), 2) - 1.0) > kUnitCircleTol) {
@@ -448,11 +464,12 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
   const auto& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
-  const auto num_dofs = collapsed ? joint_group_info.nq_collapsed : joint_group_info.q_indices.size();
-  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
-      num_dofs, -std::numeric_limits<double>::infinity());
-  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(num_dofs,
-                                                           std::numeric_limits<double>::infinity());
+  const auto num_dofs =
+      collapsed ? joint_group_info.nq_collapsed : joint_group_info.q_indices.size();
+  Eigen::VectorXd lower_limits =
+      Eigen::VectorXd::Constant(num_dofs, -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits =
+      Eigen::VectorXd::Constant(num_dofs, std::numeric_limits<double>::infinity());
   size_t q_idx = 0;
   for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
     const auto& joint_name = joint_group_info.joint_names.at(j_idx);
