@@ -18,7 +18,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/base_link.obj"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.855 0.855 0.835 1"/>
       </material>
     </visual>
     <collision name="base_collision_link">
@@ -173,7 +173,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/head_link.obj"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.855 0.855 0.835 1"/>
       </material>
     </visual>
     <collision name="head_collision_link">
@@ -317,7 +317,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/mast_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.341 0.353 0.376 1"/>
       </material>
     </visual>
     <collision name="mast_collision_link">
@@ -345,7 +345,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/lift_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.855 0.855 0.835 1"/>
       </material>
     </visual>
     <collision name="lift_collision_link">
@@ -374,7 +374,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/arm_l4_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.855 0.855 0.835 1"/>
       </material>
     </visual>
     <collision name="arm_l0_collision_link">
@@ -402,7 +402,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/arm_l3_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.341 0.353 0.376 1"/>
       </material>
     </visual>
     <collision name="arm_l1_collision_link">
@@ -431,7 +431,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/arm_l2_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.341 0.353 0.376 1"/>
       </material>
     </visual>
     <collision name="arm_l2_collision_link">
@@ -461,7 +461,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/arm_l1_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.341 0.353 0.376 1"/>
       </material>
     </visual>
     <collision name="arm_l3_collision_link">
@@ -491,7 +491,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/arm_l0_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.341 0.353 0.376 1"/>
       </material>
     </visual>
     <collision name="arm_l4_collision_link">
@@ -521,7 +521,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wrist_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.501960784313725 0.501960784313725 0.501960784313725 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wrist_collision_link">
@@ -549,7 +549,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wrist_yaw_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wrist_yaw_collision_link">
@@ -578,7 +578,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wrist_pitch_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wrist_pitch_collision_link">
@@ -607,7 +607,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wrist_roll_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wrist_roll_collision_link">
@@ -715,7 +715,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/tool_attachment_site_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="tool_attachment_site_collision_link">
@@ -799,7 +799,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wheel_2_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wheel_2_collision_link">
@@ -827,7 +827,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wheel_1_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wheel_1_collision_link">
@@ -855,7 +855,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/francis/wheel_0_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="wheel_0_collision_link">
@@ -883,7 +883,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/sg4_tool/quick_connect_interface_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="quick_connect_interface_collision_link">
@@ -905,7 +905,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/sg4_tool/gripper_finger_right_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.618 0.618 0.618 1"/>
       </material>
     </visual>
     <collision name="gripper_finger_right_collision_link">
@@ -934,7 +934,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/sg4_tool/gripper_fingertip_right_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0 1"/>
+        <color rgba="0.15 0.15 0.15 0 1"/>
       </material>
     </visual>
     <collision name="gripper_fingertip_right_collision_link">
@@ -990,7 +990,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/sg4_tool/gripper_finger_left_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+        <color rgba="0.618 0.618 0.618 1"/>
       </material>
     </visual>
     <collision name="gripper_finger_left_collision_link">
@@ -1019,7 +1019,7 @@
         <mesh filename="package://roboplan_example_models/models/stretch4_robot_model/meshes/sg4_tool/gripper_fingertip_left_link.STL"/>
       </geometry>
       <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0 1"/>
+        <color rgba="0.15 0.15 0.15 1"/>
       </material>
     </visual>
     <collision name="gripper_fingertip_left_collision_link">
