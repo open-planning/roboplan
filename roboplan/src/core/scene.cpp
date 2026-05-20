@@ -19,6 +19,10 @@ namespace {
 /// to be on the unit circle.
 constexpr double kUnitCircleTol = 1.0e-6;
 
+/// @brief Default position bound, in meters, for planar joint translation when randomly sampling.
+/// @details TODO Make this more configurable by users.
+constexpr double kDefaultPlanarJointTranslationLimit = 2.0;
+
 }  // namespace
 
 namespace roboplan {
@@ -88,19 +92,19 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
     switch (info.type) {
-    case (JointType::PRISMATIC):
-    case (JointType::REVOLUTE):
+    case JointType::PRISMATIC:
+    case JointType::REVOLUTE:
       info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
       info.limits.max_position[0] = mimic_model.upperPositionLimit(q_idx);
       break;
-    case (JointType::PLANAR):
+    case JointType::PLANAR:
       // Only the position limits need to be incorporated, as orientation is unlimited.
       for (size_t dof = 0; dof < 2; ++dof) {
         info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
         info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
       }
       break;
-    case (JointType::FLOATING):
+    case JointType::FLOATING:
       // Only the position limits need to be incorporated, as orientation is unlimited.
       for (size_t dof = 0; dof < 3; ++dof) {
         info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
@@ -239,32 +243,39 @@ Eigen::VectorXd Scene::randomPositions() {
       continue;  // Skip mimic joints as they are set later.
     }
 
-    const auto q_idx = model_.idx_qs[model_.getJointId(joint_name)];
-    if (info.type == JointType::CONTINUOUS) {
+    const auto q_idx = model_.idx_qs.at(model_.getJointId(joint_name));
+    switch (info.type) {
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported in randomPositions.");
+    case JointType::CONTINUOUS: {
       // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx) = std::cos(angle);
       positions(q_idx + 1) = std::sin(angle);
-    } else if (info.type == JointType::PLANAR) {
+      break;
+    }
+    case JointType::PLANAR: {
       for (size_t dof = 0; dof < 2; ++dof) {
         auto lo = info.limits.min_position[dof];
         auto hi = info.limits.max_position[dof];
         if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi) {
-          lo = -2.0;
-          hi = 2.0;
+          lo = -kDefaultPlanarJointTranslationLimit;
+          hi = kDefaultPlanarJointTranslationLimit;
         }
         positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx + 2) = std::cos(angle);
       positions(q_idx + 3) = std::sin(angle);
-    } else {
-      // Generic case.
-      for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-        const auto& lo = info.limits.min_position[idx];
-        const auto& hi = info.limits.max_position[idx];
-        positions(q_idx + idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      break;
+    }
+    default:  // Generic case, including revolute and prismatic.
+      for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
+        const auto& lo = info.limits.min_position[dof];
+        const auto& hi = info.limits.max_position[dof];
+        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
+      break;
     }
   }
 
