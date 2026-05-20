@@ -258,7 +258,8 @@ void init_core_scene(nanobind::module_& m) {
       .def("getJointPositionIndices", &Scene::getJointPositionIndices,
            "Get the joint position indices for a set of joint names.", "joint_names"_a)
       .def("getPositionLimitVectors", unwrap_expected(&Scene::getPositionLimitVectors),
-           "Get the joint position limit vectors for a specified group.", "group_name"_a = "", "collapsed"_a = false)
+           "Get the joint position limit vectors for a specified group.", "group_name"_a = "",
+           "collapsed"_a = false)
       .def("getVelocityLimitVectors", unwrap_expected(&Scene::getVelocityLimitVectors),
            "Get the joint velocity limit vectors for a specified group.", "group_name"_a = "")
       .def("getAccelerationLimitVectors", unwrap_expected(&Scene::getAccelerationLimitVectors),
