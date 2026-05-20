@@ -10,7 +10,7 @@
   </group>
 
   <group_state group="stretch4_arm" name="home">
-    <joint name="mobile_base_planar_joint" value="0.0"/>
+    <joint name="mobile_base_planar_joint" value="0.0 0.0 0.0"/>
     <joint name="lift_joint" value="0.5"/>
     <joint name="arm_l1_joint" value="0.065"/>
     <joint name="wrist_yaw_joint" value="0.0"/>
