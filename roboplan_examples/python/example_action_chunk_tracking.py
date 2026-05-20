@@ -162,6 +162,7 @@ def make_mock_joint_targets(
         phase = (i + 1) / float(horizon)
         direction = np.sin(np.linspace(0.0, np.pi, len(v_indices)) + np.pi * phase)
         delta_full[v_indices] = action_scale * joint_delta_scale * (i + 1) * direction
+        scene.applyMimics(delta_full)
         targets.append(scene.integrate(q_start, delta_full))
 
     return targets
@@ -513,6 +514,7 @@ def main(
                 delta_q[:] = 0.0
 
             delta_q_full[oink.v_indices] = delta_q
+            scene.applyMimics(delta_q_full)
             q_current = scene.integrate(q_current, delta_q_full)
             scene.setJointPositions(q_current)
             trajectory.append(q_current.copy())

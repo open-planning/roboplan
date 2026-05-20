@@ -270,6 +270,7 @@ def main(
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 
                     delta_q_full[oink.v_indices] = delta_q
+                    scene.applyMimics(delta_q_full)
 
                     # CRITICAL: Validate solution with enforceBarriers() using FK
                     # This catches cases where linearization error causes barrier violation

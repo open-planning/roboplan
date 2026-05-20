@@ -235,6 +235,7 @@ def main(
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     delta_q_full[oink.v_indices] = delta_q
+                    scene.applyMimics(delta_q_full)
                     q_current = scene.integrate(q_current, delta_q_full)
 
                     # Update scene state and forward kinematics after applying velocities
