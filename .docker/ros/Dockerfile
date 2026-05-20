@@ -23,7 +23,7 @@ RUN pip3 install \
     plyfile \
     typing_extensions==4.10.0 \
     tyro \
-    "viser>=1.0.1"
+    "viser>=1.0.1,<1.0.25"
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /workspace/roboplan_ws/src/roboplan
