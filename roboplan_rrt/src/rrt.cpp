@@ -63,12 +63,11 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
   state_space_.set_bounds(maybe_joint_position_limits->first, maybe_joint_position_limits->second);
 
   if (state_space_.get_runtime_dim() != static_cast<int>(maybe_collapsed_pos->size())) {
-    throw std::runtime_error(
-        "Failed to instantiate RRT planner: State space dimension (" +
-        std::to_string(state_space_.get_runtime_dim()) +
-        ") does not match collapsed configuration dimension (" +
-        std::to_string(maybe_collapsed_pos->size()) + ") for group '" + options_.group_name +
-        "'.");
+    throw std::runtime_error("Failed to instantiate RRT planner: State space dimension (" +
+                             std::to_string(state_space_.get_runtime_dim()) +
+                             ") does not match collapsed configuration dimension (" +
+                             std::to_string(maybe_collapsed_pos->size()) + ") for group '" +
+                             options_.group_name + "'.");
   }
 };
 

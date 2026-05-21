@@ -45,7 +45,9 @@ def solve(scene: Scene, rrt: RRT, q_indices, seed: int = 1234):
     return 0 if path is None else 1
 
 
-def solve_many(scene: Scene, rrt: RRT, q_indices, iterations: int = 10, seed: int = 1234):
+def solve_many(
+    scene: Scene, rrt: RRT, q_indices, iterations: int = 10, seed: int = 1234
+):
     """
     Runs the specified number of iterations of RRT with a random seed.
 
