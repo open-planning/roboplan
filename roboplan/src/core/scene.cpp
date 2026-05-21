@@ -385,6 +385,17 @@ Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::
   return pinocchio::interpolate(model_, q_start, q_end, fraction);
 }
 
+void Scene::setJointPositions(const Eigen::VectorXd& positions) {
+  if (positions.size() != model_.nq) {
+    throw std::invalid_argument("setJointPositions: expected " + std::to_string(model_.nq) +
+                                " configuration values (model.nq), got " +
+                                std::to_string(positions.size()) +
+                                ". For robots with mimic joints, use the mimic-enabled model "
+                                "layout (not the expanded URDF DOF count).");
+  }
+  cur_state_.positions = positions;
+}
+
 Eigen::VectorXd Scene::integrate(const Eigen::VectorXd& q, const Eigen::VectorXd& v) const {
   return pinocchio::integrate(model_, q, v);
 }
@@ -462,6 +473,10 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
                                  maybe_joint_info.error());
     }
     const auto& joint_info = maybe_joint_info.value();
+    if (joint_info.mimic_info) {
+      // Mimic joints have nq=0; they do not occupy slots in the configuration vector.
+      continue;
+    }
 
     switch (joint_info.type) {
     case JointType::FLOATING:

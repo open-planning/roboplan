@@ -127,7 +127,7 @@ def main(
             f"configuration space dimension ({len(q_full)}), using current scene positions instead"
         )
         with scene_lock:
-            q_canonical = scene.getCurrentJointPositions()
+            q_canonical = np.array(scene.getCurrentJointPositions())
     print(
         f"\nUsing starting pose for '{model}' (configuration space size: {len(q_canonical)})"
     )

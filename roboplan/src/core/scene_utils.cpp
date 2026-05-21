@@ -218,6 +218,9 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   size_t collapsed_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto joint_info = scene.getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
     switch (joint_info.type) {
     case JointType::REVOLUTE:
     case JointType::PRISMATIC:
@@ -277,6 +280,9 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   size_t expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto joint_info = scene.getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
     switch (joint_info.type) {
     case JointType::REVOLUTE:
     case JointType::PRISMATIC:

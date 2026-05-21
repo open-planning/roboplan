@@ -395,27 +395,25 @@ def get_model_data():
             ee_names=["grasp_center_link"],
             base_link="base_link",
             starting_joint_config=[
-                # Planar base (x, y, cos(yaw), sin(yaw)).
+                # nq=17 with Pinocchio mimic joints (arm_l2/l3/l4 collapsed into arm_l1).
+                # Planar base (x, y, cos(yaw), sin(yaw)), SRDF home pose.
                 0.0,
                 0.0,
                 1.0,
                 0.0,
-                0.5,
-                0.065,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
+                0.5,  # lift_joint
+                0.065,  # arm_l1_joint
+                0.0,  # wrist_yaw_joint
+                0.0,  # wrist_pitch_joint
+                0.0,  # wrist_roll_joint
+                0.0,  # gripper_finger_left_joint
+                0.0,  # gripper_finger_right_joint
                 1.0,
-                0.0,
+                0.0,  # wheel_0_joint (cos, sin)
                 1.0,
-                0.0,
+                0.0,  # wheel_1_joint
                 1.0,
-                0.0,
+                0.0,  # wheel_2_joint
             ],
             obstacles=[
                 ObstacleConfig(
