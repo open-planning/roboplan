@@ -332,6 +332,7 @@ def test_jerk_limits_vector(test_scene: Scene) -> None:
     assert np.allclose(lower_limits, expected_lower_limits)
     assert np.allclose(upper_limits, expected_upper_limits)
 
+
 def test_mimics() -> None:
     # Native Pinocchio mimics: mimic has no q slot; link3 pose follows revolute via FK.
     test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)

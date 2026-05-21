@@ -869,4 +869,3 @@ std::ostream& operator<<(std::ostream& os, const Scene& scene) {
 }
 
 }  // namespace roboplan
-
