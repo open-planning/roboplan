@@ -1,5 +1,5 @@
-nanobind
 matplotlib
+nanobind
 numpy
 opencv-contrib-python-headless
 plyfile
