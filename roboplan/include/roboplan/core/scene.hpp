@@ -67,9 +67,13 @@ public:
   /// @return The Pinocchio collision (geometry) model.
   const pinocchio::GeometryModel& getCollisionModel() const { return collision_model_; };
 
+  /// @brief Gets the scene's actuated joint names (non-mimic joints only).
+  /// @return A vector of joint names.
+  const std::vector<std::string>& getJointNames() const { return actuated_joint_names_; };
+
   /// @brief Gets the scene's full joint names, including mimic joints.
   /// @return A vector of joint names.
-  const std::vector<std::string>& getJointNames() const { return joint_names_; };
+  const std::vector<std::string>& getJointNamesWithMimics() const { return joint_names_; };
 
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
@@ -153,9 +157,17 @@ public:
   /// @return The joint group information if successful, else a string describing the error.
   tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
 
-  /// @brief Get the current joint positions for the full robot state.
+  /// @brief Get the current Pinocchio configuration vector (model.nq).
+  /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).
+  /// Joint count may differ from getJointNames().size().
   /// @return The current joint position vector.
   const Eigen::VectorXd& getCurrentJointPositions() const { return cur_state_.positions; }
+
+  /// @brief Get current joint positions for all joints in getJointNamesWithMimics() order.
+  /// @details Actuated joints copy values from the Pinocchio configuration; mimic joints use
+  /// scaling * mimicked_position + offset per degree of freedom.
+  /// @return The joint position vector aligned with getJointNamesWithMimics().
+  Eigen::VectorXd getCurrentJointPositionsWithMimics() const;
 
   /// @brief Set the joint positions for the full robot state.
   /// @param positions The desired joint position vector (size model.nq).
@@ -314,6 +326,9 @@ private:
 
   /// @brief The full list of joint names in the model (including mimic joints).
   std::vector<std::string> joint_names_;
+
+  /// @brief Actuated (non-mimic) joint names in model order.
+  std::vector<std::string> actuated_joint_names_;
 
   /// @brief Map from joint names to their corresponding information.
   std::unordered_map<std::string, JointInfo> joint_info_map_;

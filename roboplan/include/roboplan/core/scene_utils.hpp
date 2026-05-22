@@ -64,4 +64,11 @@ tl::expected<Eigen::VectorXd, std::string>
 expandContinuousJointPositions(const Scene& scene, const std::string& group_name,
                                const Eigen::VectorXd& q_orig);
 
+/// @brief Builds joint positions for all joints in getJointNamesWithMimics() order.
+/// @details Non-mimic joints copy their Pinocchio q block; mimic joints use the mimic law.
+/// @param scene The scene from which to look up joint information.
+/// @param q The Pinocchio configuration vector (model.nq).
+/// @return Position vector aligned with getJointNamesWithMimics().
+Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene, const Eigen::VectorXd& q);
+
 }  // namespace roboplan

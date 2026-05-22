@@ -403,6 +403,9 @@ class Scene:
         """Gets the scene's name."""
 
     def getJointNames(self) -> list[str]:
+        """Gets the scene's actuated joint names (non-mimic joints only)."""
+
+    def getJointNamesWithMimics(self) -> list[str]:
         """Gets the scene's full joint names, including mimic joints."""
 
     def getJointInfo(self, joint_name: str) -> JointInfo:
@@ -452,7 +455,12 @@ class Scene:
         """Get the joint group information of a scene by its name."""
 
     def getCurrentJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Get the current joint positions for the full robot state."""
+        """Get the current Pinocchio configuration vector (model.nq)."""
+
+    def getCurrentJointPositionsWithMimics(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Get current joint positions in getJointNamesWithMimics() order, including mimic values.
+        """
 
     def setJointPositions(self, positions: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
         """Set the joint positions for the full robot state."""

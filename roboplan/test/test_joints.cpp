@@ -63,10 +63,12 @@ public:
 };
 
 TEST_F(RoboPlanJointTest, SceneProperties) {
-  // Verify actuated joints and mimic joints are as expected
-  std::vector<std::string> expected_joint_names = {"continuous_joint", "revolute_joint",
-                                                   "mimic_joint"};
-  ASSERT_EQ(scene_->getJointNames(), expected_joint_names);
+  // Verify actuated and full joint name lists
+  ASSERT_EQ(scene_->getJointNames(),
+            (std::vector<std::string>{"continuous_joint", "revolute_joint"}));
+  const std::vector<std::string> expected_joint_names_with_mimics = {
+      "continuous_joint", "revolute_joint", "mimic_joint"};
+  ASSERT_EQ(scene_->getJointNamesWithMimics(), expected_joint_names_with_mimics);
 
   // Verify mimic joint info is as expected
   const auto mimic_joint_info = scene_->getJointInfo("mimic_joint").value();
@@ -76,19 +78,38 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
 
   // Verify joint group info is as expected for both the default and sub group.
   const auto full_group_info = scene_->getJointGroupInfo("").value();
-  ASSERT_EQ(full_group_info.joint_names, expected_joint_names);
+  ASSERT_EQ(full_group_info.joint_names, expected_joint_names_with_mimics);
   ASSERT_EQ(full_group_info.q_indices.size(), 3);  // Mimic joints have nq=0 in Pinocchio
   ASSERT_EQ(full_group_info.v_indices.size(), 2);
   ASSERT_EQ(full_group_info.nq_collapsed, 2);
   ASSERT_TRUE(full_group_info.has_continuous_dofs);
 
   const auto arm_group_info = scene_->getJointGroupInfo("arm").value();
-  expected_joint_names = {"revolute_joint", "mimic_joint"};
-  ASSERT_EQ(arm_group_info.joint_names, expected_joint_names);
+  const std::vector<std::string> expected_arm_joint_names = {"revolute_joint", "mimic_joint"};
+  ASSERT_EQ(arm_group_info.joint_names, expected_arm_joint_names);
   ASSERT_EQ(arm_group_info.q_indices.size(), 1);  // Only revolute_joint has a q slot
   ASSERT_EQ(arm_group_info.v_indices.size(), 1);
   ASSERT_EQ(arm_group_info.nq_collapsed, 1);
   ASSERT_FALSE(arm_group_info.has_continuous_dofs);
+}
+
+TEST_F(RoboPlanJointTest, CurrentJointPositionsWithMimics) {
+  Eigen::VectorXd q(3);
+  q << 1.0, 0.0, 0.5;
+  scene_->setJointPositions(q);
+
+  const auto& q_current = scene_->getCurrentJointPositions();
+  ASSERT_EQ(q_current.size(), 3);
+  EXPECT_FLOAT_EQ(q_current(0), 1.0);
+  EXPECT_FLOAT_EQ(q_current(1), 0.0);
+  EXPECT_FLOAT_EQ(q_current(2), 0.5);
+
+  const auto positions_with_mimics = scene_->getCurrentJointPositionsWithMimics();
+  ASSERT_EQ(positions_with_mimics.size(), 4);
+  EXPECT_FLOAT_EQ(positions_with_mimics(0), 1.0);
+  EXPECT_FLOAT_EQ(positions_with_mimics(1), 0.0);
+  EXPECT_FLOAT_EQ(positions_with_mimics(2), 0.5);
+  EXPECT_FLOAT_EQ(positions_with_mimics(3), 0.5);
 }
 
 TEST_F(RoboPlanJointTest, VerifyMimics) {

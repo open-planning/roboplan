@@ -72,6 +72,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   size_t q_idx = 0;
   size_t v_idx = 0;
   joint_names_.reserve(model_.njoints - 1);
+  actuated_joint_names_.reserve(model_.njoints - 1);
   for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
     const auto& joint_name = model_.names.at(idx);
     joint_names_.push_back(joint_name);
@@ -82,6 +83,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       // The information will be extracted later.
       continue;
     }
+    actuated_joint_names_.push_back(joint_name);
 
     if (!kPinocchioJointTypeMap.contains(joint.shortname())) {
       throw std::runtime_error("Joint '" + joint_name + "' was parsed as a joint of type '" +
@@ -210,10 +212,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
 
   // Initialize the current state of the scene.
-  cur_state_ = JointConfiguration{.joint_names = joint_names_,
+  cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+}
+
+Eigen::VectorXd Scene::getCurrentJointPositionsWithMimics() const {
+  return jointPositionsWithMimicsFromPinocchio(*this, cur_state_.positions);
 }
 
 tl::expected<JointInfo, std::string> Scene::getJointInfo(const std::string& joint_name) const {
