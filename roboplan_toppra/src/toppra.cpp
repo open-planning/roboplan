@@ -9,6 +9,16 @@
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan_toppra/toppra.hpp>
 
+namespace {
+/// @brief Configuration-space step size for resampling edges with planar joints for spline fitting.
+/// @details This is necessary to ensure that the spline fitting doesn't produce large deviations
+/// from the original path that could lead to collisions, since the cubic spline treats (x, y,
+/// theta) as independent Euclidean scalars and produces a straight-line motion in (x, y) instead of
+/// the SE(2) screw motion that the planner used for collision checking.
+/// TODO: Make this configurable if needed.
+constexpr double kPlanarResampleStep = 0.5;
+}  // namespace
+
 namespace roboplan {
 
 PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene,
@@ -39,6 +49,7 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   }
   const auto& joint_group_info = maybe_joint_group_info.value();
   joint_names_ = joint_group_info.joint_names;
+  q_indices_ = joint_group_info.q_indices;
 
   auto q_idx = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
@@ -52,6 +63,7 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
     } else if (maybe_joint_info->type == JointType::PLANAR) {
       continuous_q_indices_.push_back(q_idx + 2);
       q_idx += 3;  // increment by collapsed indices
+      has_planar_joints_ = true;
     } else {
       q_idx += maybe_joint_info->num_position_dofs;
     }
@@ -60,11 +72,35 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
 
 tl::expected<toppra::Vectors, std::string>
 PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
-  const auto num_pts = path.positions.size();
+  // If the joint group contains any planar joints, densely resample each edge using the scene's
+  // SE(2)-aware interpolation. Otherwise the cubic spline would treat (x, y, theta) as independent
+  // Euclidean scalars and produce a straight-line motion in (x, y), which diverges from the
+  // SE(2) screw motion that the planner used for collision checking.
+  std::vector<Eigen::VectorXd> resampled_positions;
+  if (has_planar_joints_) {
+    resampled_positions.reserve(path.positions.size());
+    resampled_positions.push_back(path.positions.front());
+    for (size_t idx = 1; idx < path.positions.size(); ++idx) {
+      const auto q_start_full =
+          scene_->toFullJointPositions(group_name_, path.positions.at(idx - 1));
+      const auto q_end_full = scene_->toFullJointPositions(group_name_, path.positions.at(idx));
+      const auto distance = scene_->configurationDistance(q_start_full, q_end_full);
+      const auto num_steps =
+          std::max<size_t>(1, static_cast<size_t>(std::ceil(distance / kPlanarResampleStep)));
+      for (size_t step = 1; step < num_steps; ++step) {
+        const double fraction = static_cast<double>(step) / static_cast<double>(num_steps);
+        const auto q_interp_full = scene_->interpolate(q_start_full, q_end_full, fraction);
+        resampled_positions.push_back(q_interp_full(q_indices_).eval());
+      }
+      resampled_positions.push_back(path.positions.at(idx));
+    }
+  }
+  const auto& positions = has_planar_joints_ ? resampled_positions : path.positions;
+
   toppra::Vectors path_pos_vecs;
-  path_pos_vecs.reserve(num_pts);
-  for (size_t idx = 0; idx < path.positions.size(); ++idx) {
-    const auto& pos = path.positions.at(idx);
+  path_pos_vecs.reserve(positions.size());
+  for (size_t idx = 0; idx < positions.size(); ++idx) {
+    const auto& pos = positions.at(idx);
     auto maybe_collapsed_pos = collapseContinuousJointPositions(*scene_, group_name_, pos);
     if (!maybe_collapsed_pos) {
       return tl::make_unexpected(maybe_collapsed_pos.error());
