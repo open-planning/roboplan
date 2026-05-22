@@ -72,7 +72,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   size_t q_idx = 0;
   size_t v_idx = 0;
   joint_names_.reserve(model_.njoints - 1);
-  actuated_joint_names_.reserve(model_.njoints - 1);
+  actuated_joint_names_.reserve((model_.njoints - 1) - model_.mimicking_joints.size());
   for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
     const auto& joint_name = model_.names.at(idx);
     joint_names_.push_back(joint_name);
