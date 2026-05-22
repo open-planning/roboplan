@@ -31,7 +31,7 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   acc_lower_limits_ = maybe_joint_acceleration_limits->first;
   acc_upper_limits_ = maybe_joint_acceleration_limits->second;
 
-  // Get the continuous joint indices for unwrapping positions.
+  // Get the continuous joint position indices for unwrapping positions.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name_);
   if (!maybe_joint_group_info) {
     throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
@@ -40,14 +40,20 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   const auto& joint_group_info = maybe_joint_group_info.value();
   joint_names_ = joint_group_info.joint_names;
 
-  for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
-    const auto& joint_name = joint_group_info.joint_names.at(j_idx);
+  auto q_idx = 0;
+  for (const auto& joint_name : joint_group_info.joint_names) {
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_joint_info.error());
     }
     if (maybe_joint_info->type == JointType::CONTINUOUS) {
-      continuous_joint_indices_.push_back(j_idx);
+      continuous_q_indices_.push_back(q_idx);
+      q_idx += 1;  // increment by collapsed indices
+    } else if (maybe_joint_info->type == JointType::PLANAR) {
+      continuous_q_indices_.push_back(q_idx + 2);
+      q_idx += 3;  // increment by collapsed indices
+    } else {
+      q_idx += maybe_joint_info->num_position_dofs;
     }
   }
 }
@@ -70,12 +76,12 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
     // 2*PI to this point to ensure that we don't travel further than we need to.
     if (idx > 0) {
       const auto& prev_collapsed = path_pos_vecs.at(idx - 1);
-      for (auto j_idx : continuous_joint_indices_) {
-        const auto diff = curr_collapsed(j_idx) - prev_collapsed(j_idx);
+      for (auto q_idx : continuous_q_indices_) {
+        const auto diff = curr_collapsed(q_idx) - prev_collapsed(q_idx);
         if (diff > M_PI) {
-          curr_collapsed(j_idx) -= 2.0 * M_PI;
+          curr_collapsed(q_idx) -= 2.0 * M_PI;
         } else if (diff < -M_PI) {
-          curr_collapsed(j_idx) += 2.0 * M_PI;
+          curr_collapsed(q_idx) += 2.0 * M_PI;
         }
       }
     }
