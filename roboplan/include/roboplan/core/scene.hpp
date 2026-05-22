@@ -71,10 +71,6 @@ public:
   /// @return A vector of joint names.
   const std::vector<std::string>& getJointNames() const { return joint_names_; };
 
-  /// @brief Gets the scene's actuated (non-mimic) joint names.
-  /// @return A vector of joint names.
-  const std::vector<std::string>& getActuatedJointNames() const { return actuated_joint_names_; };
-
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
   /// @return The joint information struct if successful, else a string describing the error.
@@ -318,9 +314,6 @@ private:
 
   /// @brief The full list of joint names in the model (including mimic joints).
   std::vector<std::string> joint_names_;
-
-  /// @brief The list of actuated (non-mimic) joint names in the model.
-  std::vector<std::string> actuated_joint_names_;
 
   /// @brief Map from joint names to their corresponding information.
   std::unordered_map<std::string, JointInfo> joint_info_map_;

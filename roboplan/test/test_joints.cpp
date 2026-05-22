@@ -67,8 +67,6 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   std::vector<std::string> expected_joint_names = {"continuous_joint", "revolute_joint",
                                                    "mimic_joint"};
   ASSERT_EQ(scene_->getJointNames(), expected_joint_names);
-  std::vector<std::string> expected_actuated_names = {"continuous_joint", "revolute_joint"};
-  ASSERT_EQ(scene_->getActuatedJointNames(), expected_actuated_names);
 
   // Verify mimic joint info is as expected
   const auto mimic_joint_info = scene_->getJointInfo("mimic_joint").value();

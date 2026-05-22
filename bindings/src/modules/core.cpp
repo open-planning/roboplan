@@ -195,8 +195,6 @@ void init_core_scene(nanobind::module_& m) {
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
            "Gets the scene's full joint names, including mimic joints.")
-      .def("getActuatedJointNames", &Scene::getActuatedJointNames,
-           "Gets the scene's actuated (non-mimic) joint names.")
       .def("getJointInfo", unwrap_expected(&Scene::getJointInfo),
            "Gets the information for a specific joint.", "joint_name"_a)
       .def("configurationDistance", &Scene::configurationDistance,

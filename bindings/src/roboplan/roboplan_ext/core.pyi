@@ -405,9 +405,6 @@ class Scene:
     def getJointNames(self) -> list[str]:
         """Gets the scene's full joint names, including mimic joints."""
 
-    def getActuatedJointNames(self) -> list[str]:
-        """Gets the scene's actuated (non-mimic) joint names."""
-
     def getJointInfo(self, joint_name: str) -> JointInfo:
         """Gets the information for a specific joint."""
 

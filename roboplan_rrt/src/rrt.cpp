@@ -235,11 +235,12 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   const auto maybe_q_collapsed =
       collapseContinuousJointPositions(*scene_, options_.group_name, q_last_added(q_indices));
   if (!maybe_q_collapsed) {
-    return std::nullopt;
+    throw std::runtime_error("Failed to collapse joint positions in joinTrees: " +
+                             maybe_q_collapsed.error());
   }
   const auto& nn = target_tree.search(maybe_q_collapsed.value());
   if (nn.id < 0 || static_cast<size_t>(nn.id) >= target_nodes.size()) {
-    return std::nullopt;
+    throw std::runtime_error("K-D tree search returned invalid node id in joinTrees.");
   }
   const auto& nearest_node = target_nodes.at(nn.id);
   const auto& q_nearest = nearest_node.config;
