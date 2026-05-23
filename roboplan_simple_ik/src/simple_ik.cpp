@@ -15,6 +15,14 @@ SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& op
   }
   joint_group_info_ = maybe_joint_group_info.value();
 
+  // Cache the group's position limits so we can clamp with a single cwise expression.
+  const auto maybe_position_limits =
+      scene_->getPositionLimitVectors(options.group_name, /*collapsed*/ false);
+  if (!maybe_position_limits) {
+    throw std::runtime_error("Could not initialize IK solver: " + maybe_position_limits.error());
+  }
+  std::tie(lower_position_limits_, upper_position_limits_) = maybe_position_limits.value();
+
   // Initialize matrices and vectors
   const auto& model = scene_->getModel();
   full_jacobian_ = Eigen::MatrixXd(6, model.nv);
@@ -111,6 +119,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       }
 
       q = pinocchio::integrate(model, q, vel_ * options_.step_size);
+      q(q_indices) = q(q_indices).cwiseMax(lower_position_limits_).cwiseMin(upper_position_limits_);
       ++iter;
 
       // Check for timeouts.

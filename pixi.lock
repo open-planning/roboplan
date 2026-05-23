@@ -260,7 +260,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom-5.1.2-h8631160_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom_headers-2.1.2-hb700be7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.7.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.27-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.24-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.25.0-hd6090a7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/websockets-15.0.1-py311haee01d2_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
@@ -549,7 +549,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/urdfdom-5.1.2-hcc88bc6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/urdfdom_headers-2.1.2-hfefdfc9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.7.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.27-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.24-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wayland-1.25.0-h4f8a99f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/websockets-15.0.1-py311h51cfe5d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
@@ -847,7 +847,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom-5.1.2-h8631160_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom_headers-2.1.2-hb700be7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.7.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.27-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.24-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.25.0-hd6090a7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/websockets-15.0.1-py311haee01d2_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
@@ -1136,7 +1136,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/urdfdom-5.1.2-hcc88bc6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/urdfdom_headers-2.1.2-hfefdfc9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.7.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.27-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.24-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/wayland-1.25.0-h4f8a99f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/websockets-15.0.1-py311h51cfe5d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
@@ -7671,9 +7671,9 @@ packages:
   license: MIT
   size: 5154878
   timestamp: 1778710685928
-- conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.27-pyhcf101f3_0.conda
-  sha256: 7f9ae1532a43596701ed7cb66254f2de73c9c606f8dfc14960f5a083c4afd422
-  md5: 1e0ffa36a6026728616396fba24096cd
+- conda: https://conda.anaconda.org/conda-forge/noarch/viser-1.0.24-pyhcf101f3_1.conda
+  sha256: 9c4d0fa9676d368f050a4ea656f65c4b0e458dbadbfb0f54a07b1ee780171bd6
+  md5: c9d1605736dddf16945848857ff813d0
   depends:
   - python >=3.10
   - requests >=2.0.0,<3.0.0
@@ -7692,8 +7692,8 @@ packages:
   license_family: APACHE
   purls:
   - pkg:pypi/viser?source=hash-mapping
-  size: 4753006
-  timestamp: 1778596632437
+  size: 4839673
+  timestamp: 1773001198011
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.25.0-hd6090a7_0.conda
   sha256: ea374d57a8fcda281a0a89af0ee49a2c2e99cc4ac97cf2e2db7064e74e764bdb
   md5: 996583ea9c796e5b915f7d7580b51ea6

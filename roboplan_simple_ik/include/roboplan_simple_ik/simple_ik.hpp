@@ -78,6 +78,12 @@ private:
   /// @brief The joint group info for the IK solver.
   JointGroupInfo joint_group_info_;
 
+  /// @brief Lower position limits for the joint group, aligned with `q_indices`.
+  Eigen::VectorXd lower_position_limits_;
+
+  /// @brief Upper position limits for the joint group, aligned with `q_indices`.
+  Eigen::VectorXd upper_position_limits_;
+
   /// @brief The full error vector (for allocating memory once).
   Eigen::VectorXd error_;
 

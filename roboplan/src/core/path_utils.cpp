@@ -176,8 +176,8 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
     // Erase elements from idx_low to idx_high (exclusive).
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
-    path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices));
-    path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices));
+    path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices).eval());
+    path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices).eval());
   }
 
   return shortened_path;

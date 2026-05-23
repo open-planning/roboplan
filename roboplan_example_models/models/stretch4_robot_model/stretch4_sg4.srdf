@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<robot name="stretch">
+  <group name="stretch4_arm">
+    <joint name="mobile_base_planar_joint"/>
+    <joint name="lift_joint"/>
+    <joint name="arm_l1_joint"/>
+    <joint name="wrist_yaw_joint"/>
+    <joint name="wrist_pitch_joint"/>
+    <joint name="wrist_roll_joint"/>
+  </group>
+
+  <group_state group="stretch4_arm" name="home">
+    <joint name="mobile_base_planar_joint" value="0.0 0.0 0.0"/>
+    <joint name="lift_joint" value="0.5"/>
+    <joint name="arm_l1_joint" value="0.065"/>
+    <joint name="wrist_yaw_joint" value="0.0"/>
+    <joint name="wrist_pitch_joint" value="0.0"/>
+    <joint name="wrist_roll_joint" value="0.0"/>
+  </group_state>
+
+  <disable_collisions link1="arm_l0_link" link2="arm_l1_link" reason="Adjacent"/>
+  <disable_collisions link1="arm_l0_link" link2="lift_link" reason="Adjacent"/>
+  <disable_collisions link1="arm_l1_link" link2="arm_l2_link" reason="Adjacent"/>
+  <disable_collisions link1="arm_l2_link" link2="arm_l3_link" reason="Adjacent"/>
+  <disable_collisions link1="arm_l3_link" link2="arm_l4_link" reason="Adjacent"/>
+  <disable_collisions link1="arm_l4_link" link2="wrist_link" reason="Adjacent"/>
+  <disable_collisions link1="aruco_fingertip_left_link" link2="gripper_fingertip_left_link" reason="Adjacent"/>
+  <disable_collisions link1="aruco_fingertip_right_link" link2="gripper_fingertip_right_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="head_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="mast_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="wheel_0_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="wheel_1_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="wheel_2_link" reason="Adjacent"/>
+  <disable_collisions link1="grasp_center_link" link2="quick_connect_interface_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_camera_link" link2="wrist_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_finger_left_link" link2="gripper_fingertip_left_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_finger_left_link" link2="quick_connect_interface_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_finger_right_link" link2="gripper_fingertip_right_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_finger_right_link" link2="quick_connect_interface_link" reason="Adjacent"/>
+  <disable_collisions link1="lift_link" link2="mast_link" reason="Adjacent"/>
+  <disable_collisions link1="quick_connect_interface_link" link2="tool_attachment_site_link" reason="Adjacent"/>
+  <disable_collisions link1="tool_attachment_site_link" link2="wrist_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="wrist_aruco_link" link2="wrist_link" reason="Adjacent"/>
+  <disable_collisions link1="wrist_link" link2="wrist_reflector_link" reason="Adjacent"/>
+  <disable_collisions link1="wrist_link" link2="wrist_yaw_link" reason="Adjacent"/>
+  <disable_collisions link1="wrist_pitch_link" link2="wrist_roll_link" reason="Adjacent"/>
+  <disable_collisions link1="wrist_pitch_link" link2="wrist_yaw_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="lift_link" reason="Never"/>
+  <disable_collisions link1="arm_l1_link" link2="lift_link" reason="Never"/>
+  <disable_collisions link1="arm_l2_link" link2="lift_link" reason="Never"/>
+  <disable_collisions link1="arm_l0_link" link2="arm_l2_link" reason="Never"/>
+  <disable_collisions link1="arm_l0_link" link2="arm_l3_link" reason="Never"/>
+  <disable_collisions link1="arm_l1_link" link2="arm_l3_link" reason="Never"/>
+  <disable_collisions link1="arm_l1_link" link2="arm_l4_link" reason="Never"/>
+  <disable_collisions link1="arm_l2_link" link2="arm_l4_link" reason="Never"/>
+  <disable_collisions link1="arm_l2_link" link2="wrist_link" reason="Never"/>
+  <disable_collisions link1="arm_l3_link" link2="wrist_yaw_link" reason="Never"/>
+  <disable_collisions link1="arm_l4_link" link2="wrist_pitch_link" reason="Never"/>
+  <disable_collisions link1="arm_l3_link" link2="wrist_link" reason="Never"/>
+  <disable_collisions link1="tool_attachment_site_link" link2="wrist_pitch_link" reason="Never"/>
+  <disable_collisions link1="grasp_center_link" link2="gripper_finger_left_link" reason="Never"/>
+  <disable_collisions link1="grasp_center_link" link2="gripper_fingertip_left_link" reason="Never"/>
+  <disable_collisions link1="grasp_center_link" link2="gripper_finger_right_link" reason="Never"/>
+  <disable_collisions link1="grasp_center_link" link2="gripper_fingertip_right_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_left_link" link2="gripper_finger_right_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_left_link" link2="gripper_fingertip_right_link" reason="Never"/>
+  <disable_collisions link1="aruco_fingertip_right_link" link2="gripper_finger_left_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_right_link" link2="gripper_fingertip_left_link" reason="Never"/>
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_fingertip_right_link" reason="Never"/>
+  <disable_collisions link1="aruco_fingertip_right_link" link2="gripper_fingertip_left_link" reason="Never"/>
+  <disable_collisions link1="aruco_fingertip_left_link" link2="gripper_finger_right_link" reason="Never"/>
+  <disable_collisions link1="aruco_fingertip_left_link" link2="gripper_fingertip_right_link" reason="Never"/>
+  <disable_collisions link1="aruco_fingertip_left_link" link2="aruco_fingertip_right_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_left_link" link2="wrist_roll_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_right_link" link2="wrist_roll_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_left_link" link2="tool_attachment_site_link" reason="Never"/>
+  <disable_collisions link1="gripper_finger_right_link" link2="tool_attachment_site_link" reason="Never"/>
+  <disable_collisions link1="arm_l4_link" link2="wrist_yaw_link" reason="Never"/>
+</robot>

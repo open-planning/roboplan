@@ -24,19 +24,25 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_collapsed_pos.error());
   }
 
-  const auto joint_names = scene_->getJointNames();
   std::vector<std::string> state_space_names;
-  state_space_names.reserve(joint_names.size());
+  state_space_names.reserve(joint_group_info_.joint_names.size());
   for (const auto& joint_name : joint_group_info_.joint_names) {
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_joint_info.error());
     }
     const auto& joint_info = maybe_joint_info.value();
+    if (joint_info.mimic_info) {
+      // Mimic joints have nq=0; they are not separate entries in the collapsed state space.
+      continue;
+    }
     switch (joint_info.type) {
     case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported by RRT.");
     case JointType::PLANAR:
-      throw std::runtime_error("Multi-DOF joints not yet supported by RRT.");
+      state_space_names.push_back("Rn:2");
+      state_space_names.push_back("SO2");
+      break;
     case JointType::CONTINUOUS:
       // The solution squashes the continuous position vectors to be used as an SO(2).
       state_space_names.push_back("SO2");
@@ -46,7 +52,8 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
     }
   }
 
-  const auto maybe_joint_position_limits = scene_->getPositionLimitVectors(options_.group_name);
+  const auto maybe_joint_position_limits =
+      scene_->getPositionLimitVectors(options_.group_name, /*collapsed*/ true);
   if (!maybe_joint_position_limits) {
     throw std::runtime_error("Failed to instantiate RRT planner: " +
                              maybe_joint_position_limits.error());
@@ -54,6 +61,14 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
   state_space_ = CombinedStateSpace(state_space_names);
   state_space_.set_bounds(maybe_joint_position_limits->first, maybe_joint_position_limits->second);
+
+  if (state_space_.get_runtime_dim() != static_cast<int>(maybe_collapsed_pos->size())) {
+    throw std::runtime_error("Failed to instantiate RRT planner: State space dimension (" +
+                             std::to_string(state_space_.get_runtime_dim()) +
+                             ") does not match collapsed configuration dimension (" +
+                             std::to_string(maybe_collapsed_pos->size()) + ") for group '" +
+                             options_.group_name + "'.");
+  }
 };
 
 tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
@@ -215,9 +230,18 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   const auto& last_added_node = nodes.back();
   const auto& q_last_added = last_added_node.config;
 
-  // Find the nearest node in the target tree.
+  // Find the nearest node in the target tree (search uses collapsed coordinates).
   const auto& q_indices = joint_group_info_.q_indices;
-  const auto& nn = target_tree.search(q_last_added(q_indices));
+  const auto maybe_q_collapsed =
+      collapseContinuousJointPositions(*scene_, options_.group_name, q_last_added(q_indices));
+  if (!maybe_q_collapsed) {
+    throw std::runtime_error("Failed to collapse joint positions in joinTrees: " +
+                             maybe_q_collapsed.error());
+  }
+  const auto& nn = target_tree.search(maybe_q_collapsed.value());
+  if (nn.id < 0 || static_cast<size_t>(nn.id) >= target_nodes.size()) {
+    throw std::runtime_error("K-D tree search returned invalid node id in joinTrees.");
+  }
   const auto& nearest_node = target_nodes.at(nn.id);
   const auto& q_nearest = nearest_node.config;
 
@@ -232,8 +256,8 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
       (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size,
                                options_.collision_check_use_bisection))) {
 
-    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree. Otherwise it is
-    // reversed.
+    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree.
+    // Otherwise it is reversed.
     JointPath start_path =
         grow_start_tree ? getPath(nodes, latest_node) : getPath(target_nodes, nearest_node);
     JointPath goal_path =

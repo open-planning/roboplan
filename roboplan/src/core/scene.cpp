@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include <tl/expected.hpp>
@@ -16,6 +18,10 @@ namespace {
 /// @brief Tolerance for the norm of continuous joint values (in the form cos(theta), sin(theta))
 /// to be on the unit circle.
 constexpr double kUnitCircleTol = 1.0e-6;
+
+/// @brief Default position bound, in meters, for planar joint translation when randomly sampling.
+/// @details TODO Make this more configurable by users.
+constexpr double kDefaultPlanarJointTranslationLimit = 2.0;
 
 }  // namespace
 
@@ -50,9 +56,8 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     package_paths_str.push_back(std::string(path));
   }
 
-  // Start by creating a Pinocchio model with mimic support to parse all the relationships.
-  pinocchio::Model mimic_model;
-  pinocchio::urdf::buildModelFromXML(urdf, mimic_model, /*verbose*/ false, /*mimic*/ true);
+  // Single model with Pinocchio native mimics
+  pinocchio::urdf::buildModelFromXML(urdf, model_, /*verbose*/ false, /*mimic*/ true);
 
   YAML::Node yaml_config;
   if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
@@ -66,13 +71,13 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   // Create additional robot information.
   size_t q_idx = 0;
   size_t v_idx = 0;
-  joint_names_.reserve(mimic_model.njoints - 1);
-  actuated_joint_names_.reserve(mimic_model.njoints - mimic_model.mimicking_joints.size() - 1);
-  for (int idx = 1; idx < mimic_model.njoints; ++idx) {  // omits "universe" joint.
-    const auto& joint_name = mimic_model.names.at(idx);
+  joint_names_.reserve(model_.njoints - 1);
+  actuated_joint_names_.reserve((model_.njoints - 1) - model_.mimicking_joints.size());
+  for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
+    const auto& joint_name = model_.names.at(idx);
     joint_names_.push_back(joint_name);
 
-    const auto& joint = mimic_model.joints.at(idx);
+    const auto& joint = model_.joints.at(idx);
     if (joint.shortname() == "JointModelMimic") {
       // If the joint is a mimic joint, do nothing for now.
       // The information will be extracted later.
@@ -86,23 +91,23 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
     switch (info.type) {
-    case (JointType::PRISMATIC):
-    case (JointType::REVOLUTE):
-      info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
-      info.limits.max_position[0] = mimic_model.upperPositionLimit(q_idx);
+    case JointType::PRISMATIC:
+    case JointType::REVOLUTE:
+      info.limits.min_position[0] = model_.lowerPositionLimit(q_idx);
+      info.limits.max_position[0] = model_.upperPositionLimit(q_idx);
       break;
-    case (JointType::PLANAR):
+    case JointType::PLANAR:
       // Only the position limits need to be incorporated, as orientation is unlimited.
       for (size_t dof = 0; dof < 2; ++dof) {
-        info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
-        info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
+        info.limits.min_position[dof] = model_.lowerPositionLimit(q_idx + dof);
+        info.limits.max_position[dof] = model_.upperPositionLimit(q_idx + dof);
       }
       break;
-    case (JointType::FLOATING):
+    case JointType::FLOATING:
       // Only the position limits need to be incorporated, as orientation is unlimited.
       for (size_t dof = 0; dof < 3; ++dof) {
-        info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
-        info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
+        info.limits.min_position[dof] = model_.lowerPositionLimit(q_idx + dof);
+        info.limits.max_position[dof] = model_.upperPositionLimit(q_idx + dof);
       }
       break;
     default:  // Includes continuous joints, where no operation is needed.
@@ -110,10 +115,20 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     q_idx += info.num_position_dofs;
 
+    std::optional<YAML::Node> maybe_vel_limits;  // overrides URDF if supplied
     std::optional<YAML::Node> maybe_acc_limits;
     std::optional<YAML::Node> maybe_jerk_limits;
     if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
       const auto& limits_config = yaml_config["joint_limits"][joint_name];
+      if (limits_config["max_velocity"]) {
+        maybe_vel_limits = limits_config["max_velocity"];
+        if (!maybe_vel_limits->IsSequence() ||
+            (maybe_vel_limits->size() != static_cast<size_t>(joint.nv()))) {
+          throw std::runtime_error("Velocity limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
+                                   ".");
+        }
+      }
       if (limits_config["max_acceleration"]) {
         maybe_acc_limits = limits_config["max_acceleration"];
         if (!maybe_acc_limits->IsSequence() ||
@@ -134,7 +149,11 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       }
     }
     for (int idx = 0; idx < joint.nv(); ++idx) {
-      info.limits.max_velocity[idx] = mimic_model.velocityLimit(v_idx);
+      if (maybe_vel_limits) {
+        info.limits.max_velocity[idx] = maybe_vel_limits.value()[idx].as<double>();
+      } else {
+        info.limits.max_velocity[idx] = model_.velocityLimit(v_idx);
+      }
       if (maybe_acc_limits) {
         info.limits.max_acceleration[idx] = maybe_acc_limits.value()[idx].as<double>();
       }
@@ -147,14 +166,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   }
 
   // Add the mimic joint information once all the other joints have been parsed.
-  const auto num_mimics = mimic_model.mimicked_joints.size();
+  const auto num_mimics = model_.mimicked_joints.size();
   for (size_t idx = 0; idx < num_mimics; ++idx) {
-    const auto mimicking_idx = mimic_model.mimicking_joints[idx];
-    const auto& mimicking_joint_name = mimic_model.names[mimicking_idx];
-    const auto& mimicking_joint = mimic_model.joints[mimicking_idx];
+    const auto mimicking_idx = model_.mimicking_joints[idx];
+    const auto& mimicking_joint_name = model_.names[mimicking_idx];
+    const auto& mimicking_joint = model_.joints[mimicking_idx];
 
-    const auto mimicked_idx = mimic_model.mimicked_joints[idx];
-    const auto& mimicked_joint_name = mimic_model.names[mimicked_idx];
+    const auto mimicked_idx = model_.mimicked_joints[idx];
+    const auto& mimicked_joint_name = model_.names[mimicked_idx];
 
     auto* mimic_joint = boost::get<pinocchio::JointModelMimic>(&mimicking_joint);
     const auto mimicked_joint_info = joint_info_map_.at(mimicked_joint_name);
@@ -193,8 +212,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     joint_info_map_.emplace(mimicking_joint_name, info);
   }
 
-  // Replace the model with its non-mimic version.
-  pinocchio::urdf::buildModelFromXML(urdf, model_);
+  // Collision geometry uses the same mimic-enabled model so placements stay consistent with FK.
   pinocchio::urdf::buildGeom(model_, std::istringstream(urdf), pinocchio::COLLISION,
                              collision_model_, package_paths_str);
   collision_model_.addAllCollisionPairs();
@@ -208,10 +226,14 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
 
   // Initialize the current state of the scene.
-  cur_state_ = JointConfiguration{.joint_names = joint_names_,
+  cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+}
+
+Eigen::VectorXd Scene::getCurrentJointPositionsWithMimics() const {
+  return jointPositionsWithMimicsFromPinocchio(*this, cur_state_.positions);
 }
 
 tl::expected<JointInfo, std::string> Scene::getJointInfo(const std::string& joint_name) const {
@@ -234,26 +256,45 @@ Eigen::VectorXd Scene::randomPositions() {
   for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_map_.at(joint_name);
     if (info.mimic_info) {
-      continue;  // Skip mimic joints as they are set later.
+      continue;  // Mimic joints have nq=0; only sample actuated coordinates.
     }
 
-    const auto q_idx = model_.idx_qs[model_.getJointId(joint_name)];
-    if (info.type == JointType::CONTINUOUS) {
+    const auto q_idx = model_.idx_qs.at(model_.getJointId(joint_name));
+    switch (info.type) {
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported in randomPositions.");
+    case JointType::CONTINUOUS: {
       // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx) = std::cos(angle);
       positions(q_idx + 1) = std::sin(angle);
-    } else {
-      // Generic case.
-      for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-        const auto& lo = info.limits.min_position[idx];
-        const auto& hi = info.limits.max_position[idx];
-        positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      break;
+    }
+    case JointType::PLANAR: {
+      for (size_t dof = 0; dof < 2; ++dof) {
+        auto lo = info.limits.min_position[dof];
+        auto hi = info.limits.max_position[dof];
+        if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi) {
+          lo = -kDefaultPlanarJointTranslationLimit;
+          hi = kDefaultPlanarJointTranslationLimit;
+        }
+        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
+      const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
+      positions(q_idx + 2) = std::cos(angle);
+      positions(q_idx + 3) = std::sin(angle);
+      break;
+    }
+    default:  // Generic case, including revolute and prismatic.
+      for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
+        const auto& lo = info.limits.min_position[dof];
+        const auto& hi = info.limits.max_position[dof];
+        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      }
+      break;
     }
   }
 
-  applyMimics(positions);
   return positions;
 }
 
@@ -294,12 +335,28 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_map_.at(joint_name);
     if (info.mimic_info) {
-      ++q_idx;
-      continue;  // Skip over mimic joints since we validate their parent.
+      // Mimic joints occupy no q slots; limits are enforced on the mimicked parent above.
+      continue;
     }
 
     switch (info.type) {
-    // TODO: Validate multi-DOF joints.
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported by isValidPose.");
+    case JointType::PLANAR:
+      // The first 2 DOFs (translation) can be bounded, but the last (rotation) is always valid.
+      // However, we still check that it is on the unit circle.
+      for (size_t idx = 0; idx < 2; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        if (q(q_idx) < lo || q(q_idx) > hi) {
+          return false;
+        }
+      }
+      if (std::abs(std::pow(q(q_idx + 2), 2) + std::pow(q(q_idx + 3), 2) - 1.0) > kUnitCircleTol) {
+        return false;
+      }
+      q_idx += 4;
+      break;
     case JointType::CONTINUOUS:
       // Unbounded so always valid, but check whether the representation is on the unit circle.
       if (std::abs(std::pow(q(q_idx), 2) + std::pow(q(q_idx + 1), 2) - 1.0) > kUnitCircleTol) {
@@ -321,30 +378,6 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   return true;
 }
 
-void Scene::applyMimics(Eigen::VectorXd& q) const {
-  for (const auto& [joint_name, joint_info] : joint_info_map_) {
-    if (!joint_info.mimic_info) {
-      continue;
-    }
-    const auto& mimic_info = joint_info.mimic_info.value();
-
-    const auto mimicking_idx = model_.getJointId(joint_name);
-    const auto mimicking_idx_q = model_.idx_qs[mimicking_idx];
-
-    const auto mimicked_idx = model_.getJointId(mimic_info.mimicked_joint_name);
-    const auto mimicked_idx_q = model_.idx_qs[mimicked_idx];
-
-    if (joint_info.type == JointType::CONTINUOUS) {
-      const auto mimicked_angle = std::atan2(q(mimicked_idx_q + 1), q(mimicked_idx_q));
-      const auto mimicking_angle = mimicked_angle * mimic_info.scaling + mimic_info.offset;
-      q(mimicking_idx_q) = std::cos(mimicking_angle);
-      q(mimicking_idx_q + 1) = std::sin(mimicking_angle);
-    } else {  // Prismatic or revolute, which are single-DOF.
-      q(mimicking_idx_q) = q(mimicked_idx_q) * mimic_info.scaling + mimic_info.offset;
-    }
-  }
-}
-
 Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name,
                                             const Eigen::VectorXd& q) const {
   Eigen::VectorXd q_out = cur_state_.positions;
@@ -362,13 +395,23 @@ Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name,
   }
 
   q_out(q_indices) = q;
-  applyMimics(q_out);
   return q_out;
 }
 
 Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                                    const double fraction) const {
   return pinocchio::interpolate(model_, q_start, q_end, fraction);
+}
+
+void Scene::setJointPositions(const Eigen::VectorXd& positions) {
+  if (positions.size() != model_.nq) {
+    throw std::invalid_argument("setJointPositions: expected " + std::to_string(model_.nq) +
+                                " configuration values (model.nq), got " +
+                                std::to_string(positions.size()) +
+                                ". For robots with mimic joints, use the mimic-enabled model "
+                                "layout (not the expanded URDF DOF count).");
+  }
+  cur_state_.positions = positions;
 }
 
 Eigen::VectorXd Scene::integrate(const Eigen::VectorXd& q, const Eigen::VectorXd& v) const {
@@ -424,7 +467,7 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
 }
 
 tl::expected<EigenVectorPair, std::string>
-Scene::getPositionLimitVectors(const std::string& group_name) const {
+Scene::getPositionLimitVectors(const std::string& group_name, const bool collapsed) const {
   const auto maybe_joint_group_info = getJointGroupInfo(group_name);
   if (!maybe_joint_group_info) {
     return tl::make_unexpected("Failed to get position limit vectors: " +
@@ -433,10 +476,12 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
   const auto& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
-  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
-      joint_group_info.nq_collapsed, -std::numeric_limits<double>::infinity());
-  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.nq_collapsed,
-                                                           std::numeric_limits<double>::infinity());
+  const auto num_dofs =
+      collapsed ? joint_group_info.nq_collapsed : joint_group_info.q_indices.size();
+  Eigen::VectorXd lower_limits =
+      Eigen::VectorXd::Constant(num_dofs, -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits =
+      Eigen::VectorXd::Constant(num_dofs, std::numeric_limits<double>::infinity());
   size_t q_idx = 0;
   for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
     const auto& joint_name = joint_group_info.joint_names.at(j_idx);
@@ -446,6 +491,10 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
                                  maybe_joint_info.error());
     }
     const auto& joint_info = maybe_joint_info.value();
+    if (joint_info.mimic_info) {
+      // Mimic joints have nq=0; they do not occupy slots in the configuration vector.
+      continue;
+    }
 
     switch (joint_info.type) {
     case JointType::FLOATING:
@@ -458,7 +507,7 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += 6;
+      q_idx += collapsed ? 6 : 7;
       break;
     case JointType::PLANAR:
       // Position limits can be finite, orientation stays unlimited.
@@ -470,11 +519,11 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += 3;
+      q_idx += collapsed ? 3 : 4;
       break;
     case JointType::CONTINUOUS:
       // Already has infinite limits, no action needed.
-      ++q_idx;
+      q_idx += collapsed ? 1 : 2;
       break;
     default:  // Prismatic or revolute.
       if (joint_info.limits.min_position.size() > 0) {

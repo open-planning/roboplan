@@ -77,7 +77,7 @@ def test_scene() -> Scene:
 
 def test_scene_properties(test_scene: Scene) -> None:
     assert test_scene.getName() == "test_scene"
-    assert test_scene.getJointNames() == [
+    expected_joint_names = [
         "shoulder_pan_joint",
         "shoulder_lift_joint",
         "elbow_joint",
@@ -85,6 +85,12 @@ def test_scene_properties(test_scene: Scene) -> None:
         "wrist_2_joint",
         "wrist_3_joint",
     ]
+    assert test_scene.getJointNames() == expected_joint_names
+    assert test_scene.getJointNamesWithMimics() == expected_joint_names
+    assert np.allclose(
+        test_scene.getCurrentJointPositionsWithMimics(),
+        test_scene.getCurrentJointPositions(),
+    )
 
     joint_info = test_scene.getJointInfo("shoulder_pan_joint")
     assert joint_info.type == JointType.REVOLUTE
@@ -334,10 +340,21 @@ def test_jerk_limits_vector(test_scene: Scene) -> None:
 
 
 def test_mimics() -> None:
-    # Equivalent to the C++ test, but the updated joint state is returned as a new
-    # object rather than updated in place.
+    # Native Pinocchio mimics: mimic has no q slot; link3 pose follows revolute via FK.
     test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
-    q = np.zeros(4)
+    assert test_scene.getJointNames() == ["continuous_joint", "revolute_joint"]
+    assert test_scene.getJointNamesWithMimics() == [
+        "continuous_joint",
+        "revolute_joint",
+        "mimic_joint",
+    ]
+    q = np.array([1.0, 0.0, 0.5])
+    test_scene.setJointPositions(q)
+    assert np.allclose(test_scene.getCurrentJointPositions(), q)
+    assert np.allclose(
+        test_scene.getCurrentJointPositionsWithMimics(), [1.0, 0.0, 0.5, 0.5]
+    )
+    T0 = test_scene.forwardKinematics(q, "link3")
     q[2] = 1.0
-    s = test_scene.applyMimics(q)
-    assert s[3] == 1.0
+    T1 = test_scene.forwardKinematics(q, "link3")
+    assert not np.allclose(T0, T1)

@@ -359,9 +359,8 @@ def main(
     print(f"Action space: {action_space}")
     print(f"Action scale: {action_scale}")
 
-    # Create a redundant Pinocchio model for visualization and for obtaining
-    # the full velocity-space size.
-    model_pin = pin.buildModelFromXML(urdf_xml)
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
+    model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     q_start = get_starting_configuration(scene, model_data)
 
     collision_model = pin.buildGeomFromUrdfString(

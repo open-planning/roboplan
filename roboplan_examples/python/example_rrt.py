@@ -35,7 +35,7 @@ def main(
     rrt_connect: bool = False,
     include_shortcutting: bool = False,
     max_shortcutting_iters: int = 100,
-    toppra_mode: SplineFittingMode = SplineFittingMode.Hermite,
+    toppra_mode: SplineFittingMode = SplineFittingMode.Adaptive,
     host: str = "localhost",
     port: str = "8000",
     rng_seed: int | None = None,
@@ -57,7 +57,7 @@ def main(
         rrt_connect: Whether or not to use RRT-Connect.
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         max_shortcutting_iters: The maximum number of path shortcutting iterations.
-        toppra_mode: The trajectory generation mode for TOPP-RA. Can be `Hermite`, `Cubic`, or `Adaptive`.
+        toppra_mode: The trajectory generation mode for TOPP-RA. Can be `Hermite`, `Cubic`, or `Adaptive` (default).
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
         rng_seed: The seed for selecting random start and end poses and solving RRT.
@@ -86,9 +86,9 @@ def main(
     group_info = scene.getJointGroupInfo(model_data.default_joint_group)
     q_indices = group_info.q_indices
 
-    # Create a redundant Pinocchio model just for visualization.
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model = pin.buildModelFromXML(urdf_xml)
+    model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
     )
@@ -194,6 +194,28 @@ def main(
         # Visualize the tree and path
         viz.display(q_full)
         visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
+
+        # Show the start (green) and goal (red) end-effector positions.
+        q_start_full = scene.toFullJointPositions(
+            model_data.default_joint_group, start.positions
+        )
+        q_goal_full = scene.toFullJointPositions(
+            model_data.default_joint_group, goal.positions
+        )
+        for ee_name in model_data.ee_names:
+            viz.viewer.scene.add_icosphere(
+                f"/rrt/start/{ee_name}",
+                radius=0.03,
+                color=(0, 200, 0),
+                position=scene.forwardKinematics(q_start_full, ee_name)[:3, 3],
+            )
+            viz.viewer.scene.add_icosphere(
+                f"/rrt/goal/{ee_name}",
+                radius=0.03,
+                color=(200, 0, 0),
+                position=scene.forwardKinematics(q_goal_full, ee_name)[:3, 3],
+            )
+
         if include_shortcutting:
             visualizePath(
                 viz, scene, path, model_data.ee_names, 0.05, (100, 0, 0), "/rrt/path"
@@ -241,7 +263,7 @@ def main(
         elif animate and cur_traj is not None:
             print("Animating trajectory...")
             for q in cur_traj.positions:
-                q_full[q_indices] = q
+                q_full = scene.toFullJointPositions(model_data.default_joint_group, q)
                 viz.display(q_full)
                 time.sleep(traj_dt)
             animate = False
