@@ -115,10 +115,20 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     q_idx += info.num_position_dofs;
 
+    std::optional<YAML::Node> maybe_vel_limits;  // overrides URDF if supplied
     std::optional<YAML::Node> maybe_acc_limits;
     std::optional<YAML::Node> maybe_jerk_limits;
     if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
       const auto& limits_config = yaml_config["joint_limits"][joint_name];
+      if (limits_config["max_velocity"]) {
+        maybe_vel_limits = limits_config["max_velocity"];
+        if (!maybe_vel_limits->IsSequence() ||
+            (maybe_vel_limits->size() != static_cast<size_t>(joint.nv()))) {
+          throw std::runtime_error("Velocity limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
+                                   ".");
+        }
+      }
       if (limits_config["max_acceleration"]) {
         maybe_acc_limits = limits_config["max_acceleration"];
         if (!maybe_acc_limits->IsSequence() ||
@@ -139,7 +149,11 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
       }
     }
     for (int idx = 0; idx < joint.nv(); ++idx) {
-      info.limits.max_velocity[idx] = model_.velocityLimit(v_idx);
+      if (maybe_vel_limits) {
+        info.limits.max_velocity[idx] = maybe_vel_limits.value()[idx].as<double>();
+      } else {
+        info.limits.max_velocity[idx] = model_.velocityLimit(v_idx);
+      }
       if (maybe_acc_limits) {
         info.limits.max_acceleration[idx] = maybe_acc_limits.value()[idx].as<double>();
       }
