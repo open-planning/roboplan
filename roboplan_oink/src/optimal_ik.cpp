@@ -267,6 +267,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
       c += barrier_c_contribution;
     }
   }
+
   H.makeCompressed();
 
   // Build inequality rows for constraints and barriers, in the original dq space. No
@@ -294,6 +295,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
       !solver.isInitialized() ||
       (total_constraint_rows != last_constraint_rows || total_barrier_rows != last_barrier_rows);
 
+  // Resize constraint workspace if dimensions changed
   if (init_required) {
     constraint_workspace_A.resize(total_rows, num_variables);
     constraint_workspace_lower.resize(total_rows);
@@ -303,6 +305,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     last_barrier_rows = total_barrier_rows;
   }
 
+  // Fill constraint matrices block by block
   int row_offset = 0;
   for (size_t i = 0; i < constraints.size(); ++i) {
     const int num_rows = constraint_sizes.at(i);
