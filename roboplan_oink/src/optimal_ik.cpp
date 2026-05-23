@@ -225,72 +225,30 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
   nullspace_projector.setIdentity(num_variables, num_variables);
   jacobian_stack.resize(0, num_variables);
 
-  // Add each task's contribution to H and c, projecting its Jacobian through the cumulative
-  // nullspace from earlier priority levels. Priority 1 has N = I (no projection); subsequent
-  // priorities act only in the nullspace of higher priorities, so their contribution is
-  // structurally zero in the higher-priority directions and cannot fight them.
-  size_t level_start = 0;
-  for (size_t i = 0; i < sorted_tasks.size(); ++i) {
-    Task* task = sorted_tasks[i];
-
-    auto jacobian_result = task->computeJacobian(scene);
-    if (!jacobian_result.has_value()) {
-      return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
+  // Walk tasks in priority order. Tasks are projected through the current nullspace_projector
+  // (encoding all strictly-higher priorities); whenever we cross into a new priority level,
+  // rebuild the projector from everything stacked so far so the new level acts only in the
+  // nullspace of everything above it. Tasks are sorted ascending by priority (1 = highest),
+  // so the back holds the lowest priority level — its tasks don't need to be appended to
+  // `jacobian_stack` since no further levels will project against them.
+  const int lowest_priority = sorted_tasks.empty() ? 0 : sorted_tasks.back()->priority;
+  const Task* prev_task = nullptr;
+  for (Task* task : sorted_tasks) {
+    if (prev_task && task->priority != prev_task->priority) {
+      rebuildNullspaceProjector(regularization);
     }
-    auto error_result = task->computeError(scene);
-    if (!error_result.has_value()) {
-      return tl::make_unexpected("Failed to compute error: " + error_result.error());
+    auto result = addTaskContribution(scene, task);
+    if (!result.has_value()) {
+      return tl::make_unexpected(result.error());
     }
-
-    //   min ||W J (N z) + W alpha e||^2 with delta_q = N z (z lives in the priority's
-    //   nullspace). We absorb the parameterization into a projected effective Jacobian and
-    //   keep the optimization variable as dq, so the same QP can be reused regardless of
-    //   priority count.
-    projected_weighted_jacobian.noalias() =
-        task->weight * task->jacobian_container * nullspace_projector;
-    weighted_error.noalias() = task->weight * (task->gain * task->error_container);
-
-    const double mu = task->lm_damping * weighted_error.squaredNorm();
-
-    task->H_dense.noalias() = projected_weighted_jacobian.transpose() * projected_weighted_jacobian;
-    task->H_dense.diagonal().array() += mu;
-    H += task->H_dense.sparseView();
-    c.noalias() += projected_weighted_jacobian.transpose() * weighted_error;
-
-    const bool last_in_level =
-        (i + 1 == sorted_tasks.size()) || sorted_tasks[i + 1]->priority != task->priority;
-    const bool has_next_level = (i + 1 < sorted_tasks.size());
-
-    if (last_in_level && has_next_level) {
-      // Extend the cumulative Jacobian stack with this level's (unweighted) Jacobians and
-      // refresh the nullspace projector for the next, deeper priority level.
-      int level_rows = 0;
-      for (size_t j = level_start; j <= i; ++j) {
-        level_rows += sorted_tasks[j]->jacobian_container.rows();
-      }
+    // Stacked Jacobians are only needed for levels above the lowest priority.
+    if (task->priority < lowest_priority) {
+      const int n = static_cast<int>(task->jacobian_container.rows());
       const int prev = static_cast<int>(jacobian_stack.rows());
-      jacobian_stack.conservativeResize(prev + level_rows, num_variables);
-      int off = prev;
-      for (size_t j = level_start; j <= i; ++j) {
-        const int n = static_cast<int>(sorted_tasks[j]->jacobian_container.rows());
-        jacobian_stack.middleRows(off, n) = sorted_tasks[j]->jacobian_container;
-        off += n;
-      }
-
-      // Damped pseudoinverse using `regularization` itself as lambda^2. The user already
-      // controls overall numerical conditioning through this knob; reusing it avoids any
-      // new "magic" damping constant. At well-conditioned configurations (sigma >> sqrt(reg))
-      // the projector is numerically the standard nullspace projector; near singularities the
-      // damping smoothly preserves SPD-ness of (J J^T + lambda^2 I).
-      const double lambda_sq = regularization;
-      Eigen::MatrixXd JJt = jacobian_stack * jacobian_stack.transpose();
-      JJt.diagonal().array() += lambda_sq;
-      const Eigen::MatrixXd JJt_inv_J = JJt.llt().solve(jacobian_stack);
-      nullspace_projector.setIdentity(num_variables, num_variables);
-      nullspace_projector.noalias() -= jacobian_stack.transpose() * JJt_inv_J;
-
-      level_start = i + 1;
+      jacobian_stack.conservativeResize(prev + n, num_variables);
+      jacobian_stack.middleRows(prev, n) = task->jacobian_container;
     }
+    prev_task = task;
   }
 
   // Add barrier regularization contributions (safe displacement)
@@ -524,6 +482,45 @@ Oink::enforceBarriers(const Scene& scene, const std::vector<std::shared_ptr<Barr
   }
 
   return {};
+}
+
+tl::expected<void, std::string> Oink::addTaskContribution(const Scene& scene, Task* task) {
+  auto jacobian_result = task->computeJacobian(scene);
+  if (!jacobian_result.has_value()) {
+    return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
+  }
+  auto error_result = task->computeError(scene);
+  if (!error_result.has_value()) {
+    return tl::make_unexpected("Failed to compute error: " + error_result.error());
+  }
+
+  // min ||W J (N z) + W alpha e||^2 with delta_q = N z (z lives in the priority's nullspace).
+  // We absorb the parameterization into a projected effective Jacobian and keep the
+  // optimization variable as dq, so the same QP can be reused regardless of priority count.
+  projected_weighted_jacobian.noalias() =
+      task->weight * task->jacobian_container * nullspace_projector;
+  weighted_error.noalias() = task->weight * (task->gain * task->error_container);
+
+  const double mu = task->lm_damping * weighted_error.squaredNorm();
+
+  task->H_dense.noalias() = projected_weighted_jacobian.transpose() * projected_weighted_jacobian;
+  task->H_dense.diagonal().array() += mu;
+  H += task->H_dense.sparseView();
+  c.noalias() += projected_weighted_jacobian.transpose() * weighted_error;
+
+  return {};
+}
+
+void Oink::rebuildNullspaceProjector(double lambda_sq) {
+  // Damped pseudoinverse using `lambda_sq` (caller passes the QP's Tikhonov regularization).
+  // At well-conditioned configurations (sigma >> sqrt(lambda_sq)) this is numerically the
+  // standard nullspace projector; near singularities the damping preserves SPD-ness of
+  // (J J^T + lambda_sq I).
+  Eigen::MatrixXd JJt = jacobian_stack * jacobian_stack.transpose();
+  JJt.diagonal().array() += lambda_sq;
+  const Eigen::MatrixXd JJt_inv_J = JJt.llt().solve(jacobian_stack);
+  nullspace_projector.setIdentity(num_variables, num_variables);
+  nullspace_projector.noalias() -= jacobian_stack.transpose() * JJt_inv_J;
 }
 
 }  // namespace roboplan

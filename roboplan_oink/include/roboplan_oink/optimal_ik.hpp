@@ -379,6 +379,22 @@ struct Oink {
                   Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
                   double tolerance = 0.0);
 
+private:
+  /// @brief Compute `task`'s Jacobian and error, and add its contribution to the QP Hessian
+  /// and gradient (projecting through the current `nullspace_projector` for hierarchical
+  /// priorities).
+  /// @param scene The scene containing robot model and state.
+  /// @param task The task to add to the QP objective.
+  /// @return void if successful, else an error message describing the failure.
+  tl::expected<void, std::string> addTaskContribution(const Scene& scene, Task* task);
+
+  /// @brief Rebuild `nullspace_projector` from the current `jacobian_stack` via a damped
+  /// pseudoinverse, so subsequent priority levels are projected into the nullspace of
+  /// everything stacked so far.
+  /// @param lambda_sq Damping factor for the pseudoinverse.
+  void rebuildNullspaceProjector(double lambda_sq);
+
+public:
   // QP solver
   OsqpEigen::Solver solver;
   OsqpEigen::Settings settings;
