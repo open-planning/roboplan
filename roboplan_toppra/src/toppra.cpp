@@ -206,7 +206,7 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   // - If Hermite mode is enabled, we don't need to iterate or check collisions.
   // - If cubic mode is enabled, we just do one iteration with collision checking.
   // - If adaptive mode is enabled, we do need to iterate by checking collisisions.
-  int max_collision_iterations;
+  int max_collision_iterations = 0;
   switch (mode) {
   case SplineFittingMode::Hermite:
     max_collision_iterations = 0;
