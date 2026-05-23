@@ -194,9 +194,9 @@ void init_core_scene(nanobind::module_& m) {
           "yaml_config_path"_a = std::filesystem::path())
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
+           "Gets the scene's actuated joint names (non-mimic joints only).")
+      .def("getJointNamesWithMimics", &Scene::getJointNamesWithMimics,
            "Gets the scene's full joint names, including mimic joints.")
-      .def("getActuatedJointNames", &Scene::getActuatedJointNames,
-           "Gets the scene's actuated (non-mimic) joint names.")
       .def("getJointInfo", unwrap_expected(&Scene::getJointInfo),
            "Gets the information for a specific joint.", "joint_name"_a)
       .def("configurationDistance", &Scene::configurationDistance,
@@ -211,16 +211,6 @@ void init_core_scene(nanobind::module_& m) {
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
       .def("isValidPose", &Scene::isValidPose,
            "Checks if the specified joint positions are valid with respect to joint limits.", "q"_a)
-      // Modification is not guaranteed to be done in place for python objects, as they
-      // may be copied by nanobind. To guarantee values are correctly updated, we use
-      // a lambda function to return a reference to the changed value.
-      .def(
-          "applyMimics",
-          [](const Scene& self, Eigen::VectorXd& q) -> Eigen::VectorXd {
-            self.applyMimics(q);
-            return q;
-          },
-          "Applies mimic joint relationships to a position vector.", "q"_a)
       .def("toFullJointPositions", &Scene::toFullJointPositions,
            "Converts partial joint positions to full joint positions.", "group_name"_a, "q"_a)
       .def("interpolate", &Scene::interpolate, "Interpolates between two joint configurations.",
@@ -252,7 +242,10 @@ void init_core_scene(nanobind::module_& m) {
       .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo),
            "Get the joint group information of a scene by its name.", "name"_a)
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions,
-           "Get the current joint positions for the full robot state.")
+           "Get the current Pinocchio configuration vector (model.nq).")
+      .def("getCurrentJointPositionsWithMimics", &Scene::getCurrentJointPositionsWithMimics,
+           "Get current joint positions in getJointNamesWithMimics() order, including mimic "
+           "values.")
       .def("setJointPositions", &Scene::setJointPositions,
            "Set the joint positions for the full robot state.", "positions"_a)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices,

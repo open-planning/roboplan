@@ -86,9 +86,9 @@ def main(
     group_info = scene.getJointGroupInfo(model_data.default_joint_group)
     q_indices = group_info.q_indices
 
-    # Create a redundant Pinocchio model just for visualization.
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
-    model = pin.buildModelFromXML(urdf_xml)
+    model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
     )

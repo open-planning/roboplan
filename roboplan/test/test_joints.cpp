@@ -63,12 +63,12 @@ public:
 };
 
 TEST_F(RoboPlanJointTest, SceneProperties) {
-  // Verify actuated joints and mimic joints are as expected
-  std::vector<std::string> expected_joint_names = {"continuous_joint", "revolute_joint",
-                                                   "mimic_joint"};
-  ASSERT_EQ(scene_->getJointNames(), expected_joint_names);
-  std::vector<std::string> expected_actuated_names = {"continuous_joint", "revolute_joint"};
-  ASSERT_EQ(scene_->getActuatedJointNames(), expected_actuated_names);
+  // Verify actuated and full joint name lists
+  ASSERT_EQ(scene_->getJointNames(),
+            (std::vector<std::string>{"continuous_joint", "revolute_joint"}));
+  const std::vector<std::string> expected_joint_names_with_mimics = {
+      "continuous_joint", "revolute_joint", "mimic_joint"};
+  ASSERT_EQ(scene_->getJointNamesWithMimics(), expected_joint_names_with_mimics);
 
   // Verify mimic joint info is as expected
   const auto mimic_joint_info = scene_->getJointInfo("mimic_joint").value();
@@ -78,62 +78,78 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
 
   // Verify joint group info is as expected for both the default and sub group.
   const auto full_group_info = scene_->getJointGroupInfo("").value();
-  ASSERT_EQ(full_group_info.joint_names, expected_joint_names);
-  ASSERT_EQ(full_group_info.q_indices.size(), 4);
-  ASSERT_EQ(full_group_info.v_indices.size(), 3);  // Continuous joint's velocity is theta_dot
-  ASSERT_EQ(full_group_info.nq_collapsed, 3);
+  ASSERT_EQ(full_group_info.joint_names, expected_joint_names_with_mimics);
+  ASSERT_EQ(full_group_info.q_indices.size(), 3);  // Mimic joints have nq=0 in Pinocchio
+  ASSERT_EQ(full_group_info.v_indices.size(), 2);
+  ASSERT_EQ(full_group_info.nq_collapsed, 2);
   ASSERT_TRUE(full_group_info.has_continuous_dofs);
 
   const auto arm_group_info = scene_->getJointGroupInfo("arm").value();
-  expected_joint_names = {"revolute_joint", "mimic_joint"};
-  ASSERT_EQ(arm_group_info.joint_names, expected_joint_names);
-  ASSERT_EQ(arm_group_info.q_indices.size(), 2);
-  ASSERT_EQ(arm_group_info.v_indices.size(), 2);
-  ASSERT_EQ(arm_group_info.nq_collapsed, 2);
+  const std::vector<std::string> expected_arm_joint_names = {"revolute_joint", "mimic_joint"};
+  ASSERT_EQ(arm_group_info.joint_names, expected_arm_joint_names);
+  ASSERT_EQ(arm_group_info.q_indices.size(), 1);  // Only revolute_joint has a q slot
+  ASSERT_EQ(arm_group_info.v_indices.size(), 1);
+  ASSERT_EQ(arm_group_info.nq_collapsed, 1);
   ASSERT_FALSE(arm_group_info.has_continuous_dofs);
 }
 
+TEST_F(RoboPlanJointTest, CurrentJointPositionsWithMimics) {
+  Eigen::VectorXd q(3);
+  q << 1.0, 0.0, 0.5;
+  scene_->setJointPositions(q);
+
+  const auto& q_current = scene_->getCurrentJointPositions();
+  ASSERT_EQ(q_current.size(), 3);
+  EXPECT_FLOAT_EQ(q_current(0), 1.0);
+  EXPECT_FLOAT_EQ(q_current(1), 0.0);
+  EXPECT_FLOAT_EQ(q_current(2), 0.5);
+
+  const auto positions_with_mimics = scene_->getCurrentJointPositionsWithMimics();
+  ASSERT_EQ(positions_with_mimics.size(), 4);
+  EXPECT_FLOAT_EQ(positions_with_mimics(0), 1.0);
+  EXPECT_FLOAT_EQ(positions_with_mimics(1), 0.0);
+  EXPECT_FLOAT_EQ(positions_with_mimics(2), 0.5);
+  EXPECT_FLOAT_EQ(positions_with_mimics(3), 0.5);
+}
+
 TEST_F(RoboPlanJointTest, VerifyMimics) {
-  // Given a vector with a mimc in place, apply the mimics and verify the correct
-  // index is updated.
-  Eigen::VectorXd q(4);
-  q << 0.0, 0.0, 1.0, 0.0;
-  scene_->applyMimics(q);
-  EXPECT_DOUBLE_EQ(q[3], 1.0);
+  // Pinocchio mimic joints share the mimicked q segment; FK moves link3 when revolute changes.
+  Eigen::VectorXd q(3);
+  q << 1.0, 0.0, 0.5;
+  const auto T_revolute = scene_->forwardKinematics(q, "link3");
+  q[2] = 1.0;
+  const auto T_mimicked = scene_->forwardKinematics(q, "link3");
+  EXPECT_FALSE(T_revolute.isApprox(T_mimicked));
 }
 
 TEST_F(RoboPlanJointTest, RandomPositions) {
-  // Generate a random pose for each continuous joint, which are represented as
-  // [cos(theta), sin(theta)] in Pinocchio. Ensure mimic joint is matched.
+  // Reduced q: continuous [cos, sin] + revolute; mimic has no separate entry.
   const auto random_positions = scene_->randomPositions();
-  EXPECT_EQ(random_positions.size(), 4);
-  EXPECT_FLOAT_EQ(random_positions[2], random_positions[3]);
+  EXPECT_EQ(random_positions.size(), 3);
 }
 
 TEST_F(RoboPlanJointTest, ExpandCollapse) {
-  Eigen::VectorXd pos(4);
-  pos << 0.7071067, -0.7071067, 0.5, 0.5;  // -45 degrees
+  Eigen::VectorXd pos(3);
+  pos << 0.7071067, -0.7071067, 0.5;  // -45 degrees on continuous
 
   // Collapse the continuous joint
-  Eigen::VectorXd expected_collapsed(3);
-  expected_collapsed << -0.785398, 0.5, 0.5;
+  Eigen::VectorXd expected_collapsed(2);
+  expected_collapsed << -0.785398, 0.5;
   const auto maybe_collapsed = collapseContinuousJointPositions(*scene_, "", pos);
   ASSERT_TRUE(maybe_collapsed.has_value()) << maybe_collapsed.error();
   const auto& collapsed = maybe_collapsed.value();
-  ASSERT_EQ(collapsed.size(), 3);
+  ASSERT_EQ(collapsed.size(), 2);
   EXPECT_FLOAT_EQ(collapsed(0), expected_collapsed(0));
   EXPECT_FLOAT_EQ(collapsed(1), expected_collapsed(1));
-  EXPECT_FLOAT_EQ(collapsed(2), expected_collapsed(2));
 
   // Expand and ensure we get back the original pose
   const auto maybe_expanded = expandContinuousJointPositions(*scene_, "", collapsed);
   ASSERT_TRUE(maybe_expanded.has_value()) << maybe_expanded.error();
   const auto& expanded = maybe_expanded.value();
-  ASSERT_EQ(expanded.size(), 4);
+  ASSERT_EQ(expanded.size(), 3);
   EXPECT_FLOAT_EQ(expanded(0), pos(0));
   EXPECT_FLOAT_EQ(expanded(1), pos(1));
   EXPECT_FLOAT_EQ(expanded(2), pos(2));
-  EXPECT_FLOAT_EQ(expanded(3), pos(3));
 }
 
 }  // namespace roboplan

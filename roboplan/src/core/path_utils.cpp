@@ -35,8 +35,7 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
 
   for (size_t idx = 0; idx <= num_steps; ++idx) {
     const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-    auto q_interp = scene.interpolate(q_start, q_end, fraction);
-    scene.applyMimics(q_interp);
+    const auto q_interp = scene.interpolate(q_start, q_end, fraction);
     frame_path.push_back(scene.forwardKinematics(q_interp, frame_name));
   }
 
@@ -48,8 +47,7 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
                                               const std::string& frame_name) {
   std::vector<Eigen::Matrix4d> frame_path;
   frame_path.reserve(q_vec.size());
-  for (auto q : q_vec) {
-    scene.applyMimics(q);
+  for (const auto& q : q_vec) {
     frame_path.push_back(scene.forwardKinematics(q, frame_name));
   }
   return frame_path;

@@ -218,6 +218,9 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   size_t collapsed_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto joint_info = scene.getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
     switch (joint_info.type) {
     case JointType::REVOLUTE:
     case JointType::PRISMATIC:
@@ -277,6 +280,9 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   size_t expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto joint_info = scene.getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
     switch (joint_info.type) {
     case JointType::REVOLUTE:
     case JointType::PRISMATIC:
@@ -308,6 +314,41 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   }
 
   return q_expanded;
+}
+
+Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene,
+                                                      const Eigen::VectorXd& q) {
+  const auto& model = scene.getModel();
+  const auto& joint_names = scene.getJointNamesWithMimics();
+
+  size_t total_size = 0;
+  for (const auto& joint_name : joint_names) {
+    const auto joint_info = scene.getJointInfo(joint_name).value();
+    total_size += joint_info.num_position_dofs;
+  }
+
+  Eigen::VectorXd positions(static_cast<Eigen::Index>(total_size));
+  Eigen::Index out_idx = 0;
+  for (const auto& joint_name : joint_names) {
+    const auto joint_info = scene.getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      const auto& mimic = joint_info.mimic_info.value();
+      const auto mimicked_id = model.getJointId(mimic.mimicked_joint_name);
+      const auto mimicked_q_idx = model.idx_qs[mimicked_id];
+      for (size_t dof = 0; dof < joint_info.num_position_dofs; ++dof) {
+        positions(out_idx++) =
+            mimic.scaling * q(mimicked_q_idx + static_cast<Eigen::Index>(dof)) + mimic.offset;
+      }
+    } else {
+      const auto joint_id = model.getJointId(joint_name);
+      const auto q_idx = model.idx_qs[joint_id];
+      const auto nq = model.joints[joint_id].nq();
+      for (Eigen::Index dof = 0; dof < nq; ++dof) {
+        positions(out_idx++) = q(q_idx + dof);
+      }
+    }
+  }
+  return positions;
 }
 
 }  // namespace roboplan

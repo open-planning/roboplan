@@ -205,6 +205,7 @@ def get_model_data():
             ee_names=["fr3_hand"],
             base_link="fr3_link0",
             starting_joint_config=[
+                # nq=8 with Pinocchio mimic joints (fr3_finger_joint2 mimics joint1 removed).
                 0.0,
                 -np.pi / 4,
                 0.0,
@@ -212,7 +213,6 @@ def get_model_data():
                 0.0,
                 np.pi / 2,
                 np.pi / 4,
-                0.04,
                 0.04,
             ],
             obstacles=[
@@ -251,6 +251,7 @@ def get_model_data():
             ee_names=["left_fr3_hand", "right_fr3_hand"],
             base_link="left_fr3_link0",
             starting_joint_config=[
+                # nq=16 with Pinocchio mimic joints (fr3_finger_joint2 mimics joint1 removed x2).
                 # Left arm
                 0.0,
                 -np.pi / 4,
@@ -260,7 +261,6 @@ def get_model_data():
                 np.pi / 2,
                 np.pi / 4,
                 0.04,
-                0.04,
                 # Right arm
                 0.0,
                 -np.pi / 4,
@@ -269,7 +269,6 @@ def get_model_data():
                 0.0,
                 np.pi / 2,
                 np.pi / 4,
-                0.04,
                 0.04,
             ],
             obstacles=[
@@ -308,24 +307,20 @@ def get_model_data():
             ee_names=["robotiq_85_base_link"],
             base_link="base_link",
             starting_joint_config=[
-                # Default home pose (17 values for nq=17 with quaternion joints)
+                # nq=12 with Pinocchio mimic joints (Robotiq finger mimics collapsed).
+                # Continuous joints use [cos(theta), sin(theta)]
                 1.0,
-                0.0,
-                0.26179938779914941,
+                0.0,  # joint_1
+                0.26179938779914941,  # joint_2
                 -1.0,
-                0.0,
-                -2.2689280275926285,
+                0.0,  # joint_3 (pi)
+                -2.2689280275926285,  # joint_4
                 1.0,
+                0.0,  # joint_5
+                0.96,  # joint_6
                 0.0,
-                1.0,
-                0.0,
-                1.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
+                1.0,  # joint_7 (pi/2)
+                0.0,  # robotiq_85_left_knuckle_joint
             ],
             obstacles=[
                 ObstacleConfig(
@@ -395,27 +390,25 @@ def get_model_data():
             ee_names=["grasp_center_link"],
             base_link="base_link",
             starting_joint_config=[
-                # Planar base (x, y, cos(yaw), sin(yaw)).
+                # nq=17 with Pinocchio mimic joints (arm_l2/l3/l4 collapsed into arm_l1).
+                # Planar base (x, y, cos(yaw), sin(yaw)), SRDF home pose.
                 0.0,
                 0.0,
                 1.0,
                 0.0,
-                0.5,
-                0.065,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
+                0.5,  # lift_joint
+                0.065,  # arm_l1_joint
+                0.0,  # wrist_yaw_joint
+                0.0,  # wrist_pitch_joint
+                0.0,  # wrist_roll_joint
+                0.0,  # gripper_finger_left_joint
+                0.0,  # gripper_finger_right_joint
                 1.0,
-                0.0,
+                0.0,  # wheel_0_joint (cos, sin)
                 1.0,
-                0.0,
+                0.0,  # wheel_1_joint
                 1.0,
-                0.0,
+                0.0,  # wheel_2_joint
             ],
             obstacles=[
                 ObstacleConfig(
