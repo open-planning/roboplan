@@ -423,6 +423,13 @@ struct Oink {
   // accumulated, then a damped pseudoinverse builds the nullspace projector N used to
   // project the NEXT priority level's Jacobian into the higher levels' nullspace.
   Eigen::MatrixXd jacobian_stack;
+  Eigen::MatrixXd nullspace_projector;
+
+  // Per-task scratch: W·J·N and W·(α·e). Resized per task (dims depend on task rows); steady-state
+  // calls reuse the existing allocation when sizes match across iterations and across solveIk
+  // calls.
+  Eigen::MatrixXd projected_weighted_jacobian;
+  Eigen::VectorXd weighted_error;
 
   // Pre-allocated, priority-sorted view into the tasks passed to solveIk. Reusing this buffer
   // avoids heap traffic on the hot path; capacity persists across calls.
