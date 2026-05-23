@@ -230,7 +230,7 @@ def main(
             )
         else:
             visualizeJointTrajectory(
-                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/traj"
+                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/path"
             )
 
         traj_queue.put(traj)
