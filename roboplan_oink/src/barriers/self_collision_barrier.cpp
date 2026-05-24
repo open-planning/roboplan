@@ -11,20 +11,8 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/collision/distance.hpp>
-#include <pinocchio/spatial/skew.hpp>
 
 namespace roboplan {
-
-namespace {
-
-// Skew-symmetric cross-product matrix.
-inline Eigen::Matrix3d skewSymmetric(const Eigen::Vector3d& v) {
-  Eigen::Matrix3d m;
-  m << 0.0, -v.z(), v.y(), v.z(), 0.0, -v.x(), -v.y(), v.x(), 0.0;
-  return m;
-}
-
-}  // namespace
 
 SelfCollisionBarrier::SelfCollisionBarrier(const Oink& oink, const Scene& scene,
                                            int n_collision_pairs_, double dt, double gain,
@@ -105,53 +93,54 @@ tl::expected<void, std::string> SelfCollisionBarrier::computeJacobian(const Scen
   // Joint Jacobians are needed for parent-joint Jacobian extraction below.
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
   scene.computeJointJacobians(q);
-  // scene.computeCollisionDistances(q);
 
+  // NOTE: collision distances should have already been computed in computeBarrier(),
+  // so we can reuse the witness points in geom_data without recomputing distances.
   jacobian_container.setZero();
   for (int i = 0; i < n_collision_pairs; ++i) {
     const std::size_t k = closest_pair_indices[i];
-    const auto& cp = geom_model.collisionPairs[k];
-    const auto& dr = geom_data.distanceResults[k];
+    const auto& coll_pair = geom_model.collisionPairs[k];
+    const auto& dist_result = geom_data.distanceResults[k];
 
-    const auto& go_1 = geom_model.geometryObjects[cp.first];
-    const auto& go_2 = geom_model.geometryObjects[cp.second];
+    const auto& geom_obj_1 = geom_model.geometryObjects[coll_pair.first];
+    const auto& geom_obj_2 = geom_model.geometryObjects[coll_pair.second];
 
-    const auto j1_id = go_1.parentJoint;
-    const auto j2_id = go_2.parentJoint;
+    const auto joint1_id = geom_obj_1.parentJoint;
+    const auto joint2_id = geom_obj_2.parentJoint;
 
-    const Eigen::Vector3d w1 = dr.nearest_points[0];
-    const Eigen::Vector3d w2 = dr.nearest_points[1];
+    const Eigen::Vector3d& witness_point_1 = dist_result.nearest_points[0];
+    const Eigen::Vector3d& witness_point_2 = dist_result.nearest_points[1];
 
     // When the witness points coincide, the contact normal is undefined.
     // Skip this row (left at zero) to mirror Pink's behaviour.
-    const Eigen::Vector3d diff = w1 - w2;
+    Eigen::Vector3d diff = witness_point_1 - witness_point_2;
     const double diff_norm = diff.norm();
     if (diff_norm < std::numeric_limits<double>::epsilon()) {
       continue;
     }
-    const Eigen::Vector3d n = diff / diff_norm;
+    diff = diff / diff_norm;
 
-    const Eigen::Vector3d r1 = w1 - data.oMi[j1_id].translation();
-    const Eigen::Vector3d r2 = w2 - data.oMi[j2_id].translation();
+    const Eigen::Vector3d r1 = witness_point_1 - data.oMi[joint1_id].translation();
+    const Eigen::Vector3d r2 = witness_point_2 - data.oMi[joint2_id].translation();
 
     joint_jacobian1.setZero();
     joint_jacobian2.setZero();
-    pinocchio::getJointJacobian(model, data, j1_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                joint_jacobian1);
-    pinocchio::getJointJacobian(model, data, j2_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                joint_jacobian2);
+    pinocchio::getJointJacobian(model, data, joint1_id,
+                                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian1);
+    pinocchio::getJointJacobian(model, data, joint2_id,
+                                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian2);
 
     // J_i = n^T J^1_p + (r_1 × n)^T J^1_w - n^T J^2_p - (r_2 × n)^T J^2_w
-    full_row.noalias() = n.transpose() * joint_jacobian1.topRows<3>();
-    full_row.noalias() += (skewSymmetric(r1) * n).transpose() * joint_jacobian1.bottomRows<3>();
-    full_row.noalias() -= n.transpose() * joint_jacobian2.topRows<3>();
-    full_row.noalias() -= (skewSymmetric(r2) * n).transpose() * joint_jacobian2.bottomRows<3>();
+    full_row.noalias() = diff.transpose() * joint_jacobian1.topRows<3>();
+    full_row.noalias() += r1.cross(diff).transpose() * joint_jacobian1.bottomRows<3>();
+    full_row.noalias() -= diff.transpose() * joint_jacobian2.topRows<3>();
+    full_row.noalias() -= r2.cross(diff).transpose() * joint_jacobian2.bottomRows<3>();
 
     // Coal can produce NaN witness points / normals in pathological cases.
     // Mirror Pink's `np.nan_to_num`: replace NaN/inf with zero.
-    for (int c = 0; c < full_row.size(); ++c) {
-      if (!std::isfinite(full_row[c])) {
-        full_row[c] = 0.0;
+    for (int col = 0; col < full_row.size(); ++col) {
+      if (!std::isfinite(full_row[col])) {
+        full_row[col] = 0.0;
       }
     }
 
@@ -168,7 +157,6 @@ SelfCollisionBarrier::evaluateAtConfiguration(const pinocchio::Model& model, pin
     return tl::make_unexpected("SelfCollisionBarrier: collision_model pointer is null");
   }
 
-  // TODO: Do not duplicate
   pinocchio::computeDistances(model, data, *collision_model, eval_geom_data, q);
 
   const auto total_pairs = static_cast<int>(collision_model->collisionPairs.size());
@@ -178,12 +166,12 @@ SelfCollisionBarrier::evaluateAtConfiguration(const pinocchio::Model& model, pin
                                std::to_string(n_collision_pairs) + ")");
   }
 
-  // The minimum over the n_collision_pairs smallest distances is the minimum over all pairs.
-  double min_distance = std::numeric_limits<double>::infinity();
   for (int k = 0; k < total_pairs; ++k) {
-    min_distance = std::min(min_distance, eval_geom_data.distanceResults[k].min_distance);
+    all_distances[k] = eval_geom_data.distanceResults[k].min_distance;
   }
-  return min_distance - d_min;
+
+  // The minimum over the n_collision_pairs smallest distances is the minimum over all pairs.
+  return all_distances.minCoeff() - d_min;
 }
 
 }  // namespace roboplan

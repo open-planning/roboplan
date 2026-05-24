@@ -9,15 +9,15 @@
 
 namespace roboplan {
 
-/// @brief Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.
+/// @brief Self-collision avoidance barrier based on collision pair distances.
 ///
 /// Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at least
 /// `d_min` apart:
 ///     h_i(q) = d(p_a, p_b)_i - d_min  for i in 0 .. n_collision_pairs - 1
 /// where the index `i` refers to the i-th closest pair at the current configuration.
 ///
-/// The barrier Jacobian row is built from the witness points returned by hpp-fcl and the
-/// joint Jacobians of the parent joints of each colliding body:
+/// The barrier Jacobian row is built from the witness points returned by collision checking
+/// and the joint Jacobians of the parent joints of each colliding body:
 ///     J_i = n^T  J^1_p + (r_1 × n)^T  J^1_w
 ///         - n^T  J^2_p - (r_2 × n)^T  J^2_w
 /// where n is the unit vector from witness point 1 to witness point 2 (in world coordinates),
@@ -27,16 +27,15 @@ namespace roboplan {
 /// Uses the same saturating class-K function α(h) = γ·h/(1+|h|) as other barriers.
 ///
 /// @note Inspired by Pink's pink.barriers.SelfCollisionBarrier (Apache-2.0).
+/// https://github.com/stephane-caron/pink/blob/main/pink/barriers/self_collision_barrier.py
 struct SelfCollisionBarrier : public Barrier {
   /// @brief Constructs a self-collision barrier.
-  /// @param oink The Oink solver this barrier will be used with (provides num_variables and
-  ///        v_indices).
+  /// @param oink The Oink solver this barrier will be used with.
   /// @param scene The scene whose collision model defines the collision pairs to monitor.
   /// @param n_collision_pairs Number of closest collision pairs to consider. Must be > 0 and
   ///        no greater than the number of collision pairs in the scene's collision model.
   ///        If fewer pairs than the total are requested, only the closest ones are constrained.
-  /// @param dt Timestep matching the control loop period (required; must match actual control
-  ///        loop).
+  /// @param dt Timestep matching the control loop period (must match actual control loop).
   /// @param gain Barrier gain (gamma), controls convergence to safe set. Default 1.0.
   /// @param safe_displacement_gain Gain for safe displacement regularization. Default 1.0.
   /// @param d_min Minimum allowed distance between any pair of bodies. Must be non-negative.
@@ -101,9 +100,10 @@ struct SelfCollisionBarrier : public Barrier {
   ///        in the most recent computeBarrier() call (size n_collision_pairs).
   std::vector<std::size_t> closest_pair_indices;
 
-  /// @brief Workspace buffer holding `min_distance` for every collision pair in the model,
-  ///        recomputed on each computeBarrier() call.
-  Eigen::VectorXd all_distances;
+  /// @brief Workspace buffer holding `min_distance` for every collision pair in the model.
+  ///        Repopulated by both computeBarrier() (using the scene's GeometryData) and
+  ///        evaluateAtConfiguration() (using `eval_geom_data`).
+  mutable Eigen::VectorXd all_distances;
 
   /// @brief Pre-allocated workspace for one parent-joint Jacobian (6 x model.nv).
   mutable Eigen::MatrixXd joint_jacobian1;
