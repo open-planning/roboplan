@@ -231,6 +231,14 @@ struct Barrier {
 
   virtual ~Barrier() = default;
 
+  /// @brief Reset per-iteration compute flags so that the next computeQpInequalities /
+  /// computeQpObjective call will recompute barrier values and Jacobians.
+  /// Called by Oink::solveIk() at the start of each iteration.
+  void resetComputed() {
+    barrier_computed_ = false;
+    jacobian_computed_ = false;
+  }
+
   const double gain;                    ///< Barrier gain (gamma)
   const double dt;                      ///< Timestep
   const double safe_displacement_gain;  ///< Gain for safe displacement regularization
@@ -240,6 +248,10 @@ struct Barrier {
   /// Pre-allocated containers
   Eigen::VectorXd barrier_values;      ///< h(q) values (num_barriers)
   Eigen::MatrixXd jacobian_container;  ///< J_h matrix (num_barriers x num_variables)
+
+protected:
+  bool barrier_computed_ = false;
+  bool jacobian_computed_ = false;
 };
 
 /// @brief Oink - Optimal Inverse Kinematics solver

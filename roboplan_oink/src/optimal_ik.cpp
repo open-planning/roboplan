@@ -51,15 +51,20 @@ Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/, pinocchio::D
 tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scene,
                                                                Eigen::Ref<Eigen::MatrixXd> G,
                                                                Eigen::Ref<Eigen::VectorXd> b) {
-  // Compute barrier values and Jacobian
-  auto barrier_result = computeBarrier(scene);
-  if (!barrier_result) {
-    return barrier_result;
+  if (!barrier_computed_) {
+    auto barrier_result = computeBarrier(scene);
+    if (!barrier_result) {
+      return barrier_result;
+    }
+    barrier_computed_ = true;
   }
 
-  auto jacobian_result = computeJacobian(scene);
-  if (!jacobian_result) {
-    return jacobian_result;
+  if (!jacobian_computed_) {
+    auto jacobian_result = computeJacobian(scene);
+    if (!jacobian_result) {
+      return jacobian_result;
+    }
+    jacobian_computed_ = true;
   }
 
   // G = -J_h / dt
@@ -81,15 +86,20 @@ tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scen
 tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
                                                             Eigen::Ref<Eigen::MatrixXd> H,
                                                             Eigen::Ref<Eigen::VectorXd> c) {
-  // Ensure barrier and Jacobian are computed (may already be computed by computeQpInequalities)
-  auto barrier_result = computeBarrier(scene);
-  if (!barrier_result) {
-    return barrier_result;
+  if (!barrier_computed_) {
+    auto barrier_result = computeBarrier(scene);
+    if (!barrier_result) {
+      return barrier_result;
+    }
+    barrier_computed_ = true;
   }
 
-  auto jacobian_result = computeJacobian(scene);
-  if (!jacobian_result) {
-    return jacobian_result;
+  if (!jacobian_computed_) {
+    auto jacobian_result = computeJacobian(scene);
+    if (!jacobian_result) {
+      return jacobian_result;
+    }
+    jacobian_computed_ = true;
   }
 
   // Compute squared Frobenius norm of Jacobian: ‖J_h‖²
@@ -205,6 +215,11 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
                                ". delta_q must be pre-allocated to num_variables.");
   }
 
+  // Reset barrier compute flags so each barrier recomputes exactly once this iteration.
+  for (const auto& barrier : barriers) {
+    barrier->resetComputed();
+  }
+
   // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
   // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
   sorted_tasks.clear();
@@ -270,16 +285,17 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
 
   H.makeCompressed();
 
-  // Build inequality rows for constraints and barriers, in the original dq space. No
-  // transformation is needed because dq is the decision variable directly.
-  constraint_sizes.clear();
+  // Build inequality rows for constraints and barriers, in the original dq space.
+  // No transformation is needed because dq is the decision variable directly.
+  // Additionally, cache sizes.
+  constraint_sizes.reserve(constraints.size());
   int total_constraint_rows = 0;
   for (const auto& constraint : constraints) {
     int num_rows = constraint->getNumConstraints(scene);
     constraint_sizes.push_back(num_rows);
     total_constraint_rows += num_rows;
   }
-  barrier_sizes.clear();
+  barrier_sizes.reserve(barriers.size());
   int total_barrier_rows = 0;
   for (const auto& barrier : barriers) {
     int num_rows = barrier->getNumBarriers(scene);
@@ -355,6 +371,10 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     row_offset += num_rows;
   }
 
+  // Clear sizes for next iteration
+  constraint_sizes.clear();
+  barrier_sizes.clear();
+
   // Convert constraint matrix to sparse format
   A_sparse = constraint_workspace_A.sparseView();
 
@@ -418,6 +438,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     return tl::make_unexpected("QP solver failed to find a solution");
   }
 
+  // Extract the solution and copy into delta_q
   delta_q.noalias() = solver.getSolution();
   return {};
 }
