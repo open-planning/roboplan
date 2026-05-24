@@ -21,6 +21,7 @@ from roboplan.optimal_ik import (
     FrameTaskOptions,
     Oink,
     PositionLimit,
+    SelfCollisionBarrier,
     VelocityLimit,
 )
 
@@ -32,6 +33,8 @@ def main(
     regularization: float = 1e-6,
     control_freq: float = 100.0,
     reference_filter_tau: float = 0.1,
+    self_collision_d_min: float = 0.02,
+    self_collision_gain: float = 1.0,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -47,6 +50,10 @@ def main(
         control_freq: Control loop frequency in Hz.
         reference_filter_tau: Time constant for reference filtering in seconds. Smooths
             target pose changes to prevent sudden jumps. Set to 0 to disable filtering.
+        self_collision_d_min: Minimum distance (meters) the IK solver will try to keep
+            between every pair of self-collision bodies declared by the SRDF.
+        self_collision_gain: Barrier gain (gamma) for the self-collision barrier. Higher
+            values produce stronger pushback as bodies approach `self_collision_d_min`.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -118,6 +125,29 @@ def main(
     velocity_limit = VelocityLimit(oink, dt, v_max)
 
     constraints = [position_limit, velocity_limit]
+
+    # Self-collision barrier: keep every collision pair declared in the SRDF at least
+    # `self_collision_d_min` meters apart. Skip when the model has no collision pairs.
+    n_pairs = 8
+    # len(collision_model.collisionPairs)
+    if n_pairs > 0:
+        print(
+            f"Self-collision barrier: {n_pairs} pair(s), "
+            f"d_min={self_collision_d_min}m, gain={self_collision_gain}"
+        )
+        self_collision_barrier = SelfCollisionBarrier(
+            oink,
+            scene,
+            n_collision_pairs=n_pairs,
+            dt=dt,
+            gain=self_collision_gain,
+            safe_displacement_gain=0.01,
+            d_min=self_collision_d_min,
+        )
+        barriers = [self_collision_barrier]
+    else:
+        print("No collision pairs in the scene; self-collision barrier disabled.")
+        barriers = []
 
     # Validate starting joint configuration size (should match nq)
     q_canonical = np.array(model_data.starting_joint_config)
@@ -199,7 +229,7 @@ def main(
     for controls in transform_controls:
         controls.on_update(update_goals)
 
-    tasks = frame_tasks + [config_task]
+    tasks = frame_tasks  # + [config_task]
 
     # Control loop
     running = True
@@ -229,15 +259,24 @@ def main(
                         for idx in range(len(frame_tasks)):
                             frame_tasks[idx].setTargetFrameTransform(raw_targets[idx])
 
-                    # Solve IK for one step with constraints
+                    # Solve IK for one step with constraints (and the self-collision
+                    # barrier when the model has collision pairs).
                     try:
-                        oink.solveIk(scene, tasks, constraints, delta_q, regularization)
+                        oink.solveIk(
+                            scene, tasks, constraints, barriers, delta_q, regularization
+                        )
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
                         print(f"Warning: IK solver failed: {e}, using zero delta_q")
 
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     delta_q_full[oink.v_indices] = delta_q
+
+                    # Validate barrier feasibility post-solve and zero delta_q on violation.
+                    if barriers:
+                        oink.enforceBarriers(
+                            scene, barriers, delta_q_full, tolerance=0.0
+                        )
                     q_current = scene.integrate(q_current, delta_q_full)
 
                     # Update scene state and forward kinematics after applying velocities

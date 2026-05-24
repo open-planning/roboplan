@@ -94,6 +94,7 @@ add_library(roboplan_oink SHARED
     src/constraints/position_limit.cpp
     src/constraints/velocity_limit.cpp
     src/barriers/position_barrier.cpp
+    src/barriers/self_collision_barrier.cpp
 )
 target_include_directories(roboplan_oink PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

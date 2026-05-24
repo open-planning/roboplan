@@ -67,6 +67,19 @@ public:
   /// @return The Pinocchio collision (geometry) model.
   const pinocchio::GeometryModel& getCollisionModel() const { return collision_model_; };
 
+  /// @brief Gets the scene's internal Pinocchio collision (geometry) data.
+  /// @details The data is shared with the scene; computations such as
+  /// hasCollisions() and computeCollisionDistances() write into this data.
+  /// @return The Pinocchio collision (geometry) data.
+  const pinocchio::GeometryData& getCollisionData() const { return collision_model_data_; };
+
+  /// @brief Updates geometry placements and computes distance results for all
+  /// active collision pairs at the specified joint configuration.
+  /// @details After this call, distances are available via
+  /// getCollisionData().distanceResults.
+  /// @param q The joint configuration at which to compute the distances.
+  void computeCollisionDistances(const Eigen::VectorXd& q) const;
+
   /// @brief Gets the scene's actuated joint names (non-mimic joints only).
   /// @return A vector of joint names.
   const std::vector<std::string>& getJointNames() const { return actuated_joint_names_; };
@@ -146,6 +159,12 @@ public:
   void computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,
                             pinocchio::ReferenceFrame reference_frame,
                             Eigen::Ref<Eigen::MatrixXd> jacobian) const;
+
+  /// @brief Computes the joint Jacobians for every joint at the given configuration.
+  /// @details Populates the internal Pinocchio data so that pinocchio::getJointJacobian
+  /// can be called for any joint after this. Also runs forward kinematics.
+  /// @param q The joint configuration.
+  void computeJointJacobians(const Eigen::VectorXd& q) const;
 
   /// @brief Get the Pinocchio model ID of a frame by its name.
   /// @param name The name of the frame to look up.
