@@ -75,8 +75,12 @@ struct SelfCollisionBarrier : public Barrier {
 
   /// @brief Evaluate the minimum barrier value at a candidate configuration.
   ///
-  /// Computes distances on a private GeometryData copy at the given configuration and
-  /// returns the smallest barrier value across the closest n_collision_pairs pairs.
+  /// Refreshes geometry placements on a private GeometryData copy and runs narrow-phase
+  /// distance only on the pairs cached by the most recent computeBarrier() call
+  /// (`closest_pair_indices`). For small displacements between the configuration used in
+  /// computeBarrier() and `q`, those are the active constraints, and skipping narrow phase
+  /// on the remaining pairs is the dominant per-solve speedup. computeBarrier() must have
+  /// run before this method.
   ///
   /// @param model Pinocchio model (must be the same as the scene's model).
   /// @param data Pinocchio data (will be modified by FK / distance computation).
@@ -100,10 +104,9 @@ struct SelfCollisionBarrier : public Barrier {
   ///        in the most recent computeBarrier() call (size n_collision_pairs).
   std::vector<std::size_t> closest_pair_indices;
 
-  /// @brief Workspace buffer holding `min_distance` for every collision pair in the model.
-  ///        Repopulated by both computeBarrier() (using the scene's GeometryData) and
-  ///        evaluateAtConfiguration() (using `eval_geom_data`).
-  mutable Eigen::VectorXd all_distances;
+  /// @brief Workspace buffer holding `min_distance` for every collision pair in the model,
+  ///        repopulated on each computeBarrier() call from the scene's GeometryData.
+  Eigen::VectorXd all_distances;
 
   /// @brief Pre-allocated workspace for one parent-joint Jacobian (6 x model.nv).
   mutable Eigen::MatrixXd joint_jacobian1;

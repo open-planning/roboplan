@@ -150,7 +150,7 @@ Task::computeQpObjective(const Scene& scene, Eigen::SparseMatrix<double>& H, Eig
 
 Oink::Oink(const Scene& scene, const std::string& group_name,
            const OsqpEigen::Settings& custom_settings)
-    : settings(custom_settings) {
+    : settings(custom_settings), enforce_barriers_data(scene.getModel()) {
   const auto maybe_group_info = scene.getJointGroupInfo(group_name);
   if (!maybe_group_info) {
     throw std::runtime_error("Oink: joint group '" + group_name +
@@ -166,7 +166,8 @@ Oink::Oink(const Scene& scene, const std::string& group_name,
   c = Eigen::VectorXd::Zero(num_variables);
 }
 
-Oink::Oink(const Scene& scene, const std::string& group_name) {
+Oink::Oink(const Scene& scene, const std::string& group_name)
+    : enforce_barriers_data(scene.getModel()) {
   const auto maybe_group_info = scene.getJointGroupInfo(group_name);
   if (!maybe_group_info) {
     throw std::runtime_error("Oink: joint group '" + group_name +
@@ -455,18 +456,16 @@ Oink::enforceBarriers(const Scene& scene, const std::vector<std::shared_ptr<Barr
   }
 
   const auto& model = scene.getModel();
-  const Eigen::VectorXd q = scene.getCurrentJointPositions();
+  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
 
   // Compute candidate configuration by integrating delta_q
   const Eigen::VectorXd q_candidate = pinocchio::integrate(model, q, delta_q);
 
-  // Create a temporary Data object for FK evaluation to avoid modifying scene state
-  pinocchio::Data temp_data(model);
-
-  // Evaluate all barriers at the candidate configuration
+  // Evaluate all barriers at the candidate configuration. enforce_barriers_data is a
+  // pre-allocated pinocchio::Data scoped to this method, so we don't mutate scene state.
   double min_h = OSQP_INFTY;
   for (const auto& barrier : barriers) {
-    auto h_result = barrier->evaluateAtConfiguration(model, temp_data, q_candidate);
+    auto h_result = barrier->evaluateAtConfiguration(model, enforce_barriers_data, q_candidate);
     if (!h_result.has_value()) {
       // Propagate evaluation error
       return tl::make_unexpected(h_result.error());

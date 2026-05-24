@@ -120,6 +120,9 @@ tl::expected<void, std::string> SelfCollisionBarrier::computeJacobian(const Scen
     }
     diff = diff / diff_norm;
 
+    // r_k: vector from joint k's origin to the witness point on body k (world frame).
+    // Used as the lever arm coupling the joint's angular velocity into the witness point's
+    // linear velocity via v = v_joint + ω × r.
     const Eigen::Vector3d r1 = witness_point_1 - data.oMi[joint1_id].translation();
     const Eigen::Vector3d r2 = witness_point_2 - data.oMi[joint2_id].translation();
 
@@ -157,21 +160,18 @@ SelfCollisionBarrier::evaluateAtConfiguration(const pinocchio::Model& model, pin
     return tl::make_unexpected("SelfCollisionBarrier: collision_model pointer is null");
   }
 
-  pinocchio::computeDistances(model, data, *collision_model, eval_geom_data, q);
+  // Refresh geometry placements at q, then run narrow-phase distance only on the pairs
+  // that computeBarrier() identified as closest. This skips the full pair sweep that
+  // pinocchio::computeDistances() would otherwise do.
+  pinocchio::updateGeometryPlacements(model, data, *collision_model, eval_geom_data, q);
 
-  const auto total_pairs = static_cast<int>(collision_model->collisionPairs.size());
-  if (total_pairs < n_collision_pairs) {
-    return tl::make_unexpected("SelfCollisionBarrier: scene has fewer collision pairs (" +
-                               std::to_string(total_pairs) + ") than the barrier dimension (" +
-                               std::to_string(n_collision_pairs) + ")");
+  double min_distance = std::numeric_limits<double>::infinity();
+  for (int i = 0; i < n_collision_pairs; ++i) {
+    const auto& result =
+        pinocchio::computeDistance(*collision_model, eval_geom_data, closest_pair_indices[i]);
+    min_distance = std::min(min_distance, result.min_distance);
   }
-
-  for (int k = 0; k < total_pairs; ++k) {
-    all_distances[k] = eval_geom_data.distanceResults[k].min_distance;
-  }
-
-  // The minimum over the n_collision_pairs smallest distances is the minimum over all pairs.
-  return all_distances.minCoeff() - d_min;
+  return min_distance - d_min;
 }
 
 }  // namespace roboplan
