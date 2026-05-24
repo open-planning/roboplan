@@ -182,33 +182,37 @@ struct Barrier {
   /// @return Safe displacement vector (num_variables), default is zero
   virtual Eigen::VectorXd computeSafeDisplacement(const Scene& scene) const;
 
-  /// @brief Compute QP inequality constraints for this barrier
+  /// @brief Format the QP inequality constraints from already-computed barrier values/Jacobian.
   ///
-  /// Computes: G_b * delta_q <= b_b
+  /// Produces: G_b * delta_q <= b_b
   /// Where:
   ///   G_b = -J_h / dt
-  ///   b_b = gain * h(q)  (linear class-K function)
+  ///   b_b = γ·(h - m) / (1 + |h - m|)  (saturating class-K function)
   ///
-  /// @param scene The scene containing robot state and model
+  /// @pre computeBarrier() and computeJacobian() must have been called first.
   /// @param G Output constraint matrix (pre-sized view: num_barriers x num_variables)
   /// @param b Output constraint upper bound vector (pre-sized view: num_barriers)
-  /// @return void on success, error message on failure
+  void formatQpInequalities(Eigen::Ref<Eigen::MatrixXd> G, Eigen::Ref<Eigen::VectorXd> b) const;
+
+  /// @brief Format the QP objective contribution from already-computed barrier Jacobian.
+  ///
+  /// Computes: (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
+  ///
+  /// @pre computeBarrier() and computeJacobian() must have been called first.
+  /// @param scene The scene (passed to computeSafeDisplacement)
+  /// @param H Output Hessian matrix contribution (num_variables x num_variables)
+  /// @param c Output gradient vector contribution (num_variables)
+  void formatQpObjective(const Scene& scene, Eigen::Ref<Eigen::MatrixXd> H,
+                         Eigen::Ref<Eigen::VectorXd> c) const;
+
+  /// @brief Convenience: compute barrier + Jacobian, then format QP inequalities.
+  /// Equivalent to calling computeBarrier(), computeJacobian(), formatQpInequalities().
   tl::expected<void, std::string> computeQpInequalities(const Scene& scene,
                                                         Eigen::Ref<Eigen::MatrixXd> G,
                                                         Eigen::Ref<Eigen::VectorXd> b);
 
-  /// @brief Compute QP objective contribution for safe displacement regularization
-  ///
-  /// Computes: (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
-  ///
-  /// This encourages the robot to move toward a safe configuration when near
-  /// constraint boundaries. The weighting by 1/‖J_h‖² normalizes the contribution
-  /// based on how sensitive the barrier is to joint motion.
-  ///
-  /// @param scene The scene containing robot state and model
-  /// @param H Output Hessian matrix contribution (num_variables x num_variables)
-  /// @param c Output gradient vector contribution (num_variables)
-  /// @return void on success, error message on failure
+  /// @brief Convenience: compute barrier + Jacobian, then format QP objective.
+  /// Equivalent to calling computeBarrier(), computeJacobian(), formatQpObjective().
   tl::expected<void, std::string> computeQpObjective(const Scene& scene,
                                                      Eigen::Ref<Eigen::MatrixXd> H,
                                                      Eigen::Ref<Eigen::VectorXd> c);
@@ -231,14 +235,6 @@ struct Barrier {
 
   virtual ~Barrier() = default;
 
-  /// @brief Reset per-iteration compute flags so that the next computeQpInequalities /
-  /// computeQpObjective call will recompute barrier values and Jacobians.
-  /// Called by Oink::solveIk() at the start of each iteration.
-  void resetComputed() {
-    barrier_computed_ = false;
-    jacobian_computed_ = false;
-  }
-
   const double gain;                    ///< Barrier gain (gamma)
   const double dt;                      ///< Timestep
   const double safe_displacement_gain;  ///< Gain for safe displacement regularization
@@ -248,10 +244,6 @@ struct Barrier {
   /// Pre-allocated containers
   Eigen::VectorXd barrier_values;      ///< h(q) values (num_barriers)
   Eigen::MatrixXd jacobian_container;  ///< J_h matrix (num_barriers x num_variables)
-
-protected:
-  bool barrier_computed_ = false;
-  bool jacobian_computed_ = false;
 };
 
 /// @brief Oink - Optimal Inverse Kinematics solver
