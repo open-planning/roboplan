@@ -16,7 +16,6 @@ RUN apt update -y \
 # non-ROS workflows, so we cannot put these as requirements in the `pyproject.toml`.
 # As/if this package matures, a possible solution is to apply patches for ROS release.
 RUN pip3 install \
-    nanobind \
     matplotlib \
     "numpy<2.0.0" \
     opencv-contrib-python-headless \
