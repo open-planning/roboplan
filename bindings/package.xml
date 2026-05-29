@@ -12,9 +12,9 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <!-- While nanobind-dev is available from rosdistro the apt package is very out of date. -->
-  <!-- Nanobind should only be installed manually from pip until this is released in a sync: -->
-  <!-- https://github.com/ros/rosdistro/pull/49894 -->
-  <!-- <depend>nanobind-dev</depend> -->
+  <!-- Nanobind should only be installed via pip, which has a separate rosdep entry. -->
+  <!-- See https://github.com/ros/rosdistro/pull/49894 for more details. -->
+  <depend>python3-nanobind-pip</depend>
   <depend>roboplan</depend>
   <depend>roboplan_example_models</depend>
   <depend>roboplan_oink</depend>
