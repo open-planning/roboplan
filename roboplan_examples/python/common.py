@@ -476,3 +476,29 @@ def get_octree():
         tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.0])).homogeneous,
         color=np.array([0.251, 0.878, 0.816, 1.0]),
     )
+
+
+def get_home_configuration(
+    scene: Scene,
+    model_data: RobotModelConfig,
+) -> np.ndarray:
+    """Return the home configuration for the selected model.
+
+    Args:
+        scene: Scene used to read current joint positions.
+        model_data: Robot model configuration.
+
+    Returns:
+        Full starting joint configuration vector.
+    """
+    q_full = scene.getCurrentJointPositions()
+    q_home = np.array(model_data.starting_joint_config)
+
+    if len(q_home) == len(q_full):
+        return q_home.copy()
+
+    print(
+        f"Warning: starting_joint_config size ({len(q_home)}) does not match "
+        f"model configuration size ({len(q_full)}). Using scene default instead."
+    )
+    return q_full.copy()

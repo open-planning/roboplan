@@ -21,6 +21,7 @@ RUN pip3 install \
     "numpy<2.0.0" \
     opencv-contrib-python-headless \
     plyfile \
+    pynput \
     typing_extensions==4.10.0 \
     tyro \
     "viser>=1.0.1,<1.0.25"
