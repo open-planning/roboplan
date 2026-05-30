@@ -5,7 +5,7 @@ ARG ROS_DISTRO
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 # See https://github.com/tier4/osqp_vendor/issues/26
-ENV CMAKE_POLICY_VERSION_MINIMUM=3.2
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 SHELL ["/bin/bash", "-c"]
 
 # Install core dependencies.
