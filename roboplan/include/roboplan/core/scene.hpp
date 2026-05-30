@@ -67,13 +67,13 @@ public:
   /// @return The Pinocchio collision (geometry) model.
   const pinocchio::GeometryModel& getCollisionModel() const { return collision_model_; };
 
+  /// @brief Gets the scene's actuated joint names (non-mimic joints only).
+  /// @return A vector of joint names.
+  const std::vector<std::string>& getJointNames() const { return actuated_joint_names_; };
+
   /// @brief Gets the scene's full joint names, including mimic joints.
   /// @return A vector of joint names.
-  const std::vector<std::string>& getJointNames() const { return joint_names_; };
-
-  /// @brief Gets the scene's actuated (non-mimic) joint names.
-  /// @return A vector of joint names.
-  const std::vector<std::string>& getActuatedJointNames() const { return actuated_joint_names_; };
+  const std::vector<std::string>& getJointNamesWithMimics() const { return joint_names_; };
 
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
@@ -111,12 +111,8 @@ public:
   /// @return True if the positions respect joint limits, else false.
   bool isValidPose(const Eigen::VectorXd& q) const;
 
-  /// @brief Applies mimic joint relationships to a position vector.
-  /// @param q The joint positions.
-  void applyMimics(Eigen::VectorXd& q) const;
-
   /// @brief Converts partial joint positions to full joint positions.
-  /// @details This includes adding new joints and applying mimic relationships.
+  /// @details This includes adding new joints.
   /// @param group_name The name of the joint group.
   /// @param q The original (partial) joint positions.
   /// @return The full joint positions.
@@ -161,13 +157,21 @@ public:
   /// @return The joint group information if successful, else a string describing the error.
   tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
 
-  /// @brief Get the current joint positions for the full robot state.
+  /// @brief Get the current Pinocchio configuration vector (model.nq).
+  /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).
+  /// Joint count may differ from getJointNames().size().
   /// @return The current joint position vector.
   const Eigen::VectorXd& getCurrentJointPositions() const { return cur_state_.positions; }
 
+  /// @brief Get current joint positions for all joints in getJointNamesWithMimics() order.
+  /// @details Actuated joints copy values from the Pinocchio configuration; mimic joints use
+  /// scaling * mimicked_position + offset per degree of freedom.
+  /// @return The joint position vector aligned with getJointNamesWithMimics().
+  Eigen::VectorXd getCurrentJointPositionsWithMimics() const;
+
   /// @brief Set the joint positions for the full robot state.
-  /// @return The desired joint position vector.
-  void setJointPositions(const Eigen::VectorXd& positions) { cur_state_.positions = positions; }
+  /// @param positions The desired joint position vector (size model.nq).
+  void setJointPositions(const Eigen::VectorXd& positions);
 
   /// @brief Get the joint position indices for a set of joint names.
   /// @param joint_names The joint names for which to look up position indices.
@@ -323,7 +327,7 @@ private:
   /// @brief The full list of joint names in the model (including mimic joints).
   std::vector<std::string> joint_names_;
 
-  /// @brief The list of actuated (non-mimic) joint names in the model.
+  /// @brief Actuated (non-mimic) joint names in model order.
   std::vector<std::string> actuated_joint_names_;
 
   /// @brief Map from joint names to their corresponding information.

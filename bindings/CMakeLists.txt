@@ -179,7 +179,16 @@ else()
 endif()
 
 # Generate Python stub files from the bindings.
-if(GENERATE_PYTHON_STUBS)
+# Older nanobind versions (which can come from rosdep on certain distros) do not provide
+# nanobind_add_stub, so skip generation rather than failing the configure step.
+# See https://github.com/ros/rosdistro/pull/49894 for more details.
+if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
+  message(WARNING
+    "Skipping Python stub generation: the installed nanobind version does not "
+    "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
+endif()
+
+if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
   nanobind_add_stub(
     roboplan_ext_stub
     MODULE roboplan_ext

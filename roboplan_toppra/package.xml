@@ -10,8 +10,10 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>roboplan</depend>
-  <!-- uncomment when toppra is on the ROS buildfarm for all distros -->
-  <!-- <depend>toppra</depend> -->
+
+  <!-- TODO: Update this as toppra gets released on more ROS distros. -->
+  <!-- If not yet available, there is a source build fallback via FetchContent. -->
+  <depend condition="$ROS_DISTRO == humble or $ROS_DISTRO == lyrical">toppra</depend>
 
   <test_depend>roboplan_example_models</test_depend>
 

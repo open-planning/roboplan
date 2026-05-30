@@ -102,9 +102,18 @@ private:
   /// @brief The stored acceleration upper limits.
   toppra::Vector acc_upper_limits_;
 
-  /// @brief A list of indices of joints with continuous degrees of freedom.
+  /// @brief Position indices of the joint group within the full model configuration.
+  Eigen::VectorXi q_indices_;
+
+  /// @brief A list of position indices with continuous degrees of freedom.
   /// @details This is used to figure out which joints need to be wrapped.
-  std::vector<size_t> continuous_joint_indices_;
+  std::vector<size_t> continuous_q_indices_;
+
+  /// @brief Whether the joint group contains any planar joints.
+  /// @details When true, edges between path waypoints are densely resampled using the scene's
+  /// SE(2)-aware interpolation so the spline knots track the actual Lie-group motion of the
+  /// planar joint(s).
+  bool has_planar_joints_{false};
 };
 
 }  // namespace roboplan

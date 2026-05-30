@@ -16,7 +16,7 @@ sys.path.insert(0, str(examples_dir))
 from common import get_model_data
 
 
-def solve(scene: Scene, rrt: RRT, seed: int = 1234):
+def solve(scene: Scene, rrt: RRT, q_indices, seed: int = 1234):
     """
     Runs an RRT test by sampling random, collision-free joint configurations
     then attempting to plan a path between them.
@@ -25,13 +25,17 @@ def solve(scene: Scene, rrt: RRT, seed: int = 1234):
     """
     rrt.setRngSeed(seed)
 
+    q_start_full = scene.randomCollisionFreePositions()
+    assert q_start_full is not None
+
+    q_goal_full = scene.randomCollisionFreePositions()
+    assert q_goal_full is not None
+
     start = JointConfiguration()
-    start.positions = scene.randomCollisionFreePositions()
-    assert start.positions is not None
+    start.positions = q_start_full[q_indices]
 
     goal = JointConfiguration()
-    goal.positions = scene.randomCollisionFreePositions()
-    assert goal.positions is not None
+    goal.positions = q_goal_full[q_indices]
 
     try:
         path = rrt.plan(start, goal)
@@ -41,7 +45,9 @@ def solve(scene: Scene, rrt: RRT, seed: int = 1234):
     return 0 if path is None else 1
 
 
-def solve_many(scene: Scene, rrt: RRT, iterations: int = 10, seed: int = 1234):
+def solve_many(
+    scene: Scene, rrt: RRT, q_indices, iterations: int = 10, seed: int = 1234
+):
     """
     Runs the specified number of iterations of RRT with a random seed.
 
@@ -49,7 +55,7 @@ def solve_many(scene: Scene, rrt: RRT, iterations: int = 10, seed: int = 1234):
     """
     successes = 0
     for i in range(iterations):
-        successes += solve(scene, rrt, seed + i)
+        successes += solve(scene, rrt, q_indices, seed + i)
     return successes
 
 
@@ -71,26 +77,52 @@ def create_scene(model_name: str) -> Scene:
 
 
 @pytest.fixture(scope="session", params=["so101", "kinova", "ur5", "franka", "dual"])
-def scene(request):
-    return create_scene(request.param)
+def benchmark_setup(request):
+    """Scene and RRT configuration aligned with example_rrt.py."""
+    model_name = request.param
+    model_data = get_model_data()[model_name]
+    scene = create_scene(model_name)
+    group_info = scene.getJointGroupInfo(model_data.default_joint_group)
+    return {
+        "model_name": model_name,
+        "scene": scene,
+        "group_name": model_data.default_joint_group,
+        "q_indices": group_info.q_indices,
+    }
 
 
-def test_benchmark_rrt(benchmark, scene):
+def test_benchmark_rrt(benchmark, benchmark_setup):
+    scene = benchmark_setup["scene"]
     options = RRTOptions()
+    options.group_name = benchmark_setup["group_name"]
     options.max_nodes = 100000
     options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
-    success_rate = benchmark(solve_many, scene, rrt, iterations=10)
+    success_rate = benchmark(
+        solve_many,
+        scene,
+        rrt,
+        benchmark_setup["q_indices"],
+        iterations=10,
+    )
     assert success_rate >= 0.95
 
 
-def test_benchmark_rrt_connect(benchmark, scene):
+def test_benchmark_rrt_connect(benchmark, benchmark_setup):
+    scene = benchmark_setup["scene"]
     options = RRTOptions()
+    options.group_name = benchmark_setup["group_name"]
     options.max_nodes = 100000
     options.rrt_connect = True
     options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
-    success_rate = benchmark(solve_many, scene, rrt, iterations=10)
+    success_rate = benchmark(
+        solve_many,
+        scene,
+        rrt,
+        benchmark_setup["q_indices"],
+        iterations=10,
+    )
     assert success_rate >= 0.95
