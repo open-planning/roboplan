@@ -10,10 +10,8 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <!-- Build dependency for the Python bindings (built by default under colcon). -->
-  <depend>nanobind-dev</depend>
-
   <depend>eigen</depend>
+  <depend>nanobind-dev</depend>
   <depend>pinocchio</depend>
   <!-- NOTE: Ensure to update this as humble, jazzy, and kilted go end of life. -->
   <depend condition="$ROS_DISTRO != humble and $ROS_DISTRO != jazzy and $ROS_DISTRO != kilted">tinyxml2</depend>

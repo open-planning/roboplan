@@ -10,7 +10,6 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <!-- Build dependency for the Python bindings (built by default under colcon). -->
   <depend>nanobind-dev</depend>
 
   <export>

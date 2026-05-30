@@ -10,11 +10,8 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <!-- Build dependency for the Python bindings (built by default under colcon). -->
   <depend>nanobind-dev</depend>
-
   <depend>roboplan</depend>
-
   <!-- TODO: Update this as toppra gets released on more ROS distros. -->
   <!-- If not yet available, there is a source build fallback via FetchContent. -->
   <depend condition="$ROS_DISTRO == humble or $ROS_DISTRO == lyrical">toppra</depend>
