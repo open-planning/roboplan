@@ -1,7 +1,6 @@
 matplotlib
-nanobind
 numpy
 opencv-contrib-python-headless
 plyfile
 tyro
-viser>=1.0.1,<1.0.25
+viser>=1.0.29
