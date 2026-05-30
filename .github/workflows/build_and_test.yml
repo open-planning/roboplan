@@ -92,6 +92,7 @@ jobs:
           tags: roboplan_ros:${{ steps.sanitize_tag.outputs.tag }}
           build-args: |
             ROS_DISTRO=${{ matrix.ros_distro }}
+            GENERATE_PYTHON_STUBS=${{ matrix.ros_distro == 'humble' && 'OFF' || 'ON' }}
           push: false
           load: true
           cache-from: type=gha,scope=ros-${{ matrix.ros_distro }}
