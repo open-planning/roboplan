@@ -64,14 +64,6 @@ exclude_patterns: list[str] = []
 autoapi_type = "python"
 autoapi_template_dir = "_templates/autoapi"
 autoapi_add_toctree_entry = True
-autoapi_dirs = [
-    "../../roboplan/bindings/python",
-    "../../roboplan_example_models/bindings/python",
-    "../../roboplan_oink/bindings/python",
-    "../../roboplan_rrt/bindings/python",
-    "../../roboplan_simple_ik/bindings/python",
-    "../../roboplan_toppra/bindings/python",
-]
 autodoc_typehints = "description"
 
 # -- Options for HTML output -------------------------------------------------
