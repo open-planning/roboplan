@@ -76,15 +76,6 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
     PYTHON_PATH "$<TARGET_FILE_DIR:_toppra_ext>"
     DEPENDS _toppra_ext
   )
-  # nanobind renders cross-module (roboplan-core) types by their C++ name; rewrite
-  # them to the importable roboplan.core.* form so type checkers can resolve them.
-  add_custom_command(TARGET _toppra_ext_stub POST_BUILD
-    COMMAND "${Python_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/fix_binding_stub.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/toppra/_toppra_ext.pyi"
-    COMMENT "Fixing cross-module type names in roboplan.toppra stub"
-    VERBATIM
-  )
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")

@@ -76,15 +76,6 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
     PYTHON_PATH "$<TARGET_FILE_DIR:_optimal_ik_ext>"
     DEPENDS _optimal_ik_ext
   )
-  # nanobind renders cross-module (roboplan-core) types by their C++ name; rewrite
-  # them to the importable roboplan.core.* form so type checkers can resolve them.
-  add_custom_command(TARGET _optimal_ik_ext_stub POST_BUILD
-    COMMAND "${Python_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/fix_binding_stub.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/optimal_ik/_optimal_ik_ext.pyi"
-    COMMENT "Fixing cross-module type names in roboplan.optimal_ik stub"
-    VERBATIM
-  )
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")
