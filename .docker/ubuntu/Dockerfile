@@ -43,11 +43,6 @@ RUN for PACKAGE in /roboplan_ws/install/*/lib; do \
         echo "export LD_LIBRARY_PATH=${PACKAGE}:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh; \
     done
 
-# Install the Python bindings.
-RUN . /roboplan_env.sh && \
-    cd bindings && \
-    pip3 install --no-build-isolation -ve .
-
 # Set up entrypoint.
 COPY .docker/ubuntu/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

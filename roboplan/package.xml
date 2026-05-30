@@ -3,11 +3,15 @@
 <package format="3">
   <name>roboplan</name>
   <version>0.3.0</version>
-  <description>Modern motion planning library based on Pinocchio.</description>
+  <description>Core types, scene representation, and utilities for RoboPlan.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <!-- Build dependency for the Python bindings (built by default under colcon). -->
+  <depend>nanobind-dev</depend>
 
   <depend>eigen</depend>
   <depend>pinocchio</depend>

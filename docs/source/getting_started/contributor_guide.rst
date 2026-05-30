@@ -15,7 +15,7 @@ We use `nanobind <https://github.com/wjakob/nanobind>`_ to generate Python bindi
 As described in the :doc:`Design Philosophy </design>` page, you should bias towards implementing functionality in C++ and creating Python bindings.
 There are exceptions; for example, if you're making Python-specific utilities for examples, visualization, etc.
 
-The Python bindings source code can be found in the ``bindings`` subfolder of the repository.
+The Python bindings source code can be found in the ``bindings`` subfolder for each package.
 When you build the project, the bindings should also be built automatically.
 
 ``nanobind`` has the ability to `generate stub files <https://nanobind.readthedocs.io/en/latest/typing.html#stub-generation>`_ for type checking and IDE integration.

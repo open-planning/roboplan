@@ -138,6 +138,13 @@ install(TARGETS roboplan
         INCLUDES DESTINATION include
         )
 
+# Build the Python bindings by default (for the scikit-build wheel, colcon, and
+# pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
+option(BUILD_PYTHON_BINDINGS "Build the roboplan Python bindings" ON)
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings)
+endif()
+
 # Add the unit tests, if enabled.
 option(BUILD_TESTING "" ON)
 if (BUILD_TESTING)
