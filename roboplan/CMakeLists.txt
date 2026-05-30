@@ -34,8 +34,8 @@ endif()
 
 # Add tinyxml2 from source only if not found.
 find_package(tinyxml2_vendor QUIET)
-find_package(TinyXML2 QUIET)
-if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
+find_package(tinyxml2 QUIET)
+if ( NOT tinyxml2_vendor_FOUND AND NOT tinyxml2_FOUND AND NOT TARGET tinyxml2::tinyxml2 )
     add_library(tinyxml2
         include/tinyxml2/tinyxml2.cpp
         include/tinyxml2/tinyxml2.h)
