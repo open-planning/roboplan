@@ -11,7 +11,8 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>roboplan</depend>
-  <depend>osqp_vendor</depend>
+  <!-- See https://github.com/tier4/osqp_vendor/issues/26 -->
+  <depend condition="$ROS_DISTRO != lyrical">osqp_vendor</depend>
 
   <test_depend>roboplan_example_models</test_depend>
 
