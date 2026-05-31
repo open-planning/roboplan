@@ -285,7 +285,7 @@ class SelfCollisionBarrier(Barrier):
     least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.
     """
 
-    def __init__(self, oink: Oink, scene: roboplan_ext.core.Scene, n_collision_pairs: int, dt: float, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0) -> None:
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, n_collision_pairs: int, dt: float, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0) -> None:
         """Create a self-collision barrier."""
 
     @property
