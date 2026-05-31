@@ -7,7 +7,8 @@ namespace roboplan {
 ConfigurationTask::ConfigurationTask(const Oink& oink, const Eigen::VectorXd& target_q,
                                      const Eigen::VectorXd& joint_weights,
                                      const ConfigurationTaskOptions& options)
-    : Task(createWeightMatrix(joint_weights), options.task_gain, options.lm_damping),
+    : Task(options.priority, createWeightMatrix(joint_weights), options.task_gain,
+           options.lm_damping),
       target_q(target_q), joint_weights(joint_weights), q_indices(oink.q_indices),
       v_indices(oink.v_indices) {
   // Validate joint weights size matches group DOF count

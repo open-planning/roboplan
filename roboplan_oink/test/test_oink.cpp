@@ -947,6 +947,85 @@ TEST_F(OinkTest, HigherRegularizationReducesSolutionMagnitude) {
       << ", High regularization norm: " << delta_q_high_regularization.norm();
 }
 
+// Test that stacking a ConfigurationTask at priority 2 below a FrameTask yields strictly
+// better frame tracking than running both at the same priority, where they compete head-to-head
+// in the cost function. The ConfigurationTask targets the starting configuration, so it actively
+// resists the joint motion required by the FrameTask.
+TEST_F(OinkTest, PriorityStackingImprovesFrameTracking) {
+  // Pick a non-singular UR5 ready pose. q=0 is a wrist singularity, which destabilizes the
+  // nullspace projector and obscures the comparison.
+  Eigen::VectorXd q_start = Eigen::VectorXd::Zero(num_variables_);
+  q_start.head(6) << 0.0, -1.5708, 1.5708, -1.5708, -1.5708, 0.0;
+
+  // Runs `kIters` IK steps with the FrameTask at priority 1 and the ConfigurationTask at the
+  // given `config_priority`. Returns the final end-effector position error in meters.
+  auto run = [&](int config_priority) -> double {
+    Oink oink(*scene_);
+    Eigen::VectorXd q_current = q_start;
+    scene_->setJointPositions(q_current);
+
+    const Eigen::Matrix4d start_pose = scene_->forwardKinematics(q_current, "tool0");
+    const Eigen::Vector3d target_pos =
+        start_pose.block<3, 1>(0, 3) + Eigen::Vector3d(0.05, 0.05, 0.05);
+    auto target =
+        makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(start_pose.block<3, 3>(0, 0)));
+
+    FrameTaskOptions frame_options{
+        .position_cost = 1.0,
+        .orientation_cost = 1.0,
+        .task_gain = 1.0,
+        .lm_damping = 0.01,
+        .priority = 1,
+    };
+    auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target, frame_options);
+
+    // ConfigurationTask wants to hold the robot at q_start — directly fights the FrameTask,
+    // which needs nonzero joint motion to track the offset target.
+    Eigen::VectorXd target_q = q_start;
+    Eigen::VectorXd weights = Eigen::VectorXd::Constant(num_variables_, 1.0);
+    ConfigurationTaskOptions cfg_options{
+        .task_gain = 1.0,
+        .lm_damping = 0.0,
+        .priority = config_priority,
+    };
+    auto cfg_task = std::make_shared<ConfigurationTask>(oink, target_q, weights, cfg_options);
+
+    std::vector<std::shared_ptr<Task>> tasks = {frame_task, cfg_task};
+    std::vector<std::shared_ptr<Constraints>> constraints;
+
+    constexpr int kIters = 100;
+    for (int i = 0; i < kIters; ++i) {
+      scene_->setJointPositions(q_current);
+      scene_->forwardKinematics(q_current, "tool0");
+      Eigen::VectorXd delta_q(num_variables_);
+      auto r = oink.solveIk(*scene_, tasks, constraints, delta_q);
+      if (!r.has_value())
+        return std::numeric_limits<double>::infinity();
+      q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
+    }
+
+    scene_->setJointPositions(q_current);
+    const Eigen::Matrix4d final_pose = scene_->forwardKinematics(q_current, "tool0");
+    return (target_pos - final_pose.block<3, 1>(0, 3)).norm();
+  };
+
+  const double err_parallel = run(/*config_priority=*/1);
+  const double err_stacked = run(/*config_priority=*/2);
+
+  EXPECT_LT(err_stacked, err_parallel)
+      << "Stacking ConfigurationTask at priority 2 did not improve frame tracking. "
+      << "Parallel (same priority) error: " << err_parallel << "m, "
+      << "Stacked (priority-2 cfg) error: " << err_stacked << "m";
+
+  // The stacked solution should achieve sub-cm tracking — the parallel one shouldn't.
+  EXPECT_LT(err_stacked, 0.005) << "Stacked-priority frame tracking error " << err_stacked
+                                << "m unexpectedly large (>5mm).";
+  EXPECT_GT(err_parallel, 0.01)
+      << "Parallel-priority frame tracking error " << err_parallel
+      << "m unexpectedly small (<1cm) — the two tasks aren't competing as expected; "
+         "tweak the ConfigurationTask weight or target to restore the conflict.";
+}
+
 }  // namespace roboplan
 
 int main(int argc, char** argv) {

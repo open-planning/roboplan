@@ -167,9 +167,10 @@ def main(
     )
     print(f"  {q_canonical}")
 
-    # Create a ConfigurationTask to regularize toward the starting pose
+    # Create a ConfigurationTask to regularize toward the starting pose.
+    # Do this as a second-priority task, i.e., in the nullspace of the first task.
     joint_weights = np.full(num_variables, 0.05)
-    config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0)
+    config_options = ConfigurationTaskOptions(task_gain=1.0, lm_damping=0.0, priority=2)
     config_task = ConfigurationTask(
         oink, q_canonical[oink.q_indices], joint_weights, config_options
     )

@@ -107,14 +107,13 @@ OInK solves the following QP at each control step:
 
 .. math::
 
-   \min_{\Delta q} \quad \underbrace{\frac{1}{2} \sum_{k} \| W_k (J_k \Delta q + \alpha_k e_k) \|^2}_{\text{Tasks}} + \underbrace{\frac{\lambda}{2} \|\Delta q\|^2}_{\text{Regularization}} + \underbrace{\sum_{b} \frac{r_b}{2\|J_b\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2}_{\text{Barrier Regularization}}
+   \min_{\Delta q} \quad \underbrace{\frac{1}{2} \sum_{k} \| W_k (J_k N_k \Delta q + \alpha_k e_k) \|^2}_{\text{Tasks}} + \underbrace{\frac{\lambda}{2} \|\Delta q\|^2}_{\text{Regularization}} + \underbrace{\sum_{b} \frac{r_b}{2\|J_b\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2}_{\text{Barrier Regularization}}
 
 Subject to:
 
 .. math::
 
    \underbrace{l \leq G_c \Delta q \leq u}_{\text{Hard Constraints}} \quad \text{and} \quad \underbrace{G_b \Delta q \leq h_b}_{\text{Barrier Constraints}}
-^^^^^^^^^^^^^^^^
 
 Reformulated as:
 
@@ -126,33 +125,64 @@ Where:
 
 .. math::
 
-   H = \lambda I + \sum_k (J_k^T W_k^T W_k J_k + \mu_k I) + \sum_b \frac{r_b}{\|J_b\|^2} I
+   H = \lambda I + \sum_k (N_k^T J_k^T W_k^T W_k J_k N_k + \mu_k I) + \sum_b \frac{r_b}{\|J_b\|^2} I
 
 .. math::
 
-   c = \sum_k (-\alpha_k J_k^T W_k^T W_k e_k) + \sum_b \frac{-r_b}{\|J_b\|^2} \Delta q_{\text{safe}}
+   c = \sum_k (-\alpha_k N_k^T J_k^T W_k^T W_k e_k) + \sum_b \frac{-r_b}{\|J_b\|^2} \Delta q_{\text{safe}}
 
-+---------------------+------------------------------------------+--------------+
-| Symbol              | Description                              | Source       |
-+=====================+==========================================+==============+
-| :math:`\Delta q`    | Joint displacement (decision variable)   | —            |
-+---------------------+------------------------------------------+--------------+
-| :math:`J_k, e_k,`   | Task Jacobian, error, weight matrix      | Tasks        |
-| :math:`W_k`         |                                          |              |
-+---------------------+------------------------------------------+--------------+
-| :math:`\alpha_k`    | Task gain (low-pass filter)              | Tasks        |
-+---------------------+------------------------------------------+--------------+
-| :math:`\mu_k`       | Levenberg-Marquardt damping              | Tasks        |
-+---------------------+------------------------------------------+--------------+
-| :math:`\lambda`     | Tikhonov regularization                  | Solver       |
-+---------------------+------------------------------------------+--------------+
-| :math:`G_c, l, u`   | Hard constraint matrix and bounds        | Constraints  |
-+---------------------+------------------------------------------+--------------+
-| :math:`G_b, h_b`    | Barrier constraint matrix and bounds     | Barriers     |
-+---------------------+------------------------------------------+--------------+
-| :math:`r_b, J_b`    | Safe displacement gain and barrier       | Barriers     |
-|                     | Jacobian                                 |              |
-+---------------------+------------------------------------------+--------------+
++---------------------+----------------------------------------------+--------------+
+| Symbol              | Description                                  | Source       |
++=====================+==============================================+==============+
+| :math:`\Delta q`    | Joint displacement (decision variable)       | —            |
++---------------------+----------------------------------------------+--------------+
+| :math:`J_k, e_k,`   | Task Jacobian, error, weight matrix          | Tasks        |
+| :math:`W_k`         |                                              |              |
++---------------------+----------------------------------------------+--------------+
+| :math:`\alpha_k`    | Task gain (low-pass filter)                  | Tasks        |
++---------------------+----------------------------------------------+--------------+
+| :math:`N_k`         | Cumulative nullspace projector for          | Tasks        |
+|                     | priority level :math:`k` (:math:`N_1 = I`)   | (priority)   |
++---------------------+----------------------------------------------+--------------+
+| :math:`\mu_k`       | Levenberg-Marquardt damping,                 | Tasks        |
+|                     | :math:`\mu_k = \lambda_{\text{LM},k}         |              |
+|                     | \|W_k \alpha_k e_k\|^2`                      |              |
++---------------------+----------------------------------------------+--------------+
+| :math:`\lambda`     | Tikhonov regularization                      | Solver       |
++---------------------+----------------------------------------------+--------------+
+| :math:`G_c, l, u`   | Hard constraint matrix and bounds            | Constraints  |
++---------------------+----------------------------------------------+--------------+
+| :math:`G_b, h_b`    | Barrier constraint matrix and bounds         | Barriers     |
++---------------------+----------------------------------------------+--------------+
+| :math:`r_b, J_b`    | Safe displacement gain and barrier           | Barriers     |
+|                     | Jacobian                                     |              |
++---------------------+----------------------------------------------+--------------+
+
+Task Priorities and Nullspace Projection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each task carries an integer ``priority`` (default ``1`` = highest).
+Tasks at a lower priority level (higher priority *number*) are projected into the nullspace of all higher-priority tasks, so they cannot fight tasks above them.
+Their contribution is structurally zero in the higher-priority directions.
+
+For each priority level :math:`k`, the QP uses a *projected* Jacobian :math:`J_k N_k`,
+where :math:`N_k` is the cumulative nullspace projector built from the row-stacked Jacobians of all priority levels :math:`1, \ldots, k-1`.
+:math:`N_1 = I` (no projection at the top level), so a single-priority problem reduces to the standard weighted-sum QP.
+
+The projector is computed via a damped pseudoinverse:
+
+.. math::
+
+   N_k = I - J_{\text{stack}}^T \left( J_{\text{stack}} J_{\text{stack}}^T
+                                       + \lambda I \right)^{-1} J_{\text{stack}}
+
+where :math:`J_{\text{stack}}` is the vertical stack of all priority-level Jacobians strictly above :math:`k`,
+and the same Tikhonov regularization :math:`\lambda` from the QP is reused as the damping.
+The damping keeps :math:`(J J^T + \lambda I)` SPD even at singular configurations;
+at well-conditioned configurations (singular values :math:`\gg \sqrt{\lambda}`), the expression reduces to the standard nullspace projector :math:`I - J^+ J`.
+
+Tasks **at the same priority level** are combined linearly through their weights (no projection between them).
+The decision variable remains :math:`\Delta q`; only the per-task Jacobian is projected.
 
 Tasks
 ^^^^^
@@ -204,6 +234,9 @@ Tracks a target 6-DOF pose (position + orientation).
 +--------------------------+-----------------------------------+-----------+
 | ``max_rotation_error``   | Saturation limit (radians)        | ∞         |
 +--------------------------+-----------------------------------+-----------+
+| ``priority``             | Priority level (1 = highest;      | 1         |
+|                          | see Task Priorities)              |           |
++--------------------------+-----------------------------------+-----------+
 
 ConfigurationTask
 """""""""""""""""
@@ -215,6 +248,10 @@ Drives toward a target joint configuration (null-space regularization).
 **Jacobian:** :math:`J = -I` (negative identity)
 
 **Weight matrix:** :math:`W = \text{diag}(\sqrt{w_1}, \ldots, \sqrt{w_{n_v}})`
+
+Also accepts ``task_gain``, ``lm_damping``, and ``priority`` (defaults match
+``FrameTaskOptions``).
+A common pattern is to use a ConfigurationTask at a lower priority level (e.g. ``priority=2``) as a posture / null-space regularizer that will not interfere with a higher-priority FrameTask.
 
 Constraints vs Barriers
 ^^^^^^^^^^^^^^^^^^^^^^^

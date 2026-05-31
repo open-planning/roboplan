@@ -22,7 +22,7 @@ RUN pip3 install \
     plyfile \
     pynput \
     tyro \
-    "viser>=1.0.1,<1.0.25" \
+    "viser>=1.0.29" \
     xacro
 
 # Find the location of the relevant pip installed packages and ensure they are available to
