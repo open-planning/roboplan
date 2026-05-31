@@ -18,8 +18,9 @@
   <depend>roboplan_rrt</depend>
   <depend>roboplan_simple_ik</depend>
   <depend>roboplan_toppra</depend>
-  <depend condition="$ROS_DISTRO != lyrical">tl_expected</depend>
-  <depend condition="$ROS_DISTRO == lyrical">libexpected-dev</depend>
+  <!-- tl_expected was deprecated starting with lyrical. -->
+  <depend condition="$ROS_DISTRO != lyrical and $ROS_DISTRO != rolling">tl_expected</depend>
+  <depend condition="$ROS_DISTRO == lyrical or $ROS_DISTRO == rolling">libexpected-dev</depend>
 
   <test_depend>roboplan_example_models</test_depend>
 
