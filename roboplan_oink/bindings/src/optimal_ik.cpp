@@ -8,6 +8,7 @@
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_oink/barriers/position_barrier.hpp>
+#include <roboplan_oink/barriers/self_collision_barrier.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -145,6 +146,21 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("axis_selection", &PositionBarrier::axis_selection, "Axis selection for constraints.")
       .def_ro("p_min", &PositionBarrier::p_min, "Minimum position bounds.")
       .def_ro("p_max", &PositionBarrier::p_max, "Maximum position bounds.");
+
+  // Bind SelfCollisionBarrier
+  nanobind::class_<SelfCollisionBarrier, Barrier>(
+      m, "SelfCollisionBarrier",
+      "Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.\n\n"
+      "Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at\n"
+      "least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.")
+      .def(nanobind::init<const Oink&, const Scene&, int, double, double, double, double, double>(),
+           "oink"_a, "scene"_a, "n_collision_pairs"_a, "dt"_a, "gain"_a = 1.0,
+           "safe_displacement_gain"_a = 1.0, "d_min"_a = 0.02, "safety_margin"_a = 0.0,
+           "Create a self-collision barrier.")
+      .def_ro("n_collision_pairs", &SelfCollisionBarrier::n_collision_pairs,
+              "Number of closest collision pairs to constrain.")
+      .def_ro("d_min", &SelfCollisionBarrier::d_min,
+              "Minimum allowed distance between any pair of bodies.");
 
   // Bind Oink solver
   nanobind::class_<Oink>(m, "Oink", "Optimal Inverse Kinematics solver.")

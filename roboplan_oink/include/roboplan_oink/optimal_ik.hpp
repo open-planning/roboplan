@@ -454,5 +454,10 @@ public:
   // Pre-allocated, priority-sorted view into the tasks passed to solveIk. Reusing this buffer
   // avoids heap traffic on the hot path; capacity persists across calls.
   std::vector<Task*> sorted_tasks;
+
+  // Pinocchio Data buffer used by enforceBarriers() for FK at the candidate configuration.
+  // Allocated once at construction so the per-solve barrier-feasibility check does not
+  // create a fresh Data (which is sized for the entire model) on every call.
+  pinocchio::Data enforce_barriers_data;
 };
 }  // namespace roboplan

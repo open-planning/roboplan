@@ -6,6 +6,7 @@
 
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/collision/broadphase.hpp>
+#include <pinocchio/collision/distance.hpp>
 #include <pinocchio/parsers/srdf.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 #include <yaml-cpp/yaml.h>
@@ -330,6 +331,10 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
   return result;
 }
 
+void Scene::computeCollisionDistances(const Eigen::VectorXd& q) const {
+  pinocchio::computeDistances(model_, model_data_, collision_model_, collision_model_data_, q);
+}
+
 bool Scene::isValidPose(const Eigen::VectorXd& q) const {
   size_t q_idx = 0;
   for (const auto& joint_name : joint_names_) {
@@ -436,6 +441,10 @@ void Scene::computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex
                                  pinocchio::ReferenceFrame reference_frame,
                                  Eigen::Ref<Eigen::MatrixXd> jacobian) const {
   pinocchio::computeFrameJacobian(model_, model_data_, q, frame_id, reference_frame, jacobian);
+}
+
+void Scene::computeJointJacobians(const Eigen::VectorXd& q) const {
+  pinocchio::computeJointJacobians(model_, model_data_, q);
 }
 
 tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::string& name) const {
