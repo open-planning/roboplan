@@ -47,6 +47,14 @@ target_link_libraries(_optimal_ik_ext PRIVATE
 # prefix, e.g. pixi/conda) the interpreter's site-packages so it is importable.
 if(AMENT_BUILD)
   ament_get_python_install_dir(PYTHON_DESTINATION)
+  # On ROS Humble specifically, this resolves to local/.../dist-packages,
+  # which colcon's default PYTHONPATH hook does not add, so `source
+  # install/setup.bash` never puts the package on PYTHONPATH. Fall back to the
+  # canonical site-packages path the hook uses whenever that happens.
+  if(PYTHON_DESTINATION MATCHES "dist-packages")
+    set(PYTHON_DESTINATION
+        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+  endif()
 elseif(SKBUILD)
   set(PYTHON_DESTINATION ".")
 else()
