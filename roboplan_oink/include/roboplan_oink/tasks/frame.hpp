@@ -38,6 +38,10 @@ struct FrameTaskOptions {
   /// Limits the rotation error norm to prevent large jumps.
   /// Recommended: 0.5-1.0 rad for systems with barriers.
   double max_rotation_error = std::numeric_limits<double>::infinity();
+
+  /// @brief Priority level (default: 1). Tasks at higher priority numbers are projected
+  /// into the nullspace of all lower priority numbers. Must be >= 1.
+  int priority = 1;
 };
 
 /// @brief Task for tracking a target Cartesian pose with a specified frame.

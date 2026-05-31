@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <limits>
 
 #include <OsqpEigen/OsqpEigen.h>
@@ -47,50 +48,20 @@ Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/, pinocchio::D
   return OSQP_INFTY;
 }
 
-tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scene,
-                                                               Eigen::Ref<Eigen::MatrixXd> G,
-                                                               Eigen::Ref<Eigen::VectorXd> b) {
-  // Compute barrier values and Jacobian
-  auto barrier_result = computeBarrier(scene);
-  if (!barrier_result) {
-    return barrier_result;
-  }
-
-  auto jacobian_result = computeJacobian(scene);
-  if (!jacobian_result) {
-    return jacobian_result;
-  }
-
+void Barrier::formatQpInequalities(Eigen::Ref<Eigen::MatrixXd> G,
+                                   Eigen::Ref<Eigen::VectorXd> b) const {
   // G = -J_h / dt
   G = -jacobian_container / dt;
 
   // Saturating class-K function with safety margin: α(h - m) = γ·(h - m) / (1 + |h - m|)
-  // The safety margin shifts the "zero crossing" point, making the constraint more conservative.
-  // This helps account for linearization errors in discrete-time CBF formulation.
-  // Saturating function provides bounded recovery force, preventing over-reaction when far from
-  // boundary and giving more consistent behavior across configurations.
   for (int i = 0; i < barrier_values.size(); ++i) {
     const double h_shifted = barrier_values[i] - safety_margin;
     b[i] = gain * h_shifted / (1.0 + std::abs(h_shifted));
   }
-
-  return {};
 }
 
-tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
-                                                            Eigen::Ref<Eigen::MatrixXd> H,
-                                                            Eigen::Ref<Eigen::VectorXd> c) {
-  // Ensure barrier and Jacobian are computed (may already be computed by computeQpInequalities)
-  auto barrier_result = computeBarrier(scene);
-  if (!barrier_result) {
-    return barrier_result;
-  }
-
-  auto jacobian_result = computeJacobian(scene);
-  if (!jacobian_result) {
-    return jacobian_result;
-  }
-
+void Barrier::formatQpObjective(const Scene& scene, Eigen::Ref<Eigen::MatrixXd> H,
+                                Eigen::Ref<Eigen::VectorXd> c) const {
   // Compute squared Frobenius norm of Jacobian: ‖J_h‖²
   const double jacobian_norm_sq = jacobian_container.squaredNorm();
 
@@ -98,7 +69,7 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
   if (jacobian_norm_sq < kMinNormSq) {
     H.setZero();
     c.setZero();
-    return {};
+    return;
   }
 
   // Compute safe displacement
@@ -109,17 +80,40 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
   const double weight = safe_displacement_gain / jacobian_norm_sq;
 
   // QP objective contribution: (r / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
-  // Expanding: (r / (2·‖J_h‖²)) · (δq^T δq - 2 δq^T δq_safe + δq_safe^T δq_safe)
-  //          = (r / (2·‖J_h‖²)) · δq^T I δq - (r / ‖J_h‖²) · δq_safe^T δq + const
-  //
-  // For QP formulation (min 1/2 x^T H x + c^T x):
   // H_contribution = (r / ‖J_h‖²) · I = weight · I
   // c_contribution = -(r / ‖J_h‖²) · δq_safe = -weight · δq_safe
-
   H.setIdentity();
   H *= weight;
   c = -weight * dq_safe;
+}
 
+tl::expected<void, std::string> Barrier::computeQpInequalities(const Scene& scene,
+                                                               Eigen::Ref<Eigen::MatrixXd> G,
+                                                               Eigen::Ref<Eigen::VectorXd> b) {
+  auto barrier_result = computeBarrier(scene);
+  if (!barrier_result) {
+    return barrier_result;
+  }
+  auto jacobian_result = computeJacobian(scene);
+  if (!jacobian_result) {
+    return jacobian_result;
+  }
+  formatQpInequalities(G, b);
+  return {};
+}
+
+tl::expected<void, std::string> Barrier::computeQpObjective(const Scene& scene,
+                                                            Eigen::Ref<Eigen::MatrixXd> H,
+                                                            Eigen::Ref<Eigen::VectorXd> c) {
+  auto barrier_result = computeBarrier(scene);
+  if (!barrier_result) {
+    return barrier_result;
+  }
+  auto jacobian_result = computeJacobian(scene);
+  if (!jacobian_result) {
+    return jacobian_result;
+  }
+  formatQpObjective(scene, H, c);
   return {};
 }
 
@@ -204,42 +198,77 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
                                ". delta_q must be pre-allocated to num_variables.");
   }
 
-  // Reset Hessian and Gradient
+  // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
+  // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
+  sorted_tasks.clear();
+  for (const auto& task : tasks) {
+    if (task)
+      sorted_tasks.push_back(task.get());
+  }
+  std::stable_sort(sorted_tasks.begin(), sorted_tasks.end(),
+                   [](Task* a, Task* b) { return a->priority < b->priority; });
+
+  // Reset Hessian and Gradient.
   H.setIdentity();
   H.diagonal().array() *= regularization;
   c.setZero();
 
-  // Calculate accumulated Hessian and Gradient from tasks
-  for (const auto& task : tasks) {
-    auto objective_result = task->computeQpObjective(scene, task_H, task_c);
-    if (!objective_result.has_value()) {
-      return tl::make_unexpected(objective_result.error());
-    }
+  // Cumulative nullspace projector and Jacobian stack.
+  // This is only built up if there are 2+ priority levels — otherwise N stays at identity.
+  nullspace_projector.setIdentity(num_variables, num_variables);
+  jacobian_stack.resize(0, num_variables);
 
-    H += task_H;
-    c += task_c;
+  // Walk tasks in priority order. Tasks are projected through the current nullspace_projector
+  // (encoding all strictly-higher priorities); whenever we cross into a new priority level,
+  // rebuild the projector from everything stacked so far so the new level acts only in the
+  // nullspace of everything above it. Tasks are sorted ascending by priority (1 = highest),
+  // so the back holds the lowest priority level — its tasks don't need to be appended to
+  // `jacobian_stack` since no further levels will project against them.
+  const int lowest_priority = sorted_tasks.empty() ? 0 : sorted_tasks.back()->priority;
+  const Task* prev_task = nullptr;
+  for (Task* task : sorted_tasks) {
+    if (prev_task && task->priority != prev_task->priority) {
+      rebuildNullspaceProjector(regularization);
+    }
+    auto result = addTaskContribution(scene, task);
+    if (!result.has_value()) {
+      return tl::make_unexpected(result.error());
+    }
+    // Stacked Jacobians are only needed for levels above the lowest priority.
+    if (task->priority < lowest_priority) {
+      const int n = static_cast<int>(task->jacobian_container.rows());
+      const int prev = static_cast<int>(jacobian_stack.rows());
+      jacobian_stack.conservativeResize(prev + n, num_variables);
+      jacobian_stack.middleRows(prev, n) = task->jacobian_container;
+    }
+    prev_task = task;
   }
 
-  // Add barrier regularization contributions (safe displacement)
-  // Resize workspace if needed
+  // Compute barrier values and Jacobians once, then add objective contributions.
   if (barrier_H_contribution.rows() != num_variables) {
     barrier_H_contribution.resize(num_variables, num_variables);
     barrier_c_contribution.resize(num_variables);
   }
 
   for (const auto& barrier : barriers) {
-    auto obj_result =
-        barrier->computeQpObjective(scene, barrier_H_contribution, barrier_c_contribution);
-    if (obj_result.has_value()) {
-      // Add dense contribution to sparse H (convert to sparse for efficient addition)
-      H += barrier_H_contribution.sparseView();
-      c += barrier_c_contribution;
+    auto barrier_result = barrier->computeBarrier(scene);
+    if (!barrier_result.has_value()) {
+      return tl::make_unexpected("Failed to compute barrier: " + barrier_result.error());
     }
+    auto jacobian_result = barrier->computeJacobian(scene);
+    if (!jacobian_result.has_value()) {
+      return tl::make_unexpected("Failed to compute barrier Jacobian: " + jacobian_result.error());
+    }
+    barrier->formatQpObjective(scene, barrier_H_contribution, barrier_c_contribution);
+    H += barrier_H_contribution.sparseView();
+    c += barrier_c_contribution;
   }
 
   H.makeCompressed();
 
-  // Query total constraint dimensions and cache sizes
+  // Build inequality rows for constraints and barriers, in the original dq space.
+  // No transformation is needed because dq is the decision variable directly.
+  // Additionally, cache sizes.
   constraint_sizes.reserve(constraints.size());
   int total_constraint_rows = 0;
   for (const auto& constraint : constraints) {
@@ -247,8 +276,6 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     constraint_sizes.push_back(num_rows);
     total_constraint_rows += num_rows;
   }
-
-  // Query total barrier dimensions and cache sizes
   barrier_sizes.reserve(barriers.size());
   int total_barrier_rows = 0;
   for (const auto& barrier : barriers) {
@@ -260,6 +287,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
   // Total inequality constraints = constraints (box) + barriers (one-sided)
   // For barriers: -inf <= G*dq <= h (only upper bounded)
   const int total_rows = total_constraint_rows + total_barrier_rows;
+
   const bool init_required =
       !solver.isInitialized() ||
       (total_constraint_rows != last_constraint_rows || total_barrier_rows != last_barrier_rows);
@@ -299,7 +327,8 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     row_offset += num_rows;
   }
 
-  // Fill barrier constraints (one-sided: -inf <= G*dq <= h)
+  // Fill barrier constraints (one-sided: -inf <= G*dq <= h).
+  // Barrier values and Jacobians were already computed above.
   for (size_t i = 0; i < barriers.size(); ++i) {
     const int num_rows = barrier_sizes.at(i);
 
@@ -312,13 +341,8 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     Eigen::Ref<Eigen::VectorXd> barrier_h_view =
         constraint_workspace_upper.segment(row_offset, num_rows);
 
-    auto barrier_result =
-        barriers.at(i)->computeQpInequalities(scene, barrier_G_view, barrier_h_view);
-    if (!barrier_result.has_value()) {
-      return tl::make_unexpected("Failed to compute barriers: " + barrier_result.error());
-    }
+    barriers.at(i)->formatQpInequalities(barrier_G_view, barrier_h_view);
 
-    // Barrier constraints are one-sided: -inf <= G*dq <= h
     constraint_workspace_lower.segment(row_offset, num_rows).setConstant(-OsqpEigen::INFTY);
 
     row_offset += num_rows;
@@ -373,11 +397,9 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     if (!solver.updateHessianMatrix(H)) {
       return tl::make_unexpected("Failed to update Hessian matrix");
     }
-
     if (!solver.updateGradient(c)) {
       return tl::make_unexpected("Failed to update gradient vector");
     }
-
     if (total_rows > 0) {
       if (!solver.updateLinearConstraintsMatrix(A_sparse)) {
         return tl::make_unexpected("Failed to update linear constraints matrix");
@@ -388,14 +410,13 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     }
   }
 
-  auto result = solver.solveProblem();
-  if (result != OsqpEigen::ErrorExitFlag::NoError) {
+  auto solve_result = solver.solveProblem();
+  if (solve_result != OsqpEigen::ErrorExitFlag::NoError) {
     return tl::make_unexpected("QP solver failed to find a solution");
   }
 
   // Extract the solution and copy into delta_q
   delta_q.noalias() = solver.getSolution();
-
   return {};
 }
 
@@ -462,6 +483,45 @@ Oink::enforceBarriers(const Scene& scene, const std::vector<std::shared_ptr<Barr
   }
 
   return {};
+}
+
+tl::expected<void, std::string> Oink::addTaskContribution(const Scene& scene, Task* task) {
+  auto jacobian_result = task->computeJacobian(scene);
+  if (!jacobian_result.has_value()) {
+    return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
+  }
+  auto error_result = task->computeError(scene);
+  if (!error_result.has_value()) {
+    return tl::make_unexpected("Failed to compute error: " + error_result.error());
+  }
+
+  // min ||W J (N z) + W alpha e||^2 with delta_q = N z (z lives in the priority's nullspace).
+  // We absorb the parameterization into a projected effective Jacobian and keep the
+  // optimization variable as dq, so the same QP can be reused regardless of priority count.
+  projected_weighted_jacobian.noalias() =
+      task->weight * task->jacobian_container * nullspace_projector;
+  weighted_error.noalias() = task->weight * (task->gain * task->error_container);
+
+  const double mu = task->lm_damping * weighted_error.squaredNorm();
+
+  task->H_dense.noalias() = projected_weighted_jacobian.transpose() * projected_weighted_jacobian;
+  task->H_dense.diagonal().array() += mu;
+  H += task->H_dense.sparseView();
+  c.noalias() += projected_weighted_jacobian.transpose() * weighted_error;
+
+  return {};
+}
+
+void Oink::rebuildNullspaceProjector(double lambda_sq) {
+  // Damped pseudoinverse using `lambda_sq` (caller passes the QP's Tikhonov regularization).
+  // At well-conditioned configurations (sigma >> sqrt(lambda_sq)) this is numerically the
+  // standard nullspace projector; near singularities the damping preserves SPD-ness of
+  // (J J^T + lambda_sq I).
+  Eigen::MatrixXd JJt = jacobian_stack * jacobian_stack.transpose();
+  JJt.diagonal().array() += lambda_sq;
+  const Eigen::MatrixXd JJt_inv_J = JJt.llt().solve(jacobian_stack);
+  nullspace_projector.setIdentity(num_variables, num_variables);
+  nullspace_projector.noalias() -= jacobian_stack.transpose() * JJt_inv_J;
 }
 
 }  // namespace roboplan

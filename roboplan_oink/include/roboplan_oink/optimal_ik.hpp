@@ -19,8 +19,13 @@ namespace roboplan {
 /// 2. Implement computeJacobian() to fill jacobian_container
 /// 3. Implement computeError() to fill error_container
 struct Task {
-  Task(Eigen::MatrixXd weight_matrix, double task_gain = 1.0, double lm_damp = 0.0)
-      : gain(task_gain), weight(weight_matrix), lm_damping(lm_damp) {}
+  Task(int task_priority, Eigen::MatrixXd weight_matrix, double task_gain = 1.0,
+       double lm_damp = 0.0)
+      : gain(task_gain), weight(weight_matrix), lm_damping(lm_damp), priority(task_priority) {
+    if (priority < 1) {
+      throw std::invalid_argument("Task priority must be >= 1");
+    }
+  }
   virtual ~Task() = default;
 
   /// @brief Initialize pre-allocated storage with correct dimensions.
@@ -73,6 +78,8 @@ struct Task {
   const double gain = 1.0;        // Task gain for low-pass filtering
   const Eigen::MatrixXd weight;   // Weight matrix for cost normalization
   const double lm_damping = 0.0;  // Levenberg-Marquardt damping
+  const int priority = 1;         // Priority level (1 = highest; lower priorities are projected
+                                  // into the nullspace of higher ones)
   int num_variables = 0;          // Number of optimization variables
 
   /// @brief Pre-allocated Jacobian container (task_rows × num_variables).
@@ -175,33 +182,37 @@ struct Barrier {
   /// @return Safe displacement vector (num_variables), default is zero
   virtual Eigen::VectorXd computeSafeDisplacement(const Scene& scene) const;
 
-  /// @brief Compute QP inequality constraints for this barrier
+  /// @brief Format the QP inequality constraints from already-computed barrier values/Jacobian.
   ///
-  /// Computes: G_b * delta_q <= b_b
+  /// Produces: G_b * delta_q <= b_b
   /// Where:
   ///   G_b = -J_h / dt
-  ///   b_b = gain * h(q)  (linear class-K function)
+  ///   b_b = γ·(h - m) / (1 + |h - m|)  (saturating class-K function)
   ///
-  /// @param scene The scene containing robot state and model
+  /// @pre computeBarrier() and computeJacobian() must have been called first.
   /// @param G Output constraint matrix (pre-sized view: num_barriers x num_variables)
   /// @param b Output constraint upper bound vector (pre-sized view: num_barriers)
-  /// @return void on success, error message on failure
+  void formatQpInequalities(Eigen::Ref<Eigen::MatrixXd> G, Eigen::Ref<Eigen::VectorXd> b) const;
+
+  /// @brief Format the QP objective contribution from already-computed barrier Jacobian.
+  ///
+  /// Computes: (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
+  ///
+  /// @pre computeBarrier() and computeJacobian() must have been called first.
+  /// @param scene The scene (passed to computeSafeDisplacement)
+  /// @param H Output Hessian matrix contribution (num_variables x num_variables)
+  /// @param c Output gradient vector contribution (num_variables)
+  void formatQpObjective(const Scene& scene, Eigen::Ref<Eigen::MatrixXd> H,
+                         Eigen::Ref<Eigen::VectorXd> c) const;
+
+  /// @brief Convenience: compute barrier + Jacobian, then format QP inequalities.
+  /// Equivalent to calling computeBarrier(), computeJacobian(), formatQpInequalities().
   tl::expected<void, std::string> computeQpInequalities(const Scene& scene,
                                                         Eigen::Ref<Eigen::MatrixXd> G,
                                                         Eigen::Ref<Eigen::VectorXd> b);
 
-  /// @brief Compute QP objective contribution for safe displacement regularization
-  ///
-  /// Computes: (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
-  ///
-  /// This encourages the robot to move toward a safe configuration when near
-  /// constraint boundaries. The weighting by 1/‖J_h‖² normalizes the contribution
-  /// based on how sensitive the barrier is to joint motion.
-  ///
-  /// @param scene The scene containing robot state and model
-  /// @param H Output Hessian matrix contribution (num_variables x num_variables)
-  /// @param c Output gradient vector contribution (num_variables)
-  /// @return void on success, error message on failure
+  /// @brief Convenience: compute barrier + Jacobian, then format QP objective.
+  /// Equivalent to calling computeBarrier(), computeJacobian(), formatQpObjective().
   tl::expected<void, std::string> computeQpObjective(const Scene& scene,
                                                      Eigen::Ref<Eigen::MatrixXd> H,
                                                      Eigen::Ref<Eigen::VectorXd> c);
@@ -372,6 +383,22 @@ struct Oink {
                   Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
                   double tolerance = 0.0);
 
+private:
+  /// @brief Compute `task`'s Jacobian and error, and add its contribution to the QP Hessian
+  /// and gradient (projecting through the current `nullspace_projector` for hierarchical
+  /// priorities).
+  /// @param scene The scene containing robot model and state.
+  /// @param task The task to add to the QP objective.
+  /// @return void if successful, else an error message describing the failure.
+  tl::expected<void, std::string> addTaskContribution(const Scene& scene, Task* task);
+
+  /// @brief Rebuild `nullspace_projector` from the current `jacobian_stack` via a damped
+  /// pseudoinverse, so subsequent priority levels are projected into the nullspace of
+  /// everything stacked so far.
+  /// @param lambda_sq Damping factor for the pseudoinverse.
+  void rebuildNullspaceProjector(double lambda_sq);
+
+public:
   // QP solver
   OsqpEigen::Solver solver;
   OsqpEigen::Settings settings;
@@ -410,5 +437,22 @@ struct Oink {
   // Pre-allocated barrier regularization workspace
   Eigen::MatrixXd barrier_H_contribution;
   Eigen::VectorXd barrier_c_contribution;
+
+  // Cumulative unweighted Jacobian stack used by the hierarchical-priority projector.
+  // Rows from each priority level are appended after that level's task contributions are
+  // accumulated, then a damped pseudoinverse builds the nullspace projector N used to
+  // project the NEXT priority level's Jacobian into the higher levels' nullspace.
+  Eigen::MatrixXd jacobian_stack;
+  Eigen::MatrixXd nullspace_projector;
+
+  // Per-task scratch: W·J·N and W·(α·e). Resized per task (dims depend on task rows); steady-state
+  // calls reuse the existing allocation when sizes match across iterations and across solveIk
+  // calls.
+  Eigen::MatrixXd projected_weighted_jacobian;
+  Eigen::VectorXd weighted_error;
+
+  // Pre-allocated, priority-sorted view into the tasks passed to solveIk. Reusing this buffer
+  // avoids heap traffic on the hot path; capacity persists across calls.
+  std::vector<Task*> sorted_tasks;
 };
 }  // namespace roboplan
