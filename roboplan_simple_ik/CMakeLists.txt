@@ -81,6 +81,13 @@ install(TARGETS roboplan_simple_ik
         INCLUDES DESTINATION include
         )
 
+# Build the Python bindings by default (for the scikit-build wheel, colcon, and
+# pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
+option(BUILD_PYTHON_BINDINGS "Build the roboplan_simple_ik Python bindings" ON)
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings)
+endif()
+
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 if ( ament_cmake_FOUND )
     message(STATUS "ament_cmake found. Exporting for ROS 2.")

@@ -13,13 +13,12 @@ from pinocchio.visualize import ViserVisualizer
 from common import get_model_data, get_octree
 from roboplan.core import JointConfiguration, PathShortcutter, Scene
 from roboplan.example_models import get_package_share_dir
-from roboplan.rrt import RRTOptions, RRT
+from roboplan.rrt import RRTOptions, RRT, visualizeTree
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode
 from roboplan.visualization import (
     visualizeJointTrajectory,
     visualizePath,
     plotJointTrajectory,
-    visualizeTree,
     visualizeOcTree,
 )
 

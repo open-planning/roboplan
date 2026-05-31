@@ -8,16 +8,24 @@ import subprocess
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+autoapi_dirs = [
+    "../../roboplan/bindings/python",
+    "../../roboplan_example_models/bindings/python",
+    "../../roboplan_oink/bindings/python",
+    "../../roboplan_rrt/bindings/python",
+    "../../roboplan_simple_ik/bindings/python",
+    "../../roboplan_toppra/bindings/python",
+]
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../bindings/src"))
+for autoapi_dir in autoapi_dirs:
+    sys.path.insert(0, autoapi_dir)
 
 # -- Project information -----------------------------------------------------
 
@@ -53,12 +61,9 @@ extensions = [
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns: list[str] = []
 
-# Mock imports for external dependencies.
-autodoc_mock_imports = ["roboplan.roboplan_ext"]
 autoapi_type = "python"
 autoapi_template_dir = "_templates/autoapi"
 autoapi_add_toctree_entry = True
-autoapi_dirs = ["../../bindings/src"]
 autodoc_typehints = "description"
 
 # -- Options for HTML output -------------------------------------------------

@@ -35,7 +35,7 @@ endif()
 # Add tinyxml2 from source only if not found.
 find_package(tinyxml2_vendor QUIET)
 find_package(TinyXML2 QUIET)
-if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND )
+if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND AND NOT TARGET tinyxml2::tinyxml2 )
     add_library(tinyxml2
         include/tinyxml2/tinyxml2.cpp
         include/tinyxml2/tinyxml2.h)
@@ -137,6 +137,13 @@ install(TARGETS roboplan
         LIBRARY DESTINATION lib
         INCLUDES DESTINATION include
         )
+
+# Build the Python bindings by default (for the scikit-build wheel, colcon, and
+# pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
+option(BUILD_PYTHON_BINDINGS "Build the roboplan Python bindings" ON)
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings)
+endif()
 
 # Add the unit tests, if enabled.
 option(BUILD_TESTING "" ON)

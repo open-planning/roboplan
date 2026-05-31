@@ -8,9 +8,12 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <depend>nanobind-dev</depend>
   <depend>roboplan</depend>
 
+  <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>roboplan_example_models</test_depend>
 
   <export>

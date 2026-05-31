@@ -87,7 +87,11 @@ install = { cmd = [
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
 ] }
-build_bindings = "pip install -e bindings --no-build-isolation"
+# Each package builds and installs its own Python bindings (extension + PEP 420
+# namespace package + stubs) as part of its CMake install, since
+# BUILD_PYTHON_BINDINGS defaults ON. roboplan must be installed before its
+# dependents: they resolve it via find_package(roboplan) and import roboplan.core
+# during stub generation.
 build_all = { depends-on = [
   { task = "install", args = ["roboplan_example_models", "roboplan_example_models"] },
   { task = "install", args = ["roboplan", "roboplan"] },
@@ -96,7 +100,6 @@ build_all = { depends-on = [
   { task = "install", args = ["roboplan_rrt", "roboplan_rrt"] },
   { task = "install", args = ["roboplan_toppra", "roboplan_toppra"] },
   { task = "build", args = ["roboplan_examples", "roboplan_examples"] },
-  "build_bindings",
 ] }
 install_all = { depends-on = [
   { task = "build_all" },
@@ -182,7 +185,7 @@ test = { cmd = "ctest -V --test-dir build/{{ package_name }}", args = [
   { arg = "package_name" },
 ], env = { GTEST_COLOR = "YES" } }
 
-test_py  = { cmd = "python3 -m pytest --capture=no", cwd = "bindings" }
+test_py  = { cmd = "python3 -m pytest --capture=no */bindings/test" }
 test_cpp = { depends-on = [
   { task = "test", args = ["roboplan"] },
   { task = "test", args = ["roboplan_rrt"] },
@@ -230,14 +233,6 @@ zstandard         = ">=0.25.0,<0.26"
 plyfile           = ">=1.1,<2"
 pycollada         = ">=0.9.2, <0.10"
 pynput            = ">=1.8.2,<2"
-
-# We use pip as a workaround for pixi building the bindings before we build the core packages
-# In theory, it should be like this:
-# [pypi-dependencies]
-# roboplan = { path = "bindings", editable = true }
-#
-# [pypi-options]
-# no-build-isolation = ["roboplan"]
 
 pip = ">=25.1.1,<26"
 
