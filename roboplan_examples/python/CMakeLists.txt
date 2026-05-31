@@ -3,6 +3,7 @@ install(
   common.py
   example_dual_arm.py
   example_ik.py
+  example_pick_place_mujoco.py
   example_rrt.py
   example_oink.py
   example_oink_with_barriers.py
