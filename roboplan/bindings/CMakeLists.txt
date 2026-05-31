@@ -61,22 +61,18 @@ target_link_libraries(_core_ext PRIVATE
   roboplan
 )
 
-# Resolve the Python destination root for the PEP 420 namespace package (no
-# roboplan/__init__.py is shipped). Three install contexts:
-#   - ament/colcon: ament's managed Python install dir (relative to prefix).
+# PEP 420 namespace package: no roboplan/__init__.py is shipped. Resolve the
+# Python install destination per build context:
+#   - colcon (ament): the site-packages dir (relative to the package's install
+#     prefix) that colcon's PYTHONPATH hook adds. We set this directly rather
+#     than via ament_get_python_install_dir(), which returns
+#     lib/python3/dist-packages on Debian-based ROS -- a path the hook omits.
 #   - scikit-build wheel: the wheel root (".").
-#   - plain CMake install into a prefix (e.g. pixi/conda): the interpreter's
-#     site-packages, so the package is importable from the environment.
+#   - plain CMake into a prefix (pixi/conda, the Docker images): the
+#     interpreter's site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
-  ament_get_python_install_dir(PYTHON_DESTINATION)
-  # On ROS Humble specifically, this resolves to local/.../dist-packages,
-  # which colcon's default PYTHONPATH hook does not add, so `source
-  # install/setup.bash` never puts the package on PYTHONPATH. Fall back to the
-  # canonical site-packages path the hook uses whenever that happens.
-  if(PYTHON_DESTINATION MATCHES "dist-packages")
-    set(PYTHON_DESTINATION
-        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
-  endif()
+  set(PYTHON_DESTINATION
+      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
 elseif(SKBUILD)
   set(PYTHON_DESTINATION ".")
 else()
