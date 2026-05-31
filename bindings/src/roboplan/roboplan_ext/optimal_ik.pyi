@@ -280,6 +280,25 @@ class PositionBarrier(Barrier):
     def p_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Maximum position bounds."""
 
+class SelfCollisionBarrier(Barrier):
+    """
+    Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.
+
+    Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at
+    least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.
+    """
+
+    def __init__(self, oink: Oink, scene: roboplan_ext.core.Scene, n_collision_pairs: int, dt: float, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0) -> None:
+        """Create a self-collision barrier."""
+
+    @property
+    def n_collision_pairs(self) -> int:
+        """Number of closest collision pairs to constrain."""
+
+    @property
+    def d_min(self) -> float:
+        """Minimum allowed distance between any pair of bodies."""
+
 class Oink:
     """Optimal Inverse Kinematics solver."""
 
