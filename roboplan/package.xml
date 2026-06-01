@@ -19,6 +19,7 @@
   <depend>tl_expected</depend>
   <depend>yaml_cpp_vendor</depend>
 
+  <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>roboplan_example_models</test_depend>
 

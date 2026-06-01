@@ -16,6 +16,7 @@
   <!-- If not yet available, there is a source build fallback via FetchContent. -->
   <depend condition="$ROS_DISTRO == humble or $ROS_DISTRO == lyrical">toppra</depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>roboplan_example_models</test_depend>
 
   <export>
