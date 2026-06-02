@@ -2,8 +2,8 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.0 (2026-06-02)
+------------------
 * Fix failing OInK test due to dimension mismatch (`#225 <https://github.com/open-planning/roboplan/issues/225>`_)
 * Add Ubuntu 26.04 and ROS 2 Lyrical to CI (`#215 <https://github.com/open-planning/roboplan/issues/215>`_)
 * Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)

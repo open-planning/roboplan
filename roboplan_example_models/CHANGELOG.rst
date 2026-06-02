@@ -2,8 +2,8 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.0 (2026-06-02)
+------------------
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
 * Use native mimic joint functionality in Pinocchio (`#214 <https://github.com/open-planning/roboplan/issues/214>`_)
 * Support planar joints (`#209 <https://github.com/open-planning/roboplan/issues/209>`_)

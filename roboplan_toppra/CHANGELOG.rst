@@ -2,8 +2,8 @@
 Changelog for package roboplan_toppra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.0 (2026-06-02)
+------------------
 * Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
 * Add toppra and nanobind-dev rosdep keys (`#219 <https://github.com/open-planning/roboplan/issues/219>`_)

@@ -2,8 +2,8 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.0 (2026-06-02)
+------------------
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
 * OInK self-collision barrier (`#207 <https://github.com/open-planning/roboplan/issues/207>`_)
 * Support priorities and nullspace projection in OInK tasks (`#206 <https://github.com/open-planning/roboplan/issues/206>`_)

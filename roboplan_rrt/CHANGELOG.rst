@@ -2,8 +2,8 @@
 Changelog for package roboplan_rrt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.0 (2026-06-02)
+------------------
 * Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
 * Use native mimic joint functionality in Pinocchio (`#214 <https://github.com/open-planning/roboplan/issues/214>`_)
