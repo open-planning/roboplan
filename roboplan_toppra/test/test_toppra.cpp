@@ -354,4 +354,28 @@ TEST_F(RoboPlanToppraPlanarTest, RespectsVelocityLimits) {
   }
 }
 
+// Verifies that velocity limits are respected on "curved" segments that translate and rotate at the
+// same time. The reconstructed planar velocities are body-frame (matching the limits and the
+// arc-length normalization), so they must stay bounded even where the body and world frames differ.
+TEST_F(RoboPlanToppraPlanarTest, RespectsVelocityLimitsOnCurvedPath) {
+  JointPath path;
+  path.joint_names = joint_names_;
+  path.positions = {makePoint(0.0, 0.0, 0.0), makePoint(0.6, 0.4, 0.8), makePoint(1.3, 0.9, 1.5),
+                    makePoint(2.0, 0.3, 0.6)};
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "stretch4_arm");
+  auto result = toppra.generate(path, /* dt */ 0.01, SplineFittingMode::Cubic);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const auto vel_limits = scene_->getVelocityLimitVectors("stretch4_arm");
+  ASSERT_TRUE(vel_limits.has_value());
+  const auto& upper = vel_limits->second;
+  for (const auto& vel : result.value().velocities) {
+    ASSERT_EQ(vel.size(), upper.size());
+    for (Eigen::Index d = 0; d < vel.size(); ++d) {
+      EXPECT_LE(std::abs(vel(d)), upper(d) + 1.0e-2) << "DOF " << d << " exceeds velocity limit.";
+    }
+  }
+}
+
 }  // namespace roboplan

@@ -423,6 +423,11 @@ Eigen::VectorXd Scene::integrate(const Eigen::VectorXd& q, const Eigen::VectorXd
   return pinocchio::integrate(model_, q, v);
 }
 
+Eigen::VectorXd Scene::difference(const Eigen::VectorXd& q_start,
+                                  const Eigen::VectorXd& q_end) const {
+  return pinocchio::difference(model_, q_start, q_end);
+}
+
 Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
                                          const std::string& frame_name) const {
   // TODO: Need to add all sorts of validation here.

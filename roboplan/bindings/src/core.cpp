@@ -218,6 +218,9 @@ void init_core_scene(nanobind::module_& m) {
       .def("integrate", &Scene::integrate,
            "Integrates a velocity vector from a configuration using Lie group operations.", "q"_a,
            "v"_a)
+      .def("difference", &Scene::difference,
+           "Computes the Lie group difference (log map) between two configurations.", "q_start"_a,
+           "q_end"_a)
       .def("forwardKinematics", &Scene::forwardKinematics,
            "Calculates forward kinematics for a specific frame.", "q"_a, "frame_name"_a)
       .def(

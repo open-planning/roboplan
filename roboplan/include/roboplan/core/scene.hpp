@@ -145,6 +145,15 @@ public:
   /// @return The resulting joint configuration after integration.
   Eigen::VectorXd integrate(const Eigen::VectorXd& q, const Eigen::VectorXd& v) const;
 
+  /// @brief Computes the Lie group difference (log map) between two configurations.
+  /// @details Returns the tangent vector @p v such that `integrate(q_start, v)` yields @p q_end.
+  /// For Lie-group joints the result is expressed in the body frame and is constant along the
+  /// geodesic (the screw / shortest-rotation motion that @ref interpolate follows).
+  /// @param q_start The starting joint configuration (size model.nq).
+  /// @param q_end The ending joint configuration (size model.nq).
+  /// @return The tangent / displacement vector (size model.nv).
+  Eigen::VectorXd difference(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end) const;
+
   /// @brief Calculates forward kinematics for a specific frame.
   /// @param q The joint configuration.
   /// @param frame_name The name of the frame for which to perform forward kinematics.
