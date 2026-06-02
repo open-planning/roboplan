@@ -228,8 +228,11 @@ def main(
                 "/rrt/shortcut_path",
             )
         else:
+            visualizePath(
+                viz, scene, path, model_data.ee_names, 0.05, (0, 0, 200), "/rrt/path"
+            )
             visualizeJointTrajectory(
-                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/path"
+                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/traj"
             )
 
         traj_queue.put(traj)

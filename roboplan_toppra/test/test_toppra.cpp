@@ -1,3 +1,4 @@
+#include <cmath>
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
@@ -247,6 +248,110 @@ TEST_F(RoboPlanToppraTest, Adaptive) {
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Adaptive);
   ASSERT_TRUE(result.has_value());
+}
+
+// Tests for joint groups containing a planar (mobile base) joint. These exercise the normalized
+// arc-length representation that replaces the dense SE(2) resampling.
+class RoboPlanToppraPlanarTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    const auto model_prefix = example_models::get_package_models_dir();
+    const auto urdf_path = model_prefix / "stretch4_robot_model" / "stretch4_sg4.urdf";
+    const auto srdf_path = model_prefix / "stretch4_robot_model" / "stretch4_sg4.srdf";
+    const auto config_path = model_prefix / "stretch4_robot_model" / "stretch4_sg4_config.yaml";
+    const std::vector<std::filesystem::path> package_paths = {
+        example_models::get_package_share_dir()};
+    scene_ =
+        std::make_shared<Scene>("stretch_scene", urdf_path, srdf_path, package_paths, config_path);
+  }
+
+  // Builds an expanded group configuration: planar (x, y, cos, sin) followed by the arm joints
+  // held at their home configuration.
+  static Eigen::VectorXd makePoint(double x, double y, double theta) {
+    Eigen::VectorXd point(9);
+    point << x, y, std::cos(theta), std::sin(theta), 0.5, 0.065, 0.0, 0.0, 0.0;
+    return point;
+  }
+
+public:
+  std::shared_ptr<Scene> scene_;
+  const std::vector<std::string> joint_names_{
+      "mobile_base_planar_joint", "lift_joint",        "arm_l1_joint",
+      "wrist_yaw_joint",          "wrist_pitch_joint", "wrist_roll_joint"};
+};
+
+TEST_F(RoboPlanToppraPlanarTest, GeneratesInAllModes) {
+  JointPath path;
+  path.joint_names = joint_names_;
+  path.positions = {makePoint(0.0, 0.0, 0.0), makePoint(0.6, 0.2, 0.4), makePoint(1.0, 0.0, -0.3),
+                    makePoint(1.4, 0.5, 0.2)};
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "stretch4_arm");
+  for (const auto mode :
+       {SplineFittingMode::Hermite, SplineFittingMode::Cubic, SplineFittingMode::Adaptive}) {
+    auto result = toppra.generate(path, /* dt */ 0.01, mode);
+    ASSERT_TRUE(result.has_value()) << result.error();
+    const auto& traj = result.value();
+    ASSERT_GT(traj.positions.size(), 1u);
+    EXPECT_EQ(traj.positions.size(), traj.velocities.size());
+    EXPECT_EQ(traj.positions.size(), traj.accelerations.size());
+    // The planar position representation must remain on the unit circle.
+    for (const auto& pos : traj.positions) {
+      EXPECT_NEAR(pos(2) * pos(2) + pos(3) * pos(3), 1.0, 1.0e-6);
+    }
+    // Endpoints must match the path.
+    EXPECT_TRUE(traj.positions.front().isApprox(path.positions.front(), 1.0e-6));
+    EXPECT_TRUE(traj.positions.back().isApprox(path.positions.back(), 1.0e-6));
+  }
+}
+
+// Verifies that the reconstructed base poses lie exactly on the SE(2) geodesic that the planner
+// uses, which is the whole point of the normalized representation.
+TEST_F(RoboPlanToppraPlanarTest, TracksSE2Geodesic) {
+  JointPath path;
+  path.joint_names = joint_names_;
+  const double theta_end = 0.8;
+  path.positions = {makePoint(0.0, 0.0, 0.0), makePoint(1.0, 0.5, theta_end)};
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "stretch4_arm");
+  auto result = toppra.generate(path, /* dt */ 0.01, SplineFittingMode::Hermite);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const auto q_start_full = scene_->toFullJointPositions("stretch4_arm", path.positions.front());
+  const auto q_end_full = scene_->toFullJointPositions("stretch4_arm", path.positions.back());
+  const auto& model = scene_->getModel();
+  const auto base_q = model.idx_qs[model.getJointId("mobile_base_planar_joint")];
+
+  for (const auto& pos : result.value().positions) {
+    const double theta = std::atan2(pos(3), pos(2));
+    const double fraction = theta / theta_end;  // theta is linear along a single segment.
+    const auto expected = scene_->interpolate(q_start_full, q_end_full, fraction);
+    EXPECT_NEAR(pos(0), expected(base_q), 1.0e-6);      // x
+    EXPECT_NEAR(pos(1), expected(base_q + 1), 1.0e-6);  // y
+  }
+}
+
+// Verifies that velocity limits are respected. Uses "clean" segments (either pure translation or
+// pure rotation) where the world-frame distances used for normalization are exact.
+TEST_F(RoboPlanToppraPlanarTest, RespectsVelocityLimits) {
+  JointPath path;
+  path.joint_names = joint_names_;
+  path.positions = {makePoint(0.0, 0.0, 0.0), makePoint(0.8, 0.0, 0.0), makePoint(0.8, 0.0, 0.9),
+                    makePoint(0.8, 0.6, 0.9), makePoint(1.4, 0.6, 0.9)};
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "stretch4_arm");
+  auto result = toppra.generate(path, /* dt */ 0.01, SplineFittingMode::Cubic);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const auto vel_limits = scene_->getVelocityLimitVectors("stretch4_arm");
+  ASSERT_TRUE(vel_limits.has_value());
+  const auto& upper = vel_limits->second;
+  for (const auto& vel : result.value().velocities) {
+    ASSERT_EQ(vel.size(), upper.size());
+    for (Eigen::Index d = 0; d < vel.size(); ++d) {
+      EXPECT_LE(std::abs(vel(d)), upper(d) + 1.0e-2) << "DOF " << d << " exceeds velocity limit.";
+    }
+  }
 }
 
 }  // namespace roboplan

@@ -59,10 +59,57 @@ public:
 
 private:
   /// @brief Helper function to convert the raw joint path to TOPP-RA compatible position vectors.
+  /// @details If the joint group contains non-standard (Lie-group) joints -- continuous, planar, or
+  /// floating -- each such joint is represented by a single normalized arc-length coordinate
+  /// instead of its individual degrees of freedom. The normalized coordinate accumulates, per path
+  /// segment, the minimum time to traverse that segment subject to the joint's velocity limits,
+  /// computed from per-component configuration distances. Because the joint moves along the scene's
+  /// geodesic (SE(2)/SE(3) screw, shortest rotation) the spline tracks the true Lie-group motion
+  /// exactly without dense resampling. As a side effect, this populates the reconstruction state
+  /// (`full_waypoints_`, `nonstandard_cumulative_`) and the normalized limit vectors.
   /// @param path The joint path to convert.
-  /// @return The TOPP-RA compatible vectors of collapsed joint paths if successful, else a string
-  /// describing the error.
+  /// @return The TOPP-RA compatible position vectors if successful, else a string describing the
+  /// error.
   tl::expected<toppra::Vectors, std::string> getPathPositionVectors(const JointPath& path);
+
+  /// @brief Returns whether a joint type is "non-standard" (a Lie group where the number of
+  /// position DOFs differs from the number of velocity DOFs, so a Euclidean spline would not track
+  /// it).
+  static bool isNonstandardJoint(JointType type);
+
+  /// @brief Finds the path segment containing a normalized coordinate value and the fraction
+  /// within.
+  /// @param cumulative The cumulative normalized coordinate at each waypoint (monotonic
+  /// increasing).
+  /// @param value The normalized coordinate value to look up.
+  /// @return A pair of {segment index (clamped to a valid segment), fraction within segment [0,
+  /// 1]}.
+  static std::pair<size_t, double> locateSegment(const std::vector<double>& cumulative,
+                                                 double value);
+
+  /// @brief Reconstructs the expanded group positions from a normalized position vector.
+  /// @details Standard joints are copied through; non-standard joints are reconstructed onto their
+  /// geodesic via `Scene::interpolate` at the fraction implied by the normalized coordinate.
+  /// @param q_norm The normalized position vector.
+  /// @return The expanded group position vector (the representation used by
+  /// `toFullJointPositions`).
+  Eigen::VectorXd normalizedToGroupPositions(const Eigen::VectorXd& q_norm) const;
+
+  /// @brief Reconstructs collapsed-space velocities (and accelerations) from a normalized solution.
+  /// @details Standard joints copy their normalized derivatives through. For non-standard joints,
+  /// the geodesic is finite-differenced with respect to the path fraction and combined via the
+  /// chain rule with the normalized first/second time derivatives. Outputs are in the same
+  /// collapsed velocity representation as the non-planar code path.
+  /// @param q_norm The normalized positions at the sample.
+  /// @param dq_norm The normalized first time derivatives at the sample.
+  /// @param ddq_norm The normalized second time derivatives at the sample.
+  /// @param[out] velocities The reconstructed velocity vector.
+  /// @param[out] accelerations The reconstructed acceleration vector.
+  void normalizedToVelocitiesAndAccelerations(const Eigen::VectorXd& q_norm,
+                                              const Eigen::VectorXd& dq_norm,
+                                              const Eigen::VectorXd& ddq_norm,
+                                              Eigen::VectorXd& velocities,
+                                              Eigen::VectorXd& accelerations) const;
 
   /// @brief Helper function to extract a natural cubic spline from a joint path.
   /// @details This defines zero velocity and acceleration at the endpoints only, meaning that
@@ -105,15 +152,33 @@ private:
   /// @brief Position indices of the joint group within the full model configuration.
   Eigen::VectorXi q_indices_;
 
-  /// @brief A list of position indices with continuous degrees of freedom.
-  /// @details This is used to figure out which joints need to be wrapped.
-  std::vector<size_t> continuous_q_indices_;
+  /// @brief Whether the joint group contains any non-standard (continuous/planar/floating) joints.
+  /// @details When true, each such joint is represented in the TOPP-RA problem by a single
+  /// normalized arc-length coordinate rather than its individual degrees of freedom, so the spline
+  /// tracks the Lie-group motion exactly without dense resampling.
+  bool has_nonstandard_joints_{false};
 
-  /// @brief Whether the joint group contains any planar joints.
-  /// @details When true, edges between path waypoints are densely resampled using the scene's
-  /// SE(2)-aware interpolation so the spline knots track the actual Lie-group motion of the
-  /// planar joint(s).
-  bool has_planar_joints_{false};
+  /// @brief Dimension of the normalized representation used for the TOPP-RA problem.
+  /// @details Equals the number of velocity DOFs in the group, but with each non-standard joint
+  /// contributing a single normalized coordinate.
+  size_t norm_dim_{0};
+
+  /// @brief Velocity limit vectors in the normalized representation.
+  toppra::Vector norm_vel_lower_limits_;
+  toppra::Vector norm_vel_upper_limits_;
+
+  /// @brief Acceleration limit vectors in the normalized representation.
+  toppra::Vector norm_acc_lower_limits_;
+  toppra::Vector norm_acc_upper_limits_;
+
+  /// @brief Full model configurations at each path waypoint, used to reconstruct geodesics.
+  /// @details Populated by getPathPositionVectors for the non-standard code path.
+  std::vector<Eigen::VectorXd> full_waypoints_;
+
+  /// @brief Cumulative normalized coordinate at each waypoint, one entry per non-standard joint.
+  /// @details Indexed by the order in which non-standard joints appear in the group. Each inner
+  /// vector is monotonically increasing and has one element per waypoint.
+  std::vector<std::vector<double>> nonstandard_cumulative_;
 };
 
 }  // namespace roboplan

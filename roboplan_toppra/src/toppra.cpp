@@ -1,5 +1,9 @@
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <limits>
 #include <stdexcept>
+#include <utility>
 
 #include <toppra/constraint/linear_joint_acceleration.hpp>
 #include <toppra/constraint/linear_joint_velocity.hpp>
@@ -10,13 +14,16 @@
 #include <roboplan_toppra/toppra.hpp>
 
 namespace {
-/// @brief Configuration-space step size for resampling edges with planar joints for spline fitting.
-/// @details This is necessary to ensure that the spline fitting doesn't produce large deviations
-/// from the original path that could lead to collisions, since the cubic spline treats (x, y,
-/// theta) as independent Euclidean scalars and produces a straight-line motion in (x, y) instead of
-/// the SE(2) screw motion that the planner used for collision checking.
-/// TODO: Make this configurable if needed.
-constexpr double kPlanarResampleStep = 0.5;
+/// @brief Floor on a path segment's normalized length, to keep the normalized coordinate strictly
+/// increasing (and avoid division by zero) when two waypoints coincide for a non-standard joint.
+constexpr double kMinSegmentLength = 1.0e-9;
+
+/// @brief Step (in path-fraction units) used to finite-difference geodesics when reconstructing
+/// translational velocities and accelerations for non-standard joints.
+constexpr double kFractionEpsilon = 1.0e-6;
+
+/// @brief Wraps an angle to the interval (-pi, pi].
+double wrapAngle(double angle) { return std::atan2(std::sin(angle), std::cos(angle)); }
 }  // namespace
 
 namespace roboplan {
@@ -51,79 +58,319 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   joint_names_ = joint_group_info.joint_names;
   q_indices_ = joint_group_info.q_indices;
 
-  auto q_idx = 0;
+  // Determine the dimension of the normalized representation and which joints are non-standard.
+  // Standard joints contribute their velocity DOFs directly; non-standard (Lie-group) joints each
+  // contribute a single normalized arc-length coordinate.
   for (const auto& joint_name : joint_group_info.joint_names) {
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_joint_info.error());
     }
-    if (maybe_joint_info->type == JointType::CONTINUOUS) {
-      continuous_q_indices_.push_back(q_idx);
-      q_idx += 1;  // increment by collapsed indices
-    } else if (maybe_joint_info->type == JointType::PLANAR) {
-      continuous_q_indices_.push_back(q_idx + 2);
-      q_idx += 3;  // increment by collapsed indices
-      has_planar_joints_ = true;
+    const auto& joint_info = maybe_joint_info.value();
+    if (joint_info.mimic_info) {
+      continue;  // Mimic joints occupy no degrees of freedom.
+    }
+
+    if (isNonstandardJoint(joint_info.type)) {
+      has_nonstandard_joints_ = true;
+      norm_dim_ += 1;
     } else {
-      q_idx += maybe_joint_info->num_position_dofs;
+      norm_dim_ += joint_info.num_velocity_dofs;
     }
   }
 }
 
+bool PathParameterizerTOPPRA::isNonstandardJoint(JointType type) {
+  return type == JointType::CONTINUOUS || type == JointType::PLANAR || type == JointType::FLOATING;
+}
+
+std::pair<size_t, double>
+PathParameterizerTOPPRA::locateSegment(const std::vector<double>& cumulative, double value) {
+  const size_t num_segments = cumulative.size() - 1;
+  // Find the segment [k, k+1) such that cumulative[k] <= value < cumulative[k+1].
+  const auto it = std::upper_bound(cumulative.begin(), cumulative.end(), value);
+  size_t seg = (it == cumulative.begin())
+                   ? 0
+                   : static_cast<size_t>(std::distance(cumulative.begin(), it)) - 1;
+  seg = std::min(seg, num_segments - 1);
+  const double length = cumulative[seg + 1] - cumulative[seg];
+  const double fraction =
+      (length > 0.0) ? std::clamp((value - cumulative[seg]) / length, 0.0, 1.0) : 0.0;
+  return {seg, fraction};
+}
+
 tl::expected<toppra::Vectors, std::string>
 PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
-  // If the joint group contains any planar joints, densely resample each edge using the scene's
-  // SE(2)-aware interpolation. Otherwise the cubic spline would treat (x, y, theta) as independent
-  // Euclidean scalars and produce a straight-line motion in (x, y), which diverges from the
-  // SE(2) screw motion that the planner used for collision checking.
-  std::vector<Eigen::VectorXd> resampled_positions;
-  if (has_planar_joints_) {
-    resampled_positions.reserve(path.positions.size());
-    resampled_positions.push_back(path.positions.front());
-    for (size_t idx = 1; idx < path.positions.size(); ++idx) {
-      const auto q_start_full =
-          scene_->toFullJointPositions(group_name_, path.positions.at(idx - 1));
-      const auto q_end_full = scene_->toFullJointPositions(group_name_, path.positions.at(idx));
-      const auto distance = scene_->configurationDistance(q_start_full, q_end_full);
-      const auto num_steps =
-          std::max<size_t>(1, static_cast<size_t>(std::ceil(distance / kPlanarResampleStep)));
-      for (size_t step = 1; step < num_steps; ++step) {
-        const double fraction = static_cast<double>(step) / static_cast<double>(num_steps);
-        const auto q_interp_full = scene_->interpolate(q_start_full, q_end_full, fraction);
-        resampled_positions.push_back(q_interp_full(q_indices_).eval());
+  // Standard code path: with no non-standard joints, the collapsed representation is already a
+  // valid Euclidean parameterization, so we simply collapse each waypoint.
+  if (!has_nonstandard_joints_) {
+    toppra::Vectors path_pos_vecs;
+    path_pos_vecs.reserve(path.positions.size());
+    for (const auto& pos : path.positions) {
+      auto maybe_collapsed_pos = collapseContinuousJointPositions(*scene_, group_name_, pos);
+      if (!maybe_collapsed_pos) {
+        return tl::make_unexpected(maybe_collapsed_pos.error());
       }
-      resampled_positions.push_back(path.positions.at(idx));
+      path_pos_vecs.push_back(maybe_collapsed_pos.value());
     }
+    return path_pos_vecs;
   }
-  const auto& positions = has_planar_joints_ ? resampled_positions : path.positions;
 
-  toppra::Vectors path_pos_vecs;
-  path_pos_vecs.reserve(positions.size());
-  for (size_t idx = 0; idx < positions.size(); ++idx) {
-    const auto& pos = positions.at(idx);
-    auto maybe_collapsed_pos = collapseContinuousJointPositions(*scene_, group_name_, pos);
-    if (!maybe_collapsed_pos) {
-      return tl::make_unexpected(maybe_collapsed_pos.error());
+  // Normalized code path: represent each non-standard joint by a single normalized arc-length
+  // coordinate so the spline tracks the Lie-group geodesic exactly without dense resampling.
+  const size_t num_waypoints = path.positions.size();
+  const auto& model = scene_->getModel();
+
+  // Precompute the full-model and collapsed configurations at each waypoint.
+  full_waypoints_.clear();
+  full_waypoints_.reserve(num_waypoints);
+  std::vector<Eigen::VectorXd> collapsed(num_waypoints);
+  for (size_t k = 0; k < num_waypoints; ++k) {
+    full_waypoints_.push_back(scene_->toFullJointPositions(group_name_, path.positions.at(k)));
+    auto maybe_collapsed =
+        collapseContinuousJointPositions(*scene_, group_name_, path.positions.at(k));
+    if (!maybe_collapsed) {
+      return tl::make_unexpected(maybe_collapsed.error());
     }
-    auto curr_collapsed = maybe_collapsed_pos.value();
+    collapsed.at(k) = maybe_collapsed.value();
+  }
 
-    // For continuous joints we have to ensure that we take "the short way around" in the spline.
-    // If the distance to the preview point is greater than PI, then we either add or subtract
-    // 2*PI to this point to ensure that we don't travel further than we need to.
-    if (idx > 0) {
-      const auto& prev_collapsed = path_pos_vecs.at(idx - 1);
-      for (auto q_idx : continuous_q_indices_) {
-        const auto diff = curr_collapsed(q_idx) - prev_collapsed(q_idx);
-        if (diff > M_PI) {
-          curr_collapsed(q_idx) -= 2.0 * M_PI;
-        } else if (diff < -M_PI) {
-          curr_collapsed(q_idx) += 2.0 * M_PI;
+  nonstandard_cumulative_.clear();
+  norm_vel_lower_limits_ = Eigen::VectorXd::Zero(norm_dim_);
+  norm_vel_upper_limits_ = Eigen::VectorXd::Zero(norm_dim_);
+  norm_acc_lower_limits_ = Eigen::VectorXd::Zero(norm_dim_);
+  norm_acc_upper_limits_ = Eigen::VectorXd::Zero(norm_dim_);
+
+  toppra::Vectors path_pos_vecs(num_waypoints, Eigen::VectorXd::Zero(norm_dim_));
+
+  // Computes the geodesic distance between two waypoints restricted to a subset of full-config
+  // position indices, by copying waypoint k and overwriting only those indices with waypoint k+1.
+  const auto masked_distance = [&](size_t k, const std::vector<Eigen::Index>& indices) {
+    Eigen::VectorXd q_masked = full_waypoints_.at(k);
+    for (const auto idx : indices) {
+      q_masked(idx) = full_waypoints_.at(k + 1)(idx);
+    }
+    return scene_->configurationDistance(full_waypoints_.at(k), q_masked);
+  };
+
+  size_t norm_col = 0;       // Column in the normalized representation.
+  size_t collapsed_col = 0;  // Column in the collapsed representation.
+  size_t vel_col = 0;        // Column in the velocity/acceleration representation.
+  for (const auto& joint_name : joint_names_) {
+    const auto joint_info = scene_->getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
+
+    if (!isNonstandardJoint(joint_info.type)) {
+      // Copy the joint's collapsed positions and limits straight through.
+      for (size_t d = 0; d < joint_info.num_velocity_dofs; ++d) {
+        for (size_t k = 0; k < num_waypoints; ++k) {
+          path_pos_vecs.at(k)(norm_col + d) = collapsed.at(k)(collapsed_col + d);
         }
+        norm_vel_lower_limits_(norm_col + d) = vel_lower_limits_(vel_col + d);
+        norm_vel_upper_limits_(norm_col + d) = vel_upper_limits_(vel_col + d);
+        norm_acc_lower_limits_(norm_col + d) = acc_lower_limits_(vel_col + d);
+        norm_acc_upper_limits_(norm_col + d) = acc_upper_limits_(vel_col + d);
+      }
+      norm_col += joint_info.num_velocity_dofs;
+      collapsed_col += joint_info.num_position_dofs;
+      vel_col += joint_info.num_velocity_dofs;
+      continue;
+    }
+
+    // Identify the joint's rotational and full position-index blocks, and the linear/angular
+    // limits. Splitting the geodesic this way recovers the true body-frame linear distance (the arc
+    // length), since the SE(2)/SE(3) log decomposes orthogonally: L^2 = d_linear^2 + d_angular^2.
+    // The world chord between waypoints would underestimate the arc on curving (translating +
+    // rotating) segments, so we use d_linear = sqrt(L^2 - d_angular^2) instead.
+    const auto q_off = static_cast<Eigen::Index>(model.idx_qs[model.getJointId(joint_name)]);
+    std::vector<Eigen::Index> all_indices, rotation_indices;
+    double max_linear_velocity = std::numeric_limits<double>::infinity();
+    double max_linear_acceleration = std::numeric_limits<double>::infinity();
+    double max_angular_velocity = std::numeric_limits<double>::infinity();
+    double max_angular_acceleration = std::numeric_limits<double>::infinity();
+    switch (joint_info.type) {
+    case JointType::CONTINUOUS:
+      all_indices = {q_off, q_off + 1};
+      rotation_indices = all_indices;
+      max_angular_velocity = joint_info.limits.max_velocity(0);
+      max_angular_acceleration = joint_info.limits.max_acceleration(0);
+      break;
+    case JointType::PLANAR:
+      all_indices = {q_off, q_off + 1, q_off + 2, q_off + 3};
+      rotation_indices = {q_off + 2, q_off + 3};
+      max_linear_velocity =
+          std::min(joint_info.limits.max_velocity(0), joint_info.limits.max_velocity(1));
+      max_linear_acceleration =
+          std::min(joint_info.limits.max_acceleration(0), joint_info.limits.max_acceleration(1));
+      max_angular_velocity = joint_info.limits.max_velocity(2);
+      max_angular_acceleration = joint_info.limits.max_acceleration(2);
+      break;
+    default:
+      return tl::make_unexpected("Floating joints are not yet supported by TOPP-RA.");
+    }
+
+    // Accumulate the normalized coordinate as the per-segment minimum traversal time, and derive a
+    // single (conservative) acceleration limit for the normalized coordinate.
+    std::vector<double> cumulative(num_waypoints, 0.0);
+    double accel_limit = std::numeric_limits<double>::infinity();
+    for (size_t k = 0; k + 1 < num_waypoints; ++k) {
+      const double total = masked_distance(k, all_indices);
+      const double angular = masked_distance(k, rotation_indices);
+      const double linear = std::sqrt(std::max(0.0, total * total - angular * angular));
+
+      double segment_length = 0.0;
+      if (std::isfinite(max_linear_velocity) && max_linear_velocity > 0.0) {
+        segment_length = std::max(segment_length, linear / max_linear_velocity);
+      }
+      if (std::isfinite(max_angular_velocity) && max_angular_velocity > 0.0) {
+        segment_length = std::max(segment_length, angular / max_angular_velocity);
+      }
+      segment_length = std::max(segment_length, kMinSegmentLength);
+      cumulative[k + 1] = cumulative[k] + segment_length;
+
+      if (linear > kMinSegmentLength && std::isfinite(max_linear_acceleration) &&
+          max_linear_acceleration > 0.0) {
+        accel_limit = std::min(accel_limit, max_linear_acceleration * segment_length / linear);
+      }
+      if (angular > kMinSegmentLength && std::isfinite(max_angular_acceleration) &&
+          max_angular_acceleration > 0.0) {
+        accel_limit = std::min(accel_limit, max_angular_acceleration * segment_length / angular);
       }
     }
-    path_pos_vecs.push_back(curr_collapsed);
+
+    for (size_t k = 0; k < num_waypoints; ++k) {
+      path_pos_vecs.at(k)(norm_col) = cumulative[k];
+    }
+    norm_vel_lower_limits_(norm_col) = -1.0;
+    norm_vel_upper_limits_(norm_col) = 1.0;
+    norm_acc_lower_limits_(norm_col) = -accel_limit;
+    norm_acc_upper_limits_(norm_col) = accel_limit;
+    nonstandard_cumulative_.push_back(std::move(cumulative));
+
+    norm_col += 1;
+    collapsed_col += static_cast<size_t>(joint_info.type == JointType::PLANAR ? 3 : 1);
+    vel_col += joint_info.num_velocity_dofs;
   }
+
   return path_pos_vecs;
+}
+
+Eigen::VectorXd
+PathParameterizerTOPPRA::normalizedToGroupPositions(const Eigen::VectorXd& q_norm) const {
+  Eigen::VectorXd group_pos(q_indices_.size());
+  const auto& model = scene_->getModel();
+
+  size_t norm_col = 0;
+  Eigen::Index expanded_col = 0;
+  int nonstandard_idx = 0;
+  for (const auto& joint_name : joint_names_) {
+    const auto joint_info = scene_->getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
+
+    if (!isNonstandardJoint(joint_info.type)) {
+      for (size_t d = 0; d < joint_info.num_velocity_dofs; ++d) {
+        group_pos(expanded_col + static_cast<Eigen::Index>(d)) = q_norm(norm_col + d);
+      }
+      norm_col += joint_info.num_velocity_dofs;
+      expanded_col += static_cast<Eigen::Index>(joint_info.num_position_dofs);
+      continue;
+    }
+
+    const auto& cumulative = nonstandard_cumulative_.at(nonstandard_idx);
+    const auto [segment, fraction] = locateSegment(cumulative, q_norm(norm_col));
+    const Eigen::VectorXd interpolated =
+        scene_->interpolate(full_waypoints_.at(segment), full_waypoints_.at(segment + 1), fraction);
+    const auto q_off = static_cast<Eigen::Index>(model.idx_qs[model.getJointId(joint_name)]);
+    for (size_t d = 0; d < joint_info.num_position_dofs; ++d) {
+      group_pos(expanded_col + static_cast<Eigen::Index>(d)) =
+          interpolated(q_off + static_cast<Eigen::Index>(d));
+    }
+    norm_col += 1;
+    expanded_col += static_cast<Eigen::Index>(joint_info.num_position_dofs);
+    ++nonstandard_idx;
+  }
+
+  return group_pos;
+}
+
+void PathParameterizerTOPPRA::normalizedToVelocitiesAndAccelerations(
+    const Eigen::VectorXd& q_norm, const Eigen::VectorXd& dq_norm, const Eigen::VectorXd& ddq_norm,
+    Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations) const {
+  velocities = Eigen::VectorXd::Zero(vel_lower_limits_.size());
+  accelerations = Eigen::VectorXd::Zero(vel_lower_limits_.size());
+  const auto& model = scene_->getModel();
+
+  size_t norm_col = 0;
+  size_t vel_col = 0;
+  int nonstandard_idx = 0;
+  for (const auto& joint_name : joint_names_) {
+    const auto joint_info = scene_->getJointInfo(joint_name).value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
+
+    if (!isNonstandardJoint(joint_info.type)) {
+      for (size_t d = 0; d < joint_info.num_velocity_dofs; ++d) {
+        velocities(vel_col + d) = dq_norm(norm_col + d);
+        accelerations(vel_col + d) = ddq_norm(norm_col + d);
+      }
+      norm_col += joint_info.num_velocity_dofs;
+      vel_col += joint_info.num_velocity_dofs;
+      continue;
+    }
+
+    // Reconstruct body-relative velocities/accelerations on the segment geodesic. The normalized
+    // coordinate maps to a fraction f along the segment, with df/dt = norm_velocity /
+    // segment_length and d2f/dt2 = norm_acceleration / segment_length. Translational components are
+    // obtained by finite-differencing the geodesic; rotational components vary linearly with f, so
+    // their slope is the (constant) wrapped angular difference and their curvature is zero.
+    const auto& cumulative = nonstandard_cumulative_.at(nonstandard_idx);
+    const auto [segment, fraction] = locateSegment(cumulative, q_norm(norm_col));
+    const double segment_length = cumulative[segment + 1] - cumulative[segment];
+    const double df_dt = dq_norm(norm_col) / segment_length;
+    const double d2f_dt2 = ddq_norm(norm_col) / segment_length;
+    const auto q_off = static_cast<Eigen::Index>(model.idx_qs[model.getJointId(joint_name)]);
+
+    const auto& q_start = full_waypoints_.at(segment);
+    const auto& q_end = full_waypoints_.at(segment + 1);
+
+    // Indices of the rotation representation within the joint's full-config block.
+    const Eigen::Index cos_idx = q_off + (joint_info.type == JointType::PLANAR ? 2 : 0);
+    const double theta_start = std::atan2(q_start(cos_idx + 1), q_start(cos_idx));
+    const double theta_end = std::atan2(q_end(cos_idx + 1), q_end(cos_idx));
+    const double dtheta_df = wrapAngle(theta_end - theta_start);
+
+    if (joint_info.type == JointType::PLANAR) {
+      const Eigen::VectorXd interp_minus =
+          scene_->interpolate(q_start, q_end, fraction - kFractionEpsilon);
+      const Eigen::VectorXd interp_center = scene_->interpolate(q_start, q_end, fraction);
+      const Eigen::VectorXd interp_plus =
+          scene_->interpolate(q_start, q_end, fraction + kFractionEpsilon);
+      for (Eigen::Index t = 0; t < 2; ++t) {  // Translational x and y.
+        const double minus = interp_minus(q_off + t);
+        const double center = interp_center(q_off + t);
+        const double plus = interp_plus(q_off + t);
+        const double dq_df = (plus - minus) / (2.0 * kFractionEpsilon);
+        const double d2q_df2 =
+            (plus - 2.0 * center + minus) / (kFractionEpsilon * kFractionEpsilon);
+        velocities(vel_col + static_cast<size_t>(t)) = dq_df * df_dt;
+        accelerations(vel_col + static_cast<size_t>(t)) = d2q_df2 * df_dt * df_dt + dq_df * d2f_dt2;
+      }
+      velocities(vel_col + 2) = dtheta_df * df_dt;
+      accelerations(vel_col + 2) = dtheta_df * d2f_dt2;
+    } else {  // Continuous: a single rotational component.
+      velocities(vel_col) = dtheta_df * df_dt;
+      accelerations(vel_col) = dtheta_df * d2f_dt2;
+    }
+
+    norm_col += 1;
+    vel_col += joint_info.num_velocity_dofs;
+    ++nonstandard_idx;
+  }
 }
 
 std::shared_ptr<toppra::PiecewisePolyPath>
@@ -185,21 +432,29 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
         "Acceleration scale must be greater than 0.0 and less than or equal to 1.0.");
   }
 
-  // Create scaled velocity and acceleration constraints.
-  toppra::LinearConstraintPtr vel_constraint, acc_constraint;
-  vel_constraint = std::make_shared<toppra::constraint::LinearJointVelocity>(
-      vel_lower_limits_ * velocity_scale, vel_upper_limits_ * velocity_scale);
-  acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(
-      acc_lower_limits_ * acceleration_scale, acc_upper_limits_ * acceleration_scale);
-  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
-  toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
-
+  // Build the position vectors first, since for non-standard joints this also computes the
+  // normalized velocity/acceleration limits used by the constraints below.
   auto maybe_path_pos_vecs = getPathPositionVectors(path);
   if (!maybe_path_pos_vecs) {
     return tl::make_unexpected("Failed to extract position vectors from path: " +
                                maybe_path_pos_vecs.error());
   }
   auto path_pos_vecs = maybe_path_pos_vecs.value();
+
+  // Create scaled velocity and acceleration constraints. With non-standard joints the limits are
+  // expressed in the normalized representation (planar/continuous/floating joints collapse to a
+  // single coordinate with a unit velocity limit and a derived acceleration limit).
+  const auto& vel_lower = has_nonstandard_joints_ ? norm_vel_lower_limits_ : vel_lower_limits_;
+  const auto& vel_upper = has_nonstandard_joints_ ? norm_vel_upper_limits_ : vel_upper_limits_;
+  const auto& acc_lower = has_nonstandard_joints_ ? norm_acc_lower_limits_ : acc_lower_limits_;
+  const auto& acc_upper = has_nonstandard_joints_ ? norm_acc_upper_limits_ : acc_upper_limits_;
+  toppra::LinearConstraintPtr vel_constraint, acc_constraint;
+  vel_constraint = std::make_shared<toppra::constraint::LinearJointVelocity>(
+      vel_lower * velocity_scale, vel_upper * velocity_scale);
+  acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(
+      acc_lower * acceleration_scale, acc_upper * acceleration_scale);
+  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
+  toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
   // Parse the spline fitting mode and set the options accordingly.
   // The basic rules are:
@@ -240,12 +495,17 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
       }
 
       const auto q = geom_path->eval_single(t, 0);
-      const auto maybe_q_expanded = expandContinuousJointPositions(*scene_, group_name_, q);
-      if (!maybe_q_expanded) {
-        return tl::make_unexpected("Failed to collision check geometric path: " +
-                                   maybe_q_expanded.error());
+      Eigen::VectorXd q_full;
+      if (has_nonstandard_joints_) {
+        q_full = scene_->toFullJointPositions(group_name_, normalizedToGroupPositions(q));
+      } else {
+        const auto maybe_q_expanded = expandContinuousJointPositions(*scene_, group_name_, q);
+        if (!maybe_q_expanded) {
+          return tl::make_unexpected("Failed to collision check geometric path: " +
+                                     maybe_q_expanded.error());
+        }
+        q_full = scene_->toFullJointPositions(group_name_, maybe_q_expanded.value());
       }
-      const auto q_full = scene_->toFullJointPositions(group_name_, maybe_q_expanded.value());
 
       // If a collision is found, add a waypoint in the middle of the current and next point.
       // Don't add points in the final iteration, as it is not needed.
@@ -301,19 +561,30 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
     traj.times.push_back(t);
   }
   Eigen::Map<Eigen::VectorXd> times_vec(traj.times.data(), traj.times.size());
-  for (const auto& pos : const_acc->eval(times_vec, 0)) {
-    const auto maybe_expanded_pos = expandContinuousJointPositions(*scene_, group_name_, pos);
-    if (!maybe_expanded_pos) {
-      return tl::make_unexpected("Failed to compute path parameterization: " +
-                                 maybe_expanded_pos.error());
+  const auto positions = const_acc->eval(times_vec, 0);
+  const auto velocities = const_acc->eval(times_vec, 1);
+  const auto accelerations = const_acc->eval(times_vec, 2);
+  for (size_t i = 0; i < positions.size(); ++i) {
+    if (has_nonstandard_joints_) {
+      // Reconstruct the expanded positions and the collapsed velocities/accelerations from the
+      // normalized solution.
+      traj.positions.push_back(normalizedToGroupPositions(positions.at(i)));
+      Eigen::VectorXd vel, acc;
+      normalizedToVelocitiesAndAccelerations(positions.at(i), velocities.at(i), accelerations.at(i),
+                                             vel, acc);
+      traj.velocities.push_back(std::move(vel));
+      traj.accelerations.push_back(std::move(acc));
+    } else {
+      const auto maybe_expanded_pos =
+          expandContinuousJointPositions(*scene_, group_name_, positions.at(i));
+      if (!maybe_expanded_pos) {
+        return tl::make_unexpected("Failed to compute path parameterization: " +
+                                   maybe_expanded_pos.error());
+      }
+      traj.positions.push_back(maybe_expanded_pos.value());
+      traj.velocities.push_back(velocities.at(i));
+      traj.accelerations.push_back(accelerations.at(i));
     }
-    traj.positions.push_back(maybe_expanded_pos.value());
-  }
-  for (const auto& vel : const_acc->eval(times_vec, 1)) {
-    traj.velocities.push_back(vel);
-  }
-  for (const auto& acc : const_acc->eval(times_vec, 2)) {
-    traj.accelerations.push_back(acc);
   }
 
   return traj;
