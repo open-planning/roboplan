@@ -215,25 +215,22 @@ def main(
                 position=scene.forwardKinematics(q_goal_full, ee_name)[:3, 3],
             )
 
+        visualizePath(
+            viz, scene, path, model_data.ee_names, 0.05, (0, 0, 200), "/rrt/path"
+        )
         if include_shortcutting:
             visualizePath(
-                viz, scene, path, model_data.ee_names, 0.05, (100, 0, 0), "/rrt/path"
-            )
-            visualizeJointTrajectory(
                 viz,
                 scene,
-                traj,
+                shortened_path,
                 model_data.ee_names,
+                0.05,
                 (0, 100, 0),
                 "/rrt/shortcut_path",
             )
-        else:
-            visualizePath(
-                viz, scene, path, model_data.ee_names, 0.05, (0, 0, 200), "/rrt/path"
-            )
-            visualizeJointTrajectory(
-                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/traj"
-            )
+        visualizeJointTrajectory(
+            viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/trajectory"
+        )
 
         traj_queue.put(traj)
         plan_button.disabled = False
