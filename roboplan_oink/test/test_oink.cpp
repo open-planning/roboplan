@@ -722,20 +722,26 @@ TEST_P(MultiRobotOinkTest, SolveWithMultipleConstraintsAndTasks) {
 
   // Verify both constraints are satisfied
   const auto& model = scene_->getModel();
-  Eigen::VectorXd q_new = q + delta_q;
+  // q (nq) and delta_q (nv) live in different spaces, so integrate delta_q onto q
+  // through the Lie group rather than adding directly. For models with continuous
+  // joints (e.g. KinovaRobotiq) nq != nv, so a plain q + delta_q would be invalid.
+  Eigen::VectorXd q_new = pinocchio::integrate(model, q, delta_q);
+
+  // Velocity constraint is in velocity space (nv).
   for (int i = 0; i < num_variables_; ++i) {
-    // Velocity constraint
     EXPECT_LE(std::abs(delta_q[i]), dt * v_max[i] + kTolerance)
         << "Robot: " << GetParam().name << ", Joint " << i << " violated velocity constraint";
+  }
 
-    // Position constraint
+  // Position limits and q_new are in configuration space (nq).
+  for (int i = 0; i < num_config_; ++i) {
     if (std::isfinite(model.lowerPositionLimit[i])) {
       EXPECT_GE(q_new[i], model.lowerPositionLimit[i] - kTolerance)
-          << "Robot: " << GetParam().name << ", Joint " << i << " went below lower limit";
+          << "Robot: " << GetParam().name << ", Config index " << i << " went below lower limit";
     }
     if (std::isfinite(model.upperPositionLimit[i])) {
       EXPECT_LE(q_new[i], model.upperPositionLimit[i] + kTolerance)
-          << "Robot: " << GetParam().name << ", Joint " << i << " went above upper limit";
+          << "Robot: " << GetParam().name << ", Config index " << i << " went above upper limit";
     }
   }
 
