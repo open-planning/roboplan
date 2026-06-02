@@ -13,9 +13,11 @@ ASAN_SYMBOLIZER_PATH = "$CONDA_PREFIX/bin/llvm-symbolizer"
 
 [feature.local.activation.env]
 CMAKE_INSTALL_MODE   = "SYMLINK"
+CMAKE_BUILD_TYPE     = "RelWithDebInfo"
 
 [feature.ci.activation.env]
 CMAKE_INSTALL_MODE   = "COPY"
+CMAKE_BUILD_TYPE     = "Debug"
 
 [tasks]
 configure = { cmd = [
@@ -23,7 +25,7 @@ configure = { cmd = [
   "-GNinja",
   "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-  "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+  "-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE",
   "-DBUILD_TESTING=ON",
   # Use clang as the compiler
   "-DCMAKE_C_COMPILER=clang",
