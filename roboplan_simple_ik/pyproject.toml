@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "roboplan-simple-ik"
-version = "0.3.0"
+version = "0.4.0"
 description = "Simple inverse kinematics solver for RoboPlan."
 readme = "README.md"
 requires-python = ">=3.10"

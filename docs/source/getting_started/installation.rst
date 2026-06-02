@@ -26,7 +26,7 @@ We recommend creating your own environment for isolation, installing all the lib
 
 ::
 
-    conda create -n roboplan -c conda-forge roboplan-python roboplan-rrt-python roboplan-simple-ik-python roboplan-oink-python
+    conda create -n roboplan -c conda-forge roboplan-python roboplan-rrt-python roboplan-simple-ik-python roboplan-oink-python roboplan-toppra-python
     conda activate roboplan
 
 In your new environment, you can import the ``roboplan`` Python bindings.
