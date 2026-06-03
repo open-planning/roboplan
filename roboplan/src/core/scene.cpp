@@ -353,32 +353,31 @@ bool Scene::isValidConfiguration(const Eigen::VectorXd& q) const {
       for (size_t idx = 0; idx < 2; ++idx) {
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
-        if (q(q_idx) < lo || q(q_idx) > hi) {
+        if (q(q_idx + idx) < lo || q(q_idx + idx) > hi) {
           return false;
         }
       }
       if (std::abs(std::pow(q(q_idx + 2), 2) + std::pow(q(q_idx + 3), 2) - 1.0) > kUnitCircleTol) {
         return false;
       }
-      q_idx += 4;
       break;
     case JointType::CONTINUOUS:
       // Unbounded so always valid, but check whether the representation is on the unit circle.
       if (std::abs(std::pow(q(q_idx), 2) + std::pow(q(q_idx + 1), 2) - 1.0) > kUnitCircleTol) {
         return false;
       }
-      q_idx += 2;
       break;
     default:
       for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
-        if (q(q_idx) < lo || q(q_idx) > hi) {
+        if (q(q_idx + idx) < lo || q(q_idx + idx) > hi) {
           return false;
         }
-        ++q_idx;
       }
     }
+
+    q_idx += info.num_position_dofs;
   }
   return true;
 }
@@ -412,7 +411,6 @@ Eigen::VectorXd Scene::clampToValidConfiguration(const Eigen::VectorXd& q) const
         result(q_idx + 2) = 1.0;
         result(q_idx + 3) = 0.0;
       }
-      q_idx += 4;
       break;
     }
     case JointType::CONTINUOUS: {
@@ -425,7 +423,6 @@ Eigen::VectorXd Scene::clampToValidConfiguration(const Eigen::VectorXd& q) const
         result(q_idx) = 1.0;
         result(q_idx + 1) = 0.0;
       }
-      q_idx += 2;
       break;
     }
     default:
@@ -433,9 +430,10 @@ Eigen::VectorXd Scene::clampToValidConfiguration(const Eigen::VectorXd& q) const
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
         result(q_idx) = std::clamp(result(q_idx), lo, hi);
-        ++q_idx;
       }
     }
+
+    q_idx += info.num_position_dofs;
   }
   return result;
 }
@@ -573,7 +571,6 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += collapsed ? 6 : 7;
       break;
     case JointType::PLANAR:
       // Position limits can be finite, orientation stays unlimited.
@@ -585,11 +582,9 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += collapsed ? 3 : 4;
       break;
     case JointType::CONTINUOUS:
       // Already has infinite limits, no action needed.
-      q_idx += collapsed ? 1 : 2;
       break;
     default:  // Prismatic or revolute.
       if (joint_info.limits.min_position.size() > 0) {
@@ -598,8 +593,9 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
       if (joint_info.limits.max_position.size() > 0) {
         upper_limits(q_idx) = joint_info.limits.max_position(0);
       }
-      ++q_idx;
     }
+
+    q_idx += collapsed ? joint_info.num_velocity_dofs : joint_info.num_position_dofs;
   }
   return std::make_pair(lower_limits, upper_limits);
 }
