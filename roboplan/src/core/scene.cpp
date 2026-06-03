@@ -374,10 +374,6 @@ bool Scene::isValidConfiguration(const Eigen::VectorXd& q) const {
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
         if (q(q_idx) < lo || q(q_idx) > hi) {
-          std::cout << "Joint name: " << joint_name << " dof " << idx
-                    << "out of bounds."
-                       " lo: "
-                    << lo << ", hi: " << hi << ", actual: " << q(q_idx) << std::endl;
           return false;
         }
         ++q_idx;
