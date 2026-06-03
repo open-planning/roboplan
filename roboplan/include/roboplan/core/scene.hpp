@@ -155,8 +155,10 @@ public:
   /// @brief Calculates forward kinematics for a specific frame.
   /// @param q The joint configuration.
   /// @param frame_name The name of the frame for which to perform forward kinematics.
+  /// @param base_frame Optional base frame. If empty, returns the world-frame pose.
   /// @return The 4x4 matrix denoting the transform of the specified frame.
-  Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name) const;
+  Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name,
+                                    const std::string& base_frame = "") const;
 
   /// @brief Computes the frame Jacobian for a specific frame.
   /// @param q The joint configuration.

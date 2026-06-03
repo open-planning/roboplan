@@ -478,9 +478,8 @@ Eigen::VectorXd Scene::integrate(const Eigen::VectorXd& q, const Eigen::VectorXd
   return pinocchio::integrate(model_, q, v);
 }
 
-Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
-                                         const std::string& frame_name) const {
-  // TODO: Need to add all sorts of validation here.
+Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name,
+                                         const std::string& base_frame) const {
   const auto maybe_frame_id = getFrameId(frame_name);
   if (!maybe_frame_id) {
     throw std::runtime_error("Failed to get frame ID: " + maybe_frame_id.error());
@@ -489,7 +488,21 @@ Eigen::Matrix4d Scene::forwardKinematics(const Eigen::VectorXd& q,
 
   pinocchio::forwardKinematics(model_, model_data_, q);
   pinocchio::updateFramePlacement(model_, model_data_, frame_id);
-  return model_data_.oMf.at(frame_id);
+
+  // If no base_frame is specified then it's from the root frame
+  if (base_frame.empty()) {
+    return model_data_.oMf.at(frame_id).toHomogeneousMatrix();
+  }
+
+  // Otherwise compute the incremental fk from the base_frame
+  const auto maybe_base_id = getFrameId(base_frame);
+  if (!maybe_base_id) {
+    throw std::runtime_error("Failed to get frame ID: " + maybe_base_id.error());
+  }
+  const auto base_id = maybe_base_id.value();
+
+  pinocchio::updateFramePlacement(model_, model_data_, base_id);
+  return (model_data_.oMf.at(base_id).actInv(model_data_.oMf.at(frame_id))).toHomogeneousMatrix();
 }
 
 void Scene::computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,

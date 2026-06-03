@@ -221,7 +221,8 @@ void init_core_scene(nanobind::module_& m) {
            "Integrates a velocity vector from a configuration using Lie group operations.", "q"_a,
            "v"_a)
       .def("forwardKinematics", &Scene::forwardKinematics,
-           "Calculates forward kinematics for a specific frame.", "q"_a, "frame_name"_a)
+           "Calculates forward kinematics for a specific frame.", "q"_a, "frame_name"_a,
+           "base_frame"_a = "")
       .def(
           "computeFrameJacobian",
           [](const Scene& self, const Eigen::VectorXd& q, const std::string& frame_name,

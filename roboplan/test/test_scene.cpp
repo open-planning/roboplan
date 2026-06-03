@@ -144,8 +144,15 @@ TEST_F(RoboPlanSceneTest, TestForwardKinematics) {
   Eigen::Matrix4d expected;
   expected << -1.0, 0.0, 0.0, 0.81725, 0.0, 0.0, 1.0, 0.19145, 0.0, 1.0, 0.0, -0.005491, 0.0, 0.0,
       0.0, 1.0;
-
   EXPECT_TRUE(fk.isApprox(expected, 1e-6));
+
+  // Compute FK from the wrist to the tool
+  const auto fk_wrist = scene_->forwardKinematics(q, "tool0", "wrist_1_link");
+
+  // Expected transformation matrix for zero configuration from the wrist to the tooltip
+  expected << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.1753, 0.0, -1.0, 0.0, 0.09465, 0.0, 0.0, 0.0,
+      1.0;
+  EXPECT_TRUE(fk_wrist.isApprox(expected, 1e-6));
 }
 
 TEST_F(RoboPlanSceneTest, TestLoadXMLStrings) {
