@@ -496,7 +496,6 @@ def get_model_data():
                     tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
                     color=np.array([0.5, 0.5, 0.5, 0.5]),
                     disabled_collisions=[
-                        "base_link",
                         "chassis_link",
                         "test_box",
                         "test_sphere",
