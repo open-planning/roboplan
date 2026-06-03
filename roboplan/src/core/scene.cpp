@@ -335,7 +335,7 @@ void Scene::computeCollisionDistances(const Eigen::VectorXd& q) const {
   pinocchio::computeDistances(model_, model_data_, collision_model_, collision_model_data_, q);
 }
 
-bool Scene::isValidPose(const Eigen::VectorXd& q) const {
+bool Scene::isValidConfiguration(const Eigen::VectorXd& q) const {
   size_t q_idx = 0;
   for (const auto& joint_name : joint_names_) {
     const auto& info = joint_info_map_.at(joint_name);
@@ -346,7 +346,7 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
 
     switch (info.type) {
     case JointType::FLOATING:
-      throw std::runtime_error("Floating joints not yet supported by isValidPose.");
+      throw std::runtime_error("Floating joints not yet supported by isValidConfiguration.");
     case JointType::PLANAR:
       // The first 2 DOFs (translation) can be bounded, but the last (rotation) is always valid.
       // However, we still check that it is on the unit circle.
@@ -374,6 +374,10 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
         const auto& lo = info.limits.min_position[idx];
         const auto& hi = info.limits.max_position[idx];
         if (q(q_idx) < lo || q(q_idx) > hi) {
+          std::cout << "Joint name: " << joint_name << " dof " << idx
+                    << "out of bounds."
+                       " lo: "
+                    << lo << ", hi: " << hi << ", actual: " << q(q_idx) << std::endl;
           return false;
         }
         ++q_idx;
@@ -381,6 +385,63 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
     }
   }
   return true;
+}
+
+Eigen::VectorXd Scene::clampToValidConfiguration(const Eigen::VectorXd& q) const {
+  Eigen::VectorXd result = q;
+  size_t q_idx = 0;
+  for (const auto& joint_name : joint_names_) {
+    const auto& info = joint_info_map_.at(joint_name);
+    if (info.mimic_info) {
+      // Mimic joints occupy no q slots; limits are enforced on the mimicked parent above.
+      continue;
+    }
+
+    switch (info.type) {
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported by clampToValidConfiguration.");
+    case JointType::PLANAR: {
+      // The first 2 DOFs (translation) can be bounded, but the last (rotation) is always valid.
+      // However, we still renormalize it onto the unit circle.
+      for (size_t idx = 0; idx < 2; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        result(q_idx + idx) = std::clamp(result(q_idx + idx), lo, hi);
+      }
+      const double norm = std::hypot(result(q_idx + 2), result(q_idx + 3));
+      if (norm > 0.0) {
+        result(q_idx + 2) /= norm;
+        result(q_idx + 3) /= norm;
+      } else {
+        result(q_idx + 2) = 1.0;
+        result(q_idx + 3) = 0.0;
+      }
+      q_idx += 4;
+      break;
+    }
+    case JointType::CONTINUOUS: {
+      // Unbounded so always valid, but renormalize the representation onto the unit circle.
+      const double norm = std::hypot(result(q_idx), result(q_idx + 1));
+      if (norm > 0.0) {
+        result(q_idx) /= norm;
+        result(q_idx + 1) /= norm;
+      } else {
+        result(q_idx) = 1.0;
+        result(q_idx + 1) = 0.0;
+      }
+      q_idx += 2;
+      break;
+    }
+    default:
+      for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        result(q_idx) = std::clamp(result(q_idx), lo, hi);
+        ++q_idx;
+      }
+    }
+  }
+  return result;
 }
 
 Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name,

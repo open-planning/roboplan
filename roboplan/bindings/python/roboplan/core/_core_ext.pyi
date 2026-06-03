@@ -424,10 +424,13 @@ class Scene:
     def hasCollisions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], debug: bool = False) -> bool:
         """Checks collisions at specified joint positions."""
 
-    def isValidPose(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> bool:
+    def isValidConfiguration(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> bool:
         """
         Checks if the specified joint positions are valid with respect to joint limits.
         """
+
+    def clampToValidConfiguration(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Clamps the specified joint positions to valid joint limits."""
 
     def toFullJointPositions(self, group_name: str, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Converts partial joint positions to full joint positions."""

@@ -10,7 +10,14 @@ std::unordered_map<std::string, pinocchio::FrameIndex>
 createFrameMap(const pinocchio::Model& model) {
   std::unordered_map<std::string, pinocchio::FrameIndex> frame_map;
   for (const auto& frame : model.frames) {
-    frame_map[frame.name] = model.getFrameId(frame.name);
+    auto it = frame_map.find(frame.name);
+    if (it != frame_map.end()) {
+      throw std::runtime_error(
+          "Frame name '" + frame.name +
+          "' was already added to the map. Duplicate names for different frame types (body, joint, "
+          "sensor, etc.) are not supported in RoboPlan.");
+    }
+    frame_map[frame.name] = model.getFrameId(frame.name, frame.type);
   }
   return frame_map;
 }
@@ -70,10 +77,18 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
 
         auto cur_frame_id = model.getFrameId(tip_link);
         const auto base_frame_id = model.getFrameId(base_link);
+        const auto base_link_parent_joint_id = model.frames.at(base_frame_id).parentJoint;
         std::vector<int> joint_indices;
         while (true) {
           const auto& frame = model.frames.at(cur_frame_id);
           const auto parent_joint_id = frame.parentJoint;
+
+          // Sometimes the parent frame of a joint is rigidly attached to the chain's base link,
+          // but is not the parent frame itself, so we should check that as well.
+          if (parent_joint_id == base_link_parent_joint_id) {
+            break;
+          }
+
           const auto& parent_joint_name = model.names.at(parent_joint_id);
           joint_indices.push_back(parent_joint_id);
           cur_frame_id = model.frames.at(model.getFrameId(parent_joint_name)).parentFrame;
@@ -81,8 +96,8 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
             break;
           }
           if (cur_frame_id == 0) {
-            throw std::runtime_error(
-                "Recursed the whole robot model and did not find the base frame!");
+            throw std::runtime_error("Recursed the whole robot model for chain in group '" +
+                                     std::string(name) + "' and did not find the base frame!");
           }
         }
         // Add the joint information in the reverse order.

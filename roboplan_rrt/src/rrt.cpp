@@ -81,9 +81,18 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   auto q_goal = scene_->toFullJointPositions(options_.group_name, goal.positions);
   auto q_sample = q_start;
 
-  // Ensure the start and goal poses are valid
-  if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    return tl::make_unexpected("Invalid poses requested, cannot plan!");
+  // Ensure the start and goal configurations are valid and collision-free.
+  if (!scene_->isValidConfiguration(q_start)) {
+    return tl::make_unexpected("Invalid start configuration requested, cannot plan!");
+  }
+  if (!scene_->isValidConfiguration(q_goal)) {
+    return tl::make_unexpected("Invalid goal configuration requested, cannot plan!");
+  }
+  if (scene_->hasCollisions(q_start)) {
+    return tl::make_unexpected("Start configuration is in collision, cannot plan!");
+  }
+  if (scene_->hasCollisions(q_goal)) {
+    return tl::make_unexpected("Goal configuration is in collision, cannot plan!");
   }
 
   // Check whether direct connection between the start and goal is possible.

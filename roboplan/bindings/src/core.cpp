@@ -209,8 +209,10 @@ void init_core_scene(nanobind::module_& m) {
            "Generates random collision-free positions for the robot model.", "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions,
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
-      .def("isValidPose", &Scene::isValidPose,
+      .def("isValidConfiguration", &Scene::isValidConfiguration,
            "Checks if the specified joint positions are valid with respect to joint limits.", "q"_a)
+      .def("clampToValidConfiguration", &Scene::clampToValidConfiguration,
+           "Clamps the specified joint positions to valid joint limits.", "q"_a)
       .def("toFullJointPositions", &Scene::toFullJointPositions,
            "Converts partial joint positions to full joint positions.", "group_name"_a, "q"_a)
       .def("interpolate", &Scene::interpolate, "Interpolates between two joint configurations.",

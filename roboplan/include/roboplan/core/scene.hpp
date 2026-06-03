@@ -122,7 +122,14 @@ public:
   /// @brief Checks if the specified joint positions are valid with respect to joint limits.
   /// @param q The joint positions.
   /// @return True if the positions respect joint limits, else false.
-  bool isValidPose(const Eigen::VectorXd& q) const;
+  bool isValidConfiguration(const Eigen::VectorXd& q) const;
+
+  /// @brief Clamps the specified joint positions to valid joint limits.
+  /// @details Bounded joints are clamped to their position limits, while continuous and planar
+  /// rotation representations are renormalized onto the unit circle.
+  /// @param q The joint positions.
+  /// @return A new vector of joint positions that respects joint limits.
+  Eigen::VectorXd clampToValidConfiguration(const Eigen::VectorXd& q) const;
 
   /// @brief Converts partial joint positions to full joint positions.
   /// @details This includes adding new joints.
