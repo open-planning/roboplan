@@ -8,6 +8,8 @@
 
 namespace roboplan {
 
+class CollisionContext;
+
 /// @brief Computes the Cartesian path of a specified frame by interpolating sparse positions.
 /// @param scene The scene to use.
 /// @param q_start The starting joint positions.
@@ -30,7 +32,11 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
                                               const std::string& frame_name);
 
 /// @brief Checks collisions along a specified configuration space path.
-/// @param scene The scene to use for interpolating positions and checking collisions.
+/// @details All collision checks are answered by the caller-owned `context`, so the traversal does
+///   not contend on the Scene's shared collision scratch. Interpolation and distance use `scene`,
+///   which only reads the immutable model and is therefore safe to share.
+/// @param scene The scene to use for interpolating positions and computing distances.
+/// @param collision_context The collision context whose scratch is used for all collision checks.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
@@ -42,9 +48,10 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 ///   Callers that already know both endpoints are collision-free (e.g. they are existing nodes in a
 ///   search tree) can set this to False to skip redundant, expensive collision checks.
 /// @return True if there are collisions, else false.
-bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size,
-                            const bool bisection = false, const bool check_endpoints = true);
+bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collision_context,
+                            const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                            const double max_step_size, const bool bisection = false,
+                            const bool check_endpoints = true);
 
 /// @brief Shortcuts joint paths with random sampling and checking connections.
 /// @details This implementation is based on section 3.5.3 of:

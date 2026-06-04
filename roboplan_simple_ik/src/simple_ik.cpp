@@ -1,5 +1,6 @@
 #include <chrono>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
@@ -33,6 +34,10 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
                        const JointConfiguration& start, JointConfiguration& solution) {
   const auto start_time = std::chrono::steady_clock::now();
   const std::chrono::duration<double> timeout(options_.max_time);
+
+  // Snapshot the scene geometry into a private collision context for this solve, so the IK
+  // iterations check collisions against their own scratch rather than the Scene's shared data.
+  const CollisionContext collision_context(*scene_);
 
   bool result = false;
   const auto& model = scene_->getModel();
@@ -105,7 +110,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       }
 
       if (converged) {
-        if (!options_.check_collisions || !scene_->hasCollisions(q)) {
+        if (!options_.check_collisions || !collision_context.hasCollisions(q)) {
           solution.positions = q(q_indices);
           return true;
         }

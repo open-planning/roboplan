@@ -26,6 +26,7 @@
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
 #else
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
+namespace coal = hpp::fcl;
 #endif
 
 namespace roboplan {
@@ -374,8 +375,9 @@ private:
   /// @brief Broadphase manager used to accelerate hasCollisions().
   /// @details Caches AABB-tree state and holds pointers into collision_model_ and
   /// collision_model_data_, so it must be rebuilt (see rebuildBroadphaseManager) whenever the
-  /// collision geometry or its data is changed. Mutable for the same reason as collision_model_data_
-  /// (updated in place during a const collision query), and not thread-safe across shared Scenes.
+  /// collision geometry or its data is changed. Mutable for the same reason as
+  /// collision_model_data_ (updated in place during a const collision query), and not thread-safe
+  /// across shared Scenes.
   mutable std::optional<BroadPhaseManager> broadphase_manager_;
 
   /// @brief (Re)builds broadphase_manager_ from the current collision model and data.

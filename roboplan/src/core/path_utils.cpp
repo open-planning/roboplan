@@ -1,6 +1,7 @@
 #include <queue>
 #include <utility>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 
 namespace roboplan {
@@ -36,16 +37,17 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
   return frame_path;
 }
 
-bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size,
-                            const bool bisection, const bool check_endpoints) {
-
+bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collision_context,
+                            const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                            const double max_step_size, const bool bisection,
+                            const bool check_endpoints) {
   const auto distance = scene.configurationDistance(q_start, q_end);
 
   // Optionally check the endpoints. Callers that have already validated both endpoints can set
   // `check_endpoints` to false to skip these (expensive) collision checks entirely.
   const bool collision_at_endpoints =
-      check_endpoints && (scene.hasCollisions(q_start) || scene.hasCollisions(q_end));
+      check_endpoints &&
+      (collision_context.hasCollisions(q_start) || collision_context.hasCollisions(q_end));
 
   // Special case for short paths (also handles division by zero in the next case).
   if (distance <= max_step_size) {
@@ -74,7 +76,7 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
         continue;  // No interior grid point in this interval.
       }
       const auto fraction = static_cast<double>(mid) / static_cast<double>(num_steps);
-      if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+      if (collision_context.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
         return true;
       }
       intervals.emplace(low, mid);
@@ -85,7 +87,7 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
 
   for (size_t idx = 1; idx < num_steps; ++idx) {
     const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-    if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+    if (collision_context.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
       return true;
     }
   }
@@ -117,6 +119,10 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
   std::random_device rd;
   std::mt19937 gen(seed < 0 ? seed : rd());
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
+
+  // Snapshot the scene geometry into a private collision context for this shortcutting pass, so all
+  // connection checks below use their own scratch instead of the Scene's shared collision data.
+  const CollisionContext collision_context(*scene_);
 
   q_full_ = scene_->getCurrentJointPositions();
   auto q_start = q_full_;
@@ -177,7 +183,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     }
 
     // Ensure the new connection is valid. If not, try again.
-    if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size)) {
+    if (hasCollisionsAlongPath(*scene_, collision_context, q_low, q_high, max_step_size)) {
       continue;
     }
 

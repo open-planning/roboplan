@@ -9,6 +9,7 @@
 #include <dynotree/KDTree.h>
 #include <tl/expected.hpp>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 #include <roboplan_rrt/graph.hpp>
@@ -80,8 +81,10 @@ public:
   /// @param tree The tree to grow.
   /// @param nodes The set of sampled nodes so far.
   /// @param q_sample Randomly sampled node to extend towards (or connect).
+  /// @param collision_context This plan's private collision context, used for all collision checks.
   /// @return True if node(s) were added to the tree, false otherwise.
-  bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
+  bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
+                const CollisionContext& collision_context);
 
   /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
   /// @details The "latest added node" refers to `nodes.back()`. The function will identify the
@@ -91,9 +94,11 @@ public:
   /// @param target_tree The tree to connect to the nodes list.
   /// @param target_nodes The nodes in the target tree.
   /// @param grow_start_tree If true, the target_tree is the goal tree.
+  /// @param collision_context This plan's private collision context, used for all collision checks.
   /// @return A completed path from the start to the goal node if it exists, otherwise none.
   std::optional<JointPath> joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                     const std::vector<Node>& target_nodes, bool grow_start_tree);
+                                     const std::vector<Node>& target_nodes, bool grow_start_tree,
+                                     const CollisionContext& collision_context);
 
   /// @brief Returns a path from the specified index to the first added node.
   /// @param nodes The list of nodes in the tree.

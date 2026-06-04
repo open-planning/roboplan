@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -62,10 +63,11 @@ TEST_F(RoboPlanPathUtilsTest, testHasCollisionsAlongPath) {
     const auto& q_end = maybe_q_end.value();
 
     const auto max_step_size = 0.05;
-    const auto result_linear =
-        hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size, /* bisection*/ false);
-    const auto result_bisection =
-        hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size, /* bisection*/ true);
+    const CollisionContext collision_context(*scene_);
+    const auto result_linear = hasCollisionsAlongPath(*scene_, collision_context, q_start, q_end,
+                                                      max_step_size, /* bisection*/ false);
+    const auto result_bisection = hasCollisionsAlongPath(*scene_, collision_context, q_start, q_end,
+                                                         max_step_size, /* bisection*/ true);
     ASSERT_EQ(result_linear, result_bisection);
   }
 }
