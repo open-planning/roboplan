@@ -91,64 +91,38 @@ def benchmark_setup(request):
     }
 
 
-# Number of (start, goal) solves timed per benchmark round.
-ITERATIONS = 10
-
-# Minimum fraction of solves that must succeed, aggregated across all benchmark
-# rounds. This is a sanity floor to catch a broken planner (which would solve ~0%),
-# not a tight quality bound: most models solve ~100% of random instances, but the
-# dual-arm model with plain RRT has a non-trivial intrinsic timeout rate on hard
-# instances (~85% success), so the floor is set comfortably below that to avoid
-# flaky failures on small samples.
-MIN_SUCCESS_RATE = 0.8
-
-
-def _make_options(group_name: str, rrt_connect: bool) -> RRTOptions:
-    options = RRTOptions()
-    options.group_name = group_name
-    options.max_nodes = 10000
-    options.max_planning_time = 10.0
-    options.rrt_connect = rrt_connect
-    options.collision_check_use_bisection = True
-    options.collision_check_step_size = 0.2
-    return options
-
-
-def _benchmark_planner(benchmark, benchmark_setup, rrt_connect: bool):
-    """Times RRT planning and asserts an aggregate success rate.
-
-    To avoid measuring the same handful of (start, goal) instances on every round
-    (which makes the result hypersensitive to a single unlucky seed), the seed base
-    is rotated on each call so each round samples fresh instances. Successes are
-    accumulated across every round and checked against MIN_SUCCESS_RATE.
-    """
-    scene = benchmark_setup["scene"]
-    options = _make_options(benchmark_setup["group_name"], rrt_connect)
-    rrt = RRT(scene, options)
-    q_indices = benchmark_setup["q_indices"]
-
-    stats = {"seed": 1234, "successes": 0, "total": 0}
-
-    def run():
-        seed = stats["seed"]
-        stats["seed"] += ITERATIONS
-        successes = solve_many(scene, rrt, q_indices, iterations=ITERATIONS, seed=seed)
-        stats["successes"] += successes
-        stats["total"] += ITERATIONS
-        return successes
-
-    benchmark(run)
-
-    success_rate = stats["successes"] / stats["total"]
-    assert success_rate >= MIN_SUCCESS_RATE, (
-        f"success rate {success_rate:.2f} below floor {MIN_SUCCESS_RATE} "
-        f"({stats['successes']}/{stats['total']} solves)"
-    )
-
-
 def test_benchmark_rrt(benchmark, benchmark_setup):
-    _benchmark_planner(benchmark, benchmark_setup, rrt_connect=False)
+    scene = benchmark_setup["scene"]
+    options = RRTOptions()
+    options.group_name = benchmark_setup["group_name"]
+    options.max_nodes = 100000
+    options.max_planning_time = 10.0
+    rrt = RRT(scene, options)
+
+    success_rate = benchmark(
+        solve_many,
+        scene,
+        rrt,
+        benchmark_setup["q_indices"],
+        iterations=10,
+    )
+    assert success_rate >= 0.95
 
 
 def test_benchmark_rrt_connect(benchmark, benchmark_setup):
-    _benchmark_planner(benchmark, benchmark_setup, rrt_connect=True)
+    scene = benchmark_setup["scene"]
+    options = RRTOptions()
+    options.group_name = benchmark_setup["group_name"]
+    options.max_nodes = 100000
+    options.rrt_connect = True
+    options.max_planning_time = 10.0
+    rrt = RRT(scene, options)
+
+    success_rate = benchmark(
+        solve_many,
+        scene,
+        rrt,
+        benchmark_setup["q_indices"],
+        iterations=10,
+    )
+    assert success_rate >= 0.95
