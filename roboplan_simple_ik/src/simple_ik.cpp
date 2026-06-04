@@ -167,8 +167,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   if (nearest_solution.has_value()) {
     solution.positions = nearest_solution.value();
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
