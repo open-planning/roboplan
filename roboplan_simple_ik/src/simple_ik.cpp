@@ -74,6 +74,11 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   jacobian_.resize(n_dims, v_indices.size());
   jjt_.resize(n_dims, n_dims);
 
+  // Used to track the closest ik solution to the starting configuration
+  const auto q_seed = q;
+  std::optional<Eigen::VectorXd> nearest_solution;
+  double nearest_distance = std::numeric_limits<double>::max();
+
   size_t attempt = 0;
   while (attempt <= options_.max_restarts) {
     if (attempt > 0) {
@@ -130,8 +135,12 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
       if (converged) {
         if (!options_.check_collisions || !scene_->hasCollisions(q)) {
-          solution.positions = q(q_indices);
-          return true;
+          const double dist = (q(q_indices) - q_seed(q_indices)).squaredNorm();
+          if (!nearest_solution.has_value() || dist < nearest_distance) {
+            nearest_solution = q(q_indices);
+            nearest_distance = dist;
+          }
+          break;
         }
       }
 
@@ -155,7 +164,13 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
     ++attempt;
   }
 
-  return result;
+  if (nearest_solution.has_value()) {
+    solution.positions = nearest_solution.value();
+    return true;
+  }
+  else {
+    return false;
+  }
 }
 
 }  // namespace roboplan
