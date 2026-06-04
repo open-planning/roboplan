@@ -33,7 +33,9 @@ void init_simple_ik(nanobind::module_& m) {
       .def_rw("max_angular_error_norm", &SimpleIkOptions::max_angular_error_norm,
               "The maximum angular error norm, in radians.")
       .def_rw("check_collisions", &SimpleIkOptions::check_collisions,
-              "Whether to check collisions.");
+              "Whether to check collisions.")
+      .def_rw("fast_return", &SimpleIkOptions::fast_return,
+              "If true, returns when the first ik solution is found.");
 
   nanobind::class_<SimpleIk>(
       m, "SimpleIk", "Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.")

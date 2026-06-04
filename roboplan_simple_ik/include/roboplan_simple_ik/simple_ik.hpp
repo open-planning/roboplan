@@ -36,6 +36,11 @@ struct SimpleIkOptions {
 
   /// @brief Whether to check collisions.
   bool check_collisions = true;
+
+  /// @brief If true, returns when the first ik solution is found.
+  /// @details Otherwise the entire time budget will be consumed to attempt to find
+  /// a solution that is closest to the starting configuration.
+  bool fast_return = true;
 };
 
 /// @brief Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.

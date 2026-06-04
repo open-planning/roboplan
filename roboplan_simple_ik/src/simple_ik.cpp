@@ -135,6 +135,13 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
       if (converged) {
         if (!options_.check_collisions || !scene_->hasCollisions(q)) {
+          // Return immedaiately if requested
+          if (options_.fast_return) {
+            solution.positions = nearest_solution.value();
+            return true;
+          }
+
+          // Otherwise record the distance and continue iterating
           const double dist = (q(q_indices) - q_seed(q_indices)).squaredNorm();
           if (!nearest_solution.has_value() || dist < nearest_distance) {
             nearest_solution = q(q_indices);

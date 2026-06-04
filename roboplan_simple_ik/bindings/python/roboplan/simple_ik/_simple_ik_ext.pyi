@@ -72,6 +72,13 @@ class SimpleIkOptions:
     @check_collisions.setter
     def check_collisions(self, arg: bool, /) -> None: ...
 
+    @property
+    def fast_return(self) -> bool:
+        """If true, returns when the first ik solution is found."""
+
+    @fast_return.setter
+    def fast_return(self, arg: bool, /) -> None: ...
+
 class SimpleIk:
     """
     Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.
