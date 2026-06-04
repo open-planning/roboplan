@@ -136,9 +136,9 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   std::vector<Node> nodes;
   rrt->initializeTree(tree, nodes, q_start);
 
-  // Extending WITHOUT RRT-Connect will add exactly one node at the expected pose
+  // A single EXTEND step adds exactly one node at the expected pose,
   // which is exactly options.max_connection_distance away.
-  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, collision_context));
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, collision_context, /*greedy*/ false));
   ASSERT_EQ(nodes.size(), 2);
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
@@ -147,8 +147,8 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   auto rrt_connect = std::make_unique<RRT>(scene_, options);
   rrt_connect->initializeTree(tree, nodes, q_start);
 
-  // Extending WITH RRT-Connect will add exactly 6 nodes and reach q_end.
-  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, collision_context));
+  // A greedy CONNECT step will add exactly 6 nodes and reach q_end.
+  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, collision_context, /*greedy*/ true));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
 }
@@ -180,11 +180,13 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   rrt->initializeTree(goal_tree, goal_nodes, q_goal);
 
   // The nodes should both be appended directly to the start and goal nodes.
-  ASSERT_TRUE(rrt->growTree(start_tree, start_nodes, q_start_nearest, collision_context));
+  ASSERT_TRUE(
+      rrt->growTree(start_tree, start_nodes, q_start_nearest, collision_context, /*greedy*/ false));
   ASSERT_EQ(start_nodes.size(), 2);
   ASSERT_EQ(start_nodes.back().config, q_start_nearest);
 
-  ASSERT_TRUE(rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, collision_context));
+  ASSERT_TRUE(
+      rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, collision_context, /*greedy*/ false));
   ASSERT_EQ(goal_nodes.size(), 2);
   ASSERT_EQ(goal_nodes.back().config, q_goal_nearest);
 

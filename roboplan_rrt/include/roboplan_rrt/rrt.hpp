@@ -77,14 +77,17 @@ public:
   void initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
                       size_t max_size = 1000);
 
-  /// @brief Attempt to add a sampled node to the provided tree and node set.
+  /// @brief Attempt to add node(s) to the provided tree and node set, growing toward `q_sample`.
   /// @param tree The tree to grow.
   /// @param nodes The set of sampled nodes so far.
-  /// @param q_sample Randomly sampled node to extend towards (or connect).
+  /// @param q_sample The configuration to extend towards (or connect to).
   /// @param collision_context This plan's private collision context, used for all collision checks.
+  /// @param greedy If true (the RRT-Connect CONNECT step), repeatedly extend toward `q_sample`
+  /// until it is reached or an obstacle is hit. If false (a single EXTEND step), add at most one
+  /// node, one `max_connection_distance` step toward `q_sample`.
   /// @return True if node(s) were added to the tree, false otherwise.
   bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
-                const CollisionContext& collision_context);
+                const CollisionContext& collision_context, bool greedy);
 
   /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
   /// @details The "latest added node" refers to `nodes.back()`. The function will identify the

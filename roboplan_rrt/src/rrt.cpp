@@ -144,19 +144,29 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
     std::vector<Node>& nodes = grow_start_tree ? start_nodes_ : goal_nodes_;
     std::vector<Node>& target_nodes = grow_start_tree ? goal_nodes_ : start_nodes_;
 
-    // Sample the next node with goal biasing, using the goal node for the starting tree,
-    // the start node for the goal tree.
-    if (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
-      q_sample = grow_start_tree ? q_goal : q_start;
+    // Sample the next configuration to grow toward.
+    // Goal biasing applies only to single-tree RRT, where it pulls the lone (start) tree toward
+    // the goal. In RRT-Connect the bidirectional CONNECT step below already pulls each tree toward
+    // the other, so we sample uniformly at random and let the trees reach for one another rather
+    // than repeatedly aiming at the fixed opposite endpoint.
+    if (!options_.rrt_connect && uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
+      q_sample = q_goal;
     } else {
       // Randomize only the planning group's DOFs in-place; non-group entries keep their values.
       scene_->randomizeJointPositions(joint_group_info_.joint_names, q_sample);
     }
 
-    // Attempt to grow the tree towards the sampled node.
-    // If no nodes are added, we resample and try again.
-    if (!growTree(tree, nodes, q_sample, collision_context)) {
+    // Extend the growing tree a single step toward the sample (EXTEND).
+    // If nothing was added, resample and try again.
+    if (!growTree(tree, nodes, q_sample, collision_context, /*greedy*/ false)) {
       continue;
+    }
+
+    // In RRT-Connect, greedily grow the target tree toward the growing tree's new frontier node
+    // (the CONNECT step), so the two trees actively reach for each other. The connection itself is
+    // verified and turned into a path by joinTrees below.
+    if (options_.rrt_connect) {
+      growTree(target_tree, target_nodes, nodes.back().config, collision_context, /*greedy*/ true);
     }
 
     // Check if the trees can be connected from the latest added node. If so we are done.
@@ -188,7 +198,7 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::Ve
 }
 
 bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
-                   const CollisionContext& collision_context) {
+                   const CollisionContext& collision_context, bool greedy) {
   bool grew_tree = false;
   const auto& q_indices = joint_group_info_.q_indices;
 
@@ -218,8 +228,8 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
     nodes.emplace_back(q_extend, parent_id);
 
-    // Only one iteration if we are not using RRT-Connect.
-    if (!options_.rrt_connect) {
+    // A plain EXTEND adds a single node; only the greedy CONNECT step keeps extending.
+    if (!greedy) {
       break;
     }
 
