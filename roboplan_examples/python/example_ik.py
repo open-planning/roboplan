@@ -89,15 +89,14 @@ def main(
 
     goals = []
     transform_controls = []
+    solution = JointConfiguration()
+
     for ee_name in model_data.ee_names:
         goal = CartesianConfiguration()
         goal.base_frame = model_data.base_link
         goal.tip_frame = ee_name
         goals.append(goal)
 
-    solution = JointConfiguration()
-
-    # Create interactive markers.
     def solveIk(_):
         for goal, controls in zip(goals, transform_controls):
             goal.tform = pin.SE3(
@@ -112,6 +111,16 @@ def main(
             scene.setJointPositions(q_full)
             start.positions = solution.positions
 
+    # Compute the base_frame fk for each control marker so that it renders
+    # correctly in base_frame coordinates.
+    base_fk = scene.forwardKinematics(q_full, model_data.base_link)
+    viz.viewer.scene.add_frame(
+        "/ik_markers",
+        position=base_fk[:3, 3],
+        wxyz=pin.Quaternion(base_fk[:3, :3]).coeffs()[[3, 0, 1, 2]],
+        show_axes=False,
+    )
+    # Then use the base_frame for the xform controls
     for ee_name in model_data.ee_names:
         controls = viz.viewer.scene.add_transform_controls(
             f"/ik_markers/{ee_name}",
@@ -130,7 +139,7 @@ def main(
     def reset_position(_):
         for goal, controls in zip(goals, transform_controls):
             fk_tform = scene.forwardKinematics(
-                scene.getCurrentJointPositions(), goal.tip_frame
+                scene.getCurrentJointPositions(), goal.tip_frame, goal.base_frame
             )
             controls.position = fk_tform[:3, 3]
             controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
