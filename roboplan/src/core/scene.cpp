@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <stdexcept>
 
 #include <tl/expected.hpp>
@@ -329,30 +328,16 @@ void Scene::rebuildBroadphaseManager() {
 }
 
 bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
-  // PROTOTYPE TOGGLE: set ROBOPLAN_NAIVE_COLLISIONS=1 to force the original pair-by-pair backend,
-  // for A/B benchmarking against the broadphase fast path. Read once and cached.
-  static const bool force_naive = [] {
-    const char* env = std::getenv("ROBOPLAN_NAIVE_COLLISIONS");
-    return env != nullptr && std::string(env) == "1";
-  }();
-
-  if (!debug && !force_naive) {
+  if (!debug) {
     // Fast path: broadphase AABB-tree culling, stopping at the first collision. The one-shot
     // overload runs forward kinematics, updates geometry placements + the AABB tree, then collides.
     return pinocchio::computeCollisions(model_, model_data_, *broadphase_manager_, q,
                                         /*stopAtFirstCollision=*/true);
   }
 
-  if (!debug) {
-    // Naive backend without the per-pair debug printing.
-    pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
-                                        q);
-    return pinocchio::computeCollisions(model_, model_data_, collision_model_,
-                                        collision_model_data_, q, /*stop_at_first_collision*/ true);
-  }
-
-  // Debug path: the naive backend evaluates every pair so individual colliding pairs can be
-  // reported (broadphase + stop-at-first cannot enumerate all collisions).
+  // Debug path: evaluate every pair with the naive backend (no stop-at-first) so that all
+  // individual colliding pairs can be printed. The broadphase fast path stops at the first
+  // collision and therefore cannot enumerate every colliding pair.
   pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
                                       q);
   const auto result =
