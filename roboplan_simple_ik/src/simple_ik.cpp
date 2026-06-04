@@ -137,7 +137,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
         if (!options_.check_collisions || !scene_->hasCollisions(q)) {
           // Return immedaiately if requested
           if (options_.fast_return) {
-            solution.positions = nearest_solution.value();
+            solution.positions = q(q_indices);
             return true;
           }
 
