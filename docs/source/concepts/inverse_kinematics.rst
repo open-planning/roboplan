@@ -35,6 +35,7 @@ The joint configuration is updated via integration:
 - Supports multiple simultaneous goal frames
 - Collision checking with random restarts on failure
 - Convergence monitoring based on separate linear and angular error thresholds
+- Optionally attempt to find a nearest solution to the seed until the timeout is reached
 
 Configuration
 ^^^^^^^^^^^^^
@@ -59,6 +60,8 @@ Configuration
 | ``max_angular_error_norm``  | Convergence threshold (radians)      | 0.001     |
 +-----------------------------+--------------------------------------+-----------+
 | ``check_collisions``        | Enable collision checking            | true      |
++-----------------------------+--------------------------------------+-----------+
+| ``fast_return``             | Return the first solution found.     | true      |
 +-----------------------------+--------------------------------------+-----------+
 
 Usage Example
