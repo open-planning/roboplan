@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <stdexcept>
 
 #include <tl/expected.hpp>
@@ -225,6 +226,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
 
   // Initialize the current state of the scene.
   cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
@@ -313,22 +315,57 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
   return std::nullopt;
 }
 
+void Scene::rebuildBroadphaseManager() {
+  // The manager caches AABB-tree state and pointers into collision_model_/collision_model_data_,
+  // so it is rebuilt from scratch whenever the collision data is (re)assigned.
+  broadphase_manager_.emplace(&model_, &collision_model_, &collision_model_data_);
+
+  // Initialize geometry world placements before the first AABB-tree refit. Without this the world
+  // transforms are uninitialized, which makes the underlying coal manager throw on degenerate
+  // bounding volumes. The per-query path overwrites these placements on every call.
+  pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
+                                      pinocchio::neutral(model_));
+  broadphase_manager_->update(/*compute_local_aabb=*/true);
+}
+
 bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
+  // PROTOTYPE TOGGLE: set ROBOPLAN_NAIVE_COLLISIONS=1 to force the original pair-by-pair backend,
+  // for A/B benchmarking against the broadphase fast path. Read once and cached.
+  static const bool force_naive = [] {
+    const char* env = std::getenv("ROBOPLAN_NAIVE_COLLISIONS");
+    return env != nullptr && std::string(env) == "1";
+  }();
+
+  if (!debug && !force_naive) {
+    // Fast path: broadphase AABB-tree culling, stopping at the first collision. The one-shot
+    // overload runs forward kinematics, updates geometry placements + the AABB tree, then collides.
+    return pinocchio::computeCollisions(model_, model_data_, *broadphase_manager_, q,
+                                        /*stopAtFirstCollision=*/true);
+  }
+
+  if (!debug) {
+    // Naive backend without the per-pair debug printing.
+    pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
+                                        q);
+    return pinocchio::computeCollisions(model_, model_data_, collision_model_,
+                                        collision_model_data_, q, /*stop_at_first_collision*/ true);
+  }
+
+  // Debug path: the naive backend evaluates every pair so individual colliding pairs can be
+  // reported (broadphase + stop-at-first cannot enumerate all collisions).
   pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
                                       q);
   const auto result =
       pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_, q,
-                                   /* stop_at_first_collision*/ !debug);
+                                   /* stop_at_first_collision*/ false);
 
-  if (debug) {
-    for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
-      const auto& cp = collision_model_.collisionPairs.at(k);
-      const auto& cr = collision_model_data_.collisionResults.at(k);
-      if (cr.isCollision()) {
-        const auto& body1 = collision_model_.geometryObjects.at(cp.first).name;
-        const auto& body2 = collision_model_.geometryObjects.at(cp.second).name;
-        std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
-      }
+  for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
+    const auto& cp = collision_model_.collisionPairs.at(k);
+    const auto& cr = collision_model_data_.collisionResults.at(k);
+    if (cr.isCollision()) {
+      const auto& body1 = collision_model_.geometryObjects.at(cp.first).name;
+      const auto& body2 = collision_model_.geometryObjects.at(cp.second).name;
+      std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
     }
   }
 
@@ -815,6 +852,7 @@ tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObje
   }
 
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
   return {};
 }
 
@@ -858,6 +896,7 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
   collision_model_.removeGeometryObject(name);
   collision_geometry_map_.erase(name);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
   return {};
 }
 
@@ -914,6 +953,7 @@ tl::expected<void, std::string> Scene::setCollisions(const std::string& body1,
     }
   }
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
   return {};
 }
 
