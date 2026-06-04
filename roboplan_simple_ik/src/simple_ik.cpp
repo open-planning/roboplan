@@ -59,10 +59,30 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
     }
     frame_ids.push_back(frame_id_result.value());
   }
+
+  // Optionally set base_frame IDs for each of the tip links
+  std::vector<std::optional<pinocchio::FrameIndex>> base_frame_ids;
+  base_frame_ids.reserve(n_frames);
+  for (const auto& goal : goals) {
+    if (goal.base_frame.empty()) {
+      base_frame_ids.push_back(std::nullopt);
+    } else {
+      const auto base_id_result = scene_->getFrameId(goal.base_frame);
+      if (!base_id_result) {
+        throw std::runtime_error("Failed to get the base frame ID: " + base_id_result.error());
+      }
+      base_frame_ids.push_back(base_id_result.value());
+    }
+  }
   const auto n_dims = 6 * n_frames;
   error_.resize(n_dims, 1);
   jacobian_.resize(n_dims, v_indices.size());
   jjt_.resize(n_dims, n_dims);
+
+  // Used to track the closest ik solution to the starting configuration
+  const auto q_seed = q;
+  std::optional<Eigen::VectorXd> nearest_solution;
+  double nearest_distance = std::numeric_limits<double>::max();
 
   size_t attempt = 0;
   while (attempt <= options_.max_restarts) {
@@ -86,8 +106,17 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
         pinocchio::updateFramePlacement(model, data_, frame_id);
 
+        // Determine the world goal depending on whether or not a base_frame was configured for the
+        // target
+        pinocchio::SE3 world_goal;
+        if (base_frame_ids[idx].has_value()) {
+          pinocchio::updateFramePlacement(model, data_, base_frame_ids[idx].value());
+          world_goal = data_.oMf[base_frame_ids[idx].value()] * goal_tform;
+        } else {
+          world_goal = goal_tform;
+        }
         error_.segment(idx * 6, 6) =
-            pinocchio::log6(goal_tform.actInv(data_.oMf[frame_id])).toVector();
+            pinocchio::log6(world_goal.actInv(data_.oMf[frame_id])).toVector();
 
         full_jacobian_.setZero();
         pinocchio::computeFrameJacobian(model, data_, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
@@ -111,8 +140,19 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
       if (converged) {
         if (!options_.check_collisions || !collision_context.hasCollisions(q)) {
-          solution.positions = q(q_indices);
-          return true;
+          // Return immedaiately if requested
+          if (options_.fast_return) {
+            solution.positions = q(q_indices);
+            return true;
+          }
+
+          // Otherwise record the distance and continue iterating
+          const double dist = (q(q_indices) - q_seed(q_indices)).squaredNorm();
+          if (!nearest_solution.has_value() || dist < nearest_distance) {
+            nearest_solution = q(q_indices);
+            nearest_distance = dist;
+          }
+          break;
         }
       }
 
@@ -136,7 +176,12 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
     ++attempt;
   }
 
-  return result;
+  if (nearest_solution.has_value()) {
+    solution.positions = nearest_solution.value();
+    return true;
+  } else {
+    return false;
+  }
 }
 
 }  // namespace roboplan

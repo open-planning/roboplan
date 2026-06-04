@@ -17,7 +17,7 @@ struct SimpleIkOptions {
   size_t max_iters = 100;
 
   /// @brief Max total computation time, in seconds.
-  double max_time = 0.01;
+  double max_time = 0.005;
 
   /// @brief Maximum number of restarts until success.
   size_t max_restarts = 2;
@@ -36,6 +36,11 @@ struct SimpleIkOptions {
 
   /// @brief Whether to check collisions.
   bool check_collisions = true;
+
+  /// @brief If true, returns when the first ik solution is found.
+  /// @details Otherwise the entire time budget will be consumed to attempt to find
+  /// a solution that is closest to the starting configuration.
+  bool fast_return = true;
 };
 
 /// @brief Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.

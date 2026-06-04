@@ -1,0 +1,31 @@
+# RoboPlan configuration file for the Reachback robot (Doosan H2017 arm + mobile base).
+
+joint_limits:
+  base_joint:
+    max_velocity: [1.3, 1.3, 4.0]
+    max_acceleration: [1.0, 1.0, 2.0]
+    max_jerk: [2.0, 2.0, 2.0]
+  arm_joint_1:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_joint_2:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_joint_3:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_joint_4:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_joint_5:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_joint_6:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_finger_b_joint:
+    max_acceleration: [1.0]
+    max_jerk: [5.0]
+  arm_finger_a_joint:
+    max_acceleration: [1.0]
+    max_jerk: [5.0]
