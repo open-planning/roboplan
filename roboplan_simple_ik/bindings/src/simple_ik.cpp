@@ -16,10 +16,10 @@ void init_simple_ik(nanobind::module_& m) {
 
   nanobind::class_<SimpleIkOptions>(m, "SimpleIkOptions", "Options struct for simple IK solver.")
       .def(nanobind::init<const std::string&, size_t, double, size_t, double, double, double,
-                          double, bool>(),
-           "group_name"_a = "", "max_iters"_a = 100, "max_time"_a = 0.01, "max_restarts"_a = 2,
+                          double, bool, bool>(),
+           "group_name"_a = "", "max_iters"_a = 100, "max_time"_a = 0.005, "max_restarts"_a = 2,
            "step_size"_a = 0.01, "damping"_a = 0.001, "max_linear_error_norm"_a = 0.001,
-           "max_angular_error_norm"_a = 0.001, "check_collisions"_a = true)
+           "max_angular_error_norm"_a = 0.001, "check_collisions"_a = true, "fast_return"_a = true)
       .def_rw("group_name", &SimpleIkOptions::group_name,
               "The joint group name to be used by the solver.")
       .def_rw("max_iters", &SimpleIkOptions::max_iters, "Max iterations for one try of the solver.")
