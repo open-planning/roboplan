@@ -496,7 +496,6 @@ def get_model_data():
                         "front_right_wheel_link",
                         "rear_left_wheel_link",
                         "rear_right_wheel_link",
-                        "chassis_link",
                         "test_box",
                         "test_sphere",
                     ],
