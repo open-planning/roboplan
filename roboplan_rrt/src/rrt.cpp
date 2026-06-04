@@ -100,7 +100,7 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size,
                                options_.collision_check_use_bisection,
-                               /*check_start_collisions*/ false, /*check_end_collisions*/ false))) {
+                               /*check_endpoints*/ false))) {
     return JointPath{.joint_names = joint_group_info_.joint_names,
                      .positions = {q_start(q_indices), q_goal(q_indices)}};
   }
@@ -195,12 +195,12 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     // Extend towards the sampled node
     auto q_extend = extend(q_current, q_sample, options_.max_connection_distance);
 
-    // If the extended node cannot be connected to the tree then throw it away and return.
-    // `q_current` is always an existing tree node (or a node we just added below), so it is
-    // already known collision-free and we skip re-checking the start endpoint.
+    // If the extended node cannot be connected to the tree then throw it away and return. The new
+    // endpoint `q_extend` must be validated; `q_current` is always an existing (known collision-
+    // free) tree node, so checking the endpoints only re-checks that known-free configuration.
     if (hasCollisionsAlongPath(*scene_, q_current, q_extend, options_.collision_check_step_size,
                                options_.collision_check_use_bisection,
-                               /*check_start_collisions*/ false, /*check_end_collisions*/ true)) {
+                               /*check_endpoints*/ true)) {
       break;
     }
 
@@ -254,7 +254,7 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   if ((scene_->configurationDistance(q_latest, q_nearest) <= options_.max_connection_distance) &&
       (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size,
                                options_.collision_check_use_bisection,
-                               /*check_start_collisions*/ false, /*check_end_collisions*/ false))) {
+                               /*check_endpoints*/ false))) {
 
     // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree.
     // Otherwise it is reversed.

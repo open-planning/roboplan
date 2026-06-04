@@ -38,16 +38,14 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
-                            const bool bisection, const bool check_start_collisions,
-                            const bool check_end_collisions) {
+                            const bool bisection, const bool check_endpoints) {
 
   const auto distance = scene.configurationDistance(q_start, q_end);
 
-  // Only check the endpoints the caller has not already validated. Short-circuit evaluation
-  // skips the (expensive) collision check entirely when the corresponding flag is false.
+  // Optionally check the endpoints. Callers that have already validated both endpoints can set
+  // `check_endpoints` to false to skip these (expensive) collision checks entirely.
   const bool collision_at_endpoints =
-      (check_start_collisions && scene.hasCollisions(q_start)) ||
-      (check_end_collisions && scene.hasCollisions(q_end));
+      check_endpoints && (scene.hasCollisions(q_start) || scene.hasCollisions(q_end));
 
   // Special case for short paths (also handles division by zero in the next case).
   if (distance <= max_step_size) {
