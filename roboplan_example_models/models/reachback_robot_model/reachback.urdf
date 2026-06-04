@@ -876,13 +876,13 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://roboplan_example_models/models/reachback_robot_model/meshes/gripper-collision.stl"/>
+        <mesh filename="package://roboplan_example_models/models/reachback_robot_model/meshes/gripper.stl"/>
       </geometry>
     </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://roboplan_example_models/models/reachback_robot_model/meshes/gripper-visual.stl"/>
+        <mesh filename="package://roboplan_example_models/models/reachback_robot_model/meshes/gripper.stl"/>
       </geometry>
       <material name="grey">
         <color rgba="0.5 0.5 0.5 1.0"/>
