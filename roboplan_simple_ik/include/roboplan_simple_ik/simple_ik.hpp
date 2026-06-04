@@ -17,7 +17,7 @@ struct SimpleIkOptions {
   size_t max_iters = 100;
 
   /// @brief Max total computation time, in seconds.
-  double max_time = 0.01;
+  double max_time = 0.005;
 
   /// @brief Maximum number of restarts until success.
   size_t max_restarts = 2;
