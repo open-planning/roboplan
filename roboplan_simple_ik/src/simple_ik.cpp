@@ -33,13 +33,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
                        const JointConfiguration& start, JointConfiguration& solution) {
   const auto start_time = std::chrono::steady_clock::now();
   const std::chrono::duration<double> timeout(options_.max_time);
-  const auto timed_out = [&]() { return std::chrono::steady_clock::now() - start_time > timeout; };
 
   bool result = false;
-
-  // State for `find_closest_to_seed` mode: the best (closest to seed) solution found so far.
-  bool found_closest = false;
-  double best_seed_distance = 0.0;
   const auto& model = scene_->getModel();
 
   const auto& q_indices = joint_group_info_.q_indices;
@@ -65,7 +60,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   jjt_.resize(n_dims, n_dims);
 
   size_t attempt = 0;
-  while (true) {
+  while (attempt <= options_.max_restarts) {
     if (attempt > 0) {
       const auto maybe_q_random = scene_->randomCollisionFreePositions();
       if (!maybe_q_random) {
@@ -111,21 +106,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
       if (converged) {
         if (!options_.check_collisions || !scene_->hasCollisions(q)) {
-          if (!options_.find_closest_to_seed) {
-            solution.positions = q(q_indices);
-            return true;
-          }
-
-          // Closest-to-seed mode: record this solution if it is the closest one so far, then move
-          // on to the next restart to keep exploring other solution branches.
-          const double seed_distance = (q(q_indices) - start.positions).norm();
-          if (!found_closest || seed_distance < best_seed_distance) {
-            best_seed_distance = seed_distance;
-            solution.positions = q(q_indices);
-            found_closest = true;
-            result = true;
-          }
-          break;
+          solution.positions = q(q_indices);
+          return true;
         }
       }
 
@@ -141,23 +123,12 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       ++iter;
 
       // Check for timeouts.
-      if (timed_out()) {
+      if (std::chrono::steady_clock::now() - start_time > timeout) {
         return result;
       }
     }
 
-    std::cout << "Did not return result, increasing attempt" << std::endl;
     ++attempt;
-
-    // Decide whether to keep restarting. In closest-to-seed mode we exhaust the entire time budget;
-    // otherwise we stop once `max_restarts` restarts have been exhausted.
-    if (options_.find_closest_to_seed) {
-      if (timed_out()) {
-        return result;
-      }
-    } else if (attempt > options_.max_restarts) {
-      break;
-    }
   }
 
   return result;
