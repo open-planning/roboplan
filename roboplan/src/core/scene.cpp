@@ -254,7 +254,13 @@ void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 Eigen::VectorXd Scene::randomPositions() {
   Eigen::VectorXd positions(model_.nq);
-  for (const auto& joint_name : joint_names_) {
+  randomizeJointPositions(joint_names_, positions);
+  return positions;
+}
+
+void Scene::randomizeJointPositions(const std::vector<std::string>& joint_names,
+                                    Eigen::VectorXd& q) {
+  for (const auto& joint_name : joint_names) {
     const auto& info = joint_info_map_.at(joint_name);
     if (info.mimic_info) {
       continue;  // Mimic joints have nq=0; only sample actuated coordinates.
@@ -267,8 +273,8 @@ Eigen::VectorXd Scene::randomPositions() {
     case JointType::CONTINUOUS: {
       // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
-      positions(q_idx) = std::cos(angle);
-      positions(q_idx + 1) = std::sin(angle);
+      q(q_idx) = std::cos(angle);
+      q(q_idx + 1) = std::sin(angle);
       break;
     }
     case JointType::PLANAR: {
@@ -279,24 +285,22 @@ Eigen::VectorXd Scene::randomPositions() {
           lo = -kDefaultPlanarJointTranslationLimit;
           hi = kDefaultPlanarJointTranslationLimit;
         }
-        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+        q(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
-      positions(q_idx + 2) = std::cos(angle);
-      positions(q_idx + 3) = std::sin(angle);
+      q(q_idx + 2) = std::cos(angle);
+      q(q_idx + 3) = std::sin(angle);
       break;
     }
     default:  // Generic case, including revolute and prismatic.
       for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
         const auto& lo = info.limits.min_position[dof];
         const auto& hi = info.limits.max_position[dof];
-        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+        q(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
       break;
     }
   }
-
-  return positions;
 }
 
 std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_samples) {

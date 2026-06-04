@@ -107,6 +107,14 @@ public:
   /// @return The random positions.
   Eigen::VectorXd randomPositions();
 
+  /// @brief Randomizes the positions of the specified joints in-place within a full configuration.
+  /// @details Only the degrees of freedom belonging to `joint_names` are overwritten; all other
+  /// entries of `q` are left untouched. This avoids allocating a full configuration and sampling
+  /// joints outside of a planning group on every call (e.g. in the RRT sampling loop).
+  /// @param joint_names The names of the joints to randomize.
+  /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
+  void randomizeJointPositions(const std::vector<std::string>& joint_names, Eigen::VectorXd& q);
+
   /// @brief Generates random collision-free positions for the robot model.
   /// @param max_tries The maximum number of samples to attempt.
   /// @return The random positions, if successful, else std::nullopt.

@@ -113,6 +113,13 @@ private:
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
 
+  /// @brief Collapses group joint positions to the k-d tree state space coordinates.
+  /// @details Thin wrapper around `collapseContinuousJointPositions` that throws on failure, so the
+  /// tree operations can call it without repeating the error handling at each call site.
+  /// @param q_group The group joint positions, in expanded (original) coordinates.
+  /// @return The collapsed configuration used for nearest-neighbor lookups.
+  Eigen::VectorXd collapse(const Eigen::VectorXd& q_group) const;
+
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
 

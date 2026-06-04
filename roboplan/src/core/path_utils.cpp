@@ -1,24 +1,7 @@
+#include <queue>
+#include <utility>
+
 #include <roboplan/core/path_utils.hpp>
-
-namespace {
-
-/// @brief Helper function that returns elements of a van der Corput sequence.
-/// @details This can be helpful to perform collision checking along a densely sampled path in a way
-/// that is statistically more efficient than linearly searching along the discretized path. An
-/// example sequence looks like [0, 1/2, 1/4, 3/4, 1/8, 5/8, 3/8, 7/8, 1/16, ...] See
-/// https://lavalle.pl/planning/node196.html for more details.
-/// @param bits The input bits to the sequence.
-/// @return The van der Corput sequence element.
-double vanDerCorput(uint32_t bits) {
-  bits = (bits << 16) | (bits >> 16);
-  bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
-  bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
-  bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
-  bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
-  return static_cast<double>(bits) * 2.3283064365386963e-10;  // 1 / 2^32
-}
-
-}  // namespace
 
 namespace roboplan {
 
@@ -55,12 +38,18 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
-                            const bool bisection) {
+                            const bool bisection, const bool check_start_collisions,
+                            const bool check_end_collisions) {
 
   const auto distance = scene.configurationDistance(q_start, q_end);
 
+  // Only check the endpoints the caller has not already validated. Short-circuit evaluation
+  // skips the (expensive) collision check entirely when the corresponding flag is false.
+  const bool collision_at_endpoints =
+      (check_start_collisions && scene.hasCollisions(q_start)) ||
+      (check_end_collisions && scene.hasCollisions(q_end));
+
   // Special case for short paths (also handles division by zero in the next case).
-  const bool collision_at_endpoints = scene.hasCollisions(q_start) || scene.hasCollisions(q_end);
   if (distance <= max_step_size) {
     return collision_at_endpoints;
   }
@@ -70,14 +59,34 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
     return true;
   }
 
-  auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
+  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
+
   if (bisection) {
-    // To guarantee minimum distance with bisection, we have to round up to the nearest power of 2.
-    num_steps = std::pow(2.0, std::ceil(std::log2(num_steps)));
+    // Visit the evenly-spaced interior grid points {1, ..., num_steps - 1} in a coarse-to-fine
+    // bisection order by recursively subdividing intervals at their midpoints. This keeps the
+    // early-termination benefit of bisection (collisions near the middle of an edge are found
+    // first) while checking exactly the same minimal number of points as the linear scan.
+    std::queue<std::pair<size_t, size_t>> intervals;
+    intervals.emplace(0, num_steps);
+    while (!intervals.empty()) {
+      const auto [low, high] = intervals.front();
+      intervals.pop();
+      const size_t mid = low + (high - low) / 2;
+      if (mid == low) {
+        continue;  // No interior grid point in this interval.
+      }
+      const auto fraction = static_cast<double>(mid) / static_cast<double>(num_steps);
+      if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+        return true;
+      }
+      intervals.emplace(low, mid);
+      intervals.emplace(mid, high);
+    }
+    return false;
   }
+
   for (size_t idx = 1; idx < num_steps; ++idx) {
-    const auto fraction =
-        bisection ? vanDerCorput(idx) : static_cast<double>(idx) / static_cast<double>(num_steps);
+    const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
     if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
       return true;
     }

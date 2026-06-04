@@ -36,6 +36,12 @@ struct SimpleIkOptions {
 
   /// @brief Whether to check collisions.
   bool check_collisions = true;
+
+  /// @brief Whether to keep searching for the solution closest to the seed.
+  /// @details When true, the solver ignores `max_restarts` and keeps restarting until `max_time` is
+  /// exhausted, returning the valid solution whose joint configuration is closest (smallest
+  /// Euclidean distance in joint space) to the starting seed configuration.
+  bool find_closest_to_seed = false;
 };
 
 /// @brief Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.

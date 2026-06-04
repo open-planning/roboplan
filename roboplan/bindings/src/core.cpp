@@ -306,7 +306,8 @@ void init_core_path_utils(nanobind::module_& m) {
         "scene"_a, "q_vec"_a, "frame_name"_a);
   m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath,
         "Checks collisions along a specified configuration space path.", "scene"_a, "q_start"_a,
-        "q_end"_a, "max_step_size"_a, "bisection"_a = false);
+        "q_end"_a, "max_step_size"_a, "bisection"_a = false, "check_start_collisions"_a = true,
+        "check_end_collisions"_a = true);
 
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")

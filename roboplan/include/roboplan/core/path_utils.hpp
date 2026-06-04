@@ -34,14 +34,20 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
-/// @param bisection If True, uses bisection instead of linear search.
-///   Bisection could help find collisions faster in collision-dense environments, but is
-///   slower in the worst-case scenario since it requires a number of samples that is a
-///   power of 2 to guarantee maximum distance between points.
+/// @param bisection If True, visits the interior grid points in a coarse-to-fine bisection order
+///   instead of a linear scan. This checks exactly the same minimal number of points as the linear
+///   scan, but can find collisions faster in collision-dense environments since points near the
+///   middle of the path are checked first.
+/// @param check_start_collisions If True, checks the start endpoint for collisions.
+///   Callers that already know `q_start` is collision-free (e.g. it is an existing node in a
+///   search tree) can set this to False to skip a redundant, expensive collision check.
+/// @param check_end_collisions If True, checks the end endpoint for collisions.
+///   Set to False when `q_end` has already been validated as collision-free.
 /// @return True if there are collisions, else false.
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
-                            const bool bisection = false);
+                            const bool bisection = false, const bool check_start_collisions = true,
+                            const bool check_end_collisions = true);
 
 /// @brief Shortcuts joint paths with random sampling and checking connections.
 /// @details This implementation is based on section 3.5.3 of:
