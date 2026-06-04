@@ -437,12 +437,8 @@ def get_model_data():
             ],
         ),
         "reachback": RobotModelConfig(
-            urdf_path=ROBOPLAN_MODELS_DIR
-            / "reachback_robot_model"
-            / "reachback.urdf",
-            srdf_path=ROBOPLAN_MODELS_DIR
-            / "reachback_robot_model"
-            / "reachback.srdf",
+            urdf_path=ROBOPLAN_MODELS_DIR / "reachback_robot_model" / "reachback.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "reachback_robot_model" / "reachback.srdf",
             yaml_config_path=ROBOPLAN_MODELS_DIR
             / "reachback_robot_model"
             / "reachback_config.yaml",

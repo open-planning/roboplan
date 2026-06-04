@@ -147,7 +147,7 @@
       </geometry>
     </collision>
   </link>
-  <!-- Ligths -->
+  <!-- Lights -->
   <joint name="front_lights_link_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="chassis_link"/>
