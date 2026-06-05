@@ -77,6 +77,27 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
                             const bool bisection = false, const bool check_endpoints = true);
 
+/// @brief Options struct for path shortcutting.
+struct PathShortcuttingOptions {
+  /// @brief The joint group name to be used for path shortcutting.
+  std::string group_name = "";
+
+  /// @brief Maximum step size used in collision checking, and the minimum separable distance
+  /// between points in a shortcut.
+  double max_step_size = 0.05;
+
+  /// @brief Maximum number of iterations of random sampling.
+  unsigned int max_iters = 100;
+
+  /// @brief Seed for the random generator. If < 0, a random seed is used.
+  int seed = 0;
+
+  /// @brief Stop early once this many consecutive iterations fail to apply a shortcut
+  /// (i.e., the path has converged), instead of always running the full `max_iters`.
+  /// A value of 0 disables early stopping.
+  unsigned int max_convergence_iters = 20;
+};
+
 /// @brief Shortcuts joint paths with random sampling and checking connections.
 /// @details This implementation is based on section 3.5.3 of:
 /// https://motion.cs.illinois.edu/RoboticSystems/MotionPlanningHigherDimensions.html
@@ -84,18 +105,18 @@ class PathShortcutter {
 public:
   /// @brief Construct a new path shortcutter instance.
   /// @param scene The scene for checking connectability between joint positions.
-  /// @param group_name The name of the group to use for path shortcutting.
-  PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name);
+  /// @param options A struct containing path shortcutting options.
+  PathShortcutter(const std::shared_ptr<Scene> scene, const PathShortcuttingOptions& options);
 
   /// @brief Attempts to shortcut a specified path.
+  /// @details Each iteration samples two configurations along the path and, if they connect
+  ///   collision-free, splices in the straight connection. Because successful corner-cutting
+  ///   shortcuts introduce new interpolated vertices, a deterministic redundant-vertex removal
+  ///   pass is interleaved periodically and run once more at the end to collapse vertices whose
+  ///   neighbors became directly connectable, preventing accumulation of unhelpful micro-segments.
   /// @param path The JointPath to try to shorten.
-  /// @param max_step_size Maximum step size to use in collision checking, and the minimum
-  /// separable distance between points in a shortcut.
-  /// @param max_iters Maximum number of iterations of random sampling (default 100).
-  /// @param seed Seed for the random generator, if < 0 then use a random seed (default -1).
   /// @return A shortcutted JointPath, if available.
-  JointPath shortcut(const JointPath& path, double max_step_size, unsigned int max_iters = 100,
-                     int seed = 0);
+  JointPath shortcut(const JointPath& path);
 
   /// @brief Computes configuration distances from the start to each pose in a path.
   /// @param path The JointPath to evaluate.
@@ -120,8 +141,23 @@ public:
                                             const Eigen::VectorXd& path_scalings, double value);
 
 private:
+  /// @brief Removes interior vertices whose neighbors are directly connectable.
+  /// @details Sweeps the path and deletes any interior vertex whose preceding and following
+  ///   vertices can be connected by a collision-free straight segment, repeating until a full
+  ///   sweep removes nothing. The endpoints are never removed. This collapses the redundant,
+  ///   nearly-collinear vertices left behind by corner-cutting shortcuts. Endpoint collision
+  ///   checks are skipped because every vertex is already an existing (collision-free) path node.
+  /// @param path_configs The path configurations to prune in place.
+  /// @param collision_context The collision context whose scratch backs the connection checks.
+  /// @return The number of vertices removed.
+  size_t removeRedundantVertices(std::vector<Eigen::VectorXd>& path_configs,
+                                 const CollisionContext& collision_context);
+
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
+
+  /// @brief The path shortcutting options.
+  PathShortcuttingOptions options_;
 
   /// @brief The joint group info for the path shortcutter.
   JointGroupInfo joint_group_info_;

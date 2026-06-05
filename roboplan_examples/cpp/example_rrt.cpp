@@ -59,9 +59,12 @@ int main(int /*argc*/, char* /*argv*/[]) {
   // Optionally include path shortcutting
   const auto include_shortcutting = true;
   if (include_shortcutting) {
-    const auto max_iters = 1000;
-    auto shortcutter = PathShortcutter(scene, "arm");
-    path = shortcutter.shortcut(path, options.collision_check_step_size, max_iters);
+    PathShortcuttingOptions shortcutting_options;
+    shortcutting_options.group_name = "arm";
+    shortcutting_options.max_step_size = options.collision_check_step_size;
+    shortcutting_options.max_iters = 1000;
+    auto shortcutter = PathShortcutter(scene, shortcutting_options);
+    path = shortcutter.shortcut(path);
     std::cout << "Shortcutted path:\n" << path << std::endl;
   }
 

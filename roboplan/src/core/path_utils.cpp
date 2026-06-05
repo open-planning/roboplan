@@ -119,11 +119,12 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
       max_step_size, bisection, check_endpoints);
 }
 
-PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name)
-    : scene_{scene} {
+PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene,
+                                 const PathShortcuttingOptions& options)
+    : scene_{scene}, options_{options} {
 
   // Validate the joint group.
-  const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name);
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(options_.group_name);
   if (!maybe_joint_group_info) {
     throw std::runtime_error("Could not initialize path shortcutter: " +
                              maybe_joint_group_info.error());
@@ -133,8 +134,10 @@ PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::
   q_full_ = scene_->getCurrentJointPositions();
 }
 
-JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
-                                    unsigned int max_iters, int seed) {
+JointPath PathShortcutter::shortcut(const JointPath& path) {
+
+  const double max_step_size = options_.max_step_size;
+  const unsigned int max_convergence_iters = options_.max_convergence_iters;
 
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
@@ -142,7 +145,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
   // We sample in the range (0, 1] to prevent modification of the starting configuration.
   std::random_device rd;
-  std::mt19937 gen(seed < 0 ? seed : rd());
+  std::mt19937 gen(options_.seed < 0 ? rd() : static_cast<unsigned int>(options_.seed));
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   // Snapshot the scene geometry into a private collision context for this shortcutting pass, so all
@@ -153,18 +156,35 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
   auto q_start = q_full_;
   auto q_end = q_full_;
 
+  // Cadence (in iterations) at which to interleave the deterministic redundant-vertex removal pass
+  // that cleans up the micro-segments introduced by corner-cutting shortcuts.
+  constexpr unsigned int kRedundantRemovalCadence = 20;
+
+  // Count of consecutive iterations that failed to apply a shortcut. Once this reaches
+  // `max_convergence_iters` the path is considered converged and we stop early.
+  unsigned int empty_iters = 0;
+
   const auto& q_indices = joint_group_info_.q_indices;
-  for (unsigned int i = 0; i < max_iters; ++i) {
+  for (unsigned int i = 0; i < options_.max_iters; ++i) {
     if (path_configs.size() < 3) {
       // The path is at maximum shortcutted-ness
-      return shortened_path;
+      break;
+    }
+
+    // Periodically collapse redundant vertices left behind by corner-cutting shortcuts, so the
+    // working path stays compact rather than accumulating unhelpful micro-segments.
+    if (i > 0 && i % kRedundantRemovalCadence == 0) {
+      removeRedundantVertices(path_configs, collision_context);
+      if (path_configs.size() < 3) {
+        break;
+      }
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can
     // assume we are done (the path is at maximum shortness).
     const auto path_scalings_maybe = getNormalizedPathScaling(shortened_path);
     if (!path_scalings_maybe.has_value()) {
-      return shortened_path;
+      break;
     }
     const auto path_scalings = path_scalings_maybe.value();
 
@@ -181,6 +201,9 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
     // Samples are on the same segment so shortening would have no effect.
     if (idx_high == idx_low) {
+      if (max_convergence_iters > 0 && ++empty_iters >= max_convergence_iters) {
+        break;
+      }
       continue;
     }
 
@@ -209,6 +232,9 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
     // Ensure the new connection is valid. If not, try again.
     if (hasCollisionsAlongPath(*scene_, collision_context, q_low, q_high, max_step_size)) {
+      if (max_convergence_iters > 0 && ++empty_iters >= max_convergence_iters) {
+        break;
+      }
       continue;
     }
 
@@ -216,9 +242,47 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
     path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices).eval());
     path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices).eval());
+
+    // A shortcut was applied, so the path made progress; reset the convergence counter.
+    empty_iters = 0;
   }
 
+  // Final cleanup pass to collapse any redundant vertices remaining at convergence.
+  removeRedundantVertices(path_configs, collision_context);
+
   return shortened_path;
+}
+
+size_t PathShortcutter::removeRedundantVertices(std::vector<Eigen::VectorXd>& path_configs,
+                                                const CollisionContext& collision_context) {
+  const auto& q_indices = joint_group_info_.q_indices;
+  auto q_prev = q_full_;
+  auto q_next = q_full_;
+
+  size_t total_removed = 0;
+  bool removed_any = true;
+  while (removed_any) {
+    removed_any = false;
+    // Walk the interior vertices, deleting any whose neighbors connect directly. When a vertex is
+    // removed we do not advance, so the new adjacency (i-1, i+1) is re-evaluated immediately.
+    size_t i = 1;
+    while (i + 1 < path_configs.size()) {
+      q_prev(q_indices) = path_configs[i - 1];
+      q_next(q_indices) = path_configs[i + 1];
+      // The neighbors are existing collision-free path nodes, so skip the endpoint checks.
+      if (!hasCollisionsAlongPath(*scene_, collision_context, q_prev, q_next,
+                                  options_.max_step_size,
+                                  /* bisection */ false, /* check_endpoints */ false)) {
+        path_configs.erase(path_configs.begin() + i);
+        ++total_removed;
+        removed_any = true;
+      } else {
+        ++i;
+      }
+    }
+  }
+
+  return total_removed;
 }
 
 tl::expected<Eigen::VectorXd, std::string> PathShortcutter::getPathLengths(const JointPath& path) {

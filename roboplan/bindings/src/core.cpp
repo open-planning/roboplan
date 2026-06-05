@@ -314,12 +314,30 @@ void init_core_path_utils(nanobind::module_& m) {
         "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
         "check_endpoints"_a = true);
 
+  nanobind::class_<PathShortcuttingOptions>(m, "PathShortcuttingOptions",
+                                            "Options struct for path shortcutting.")
+      .def(nanobind::init<const std::string&, double, unsigned int, int, unsigned int>(),
+           "group_name"_a = "", "max_step_size"_a = 0.05, "max_iters"_a = 100, "seed"_a = 0,
+           "max_convergence_iters"_a = 20)
+      .def_rw("group_name", &PathShortcuttingOptions::group_name,
+              "The joint group name to be used for path shortcutting.")
+      .def_rw("max_step_size", &PathShortcuttingOptions::max_step_size,
+              "Maximum step size used in collision checking, and the minimum separable distance "
+              "between points in a shortcut.")
+      .def_rw("max_iters", &PathShortcuttingOptions::max_iters,
+              "Maximum number of iterations of random sampling.")
+      .def_rw("seed", &PathShortcuttingOptions::seed,
+              "Seed for the random generator. If < 0, a random seed is used.")
+      .def_rw("max_convergence_iters", &PathShortcuttingOptions::max_convergence_iters,
+              "Stop early once this many consecutive iterations fail to apply a shortcut. A value "
+              "of 0 disables early stopping.");
+
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")
-      .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&>(), "scene"_a,
-           "group_name"_a)
+      .def(nanobind::init<const std::shared_ptr<Scene>, const PathShortcuttingOptions&>(),
+           "scene"_a, "options"_a)
       .def("shortcut", &PathShortcutter::shortcut, "Attempts to shortcut a specified path.",
-           "path"_a, "max_step_size"_a, "max_iters"_a = 100, "seed"_a = 0)
+           "path"_a)
       .def("getPathLengths", unwrap_expected(&PathShortcutter::getPathLengths),
            "Computes configuration distances from the start to each pose in a path.", "path"_a)
       .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling),

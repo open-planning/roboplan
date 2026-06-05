@@ -79,7 +79,9 @@ TEST_F(RoboPlanPathUtilsTest, testHasCollisionsAlongPath) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
-  auto shortcutter = PathShortcutter(scene_, "arm");
+  PathShortcuttingOptions options;
+  options.group_name = "arm";
+  auto shortcutter = PathShortcutter(scene_, options);
 
   JointPath path = getTestPath(2);
   const auto path_lengths_maybe = shortcutter.getPathLengths(path);
@@ -91,7 +93,9 @@ TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
-  auto shortcutter = PathShortcutter(scene_, "arm");
+  PathShortcuttingOptions options;
+  options.group_name = "arm";
+  auto shortcutter = PathShortcutter(scene_, options);
 
   JointPath empty_path = getTestPath(0);
   auto empty_scalings_maybe = shortcutter.getNormalizedPathScaling(empty_path);
@@ -114,7 +118,9 @@ TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
-  auto shortcutter = PathShortcutter(scene_, "arm");
+  PathShortcuttingOptions options;
+  options.group_name = "arm";
+  auto shortcutter = PathShortcutter(scene_, options);
 
   auto test_path = getTestPath(3);
   auto path_scalings = shortcutter.getNormalizedPathScaling(test_path).value();
@@ -136,17 +142,64 @@ TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
 }
 
 TEST_F(RoboPlanPathUtilsTest, testShortcutPath) {
-  auto shortcutter = PathShortcutter(scene_, "arm");
+  PathShortcuttingOptions options;
+  options.group_name = "arm";
+  options.max_step_size = 0.25;
+  options.seed = 11235;
+  auto shortcutter = PathShortcutter(scene_, options);
 
   // This path can actually be made shorter
   auto test_path = getTestPath(4);
-  auto shortened_path =
-      shortcutter.shortcut(test_path, 0.25, /* max_iters */ 100, /* seed */ 11235);
+  auto shortened_path = shortcutter.shortcut(test_path);
 
   // Verify the shortcut path length is strictly less than the original.
   const auto orig_path_lengths = shortcutter.getPathLengths(test_path).value();
   const auto new_path_lengths = shortcutter.getPathLengths(shortened_path).value();
   ASSERT_GT(orig_path_lengths.tail(1)(0), new_path_lengths.tail(1)(0));
+}
+
+TEST_F(RoboPlanPathUtilsTest, testShortcutRemovesRedundantVertices) {
+  PathShortcuttingOptions options;
+  options.group_name = "arm";
+  options.max_step_size = 0.25;
+  options.seed = 11235;
+  auto shortcutter = PathShortcutter(scene_, options);
+
+  // A straight, collision-free path with several collinear interior waypoints. Every interior
+  // vertex is redundant, so the redundant-vertex removal pass should collapse the path down to
+  // just its two endpoints regardless of the random sampling.
+  JointPath collinear_path;
+  collinear_path.joint_names = scene_->getJointNames();
+  for (double value : {0.0, 0.2, 0.4, 0.6, 0.8, 1.0}) {
+    Eigen::VectorXd q = Eigen::VectorXd::Zero(6);
+    q(0) = value;
+    collinear_path.positions.push_back(q);
+  }
+
+  auto shortened_path = shortcutter.shortcut(collinear_path);
+
+  ASSERT_EQ(shortened_path.positions.size(), 2u);
+  EXPECT_DOUBLE_EQ(shortened_path.positions.front()(0), 0.0);
+  EXPECT_DOUBLE_EQ(shortened_path.positions.back()(0), 1.0);
+}
+
+TEST_F(RoboPlanPathUtilsTest, testShortcutConvergenceStopsEarly) {
+  PathShortcuttingOptions options;
+  options.group_name = "arm";
+  options.max_step_size = 0.25;
+  options.max_iters = 1000;
+  options.seed = 11235;
+  options.max_convergence_iters = 5;
+  auto shortcutter = PathShortcutter(scene_, options);
+
+  // With a small convergence window, an already-straight path (no possible improvement) should
+  // return quickly without error, still preserving its endpoints.
+  auto test_path = getTestPath(4);
+  auto shortened_path = shortcutter.shortcut(test_path);
+
+  ASSERT_GE(shortened_path.positions.size(), 2u);
+  EXPECT_DOUBLE_EQ(shortened_path.positions.front()(0), test_path.positions.front()(0));
+  EXPECT_DOUBLE_EQ(shortened_path.positions.back()(0), test_path.positions.back()(0));
 }
 
 }  // namespace roboplan

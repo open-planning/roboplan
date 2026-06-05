@@ -529,12 +529,56 @@ def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float6
     Checks collisions along a specified configuration space path. Uses the Scene's own collision scratch, so it is not safe to call concurrently with other queries on the same Scene.
     """
 
+class PathShortcuttingOptions:
+    """Options struct for path shortcutting."""
+
+    def __init__(self, group_name: str = '', max_step_size: float = 0.05, max_iters: int = 100, seed: int = 0, max_convergence_iters: int = 20) -> None: ...
+
+    @property
+    def group_name(self) -> str:
+        """The joint group name to be used for path shortcutting."""
+
+    @group_name.setter
+    def group_name(self, arg: str, /) -> None: ...
+
+    @property
+    def max_step_size(self) -> float:
+        """
+        Maximum step size used in collision checking, and the minimum separable distance between points in a shortcut.
+        """
+
+    @max_step_size.setter
+    def max_step_size(self, arg: float, /) -> None: ...
+
+    @property
+    def max_iters(self) -> int:
+        """Maximum number of iterations of random sampling."""
+
+    @max_iters.setter
+    def max_iters(self, arg: int, /) -> None: ...
+
+    @property
+    def seed(self) -> int:
+        """Seed for the random generator. If < 0, a random seed is used."""
+
+    @seed.setter
+    def seed(self, arg: int, /) -> None: ...
+
+    @property
+    def max_convergence_iters(self) -> int:
+        """
+        Stop early once this many consecutive iterations fail to apply a shortcut. A value of 0 disables early stopping.
+        """
+
+    @max_convergence_iters.setter
+    def max_convergence_iters(self, arg: int, /) -> None: ...
+
 class PathShortcutter:
     """Shortcuts joint paths with random sampling and checking connections."""
 
-    def __init__(self, scene: Scene, group_name: str) -> None: ...
+    def __init__(self, scene: Scene, options: PathShortcuttingOptions) -> None: ...
 
-    def shortcut(self, path: JointPath, max_step_size: float, max_iters: int = 100, seed: int = 0) -> JointPath:
+    def shortcut(self, path: JointPath) -> JointPath:
         """Attempts to shortcut a specified path."""
 
     def getPathLengths(self, path: JointPath) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
