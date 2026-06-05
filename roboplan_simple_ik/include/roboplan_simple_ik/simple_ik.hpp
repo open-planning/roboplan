@@ -23,7 +23,7 @@ struct SimpleIkOptions {
   size_t max_restarts = 2;
 
   /// @brief The integration step for the solver.
-  double step_size = 0.01;
+  double step_size = 0.25;
 
   /// @brief Damping value for the Jacobian pseudoinverse.
   double damping = 0.001;
@@ -94,6 +94,9 @@ private:
 
   /// @brief The full model Jacobian (for allocating memory once).
   Eigen::MatrixXd full_jacobian_;
+
+  /// @brief The derivative of log6 at a frame's pose error (for allocating memory once).
+  Eigen::Matrix<double, 6, 6> Jlog_;
 
   /// @brief The joint group's Jacobian (for allocating memory once).
   Eigen::MatrixXd jacobian_;

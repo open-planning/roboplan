@@ -388,7 +388,7 @@ def get_model_data():
             / "stretch4_sg4_config.yaml",
             default_joint_group="stretch4_arm",
             ee_names=["grasp_center_link"],
-            base_link="base_link",
+            base_link="universe",
             starting_joint_config=[
                 # nq=17 with Pinocchio mimic joints (arm_l2/l3/l4 collapsed into arm_l1).
                 # Planar base (x, y, cos(yaw), sin(yaw)), SRDF home pose.
@@ -444,7 +444,7 @@ def get_model_data():
             / "reachback_config.yaml",
             default_joint_group="arm_base",
             ee_names=["arm_gripper_tcp"],
-            base_link="base_link",
+            base_link="universe",
             starting_joint_config=[
                 # nq=19 with Pinocchio mimic joints (arm_finger_b_joint mimics arm_finger_a_joint removed).
                 # Planar base_joint (x, y, cos(yaw), sin(yaw)), 4 continuous wheel joints (cos, sin each),

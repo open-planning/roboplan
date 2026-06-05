@@ -101,8 +101,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
         pinocchio::updateFramePlacement(model, data_, frame_id);
 
-        // Determine the world goal depending on whether or not a base_frame was configured for the
-        // target
+        // Determine the world goal depending on whether a base_frame was configured for the target.
         pinocchio::SE3 world_goal;
         if (base_frame_ids[idx].has_value()) {
           pinocchio::updateFramePlacement(model, data_, base_frame_ids[idx].value());
@@ -110,14 +109,20 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
         } else {
           world_goal = goal_tform;
         }
-        error_.segment(idx * 6, 6) =
-            pinocchio::log6(world_goal.actInv(data_.oMf[frame_id])).toVector();
+        // Pose error of the current frame relative to the goal, in the frame's local coordinates.
+        const pinocchio::SE3 frame_error = world_goal.actInv(data_.oMf[frame_id]);
+        error_.segment(idx * 6, 6) = pinocchio::log6(frame_error).toVector();
+
+        // Use the analytic (Gauss-Newton) Jacobian: chain the local frame Jacobian through the
+        // derivative of log6 so the step accounts for the SE(3) curvature of the error near the
+        // goal. This converges far faster than the first-order frame Jacobian alone.
+        pinocchio::Jlog6(frame_error, Jlog_);
 
         full_jacobian_.setZero();
         pinocchio::computeFrameJacobian(model, data_, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
                                         full_jacobian_);
         jacobian_.block(idx * 6, 0, 6, v_indices.size()) =
-            full_jacobian_(Eigen::placeholders::all, v_indices);
+            Jlog_ * full_jacobian_(Eigen::placeholders::all, v_indices);
       }
 
       // Ensure every target frame meets both linear and angular error tolerances.

@@ -18,7 +18,7 @@ void init_simple_ik(nanobind::module_& m) {
       .def(nanobind::init<const std::string&, size_t, double, size_t, double, double, double,
                           double, bool, bool>(),
            "group_name"_a = "", "max_iters"_a = 100, "max_time"_a = 0.005, "max_restarts"_a = 2,
-           "step_size"_a = 0.01, "damping"_a = 0.001, "max_linear_error_norm"_a = 0.001,
+           "step_size"_a = 0.25, "damping"_a = 0.001, "max_linear_error_norm"_a = 0.001,
            "max_angular_error_norm"_a = 0.001, "check_collisions"_a = true, "fast_return"_a = true)
       .def_rw("group_name", &SimpleIkOptions::group_name,
               "The joint group name to be used by the solver.")
