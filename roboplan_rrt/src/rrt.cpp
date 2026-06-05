@@ -313,6 +313,14 @@ JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
 }
 
 Eigen::VectorXd RRT::collapse(const Eigen::VectorXd& q_group) const {
+  // Fast path: a group with no continuous/planar DOFs collapses to itself, so skip the work in
+  // collapseContinuousJointPositions (a group-info map lookup that copies the whole JointGroupInfo,
+  // plus a per-joint getJointInfo lookup). This runs on every k-d tree insert and nearest-neighbor
+  // query, so it is firmly on the RRT hot path.
+  if (!joint_group_info_.has_continuous_dofs) {
+    return q_group;
+  }
+
   const auto maybe_collapsed =
       collapseContinuousJointPositions(*scene_, options_.group_name, q_group);
   if (!maybe_collapsed) {

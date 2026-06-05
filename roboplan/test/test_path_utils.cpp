@@ -69,6 +69,12 @@ TEST_F(RoboPlanPathUtilsTest, testHasCollisionsAlongPath) {
     const auto result_bisection = hasCollisionsAlongPath(*scene_, collision_context, q_start, q_end,
                                                          max_step_size, /* bisection*/ true);
     ASSERT_EQ(result_linear, result_bisection);
+
+    // The Scene-only overload (which uses the Scene's own collision scratch) must agree with the
+    // CollisionContext overload.
+    const auto result_scene =
+        hasCollisionsAlongPath(*scene_, q_start, q_end, max_step_size, /* bisection*/ false);
+    ASSERT_EQ(result_linear, result_scene);
   }
 }
 

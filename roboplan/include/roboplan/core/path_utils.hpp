@@ -53,6 +53,30 @@ bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collisio
                             const double max_step_size, const bool bisection = false,
                             const bool check_endpoints = true);
 
+/// @brief Checks collisions along a specified configuration space path using the Scene's own
+/// scratch.
+/// @details This convenience overload answers every collision check via `scene.hasCollisions`,
+/// which
+///   uses the Scene's internal (shared) collision scratch. It avoids constructing a per-call
+///   CollisionContext, but carries the same caveat as every other Scene collision query: it is not
+///   safe to call concurrently with other queries on the same Scene. Callers that need to
+///   parallelize should own a CollisionContext and use the overload above.
+/// @param scene The scene to use for interpolation, distances, and collision checks.
+/// @param q_start The starting joint positions.
+/// @param q_end The ending joint positions.
+/// @param max_step_size The maximum configuration distance step size for interpolation.
+/// @param bisection If True, visits the interior grid points in a coarse-to-fine bisection order
+///   instead of a linear scan. This checks exactly the same minimal number of points as the linear
+///   scan, but can find collisions faster in collision-dense environments since points near the
+///   middle of the path are checked first.
+/// @param check_endpoints If True, checks the start and end endpoints for collisions.
+///   Callers that already know both endpoints are collision-free (e.g. they are existing nodes in a
+///   search tree) can set this to False to skip redundant, expensive collision checks.
+/// @return True if there are collisions, else false.
+bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection = false, const bool check_endpoints = true);
+
 /// @brief Shortcuts joint paths with random sampling and checking connections.
 /// @details This implementation is based on section 3.5.3 of:
 /// https://motion.cs.illinois.edu/RoboticSystems/MotionPlanningHigherDimensions.html

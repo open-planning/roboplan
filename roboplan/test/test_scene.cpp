@@ -3,7 +3,6 @@
 #include <memory>
 #include <vector>
 
-#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -113,16 +112,15 @@ TEST_F(RoboPlanSceneTest, CollisionCheck) {
 
 TEST_F(RoboPlanSceneTest, CollisionCheckAlongPath) {
   // Collision free
-  const CollisionContext collision_context(*scene_);
   Eigen::VectorXd q_start_free(6);
   q_start_free << 0.0, -1.57, 0.0, 0.0, 0.0, 0.0;
   Eigen::VectorXd q_end_free(6);
   q_end_free << 1.0, -1.57, 1.57, 0.0, 0.0, 0.0;
-  EXPECT_FALSE(hasCollisionsAlongPath(*scene_, collision_context, q_start_free, q_end_free, 0.05));
+  EXPECT_FALSE(hasCollisionsAlongPath(*scene_, q_start_free, q_end_free, 0.05));
 
   Eigen::VectorXd q_end_coll(6);
   q_end_coll << 0.0, -1.57, 3.0, 0.0, 0.0, 0.0;
-  EXPECT_TRUE(hasCollisionsAlongPath(*scene_, collision_context, q_start_free, q_end_coll, 0.05));
+  EXPECT_TRUE(hasCollisionsAlongPath(*scene_, q_start_free, q_end_coll, 0.05));
 }
 
 TEST_F(RoboPlanSceneTest, GetFrameMapReturnsCorrectMapping) {

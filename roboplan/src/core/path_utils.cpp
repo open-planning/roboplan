@@ -37,17 +37,23 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
   return frame_path;
 }
 
-bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collision_context,
-                            const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
-                            const double max_step_size, const bool bisection,
-                            const bool check_endpoints) {
+namespace {
+
+/// @brief Shared traversal for the hasCollisionsAlongPath overloads.
+/// @details Visits the same minimal set of configurations along the path and answers each collision
+///   check via the `has_collisions` callable, so the public overloads only differ in which scratch
+///   (a caller-owned CollisionContext or the Scene's own) backs that check.
+template <typename CollisionCheck>
+bool hasCollisionsAlongPathImpl(const Scene& scene, const CollisionCheck& has_collisions,
+                                const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                                const double max_step_size, const bool bisection,
+                                const bool check_endpoints) {
   const auto distance = scene.configurationDistance(q_start, q_end);
 
   // Optionally check the endpoints. Callers that have already validated both endpoints can set
   // `check_endpoints` to false to skip these (expensive) collision checks entirely.
   const bool collision_at_endpoints =
-      check_endpoints &&
-      (collision_context.hasCollisions(q_start) || collision_context.hasCollisions(q_end));
+      check_endpoints && (has_collisions(q_start) || has_collisions(q_end));
 
   // Special case for short paths (also handles division by zero in the next case).
   if (distance <= max_step_size) {
@@ -76,7 +82,7 @@ bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collisio
         continue;  // No interior grid point in this interval.
       }
       const auto fraction = static_cast<double>(mid) / static_cast<double>(num_steps);
-      if (collision_context.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+      if (has_collisions(scene.interpolate(q_start, q_end, fraction))) {
         return true;
       }
       intervals.emplace(low, mid);
@@ -87,11 +93,30 @@ bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collisio
 
   for (size_t idx = 1; idx < num_steps; ++idx) {
     const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
-    if (collision_context.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+    if (has_collisions(scene.interpolate(q_start, q_end, fraction))) {
       return true;
     }
   }
   return false;
+}
+
+}  // namespace
+
+bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collision_context,
+                            const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                            const double max_step_size, const bool bisection,
+                            const bool check_endpoints) {
+  return hasCollisionsAlongPathImpl(
+      scene, [&](const Eigen::VectorXd& q) { return collision_context.hasCollisions(q); }, q_start,
+      q_end, max_step_size, bisection, check_endpoints);
+}
+
+bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection, const bool check_endpoints) {
+  return hasCollisionsAlongPathImpl(
+      scene, [&](const Eigen::VectorXd& q) { return scene.hasCollisions(q); }, q_start, q_end,
+      max_step_size, bisection, check_endpoints);
 }
 
 PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name)

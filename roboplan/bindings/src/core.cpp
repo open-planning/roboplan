@@ -7,7 +7,6 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
-#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_utils.hpp>
@@ -306,18 +305,14 @@ void init_core_path_utils(nanobind::module_& m) {
                                 const std::string&>(&computeFramePath),
         "Computes the Cartesian path of a specified frame using a vector of provided points.",
         "scene"_a, "q_vec"_a, "frame_name"_a);
-  m.def(
-      "hasCollisionsAlongPath",
-      [](const Scene& scene, const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
-         double max_step_size, bool bisection, bool check_endpoints) {
-        // Build a one-off collision context for this query. This convenience binding is not on a
-        // hot path; algorithms that check many paths should own a long-lived CollisionContext.
-        const CollisionContext context(scene);
-        return hasCollisionsAlongPath(scene, context, q_start, q_end, max_step_size, bisection,
-                                      check_endpoints);
-      },
-      "Checks collisions along a specified configuration space path.", "scene"_a, "q_start"_a,
-      "q_end"_a, "max_step_size"_a, "bisection"_a = false, "check_endpoints"_a = true);
+  m.def("hasCollisionsAlongPath",
+        nanobind::overload_cast<const Scene&, const Eigen::VectorXd&, const Eigen::VectorXd&,
+                                const double, const bool, const bool>(&hasCollisionsAlongPath),
+        "Checks collisions along a specified configuration space path. Uses the Scene's own "
+        "collision scratch, so it is not safe to call concurrently with other queries on the same "
+        "Scene.",
+        "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
+        "check_endpoints"_a = true);
 
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")
