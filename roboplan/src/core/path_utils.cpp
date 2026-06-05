@@ -156,10 +156,6 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
   auto q_start = q_full_;
   auto q_end = q_full_;
 
-  // Cadence (in iterations) at which to interleave the deterministic redundant-vertex removal pass
-  // that cleans up the micro-segments introduced by corner-cutting shortcuts.
-  constexpr unsigned int kRedundantRemovalCadence = 20;
-
   // Count of consecutive iterations that failed to apply a shortcut. Once this reaches
   // `max_convergence_iters` the path is considered converged and we stop early.
   unsigned int empty_iters = 0;
@@ -173,7 +169,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
 
     // Periodically collapse redundant vertices left behind by corner-cutting shortcuts, so the
     // working path stays compact rather than accumulating unhelpful micro-segments.
-    if (i > 0 && i % kRedundantRemovalCadence == 0) {
+    if (i > 0 && i % options_.redundant_removal_iters == 0) {
       removeRedundantVertices(path_configs, collision_context);
       if (path_configs.size() < 3) {
         break;

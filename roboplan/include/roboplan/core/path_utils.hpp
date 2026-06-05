@@ -96,6 +96,10 @@ struct PathShortcuttingOptions {
   /// (i.e., the path has converged), instead of always running the full `max_iters`.
   /// A value of 0 disables early stopping.
   unsigned int max_convergence_iters = 20;
+
+  /// @brief Cadence (in iterations) at which to interleave the redundant-vertex
+  /// removal pass that cleans up the micro-segments introduced by shortcutting.
+  unsigned int redundant_removal_iters = 20;
 };
 
 /// @brief Shortcuts joint paths with random sampling and checking connections.

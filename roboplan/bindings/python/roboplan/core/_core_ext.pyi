@@ -532,7 +532,7 @@ def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float6
 class PathShortcuttingOptions:
     """Options struct for path shortcutting."""
 
-    def __init__(self, group_name: str = '', max_step_size: float = 0.05, max_iters: int = 100, seed: int = 0, max_convergence_iters: int = 20) -> None: ...
+    def __init__(self, group_name: str = '', max_step_size: float = 0.05, max_iters: int = 100, seed: int = 0, max_convergence_iters: int = 20, redundant_removal_iters: int = 20) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -572,6 +572,15 @@ class PathShortcuttingOptions:
 
     @max_convergence_iters.setter
     def max_convergence_iters(self, arg: int, /) -> None: ...
+
+    @property
+    def redundant_removal_iters(self) -> int:
+        """
+        Cadence (in iterations) at which to interleave the redundant-vertex removal pass that cleans up the micro-segments introduced by shortcutting.
+        """
+
+    @redundant_removal_iters.setter
+    def redundant_removal_iters(self, arg: int, /) -> None: ...
 
 class PathShortcutter:
     """Shortcuts joint paths with random sampling and checking connections."""
