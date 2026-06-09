@@ -81,15 +81,32 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   auto q_goal = scene_->toFullJointPositions(options_.group_name, goal.positions);
   auto q_sample = q_start;
 
-  // Ensure the start and goal poses are valid
-  if (!scene_->isValidPose(q_start) || !scene_->isValidPose(q_goal)) {
-    return tl::make_unexpected("Invalid poses requested, cannot plan!");
+  // Snapshot the scene's collision geometry into this plan's private context. All collision checks
+  // below route through it, so this plan() call never contends on the Scene's shared collision
+  // scratch (it is safe to run concurrently with collision queries elsewhere).
+  const CollisionContext collision_context(*scene_);
+
+  // Ensure the start and goal configurations are valid and collision-free.
+  if (!scene_->isValidConfiguration(q_start)) {
+    return tl::make_unexpected("Invalid start configuration requested, cannot plan!");
+  }
+  if (!scene_->isValidConfiguration(q_goal)) {
+    return tl::make_unexpected("Invalid goal configuration requested, cannot plan!");
+  }
+  if (collision_context.hasCollisions(q_start)) {
+    return tl::make_unexpected("Start configuration is in collision, cannot plan!");
+  }
+  if (collision_context.hasCollisions(q_goal)) {
+    return tl::make_unexpected("Goal configuration is in collision, cannot plan!");
   }
 
   // Check whether direct connection between the start and goal is possible.
+  // Both endpoints were validated as collision-free above, so we only check the interior.
   if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, q_start, q_goal, options_.collision_check_step_size,
-                               options_.collision_check_use_bisection))) {
+      (!hasCollisionsAlongPath(*scene_, collision_context, q_start, q_goal,
+                               options_.collision_check_step_size,
+                               options_.collision_check_use_bisection,
+                               /*check_endpoints*/ false))) {
     return JointPath{.joint_names = joint_group_info_.joint_names,
                      .positions = {q_start(q_indices), q_goal(q_indices)}};
   }
@@ -127,22 +144,34 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
     std::vector<Node>& nodes = grow_start_tree ? start_nodes_ : goal_nodes_;
     std::vector<Node>& target_nodes = grow_start_tree ? goal_nodes_ : start_nodes_;
 
-    // Sample the next node with goal biasing, using the goal node for the starting tree,
-    // the start node for the goal tree.
-    if (uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
-      q_sample = grow_start_tree ? q_goal : q_start;
+    // Sample the next configuration to grow toward.
+    // Goal biasing applies only to single-tree RRT, where it pulls the lone (start) tree toward
+    // the goal. In RRT-Connect the bidirectional CONNECT step below already pulls each tree toward
+    // the other, so we sample uniformly at random and let the trees reach for one another rather
+    // than repeatedly aiming at the fixed opposite endpoint.
+    if (!options_.rrt_connect && uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
+      q_sample = q_goal;
     } else {
-      q_sample(q_indices) = scene_->randomPositions()(q_indices);
+      // Randomize only the planning group's DOFs in-place; non-group entries keep their values.
+      scene_->randomizeJointPositions(joint_group_info_.joint_names, q_sample);
     }
 
-    // Attempt to grow the tree towards the sampled node.
-    // If no nodes are added, we resample and try again.
-    if (!growTree(tree, nodes, q_sample)) {
+    // Extend the growing tree a single step toward the sample (EXTEND).
+    // If nothing was added, resample and try again.
+    if (!growTree(tree, nodes, q_sample, collision_context, /*greedy*/ false)) {
       continue;
     }
 
+    // In RRT-Connect, greedily grow the target tree toward the growing tree's new frontier node
+    // (the CONNECT step), so the two trees actively reach for each other. The connection itself is
+    // verified and turned into a path by joinTrees below.
+    if (options_.rrt_connect) {
+      growTree(target_tree, target_nodes, nodes.back().config, collision_context, /*greedy*/ true);
+    }
+
     // Check if the trees can be connected from the latest added node. If so we are done.
-    auto maybe_path = joinTrees(nodes, target_tree, target_nodes, grow_start_tree);
+    auto maybe_path =
+        joinTrees(nodes, target_tree, target_nodes, grow_start_tree, collision_context);
     if (maybe_path.has_value()) {
       return maybe_path.value();
     }
@@ -161,28 +190,20 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::Ve
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   const auto& q_indices = joint_group_info_.q_indices;
-  const auto maybe_q_collapsed =
-      collapseContinuousJointPositions(*scene_, options_.group_name, q_init(q_indices));
-  if (!maybe_q_collapsed) {
-    // NOTE: We only validate here because once the trees are initialized, subsequent collapses
-    // should work.
-    throw std::runtime_error("Failed to initialize K-D Tree: " + maybe_q_collapsed.error());
-  }
-  tree.addPoint(maybe_q_collapsed.value(), 0);
+  tree.addPoint(collapse(q_init(q_indices)), 0);
 
   nodes.clear();
   nodes.reserve(max_size);
   nodes.emplace_back(q_init, -1);
 }
 
-bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample) {
+bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
+                   const CollisionContext& collision_context, bool greedy) {
   bool grew_tree = false;
   const auto& q_indices = joint_group_info_.q_indices;
 
   // Extend from the nearest neighbor to max connection distance.
-  auto q_collapsed =
-      collapseContinuousJointPositions(*scene_, options_.group_name, q_sample(q_indices));
-  const auto& nn = kd_tree.search(q_collapsed.value());  // Already validated
+  const auto& nn = kd_tree.search(collapse(q_sample(q_indices)));
   const auto& q_nearest = nodes.at(nn.id).config;
 
   int parent_id = nn.id;
@@ -192,21 +213,23 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     // Extend towards the sampled node
     auto q_extend = extend(q_current, q_sample, options_.max_connection_distance);
 
-    // If the extended node cannot be connected to the tree then throw it away and return
-    if (hasCollisionsAlongPath(*scene_, q_current, q_extend, options_.collision_check_step_size,
-                               options_.collision_check_use_bisection)) {
+    // If the extended node cannot be connected to the tree then throw it away and return. The new
+    // endpoint `q_extend` must be validated; `q_current` is always an existing (known collision-
+    // free) tree node, so checking the endpoints only re-checks that known-free configuration.
+    if (hasCollisionsAlongPath(*scene_, collision_context, q_current, q_extend,
+                               options_.collision_check_step_size,
+                               options_.collision_check_use_bisection,
+                               /*check_endpoints*/ true)) {
       break;
     }
 
     grew_tree = true;
     auto new_id = nodes.size();
-    q_collapsed =
-        collapseContinuousJointPositions(*scene_, options_.group_name, q_extend(q_indices));
-    kd_tree.addPoint(q_collapsed.value(), new_id);  // Already validated
+    kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
     nodes.emplace_back(q_extend, parent_id);
 
-    // Only one iteration if we are not using RRT-Connect.
-    if (!options_.rrt_connect) {
+    // A plain EXTEND adds a single node; only the greedy CONNECT step keeps extending.
+    if (!greedy) {
       break;
     }
 
@@ -224,21 +247,15 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
 }
 
 std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                        const std::vector<Node>& target_nodes,
-                                        bool grow_start_tree) {
+                                        const std::vector<Node>& target_nodes, bool grow_start_tree,
+                                        const CollisionContext& collision_context) {
   // The most recently added node is the last appended node in the nodes list.
   const auto& last_added_node = nodes.back();
   const auto& q_last_added = last_added_node.config;
 
   // Find the nearest node in the target tree (search uses collapsed coordinates).
   const auto& q_indices = joint_group_info_.q_indices;
-  const auto maybe_q_collapsed =
-      collapseContinuousJointPositions(*scene_, options_.group_name, q_last_added(q_indices));
-  if (!maybe_q_collapsed) {
-    throw std::runtime_error("Failed to collapse joint positions in joinTrees: " +
-                             maybe_q_collapsed.error());
-  }
-  const auto& nn = target_tree.search(maybe_q_collapsed.value());
+  const auto& nn = target_tree.search(collapse(q_last_added(q_indices)));
   if (nn.id < 0 || static_cast<size_t>(nn.id) >= target_nodes.size()) {
     throw std::runtime_error("K-D tree search returned invalid node id in joinTrees.");
   }
@@ -251,10 +268,13 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   const auto& q_latest = latest_node.config;
 
   // If the latest sampled node in one tree can be connected to the nearest node in the target tree,
-  // then a path exists and we should return it.
+  // then a path exists and we should return it. Both endpoints are existing tree nodes and are
+  // therefore already known collision-free, so we skip re-checking them.
   if ((scene_->configurationDistance(q_latest, q_nearest) <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, q_latest, q_nearest, options_.collision_check_step_size,
-                               options_.collision_check_use_bisection))) {
+      (!hasCollisionsAlongPath(*scene_, collision_context, q_latest, q_nearest,
+                               options_.collision_check_step_size,
+                               options_.collision_check_use_bisection,
+                               /*check_endpoints*/ false))) {
 
     // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree.
     // Otherwise it is reversed.
@@ -290,6 +310,23 @@ JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
     path.positions.push_back(cur_node->config(q_indices));
   }
   return path;
+}
+
+Eigen::VectorXd RRT::collapse(const Eigen::VectorXd& q_group) const {
+  // Fast path: a group with no continuous/planar DOFs collapses to itself, so skip the work in
+  // collapseContinuousJointPositions (a group-info map lookup that copies the whole JointGroupInfo,
+  // plus a per-joint getJointInfo lookup). This runs on every k-d tree insert and nearest-neighbor
+  // query, so it is firmly on the RRT hot path.
+  if (!joint_group_info_.has_continuous_dofs) {
+    return q_group;
+  }
+
+  const auto maybe_collapsed =
+      collapseContinuousJointPositions(*scene_, options_.group_name, q_group);
+  if (!maybe_collapsed) {
+    throw std::runtime_error("Failed to collapse joint positions: " + maybe_collapsed.error());
+  }
+  return maybe_collapsed.value();
 }
 
 Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,

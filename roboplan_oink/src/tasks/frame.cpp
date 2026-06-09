@@ -19,8 +19,8 @@ namespace roboplan {
 
 FrameTask::FrameTask(const Oink& oink, const Scene& scene,
                      const CartesianConfiguration& target_pose, const FrameTaskOptions& options)
-    : Task(createWeightMatrix(options.position_cost, options.orientation_cost), options.task_gain,
-           options.lm_damping),
+    : Task(options.priority, createWeightMatrix(options.position_cost, options.orientation_cost),
+           options.task_gain, options.lm_damping),
       frame_name(target_pose.tip_frame), target_pose(target_pose),
       max_position_error(options.max_position_error),
       max_rotation_error(options.max_rotation_error) {

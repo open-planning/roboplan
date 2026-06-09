@@ -73,6 +73,18 @@ target_link_libraries(
   roboplan_example_models::roboplan_example_models
 )
 
+# Build SelfCollisionBarrier unit tests
+add_executable(test_self_collision_barrier barriers/test_self_collision_barrier.cpp)
+set_property(TARGET test_self_collision_barrier PROPERTY CXX_STANDARD 20)
+target_link_libraries(
+  test_self_collision_barrier
+  roboplan::roboplan
+  roboplan_oink
+  GTest::gmock_main
+  GTest::gtest_main
+  roboplan_example_models::roboplan_example_models
+)
+
 # If ament_gtest is detected, make the tests visible in ROS 2.
 find_package(ament_cmake_gtest QUIET)
 if ( ament_cmake_gtest_FOUND )
@@ -82,6 +94,7 @@ if ( ament_cmake_gtest_FOUND )
     ament_add_gtest_test(test_velocity_limit)
     ament_add_gtest_test(test_position_limit)
     ament_add_gtest_test(test_position_barrier)
+    ament_add_gtest_test(test_self_collision_barrier)
 else()
     include(GoogleTest)
     gtest_discover_tests(test_oink)
@@ -90,4 +103,5 @@ else()
     gtest_discover_tests(test_velocity_limit)
     gtest_discover_tests(test_position_limit)
     gtest_discover_tests(test_position_barrier)
+    gtest_discover_tests(test_self_collision_barrier)
 endif()

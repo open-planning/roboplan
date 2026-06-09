@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_toppra VERSION 0.3.0)
+project(roboplan_toppra VERSION 0.4.0)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -109,6 +109,13 @@ option(BUILD_TESTING "" ON)
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
+endif()
+
+# Build the Python bindings by default (for the scikit-build wheel, colcon, and
+# pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
+option(BUILD_PYTHON_BINDINGS "Build the roboplan_toppra Python bindings" ON)
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings)
 endif()
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.

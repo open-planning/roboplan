@@ -2,6 +2,23 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.4.0 (2026-06-02)
+------------------
+* Add Ubuntu 26.04 and ROS 2 Lyrical to CI (`#215 <https://github.com/open-planning/roboplan/issues/215>`_)
+* Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)
+* Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
+* OInK self-collision barrier (`#207 <https://github.com/open-planning/roboplan/issues/207>`_)
+* Use native mimic joint functionality in Pinocchio (`#214 <https://github.com/open-planning/roboplan/issues/214>`_)
+* Support planar joints (`#209 <https://github.com/open-planning/roboplan/issues/209>`_)
+* Add Stretch4 model (`#208 <https://github.com/open-planning/roboplan/issues/208>`_)
+* Support Pinocchio 4.0 (`#205 <https://github.com/open-planning/roboplan/issues/205>`_)
+* Support dual end effectors in action chunk example (`#204 <https://github.com/open-planning/roboplan/issues/204>`_)
+* Support cylinder and mesh scene collision objects (`#197 <https://github.com/open-planning/roboplan/issues/197>`_)
+* Add CartesianTrajectory type (`#203 <https://github.com/open-planning/roboplan/issues/203>`_)
+* Fix bugs in collision object scene operations (`#193 <https://github.com/open-planning/roboplan/issues/193>`_)
+* Add SE3 low-pass filter C++ library and Python bindings (`#180 <https://github.com/open-planning/roboplan/issues/180>`_)
+* Contributors: Muslim Alaran, Ola Ghattas, Prajwal, Sebastian Castro
+
 0.3.0 (2026-04-18)
 ------------------
 * Incorporate scene and joint groups into OInK (`#177 <https://github.com/open-planning/roboplan/issues/177>`_)

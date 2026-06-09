@@ -2,6 +2,15 @@
 Changelog for package roboplan_toppra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.4.0 (2026-06-02)
+------------------
+* Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)
+* Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
+* Add toppra and nanobind-dev rosdep keys (`#219 <https://github.com/open-planning/roboplan/issues/219>`_)
+* Fix TOPPRA issues when using planar joints (`#216 <https://github.com/open-planning/roboplan/issues/216>`_)
+* Support Pinocchio 4.0 (`#205 <https://github.com/open-planning/roboplan/issues/205>`_)
+* Contributors: Sebastian Castro
+
 0.3.0 (2026-04-18)
 ------------------
 * Get toppra from binaries or FetchContent (`#174 <https://github.com/open-planning/roboplan/issues/174>`_)

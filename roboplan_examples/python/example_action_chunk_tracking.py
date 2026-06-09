@@ -31,7 +31,7 @@ import tyro
 import xacro
 from pinocchio.visualize import ViserVisualizer
 
-from common import get_model_data, RobotModelConfig
+from common import get_home_configuration, get_model_data
 from roboplan.core import (
     CartesianConfiguration,
     CartesianTrajectory,
@@ -207,32 +207,6 @@ def compute_end_effector_positions(
     }
 
 
-def get_starting_configuration(
-    scene: Scene,
-    model_data: RobotModelConfig,
-) -> np.ndarray:
-    """Return the starting configuration for the selected model.
-
-    Args:
-        scene: The scene to use to extract current joint positions.
-        model_data: The robot model configuration with example-specific information.
-
-    Returns:
-        The starting joint positions for the specified robot.
-    """
-    q_full = scene.getCurrentJointPositions()
-    q_start_full = np.array(model_data.starting_joint_config)
-
-    if len(q_start_full) == len(q_full):
-        return q_start_full.copy()
-
-    print(
-        f"Warning: starting_joint_config size ({len(q_start_full)}) does not match "
-        f"model configuration size ({len(q_full)}). Using scene default instead."
-    )
-    return q_full
-
-
 def visualize_ee_traces(
     viz,
     ee_frame_name: str,
@@ -361,7 +335,7 @@ def main(
 
     # Create a redundant Pinocchio model just for visualization with mimic joints.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
-    q_start = get_starting_configuration(scene, model_data)
+    q_start = get_home_configuration(scene, model_data)
 
     collision_model = pin.buildGeomFromUrdfString(
         model_pin,

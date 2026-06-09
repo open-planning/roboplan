@@ -18,7 +18,7 @@ from roboplan.simple_ik import SimpleIkOptions, SimpleIk
 def main(
     model: str = "ur5",
     max_iters: int = 100,
-    step_size: float = 0.25,
+    step_size: float = 1.0,
     max_linear_error_norm: float = 0.001,
     max_angular_error_norm: float = 0.001,
     check_collisions: bool = True,
@@ -57,7 +57,6 @@ def main(
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
-    q_full = scene.getCurrentJointPositions()
     q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices
 
     # Create a redundant Pinocchio model just for visualization with mimic joints.
@@ -89,20 +88,23 @@ def main(
 
     goals = []
     transform_controls = []
+    solution = JointConfiguration()
+
     for ee_name in model_data.ee_names:
         goal = CartesianConfiguration()
         goal.base_frame = model_data.base_link
         goal.tip_frame = ee_name
         goals.append(goal)
 
-    solution = JointConfiguration()
-
-    # Create interactive markers.
     def solveIk(_):
+        q_full = scene.getCurrentJointPositions()
+        world_T_base = scene.forwardKinematics(q_full, model_data.base_link)
         for goal, controls in zip(goals, transform_controls):
-            goal.tform = pin.SE3(
+            world_T_target = pin.SE3(
                 pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), controls.position
             ).homogeneous
+            goal.tform = np.linalg.inv(world_T_base) @ world_T_target
+
         result = ik_solver.solveIk(goals, start, solution)
         if result:
             q_full = scene.toFullJointPositions(
@@ -129,11 +131,13 @@ def main(
     @reset_button.on_click
     def reset_position(_):
         for goal, controls in zip(goals, transform_controls):
-            fk_tform = scene.forwardKinematics(
+            world_T_target = scene.forwardKinematics(
                 scene.getCurrentJointPositions(), goal.tip_frame
             )
-            controls.position = fk_tform[:3, 3]
-            controls.wxyz = pin.Quaternion(fk_tform[:3, :3]).coeffs()[[3, 0, 1, 2]]
+            controls.position = world_T_target[:3, 3]
+            controls.wxyz = pin.Quaternion(world_T_target[:3, :3]).coeffs()[
+                [3, 0, 1, 2]
+            ]
 
     random_button = viz.viewer.gui.add_button("Randomize Pose")
 

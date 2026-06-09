@@ -129,14 +129,16 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   const Eigen::VectorXd q_extend_expected{{0.1, 0, 0, 0, 0, 0}};
   const Eigen::VectorXd q_end{{0.5, 0, 0, 0, 0, 0}};
 
+  const CollisionContext collision_context(*scene_);
+
   // Initialize the search to the start pose.
   KdTree tree;
   std::vector<Node> nodes;
   rrt->initializeTree(tree, nodes, q_start);
 
-  // Extending WITHOUT RRT-Connect will add exactly one node at the expected pose
+  // A single EXTEND step adds exactly one node at the expected pose,
   // which is exactly options.max_connection_distance away.
-  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end));
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, collision_context, /*greedy*/ false));
   ASSERT_EQ(nodes.size(), 2);
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
@@ -145,8 +147,8 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   auto rrt_connect = std::make_unique<RRT>(scene_, options);
   rrt_connect->initializeTree(tree, nodes, q_start);
 
-  // Extending WITH RRT-Connect will add exactly 6 nodes and reach q_end.
-  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end));
+  // A greedy CONNECT step will add exactly 6 nodes and reach q_end.
+  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, collision_context, /*greedy*/ true));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
 }
@@ -169,6 +171,8 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   const std::vector<Eigen::VectorXd> expected_positions = {q_start, q_start_nearest, q_goal_nearest,
                                                            q_goal};
 
+  const CollisionContext collision_context(*scene_);
+
   // Initialize the search to the start pose.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
@@ -176,21 +180,25 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   rrt->initializeTree(goal_tree, goal_nodes, q_goal);
 
   // The nodes should both be appended directly to the start and goal nodes.
-  ASSERT_TRUE(rrt->growTree(start_tree, start_nodes, q_start_nearest));
+  ASSERT_TRUE(
+      rrt->growTree(start_tree, start_nodes, q_start_nearest, collision_context, /*greedy*/ false));
   ASSERT_EQ(start_nodes.size(), 2);
   ASSERT_EQ(start_nodes.back().config, q_start_nearest);
 
-  ASSERT_TRUE(rrt->growTree(goal_tree, goal_nodes, q_goal_nearest));
+  ASSERT_TRUE(
+      rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, collision_context, /*greedy*/ false));
   ASSERT_EQ(goal_nodes.size(), 2);
   ASSERT_EQ(goal_nodes.back().config, q_goal_nearest);
 
   // Starting from the start_tree, the trees should be joinable.
-  const auto maybe_path = rrt->joinTrees(start_nodes, goal_tree, goal_nodes, true);
+  const auto maybe_path =
+      rrt->joinTrees(start_nodes, goal_tree, goal_nodes, true, collision_context);
   ASSERT_TRUE(maybe_path.has_value());
   ASSERT_EQ(maybe_path.value().positions, expected_positions);
 
   // Starting from the goal_tree, the trees should be joinable.
-  const auto maybe_path2 = rrt->joinTrees(goal_nodes, start_tree, start_nodes, false);
+  const auto maybe_path2 =
+      rrt->joinTrees(goal_nodes, start_tree, start_nodes, false, collision_context);
   ASSERT_TRUE(maybe_path2.has_value());
   ASSERT_EQ(maybe_path2.value().positions, expected_positions);
 }

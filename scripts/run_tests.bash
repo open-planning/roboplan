@@ -45,8 +45,8 @@ Running C++ tests...
 Running Python tests...
 =======================
 "
-    pushd "${SCRIPT_DIR}/../bindings" >> /dev/null || exit
-    python3 -m pytest test/ || EXIT_CODE=$?
+    pushd "${SCRIPT_DIR}/.." >> /dev/null || exit
+    python3 -m pytest roboplan/bindings/test roboplan_rrt/bindings/test || EXIT_CODE=$?
     popd > /dev/null || exit
 fi
 

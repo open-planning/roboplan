@@ -9,7 +9,10 @@ Refer to the C++ API Reference page for more complete information.
 .. toctree::
    :titlesonly:
 
-   {% for page in pages|selectattr("is_top_level_object") %}
+   {% for page in pages
+      |selectattr("is_top_level_object")
+      |sort(attribute="include_path")
+   %}
    {{ page.include_path }}
    {% endfor %}
 

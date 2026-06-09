@@ -22,11 +22,11 @@ RoboPlan is available via `conda-forge <https://conda-forge.org/>`_ for easy ins
 
 To get started, first `install conda <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_.
 
-We recommend creating your own environment for isolation.
+We recommend creating your own environment for isolation, installing all the libraries with Python bindings.
 
 ::
 
-    conda create -n roboplan -c conda-forge roboplan-python
+    conda create -n roboplan -c conda-forge roboplan-python roboplan-rrt-python roboplan-simple-ik-python roboplan-oink-python roboplan-toppra-python
     conda activate roboplan
 
 In your new environment, you can import the ``roboplan`` Python bindings.
@@ -42,6 +42,8 @@ For example, if you cloned the repo to a ``roboplan`` subfolder:
 ::
 
     python roboplan/roboplan_examples/python/example_ik.py
+
+For each package in this repository, you can use conda to install either a C++ only library (e.g., `libroboplan-simple-ik`) or a library with Python bindings (e.g., `roboplan-simple-ik-python`).
 
 ---
 
@@ -135,12 +137,6 @@ Source your favorite ROS distro and build the workspace.
     cd ~/roboplan_ws
     rosdep install --from-paths src -y --ignore-src
     colcon build
-
-**NOTE:** To compile tests, you may also need to install GTest and GMock:
-
-::
-
-    sudo apt install libgtest-dev libgmock-dev
 
 Now you should be able to run a basic example.
 

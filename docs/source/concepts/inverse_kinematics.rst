@@ -35,6 +35,7 @@ The joint configuration is updated via integration:
 - Supports multiple simultaneous goal frames
 - Collision checking with random restarts on failure
 - Convergence monitoring based on separate linear and angular error thresholds
+- Optionally attempt to find a nearest solution to the seed until the timeout is reached
 
 Configuration
 ^^^^^^^^^^^^^
@@ -46,11 +47,11 @@ Configuration
 +-----------------------------+--------------------------------------+-----------+
 | ``max_iters``               | Maximum iterations per attempt       | 100       |
 +-----------------------------+--------------------------------------+-----------+
-| ``max_time``                | Maximum computation time (seconds)   | 0.01      |
+| ``max_time``                | Maximum computation time (seconds)   | 0.005     |
 +-----------------------------+--------------------------------------+-----------+
 | ``max_restarts``            | Number of random restarts on failure | 2         |
 +-----------------------------+--------------------------------------+-----------+
-| ``step_size``               | Integration step size                | 0.01      |
+| ``step_size``               | Integration step size                | 0.25      |
 +-----------------------------+--------------------------------------+-----------+
 | ``damping``                 | Damping factor :math:`\lambda`       | 0.001     |
 +-----------------------------+--------------------------------------+-----------+
@@ -59,6 +60,8 @@ Configuration
 | ``max_angular_error_norm``  | Convergence threshold (radians)      | 0.001     |
 +-----------------------------+--------------------------------------+-----------+
 | ``check_collisions``        | Enable collision checking            | true      |
++-----------------------------+--------------------------------------+-----------+
+| ``fast_return``             | Return the first solution found.     | true      |
 +-----------------------------+--------------------------------------+-----------+
 
 Usage Example
@@ -107,14 +110,13 @@ OInK solves the following QP at each control step:
 
 .. math::
 
-   \min_{\Delta q} \quad \underbrace{\frac{1}{2} \sum_{k} \| W_k (J_k \Delta q + \alpha_k e_k) \|^2}_{\text{Tasks}} + \underbrace{\frac{\lambda}{2} \|\Delta q\|^2}_{\text{Regularization}} + \underbrace{\sum_{b} \frac{r_b}{2\|J_b\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2}_{\text{Barrier Regularization}}
+   \min_{\Delta q} \quad \underbrace{\frac{1}{2} \sum_{k} \| W_k (J_k N_k \Delta q + \alpha_k e_k) \|^2}_{\text{Tasks}} + \underbrace{\frac{\lambda}{2} \|\Delta q\|^2}_{\text{Regularization}} + \underbrace{\sum_{b} \frac{r_b}{2\|J_b\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2}_{\text{Barrier Regularization}}
 
 Subject to:
 
 .. math::
 
    \underbrace{l \leq G_c \Delta q \leq u}_{\text{Hard Constraints}} \quad \text{and} \quad \underbrace{G_b \Delta q \leq h_b}_{\text{Barrier Constraints}}
-^^^^^^^^^^^^^^^^
 
 Reformulated as:
 
@@ -126,33 +128,64 @@ Where:
 
 .. math::
 
-   H = \lambda I + \sum_k (J_k^T W_k^T W_k J_k + \mu_k I) + \sum_b \frac{r_b}{\|J_b\|^2} I
+   H = \lambda I + \sum_k (N_k^T J_k^T W_k^T W_k J_k N_k + \mu_k I) + \sum_b \frac{r_b}{\|J_b\|^2} I
 
 .. math::
 
-   c = \sum_k (-\alpha_k J_k^T W_k^T W_k e_k) + \sum_b \frac{-r_b}{\|J_b\|^2} \Delta q_{\text{safe}}
+   c = \sum_k (-\alpha_k N_k^T J_k^T W_k^T W_k e_k) + \sum_b \frac{-r_b}{\|J_b\|^2} \Delta q_{\text{safe}}
 
-+---------------------+------------------------------------------+--------------+
-| Symbol              | Description                              | Source       |
-+=====================+==========================================+==============+
-| :math:`\Delta q`    | Joint displacement (decision variable)   | —            |
-+---------------------+------------------------------------------+--------------+
-| :math:`J_k, e_k,`   | Task Jacobian, error, weight matrix      | Tasks        |
-| :math:`W_k`         |                                          |              |
-+---------------------+------------------------------------------+--------------+
-| :math:`\alpha_k`    | Task gain (low-pass filter)              | Tasks        |
-+---------------------+------------------------------------------+--------------+
-| :math:`\mu_k`       | Levenberg-Marquardt damping              | Tasks        |
-+---------------------+------------------------------------------+--------------+
-| :math:`\lambda`     | Tikhonov regularization                  | Solver       |
-+---------------------+------------------------------------------+--------------+
-| :math:`G_c, l, u`   | Hard constraint matrix and bounds        | Constraints  |
-+---------------------+------------------------------------------+--------------+
-| :math:`G_b, h_b`    | Barrier constraint matrix and bounds     | Barriers     |
-+---------------------+------------------------------------------+--------------+
-| :math:`r_b, J_b`    | Safe displacement gain and barrier       | Barriers     |
-|                     | Jacobian                                 |              |
-+---------------------+------------------------------------------+--------------+
++---------------------+----------------------------------------------+--------------+
+| Symbol              | Description                                  | Source       |
++=====================+==============================================+==============+
+| :math:`\Delta q`    | Joint displacement (decision variable)       | —            |
++---------------------+----------------------------------------------+--------------+
+| :math:`J_k, e_k,`   | Task Jacobian, error, weight matrix          | Tasks        |
+| :math:`W_k`         |                                              |              |
++---------------------+----------------------------------------------+--------------+
+| :math:`\alpha_k`    | Task gain (low-pass filter)                  | Tasks        |
++---------------------+----------------------------------------------+--------------+
+| :math:`N_k`         | Cumulative nullspace projector for          | Tasks        |
+|                     | priority level :math:`k` (:math:`N_1 = I`)   | (priority)   |
++---------------------+----------------------------------------------+--------------+
+| :math:`\mu_k`       | Levenberg-Marquardt damping,                 | Tasks        |
+|                     | :math:`\mu_k = \lambda_{\text{LM},k}         |              |
+|                     | \|W_k \alpha_k e_k\|^2`                      |              |
++---------------------+----------------------------------------------+--------------+
+| :math:`\lambda`     | Tikhonov regularization                      | Solver       |
++---------------------+----------------------------------------------+--------------+
+| :math:`G_c, l, u`   | Hard constraint matrix and bounds            | Constraints  |
++---------------------+----------------------------------------------+--------------+
+| :math:`G_b, h_b`    | Barrier constraint matrix and bounds         | Barriers     |
++---------------------+----------------------------------------------+--------------+
+| :math:`r_b, J_b`    | Safe displacement gain and barrier           | Barriers     |
+|                     | Jacobian                                     |              |
++---------------------+----------------------------------------------+--------------+
+
+Task Priorities and Nullspace Projection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each task carries an integer ``priority`` (default ``1`` = highest).
+Tasks at a lower priority level (higher priority *number*) are projected into the nullspace of all higher-priority tasks, so they cannot fight tasks above them.
+Their contribution is structurally zero in the higher-priority directions.
+
+For each priority level :math:`k`, the QP uses a *projected* Jacobian :math:`J_k N_k`,
+where :math:`N_k` is the cumulative nullspace projector built from the row-stacked Jacobians of all priority levels :math:`1, \ldots, k-1`.
+:math:`N_1 = I` (no projection at the top level), so a single-priority problem reduces to the standard weighted-sum QP.
+
+The projector is computed via a damped pseudoinverse:
+
+.. math::
+
+   N_k = I - J_{\text{stack}}^T \left( J_{\text{stack}} J_{\text{stack}}^T
+                                       + \lambda I \right)^{-1} J_{\text{stack}}
+
+where :math:`J_{\text{stack}}` is the vertical stack of all priority-level Jacobians strictly above :math:`k`,
+and the same Tikhonov regularization :math:`\lambda` from the QP is reused as the damping.
+The damping keeps :math:`(J J^T + \lambda I)` SPD even at singular configurations;
+at well-conditioned configurations (singular values :math:`\gg \sqrt{\lambda}`), the expression reduces to the standard nullspace projector :math:`I - J^+ J`.
+
+Tasks **at the same priority level** are combined linearly through their weights (no projection between them).
+The decision variable remains :math:`\Delta q`; only the per-task Jacobian is projected.
 
 Tasks
 ^^^^^
@@ -204,6 +237,9 @@ Tracks a target 6-DOF pose (position + orientation).
 +--------------------------+-----------------------------------+-----------+
 | ``max_rotation_error``   | Saturation limit (radians)        | ∞         |
 +--------------------------+-----------------------------------+-----------+
+| ``priority``             | Priority level (1 = highest;      | 1         |
+|                          | see Task Priorities)              |           |
++--------------------------+-----------------------------------+-----------+
 
 ConfigurationTask
 """""""""""""""""
@@ -215,6 +251,10 @@ Drives toward a target joint configuration (null-space regularization).
 **Jacobian:** :math:`J = -I` (negative identity)
 
 **Weight matrix:** :math:`W = \text{diag}(\sqrt{w_1}, \ldots, \sqrt{w_{n_v}})`
+
+Also accepts ``task_gain``, ``lm_damping``, and ``priority`` (defaults match
+``FrameTaskOptions``).
+A common pattern is to use a ConfigurationTask at a lower priority level (e.g. ``priority=2``) as a posture / null-space regularizer that will not interfere with a higher-priority FrameTask.
 
 Constraints vs Barriers
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -361,6 +401,66 @@ This encourages motion toward a safe configuration when near boundaries.
 | ``axis_selection``            | Enable/disable per-axis constraints | all       |
 +-------------------------------+-------------------------------------+-----------+
 
+SelfCollisionBarrier
+""""""""""""""""""""
+
+Keeps the closest pairs of bodies in the robot's collision model from interpenetrating, by enforcing a minimum signed distance on each tracked pair.
+Distances come from the narrow-phase collision check on the scene's collision model.
+
+**Barrier function** (for the :math:`i`-th closest collision pair):
+
+.. math::
+
+   h_i(q) = d_i(q) - d_{\min}
+
+where :math:`d_i(q)` is the signed distance between the two geometries in pair :math:`i`.
+Pairs are re-selected at every call: at each step the :math:`n_{\text{pairs}}` smallest distances across the full collision model become the active constraints, so the barrier always tracks whichever pairs are most at risk.
+
+**Barrier Jacobian** (built from witness points and parent-joint Jacobians):
+
+.. math::
+
+   J_{h_i} = n^T J^{(1)}_p + (r_1 \times n)^T J^{(1)}_w
+           - n^T J^{(2)}_p - (r_2 \times n)^T J^{(2)}_w
+
+Where:
+
+- :math:`n` — unit vector from witness point 1 to witness point 2 (world frame)
+- :math:`r_k` — vector from joint :math:`k`'s origin to its witness point (lever arm)
+- :math:`J^{(k)}_p, J^{(k)}_w` — linear and angular parts of joint :math:`k`'s ``LOCAL_WORLD_ALIGNED`` Jacobian
+
+If the witness points coincide (:math:`d_i \approx 0`) the contact normal is undefined;
+that Jacobian row is zeroed so the barrier degrades gracefully instead of producing NaNs.
+
+The same safe-displacement regularization described for ``PositionBarrier`` applies.
+
++-----------------------------+----------------------------------------+-----------+
+| Parameter                   | Description                            | Default   |
++=============================+========================================+===========+
+| ``n_collision_pairs``       | Number of closest pairs to constrain   | required  |
+|                             | (must be ≤ total pairs in the model)   |           |
++-----------------------------+----------------------------------------+-----------+
+| ``d_min``                   | Minimum allowed distance               | 0.02      |
+|                             | :math:`d_{\min}` (meters)              |           |
++-----------------------------+----------------------------------------+-----------+
+| ``gain``                    | Class-K function gain :math:`\gamma`   | 1.0       |
++-----------------------------+----------------------------------------+-----------+
+| ``dt``                      | Control timestep                       | required  |
++-----------------------------+----------------------------------------+-----------+
+| ``safe_displacement_gain``  | Regularization weight :math:`r`        | 1.0       |
++-----------------------------+----------------------------------------+-----------+
+| ``safety_margin``           | Conservative buffer :math:`m`          | 0.0       |
++-----------------------------+----------------------------------------+-----------+
+
+.. note::
+
+   Per-pair narrow-phase distance dominates the per-solve cost when many pairs are tracked.
+   Pick the smallest ``n_collision_pairs`` that still covers the pairs you expect to be active.
+   The post-solve ``enforceBarriers()`` check only re-evaluates this active set, so over-sizing ``n_collision_pairs`` makes both the QP assembly and the FK validation slower.
+
+   Additionally, you should consider using robot models that have optimized collision meshes (e.g., simplified convex hulls or simple geometric primitives).
+   If your collision meshes are too high-quality, this will dramatically increase solve time.
+
 Linearization Error and ``enforceBarriers()``
 """"""""""""""""""""""""""""""""""""""""""""""
 
@@ -408,44 +508,81 @@ Usage Example
 .. code-block:: python
 
    import numpy as np
-   from roboplan_ext import Scene
-   from roboplan_ext.optimal_ik import (
-       Oink, FrameTask, FrameTaskOptions,
-       VelocityLimit, PositionLimit, PositionBarrier
+   from roboplan.core import Scene, CartesianConfiguration
+   from roboplan.optimal_ik import (
+       ConfigurationTask, ConfigurationTaskOptions,
+       FrameTask, FrameTaskOptions,
+       Oink, PositionLimit, VelocityLimit,
+       PositionBarrier, SelfCollisionBarrier,
    )
 
-   # Setup
-   scene = Scene("robot", urdf_path, srdf_path, package_paths)
-   nv = scene.model.nv
+   # Scene + solver. urdf/srdf are XML strings (e.g. from xacro.process_file(...).toxml()).
+   scene = Scene("robot", urdf=urdf_xml, srdf=srdf_xml, package_paths=package_paths)
+   oink = Oink(scene, group_name="arm")
+   nv = len(oink.v_indices)                  # joint-group velocity dimension
    dt = 0.01
 
-   # Tasks
-   task = FrameTask(target_pose, nv, FrameTaskOptions(
+   # Primary task: track an SE(3) target with the end-effector frame.
+   goal = CartesianConfiguration()
+   goal.base_frame = "base_link"
+   goal.tip_frame = "tool0"
+   goal.tform = target_transform             # 4x4 SE(3) matrix
+
+   frame_task = FrameTask(oink, scene, goal, FrameTaskOptions(
        position_cost=1.0,
-       orientation_cost=1.0,
-       max_position_error=0.1  # Prevents large jumps
+       orientation_cost=0.1,
+       task_gain=1.0,
+       lm_damping=0.01,
+       max_position_error=0.1,               # keeps the CBF linearization valid
    ))
 
-   # Hard constraints (exact enforcement)
-   vel_limit = VelocityLimit(nv, dt, v_max=np.ones(nv))
-   pos_limit = PositionLimit(nv, gain=0.95)
-
-   # Barriers (smooth task-space safety)
-   barrier = PositionBarrier(
-       frame_name="tool0",
-       p_min=np.array([-0.5, -0.5, 0.1]),
-       p_max=np.array([0.5, 0.5, 1.0]),
-       num_variables=nv,
-       dt=dt,
-       gain=5.0,
-       safety_margin=0.01
+   # Lower-priority posture regularization. priority=2 projects it into the FrameTask
+   # nullspace, so it only uses the redundant DoF the EE task leaves free.
+   posture_task = ConfigurationTask(
+       oink,
+       q_nominal[oink.q_indices],
+       np.full(nv, 0.05),
+       ConfigurationTaskOptions(priority=2),
    )
+   tasks = [frame_task, posture_task]
 
-   # Solve
-   oink = Oink(nv)
+   # Hard constraints (exact enforcement).
+   constraints = [
+       PositionLimit(oink, gain=1.0),
+       VelocityLimit(oink, dt, v_max=np.ones(nv)),
+   ]
+
+   # Barriers (smooth safety).
+   barriers = [
+       PositionBarrier(
+           oink, scene,
+           frame_name="tool0",
+           p_min=np.array([-0.5, -0.5, 0.1]),
+           p_max=np.array([0.5, 0.5, 1.0]),
+           dt=dt,
+           gain=5.0,
+           safety_margin=0.01,
+       ),
+       SelfCollisionBarrier(
+           oink, scene,
+           n_collision_pairs=4,              # track the 4 closest pairs each step
+           dt=dt,
+           gain=0.01,
+           d_min=0.02,
+       ),
+   ]
+
+   # One control step.
    delta_q = np.zeros(nv)
+   oink.solveIk(scene, tasks, constraints, barriers, delta_q, regularization=1e-6)
 
-   oink.solveIk([task], [vel_limit, pos_limit], [barrier], scene, delta_q)
-   oink.enforceBarriers([barrier], scene, delta_q)  # FK validation
+   # When the joint group is a subset of the model, scatter the group's velocity into
+   # the full-model nv vector before enforceBarriers / integrate.
+   delta_q_full = np.zeros(model_nv)         # full model velocity dimension
+   delta_q_full[oink.v_indices] = delta_q
 
-   q = scene.integrate(q, delta_q)
+   # Optional FK-based safety check: zeros delta_q_full if any barrier would be violated.
+   oink.enforceBarriers(scene, barriers, delta_q_full)
+
+   q_next = scene.integrate(scene.getCurrentJointPositions(), delta_q_full)
+   scene.setJointPositions(q_next)

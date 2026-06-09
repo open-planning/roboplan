@@ -2,8 +2,10 @@ ARG UBUNTU_VERSION=24.04
 
 FROM ubuntu:${UBUNTU_VERSION} AS roboplan_ubuntu
 
-ARG PINOCCHIO_VERSION=3.9.0
+ARG PINOCCHIO_VERSION=4.0.0
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
+# See https://github.com/tier4/osqp_vendor/issues/26
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 SHELL ["/bin/bash", "-c"]
 
 # Install core dependencies.
@@ -20,8 +22,9 @@ RUN pip3 install \
     opencv-contrib-python-headless \
     pin==${PINOCCHIO_VERSION} \
     plyfile \
+    pynput \
     tyro \
-    "viser>=1.0.1,<1.0.25" \
+    "viser>=1.0.29" \
     xacro
 
 # Find the location of the relevant pip installed packages and ensure they are available to
@@ -41,11 +44,6 @@ RUN echo "export CMAKE_PREFIX_PATH=/roboplan_ws/install/:\${CMAKE_PREFIX_PATH}" 
 RUN for PACKAGE in /roboplan_ws/install/*/lib; do \
         echo "export LD_LIBRARY_PATH=${PACKAGE}:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh; \
     done
-
-# Install the Python bindings.
-RUN . /roboplan_env.sh && \
-    cd bindings && \
-    pip3 install --no-build-isolation -ve .
 
 # Set up entrypoint.
 COPY .docker/ubuntu/entrypoint.sh /entrypoint.sh

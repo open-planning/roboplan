@@ -2,17 +2,21 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>roboplan_toppra</name>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
   <description>Time Optimal Path Parameterization based on Reachability Analysis (TOPP-RA) wrapper for RoboPlan.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <depend>nanobind-dev</depend>
   <depend>roboplan</depend>
-  <!-- uncomment when toppra is on the ROS buildfarm for all distros -->
-  <!-- <depend>toppra</depend> -->
+  <!-- TODO: Update this as toppra gets released on more ROS distros. -->
+  <!-- If not yet available, there is a source build fallback via FetchContent. -->
+  <depend condition="$ROS_DISTRO == humble or $ROS_DISTRO == lyrical">toppra</depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>roboplan_example_models</test_depend>
 
   <export>

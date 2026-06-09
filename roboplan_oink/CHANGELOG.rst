@@ -2,6 +2,17 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.4.0 (2026-06-02)
+------------------
+* Fix failing OInK test due to dimension mismatch (`#225 <https://github.com/open-planning/roboplan/issues/225>`_)
+* Add Ubuntu 26.04 and ROS 2 Lyrical to CI (`#215 <https://github.com/open-planning/roboplan/issues/215>`_)
+* Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)
+* Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
+* OInK self-collision barrier (`#207 <https://github.com/open-planning/roboplan/issues/207>`_)
+* Support priorities and nullspace projection in OInK tasks (`#206 <https://github.com/open-planning/roboplan/issues/206>`_)
+* Support planar joints (`#209 <https://github.com/open-planning/roboplan/issues/209>`_)
+* Contributors: Ola Ghattas, Sebastian Castro
+
 0.3.0 (2026-04-18)
 ------------------
 * Incorporate scene and joint groups into OInK (`#177 <https://github.com/open-planning/roboplan/issues/177>`_)

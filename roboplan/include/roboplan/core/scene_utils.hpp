@@ -1,7 +1,9 @@
 #pragma once
 
 #include <map>
+#include <optional>
 #include <string>
+#include <unordered_map>
 
 #include <pinocchio/multibody/model.hpp>
 
@@ -70,5 +72,23 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
 /// @param q The Pinocchio configuration vector (model.nq).
 /// @return Position vector aligned with getJointNamesWithMimics().
 Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene, const Eigen::VectorXd& q);
+
+/// @brief Holds extended joint limits (acceleration, jerk) parsed from a URDF <limit> tag.
+/// @details This is a temporary holdover until Pinocchio properly supports URDF 1.2 extended
+/// limits in its own parsers. See https://github.com/stack-of-tasks/pinocchio/issues/2893
+struct UrdfExtendedJointLimits {
+  std::optional<double> acceleration;
+  std::optional<double> jerk;
+};
+
+/// @brief Parses extended joint limits (acceleration, jerk) from URDF <limit> tags.
+/// @details Reads acceleration and jerk attributes if present, regardless of URDF version.
+/// Returns an empty map only if parsing fails.
+/// This is a temporary holdover until Pinocchio properly supports URDF 1.2 extended limits.
+/// See https://github.com/stack-of-tasks/pinocchio/issues/2893
+/// @param urdf The URDF XML string.
+/// @return A map from joint name to its extended limits.
+std::unordered_map<std::string, UrdfExtendedJointLimits>
+parseUrdfExtendedJointLimits(const std::string& urdf);
 
 }  // namespace roboplan

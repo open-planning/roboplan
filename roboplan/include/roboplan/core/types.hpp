@@ -20,13 +20,13 @@ struct JointConfiguration {
   std::vector<std::string> joint_names;
 
   /// @brief The joint positions, in the same order as the names.
-  Eigen::VectorXd positions;
+  Eigen::VectorXd positions = Eigen::VectorXd();
 
   /// @brief The joint velocities, in the same order as the names.
-  Eigen::VectorXd velocities;
+  Eigen::VectorXd velocities = Eigen::VectorXd();
 
   /// @brief The joint accelerations, in the same order as the names.
-  Eigen::VectorXd accelerations;
+  Eigen::VectorXd accelerations = Eigen::VectorXd();
 };
 
 /// @brief Represents a robot Cartesian configuration.

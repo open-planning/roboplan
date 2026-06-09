@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_oink VERSION 0.3.0)
+project(roboplan_oink VERSION 0.4.0)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -95,6 +95,7 @@ add_library(roboplan_oink SHARED
     src/constraints/velocity_limit.cpp
     src/barriers/position_barrier.cpp
     src/barriers/manipulability_barrier.cpp
+    src/barriers/self_collision_barrier.cpp
 )
 target_include_directories(roboplan_oink PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -158,6 +159,13 @@ install(EXPORT roboplan_oink-targets
 if (BUILD_TESTING_OINK)
     enable_testing()
     add_subdirectory(test)
+endif()
+
+# Build the Python bindings by default (for the scikit-build wheel, colcon, and
+# pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
+option(BUILD_PYTHON_BINDINGS "Build the roboplan_oink Python bindings" ON)
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings)
 endif()
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.

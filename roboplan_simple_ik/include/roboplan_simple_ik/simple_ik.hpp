@@ -17,13 +17,13 @@ struct SimpleIkOptions {
   size_t max_iters = 100;
 
   /// @brief Max total computation time, in seconds.
-  double max_time = 0.01;
+  double max_time = 0.005;
 
   /// @brief Maximum number of restarts until success.
   size_t max_restarts = 2;
 
   /// @brief The integration step for the solver.
-  double step_size = 0.01;
+  double step_size = 0.25;
 
   /// @brief Damping value for the Jacobian pseudoinverse.
   double damping = 0.001;
@@ -36,6 +36,11 @@ struct SimpleIkOptions {
 
   /// @brief Whether to check collisions.
   bool check_collisions = true;
+
+  /// @brief If true, returns when the first ik solution is found.
+  /// @details Otherwise the entire time budget will be consumed to attempt to find
+  /// a solution that is closest to the starting configuration.
+  bool fast_return = true;
 };
 
 /// @brief Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.
@@ -89,6 +94,9 @@ private:
 
   /// @brief The full model Jacobian (for allocating memory once).
   Eigen::MatrixXd full_jacobian_;
+
+  /// @brief The derivative of log6 at a frame's pose error (for allocating memory once).
+  Eigen::Matrix<double, 6, 6> Jlog_;
 
   /// @brief The joint group's Jacobian (for allocating memory once).
   Eigen::MatrixXd jacobian_;

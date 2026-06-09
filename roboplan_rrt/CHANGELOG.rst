@@ -2,6 +2,15 @@
 Changelog for package roboplan_rrt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.4.0 (2026-06-02)
+------------------
+* Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)
+* Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
+* Use native mimic joint functionality in Pinocchio (`#214 <https://github.com/open-planning/roboplan/issues/214>`_)
+* Support planar joints (`#209 <https://github.com/open-planning/roboplan/issues/209>`_)
+* Add Stretch4 model (`#208 <https://github.com/open-planning/roboplan/issues/208>`_)
+* Contributors: Ola Ghattas, Sebastian Castro
+
 0.3.0 (2026-04-18)
 ------------------
 * Get toppra from binaries or FetchContent (`#174 <https://github.com/open-planning/roboplan/issues/174>`_)

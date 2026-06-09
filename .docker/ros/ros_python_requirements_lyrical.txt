@@ -1,0 +1,6 @@
+matplotlib
+numpy
+opencv-contrib-python-headless
+plyfile
+tyro
+viser>=1.0.29

@@ -2,6 +2,14 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.4.0 (2026-06-02)
+------------------
+* Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)
+* Use native mimic joint functionality in Pinocchio (`#214 <https://github.com/open-planning/roboplan/issues/214>`_)
+* Support planar joints (`#209 <https://github.com/open-planning/roboplan/issues/209>`_)
+* Add Stretch4 model (`#208 <https://github.com/open-planning/roboplan/issues/208>`_)
+* Contributors: Ola Ghattas, Sebastian Castro
+
 0.3.0 (2026-04-18)
 ------------------
 * return true only when a valid solution found (`#160 <https://github.com/open-planning/roboplan/issues/160>`_)

@@ -1,24 +1,8 @@
+#include <queue>
+#include <utility>
+
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
-
-namespace {
-
-/// @brief Helper function that returns elements of a van der Corput sequence.
-/// @details This can be helpful to perform collision checking along a densely sampled path in a way
-/// that is statistically more efficient than linearly searching along the discretized path. An
-/// example sequence looks like [0, 1/2, 1/4, 3/4, 1/8, 5/8, 3/8, 7/8, 1/16, ...] See
-/// https://lavalle.pl/planning/node196.html for more details.
-/// @param bits The input bits to the sequence.
-/// @return The van der Corput sequence element.
-double vanDerCorput(uint32_t bits) {
-  bits = (bits << 16) | (bits >> 16);
-  bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
-  bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
-  bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
-  bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
-  return static_cast<double>(bits) * 2.3283064365386963e-10;  // 1 / 2^32
-}
-
-}  // namespace
 
 namespace roboplan {
 
@@ -53,14 +37,25 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
   return frame_path;
 }
 
-bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
-                            const Eigen::VectorXd& q_end, const double max_step_size,
-                            const bool bisection) {
+namespace {
 
+/// @brief Shared traversal for the hasCollisionsAlongPath overloads.
+/// @details Visits the same minimal set of configurations along the path and answers each collision
+///   check via the `has_collisions` callable, so the public overloads only differ in which scratch
+///   (a caller-owned CollisionContext or the Scene's own) backs that check.
+template <typename CollisionCheck>
+bool hasCollisionsAlongPathImpl(const Scene& scene, const CollisionCheck& has_collisions,
+                                const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                                const double max_step_size, const bool bisection,
+                                const bool check_endpoints) {
   const auto distance = scene.configurationDistance(q_start, q_end);
 
+  // Optionally check the endpoints. Callers that have already validated both endpoints can set
+  // `check_endpoints` to false to skip these (expensive) collision checks entirely.
+  const bool collision_at_endpoints =
+      check_endpoints && (has_collisions(q_start) || has_collisions(q_end));
+
   // Special case for short paths (also handles division by zero in the next case).
-  const bool collision_at_endpoints = scene.hasCollisions(q_start) || scene.hasCollisions(q_end);
   if (distance <= max_step_size) {
     return collision_at_endpoints;
   }
@@ -70,26 +65,66 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
     return true;
   }
 
-  auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
+  const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
+
   if (bisection) {
-    // To guarantee minimum distance with bisection, we have to round up to the nearest power of 2.
-    num_steps = std::pow(2.0, std::ceil(std::log2(num_steps)));
+    // Visit the evenly-spaced interior grid points {1, ..., num_steps - 1} in a coarse-to-fine
+    // bisection order by recursively subdividing intervals at their midpoints. This keeps the
+    // early-termination benefit of bisection (collisions near the middle of an edge are found
+    // first) while checking exactly the same minimal number of points as the linear scan.
+    std::queue<std::pair<size_t, size_t>> intervals;
+    intervals.emplace(0, num_steps);
+    while (!intervals.empty()) {
+      const auto [low, high] = intervals.front();
+      intervals.pop();
+      const size_t mid = low + (high - low) / 2;
+      if (mid == low) {
+        continue;  // No interior grid point in this interval.
+      }
+      const auto fraction = static_cast<double>(mid) / static_cast<double>(num_steps);
+      if (has_collisions(scene.interpolate(q_start, q_end, fraction))) {
+        return true;
+      }
+      intervals.emplace(low, mid);
+      intervals.emplace(mid, high);
+    }
+    return false;
   }
+
   for (size_t idx = 1; idx < num_steps; ++idx) {
-    const auto fraction =
-        bisection ? vanDerCorput(idx) : static_cast<double>(idx) / static_cast<double>(num_steps);
-    if (scene.hasCollisions(scene.interpolate(q_start, q_end, fraction))) {
+    const auto fraction = static_cast<double>(idx) / static_cast<double>(num_steps);
+    if (has_collisions(scene.interpolate(q_start, q_end, fraction))) {
       return true;
     }
   }
   return false;
 }
 
-PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::string& group_name)
-    : scene_{scene} {
+}  // namespace
+
+bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collision_context,
+                            const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
+                            const double max_step_size, const bool bisection,
+                            const bool check_endpoints) {
+  return hasCollisionsAlongPathImpl(
+      scene, [&](const Eigen::VectorXd& q) { return collision_context.hasCollisions(q); }, q_start,
+      q_end, max_step_size, bisection, check_endpoints);
+}
+
+bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
+                            const Eigen::VectorXd& q_end, const double max_step_size,
+                            const bool bisection, const bool check_endpoints) {
+  return hasCollisionsAlongPathImpl(
+      scene, [&](const Eigen::VectorXd& q) { return scene.hasCollisions(q); }, q_start, q_end,
+      max_step_size, bisection, check_endpoints);
+}
+
+PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene,
+                                 const PathShortcuttingOptions& options)
+    : scene_{scene}, options_{options} {
 
   // Validate the joint group.
-  const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name);
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(options_.group_name);
   if (!maybe_joint_group_info) {
     throw std::runtime_error("Could not initialize path shortcutter: " +
                              maybe_joint_group_info.error());
@@ -99,8 +134,10 @@ PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene, const std::
   q_full_ = scene_->getCurrentJointPositions();
 }
 
-JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
-                                    unsigned int max_iters, int seed) {
+JointPath PathShortcutter::shortcut(const JointPath& path) {
+
+  const double max_step_size = options_.max_step_size;
+  const unsigned int max_convergence_iters = options_.max_convergence_iters;
 
   // Make a copy of the provided path's configurations.
   JointPath shortened_path = path;
@@ -108,25 +145,42 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
   // We sample in the range (0, 1] to prevent modification of the starting configuration.
   std::random_device rd;
-  std::mt19937 gen(seed < 0 ? seed : rd());
+  std::mt19937 gen(options_.seed < 0 ? rd() : static_cast<unsigned int>(options_.seed));
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
+
+  // Snapshot the scene geometry into a private collision context for this shortcutting pass, so all
+  // connection checks below use their own scratch instead of the Scene's shared collision data.
+  const CollisionContext collision_context(*scene_);
 
   q_full_ = scene_->getCurrentJointPositions();
   auto q_start = q_full_;
   auto q_end = q_full_;
 
+  // Count of consecutive iterations that failed to apply a shortcut. Once this reaches
+  // `max_convergence_iters` the path is considered converged and we stop early.
+  unsigned int empty_iters = 0;
+
   const auto& q_indices = joint_group_info_.q_indices;
-  for (unsigned int i = 0; i < max_iters; ++i) {
+  for (unsigned int i = 0; i < options_.max_iters; ++i) {
     if (path_configs.size() < 3) {
       // The path is at maximum shortcutted-ness
-      return shortened_path;
+      break;
+    }
+
+    // Periodically collapse redundant vertices left behind by corner-cutting shortcuts, so the
+    // working path stays compact rather than accumulating unhelpful micro-segments.
+    if (i > 0 && i % options_.redundant_removal_iters == 0) {
+      removeRedundantVertices(path_configs, collision_context);
+      if (path_configs.size() < 3) {
+        break;
+      }
     }
 
     // Recompute the path scalings every iteration. If we can't compute these we can
     // assume we are done (the path is at maximum shortness).
     const auto path_scalings_maybe = getNormalizedPathScaling(shortened_path);
     if (!path_scalings_maybe.has_value()) {
-      return shortened_path;
+      break;
     }
     const auto path_scalings = path_scalings_maybe.value();
 
@@ -143,6 +197,9 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
 
     // Samples are on the same segment so shortening would have no effect.
     if (idx_high == idx_low) {
+      if (max_convergence_iters > 0 && ++empty_iters >= max_convergence_iters) {
+        break;
+      }
       continue;
     }
 
@@ -170,7 +227,10 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     }
 
     // Ensure the new connection is valid. If not, try again.
-    if (hasCollisionsAlongPath(*scene_, q_low, q_high, max_step_size)) {
+    if (hasCollisionsAlongPath(*scene_, collision_context, q_low, q_high, max_step_size)) {
+      if (max_convergence_iters > 0 && ++empty_iters >= max_convergence_iters) {
+        break;
+      }
       continue;
     }
 
@@ -178,9 +238,47 @@ JointPath PathShortcutter::shortcut(const JointPath& path, double max_step_size,
     path_configs.erase(path_configs.begin() + idx_low, path_configs.begin() + idx_high);
     path_configs.insert(path_configs.begin() + idx_low, q_high(q_indices).eval());
     path_configs.insert(path_configs.begin() + idx_low, q_low(q_indices).eval());
+
+    // A shortcut was applied, so the path made progress; reset the convergence counter.
+    empty_iters = 0;
   }
 
+  // Final cleanup pass to collapse any redundant vertices remaining at convergence.
+  removeRedundantVertices(path_configs, collision_context);
+
   return shortened_path;
+}
+
+size_t PathShortcutter::removeRedundantVertices(std::vector<Eigen::VectorXd>& path_configs,
+                                                const CollisionContext& collision_context) {
+  const auto& q_indices = joint_group_info_.q_indices;
+  auto q_prev = q_full_;
+  auto q_next = q_full_;
+
+  size_t total_removed = 0;
+  bool removed_any = true;
+  while (removed_any) {
+    removed_any = false;
+    // Walk the interior vertices, deleting any whose neighbors connect directly. When a vertex is
+    // removed we do not advance, so the new adjacency (i-1, i+1) is re-evaluated immediately.
+    size_t i = 1;
+    while (i + 1 < path_configs.size()) {
+      q_prev(q_indices) = path_configs[i - 1];
+      q_next(q_indices) = path_configs[i + 1];
+      // The neighbors are existing collision-free path nodes, so skip the endpoint checks.
+      if (!hasCollisionsAlongPath(*scene_, collision_context, q_prev, q_next,
+                                  options_.max_step_size,
+                                  /* bisection */ false, /* check_endpoints */ false)) {
+        path_configs.erase(path_configs.begin() + i);
+        ++total_removed;
+        removed_any = true;
+      } else {
+        ++i;
+      }
+    }
+  }
+
+  return total_removed;
 }
 
 tl::expected<Eigen::VectorXd, std::string> PathShortcutter::getPathLengths(const JointPath& path) {

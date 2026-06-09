@@ -35,8 +35,8 @@ If:
   - roboplan_toppra/.*
 ---
 CompileFlags:
-  CompilationDatabase: build/bindings/
+  CompilationDatabase: build/roboplan_oink/
 If:
   PathMatch:
-  - bindings/.*
+  - roboplan_oink/.*
 ---

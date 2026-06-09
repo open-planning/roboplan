@@ -9,6 +9,7 @@
 #include <dynotree/KDTree.h>
 #include <tl/expected.hpp>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 #include <roboplan_rrt/graph.hpp>
@@ -76,12 +77,17 @@ public:
   void initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
                       size_t max_size = 1000);
 
-  /// @brief Attempt to add a sampled node to the provided tree and node set.
+  /// @brief Attempt to add node(s) to the provided tree and node set, growing toward `q_sample`.
   /// @param tree The tree to grow.
   /// @param nodes The set of sampled nodes so far.
-  /// @param q_sample Randomly sampled node to extend towards (or connect).
+  /// @param q_sample The configuration to extend towards (or connect to).
+  /// @param collision_context This plan's private collision context, used for all collision checks.
+  /// @param greedy If true (the RRT-Connect CONNECT step), repeatedly extend toward `q_sample`
+  /// until it is reached or an obstacle is hit. If false (a single EXTEND step), add at most one
+  /// node, one `max_connection_distance` step toward `q_sample`.
   /// @return True if node(s) were added to the tree, false otherwise.
-  bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample);
+  bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
+                const CollisionContext& collision_context, bool greedy);
 
   /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
   /// @details The "latest added node" refers to `nodes.back()`. The function will identify the
@@ -91,9 +97,11 @@ public:
   /// @param target_tree The tree to connect to the nodes list.
   /// @param target_nodes The nodes in the target tree.
   /// @param grow_start_tree If true, the target_tree is the goal tree.
+  /// @param collision_context This plan's private collision context, used for all collision checks.
   /// @return A completed path from the start to the goal node if it exists, otherwise none.
   std::optional<JointPath> joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                     const std::vector<Node>& target_nodes, bool grow_start_tree);
+                                     const std::vector<Node>& target_nodes, bool grow_start_tree,
+                                     const CollisionContext& collision_context);
 
   /// @brief Returns a path from the specified index to the first added node.
   /// @param nodes The list of nodes in the tree.
@@ -112,6 +120,13 @@ private:
   /// @return The extended configuration.
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
+
+  /// @brief Collapses group joint positions to the k-d tree state space coordinates.
+  /// @details Thin wrapper around `collapseContinuousJointPositions` that throws on failure, so the
+  /// tree operations can call it without repeating the error handling at each call site.
+  /// @param q_group The group joint positions, in expanded (original) coordinates.
+  /// @return The collapsed configuration used for nearest-neighbor lookups.
+  Eigen::VectorXd collapse(const Eigen::VectorXd& q_group) const;
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;

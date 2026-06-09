@@ -11,15 +11,19 @@ import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
 
 from common import get_model_data, get_octree
-from roboplan.core import JointConfiguration, PathShortcutter, Scene
+from roboplan.core import (
+    JointConfiguration,
+    PathShortcutter,
+    PathShortcuttingOptions,
+    Scene,
+)
 from roboplan.example_models import get_package_share_dir
-from roboplan.rrt import RRTOptions, RRT
+from roboplan.rrt import RRTOptions, RRT, visualizeTree
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode
 from roboplan.visualization import (
     visualizeJointTrajectory,
     visualizePath,
     plotJointTrajectory,
-    visualizeTree,
     visualizeOcTree,
 )
 
@@ -131,7 +135,12 @@ def main(
     traj_dt = 0.01
 
     if include_shortcutting:
-        shortcutter = PathShortcutter(scene, model_data.default_joint_group)
+        shortcutting_options = PathShortcuttingOptions(
+            group_name=model_data.default_joint_group,
+            max_step_size=options.collision_check_step_size,
+            max_iters=max_shortcutting_iters,
+        )
+        shortcutter = PathShortcutter(scene, shortcutting_options)
 
     traj_queue = queue.Queue()
     cur_traj = None
@@ -176,11 +185,7 @@ def main(
         if include_shortcutting:
             print("Shortcutting path...")
             t_start = time.time()
-            shortened_path = shortcutter.shortcut(
-                path,
-                max_step_size=options.collision_check_step_size,
-                max_iters=max_shortcutting_iters,
-            )
+            shortened_path = shortcutter.shortcut(path)
             print(f"Shortcutted path in {time.time() - t_start:.3f} s")
 
         # Set up TOPP-RA to time-parameterize the path

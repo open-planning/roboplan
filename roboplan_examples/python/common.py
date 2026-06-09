@@ -388,7 +388,7 @@ def get_model_data():
             / "stretch4_sg4_config.yaml",
             default_joint_group="stretch4_arm",
             ee_names=["grasp_center_link"],
-            base_link="base_link",
+            base_link="universe",
             starting_joint_config=[
                 # nq=17 with Pinocchio mimic joints (arm_l2/l3/l4 collapsed into arm_l1).
                 # Planar base (x, y, cos(yaw), sin(yaw)), SRDF home pose.
@@ -436,6 +436,72 @@ def get_model_data():
                 ),
             ],
         ),
+        "reachback": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR / "reachback_robot_model" / "reachback.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "reachback_robot_model" / "reachback.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "reachback_robot_model"
+            / "reachback_config.yaml",
+            default_joint_group="arm_base",
+            ee_names=["arm_gripper_tcp"],
+            base_link="universe",
+            starting_joint_config=[
+                # nq=19 with Pinocchio mimic joints (arm_finger_b_joint mimics arm_finger_a_joint removed).
+                # Planar base_joint (x, y, cos(yaw), sin(yaw)), 4 continuous wheel joints (cos, sin each),
+                # then arm + gripper driver joint.
+                0.0,
+                0.0,
+                1.0,
+                0.0,  # base_joint (planar)
+                1.0,
+                0.0,  # front_left_wheel_joint
+                1.0,
+                0.0,  # front_right_wheel_joint
+                1.0,
+                0.0,  # rear_left_wheel_joint
+                1.0,
+                0.0,  # rear_right_wheel_joint
+                0.0,  # arm_joint_1
+                0.0,  # arm_joint_2
+                1.57,  # arm_joint_3
+                -1.57,  # arm_joint_4
+                1.57,  # arm_joint_5
+                0.0,  # arm_joint_6
+                0.0,  # arm_finger_a_joint
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="test_box",
+                    geom=coal.Box(0.5, 0.5, 0.5),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([1.5, 0.0, 0.75])).homogeneous,
+                    color=np.array([0.0, 0.0, 1.0, 0.5]),
+                ),
+                ObstacleConfig(
+                    name="test_sphere",
+                    geom=coal.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([-1.0, 0.75, 0.5])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                    disabled_collisions=["test_box"],
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=coal.Box(5.0, 5.0, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1255])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=[
+                        "front_left_wheel_link",
+                        "front_right_wheel_link",
+                        "rear_left_wheel_link",
+                        "rear_right_wheel_link",
+                        "test_box",
+                        "test_sphere",
+                    ],
+                ),
+            ],
+        ),
     }
 
 
@@ -476,3 +542,29 @@ def get_octree():
         tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.0])).homogeneous,
         color=np.array([0.251, 0.878, 0.816, 1.0]),
     )
+
+
+def get_home_configuration(
+    scene: Scene,
+    model_data: RobotModelConfig,
+) -> np.ndarray:
+    """Return the home configuration for the selected model.
+
+    Args:
+        scene: Scene used to read current joint positions.
+        model_data: Robot model configuration.
+
+    Returns:
+        Full starting joint configuration vector.
+    """
+    q_full = scene.getCurrentJointPositions()
+    q_home = np.array(model_data.starting_joint_config)
+
+    if len(q_home) == len(q_full):
+        return q_home.copy()
+
+    print(
+        f"Warning: starting_joint_config size ({len(q_home)}) does not match "
+        f"model configuration size ({len(q_full)}). Using scene default instead."
+    )
+    return q_full.copy()

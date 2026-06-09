@@ -1,0 +1,17 @@
+#include <nanobind/nanobind.h>
+
+#include <modules/simple_ik.hpp>
+
+namespace roboplan {
+
+// Compiled extension backing the `roboplan.simple_ik` Python package.
+NB_MODULE(_simple_ik_ext, m) {
+  m.attr("__version__") = ROBOPLAN_VERSION;
+
+  // Ensure core types (e.g. Scene) are registered before referencing them.
+  nanobind::module_::import_("roboplan.core");
+
+  init_simple_ik(m);
+}
+
+}  // namespace roboplan
