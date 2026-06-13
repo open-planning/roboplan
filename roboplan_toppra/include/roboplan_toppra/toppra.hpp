@@ -17,6 +17,7 @@ enum class SplineFittingMode {
   Hermite,
   Cubic,
   Adaptive,
+  LinearBlend,
 };
 
 /// @brief Trajectory time parameterizer using the TOPP-RA algorithm.
@@ -43,6 +44,13 @@ public:
   ///     If the path is not collision-free after the maximum iterations, falls back to Hermite
   ///     mode. Refer to Section 3.5 of https://groups.csail.mit.edu/rrg/papers/Richter_ISRR13.pdf
   ///     for more details on this approach.
+  ///   - `SplineFittingMode::LinearBlend`: Represents the path as straight-line segments joined
+  ///     by circular corner blends (the geometry used by time-optimal trajectory generation,
+  ///     Kunz & Stilman 2012). Unlike the spline modes, straight segments have exactly zero
+  ///     curvature, so densely sampled or slightly noisy waypoints do not inflate the
+  ///     acceleration constraint and slow the trajectory. Corners are rounded within
+  ///     `max_deviation`. No iterative collision repair is performed; deviation from the input
+  ///     waypoints is bounded by `max_deviation`.
   /// @param velocity_scale A scaling factor (between 0 and 1) for velocity limits.
   /// @param acceleration_scale A scaling factor (between 0 and 1) for acceleration limits.
   /// @param max_adaptive_iterations Maximum number of adaptive iterations, if adaptive mode is
@@ -50,12 +58,17 @@ public:
   /// @param max_adaptive_step_size If adaptive mode is enabled, this is the maximum joint
   /// configuration
   ///   step size to sample generated splines for collision checking.
+  /// @param max_deviation Maximum distance a corner blend may deviate from the sharp corner, in
+  /// the joint configuration's units. Only used by `SplineFittingMode::LinearBlend`. Larger
+  /// values round corners more (faster, but the path strays further from the waypoints); values
+  /// <= 0 disable blending (a pure polyline that stops at each corner).
   /// @return A time-parameterized joint trajectory.
   tl::expected<JointTrajectory, std::string>
   generate(const JointPath& path, const double dt,
            const SplineFittingMode mode = SplineFittingMode::Hermite,
            const double velocity_scale = 1.0, const double acceleration_scale = 1.0,
-           const int max_adaptive_iterations = 10, const double max_adaptive_step_size = 0.05);
+           const int max_adaptive_iterations = 10, const double max_adaptive_step_size = 0.05,
+           const double max_deviation = 0.01);
 
 private:
   /// @brief Helper function to convert the raw joint path to TOPP-RA compatible position vectors.

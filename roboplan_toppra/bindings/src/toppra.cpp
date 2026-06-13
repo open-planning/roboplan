@@ -17,7 +17,8 @@ void init_toppra(nanobind::module_& m) {
                                      "Enumeration for TOPP-RA spline fitting mode.")
       .value("Hermite", SplineFittingMode::Hermite)
       .value("Cubic", SplineFittingMode::Cubic)
-      .value("Adaptive", SplineFittingMode::Adaptive);
+      .value("Adaptive", SplineFittingMode::Adaptive)
+      .value("LinearBlend", SplineFittingMode::LinearBlend);
 
   nanobind::class_<PathParameterizerTOPPRA>(
       m, "PathParameterizerTOPPRA", "Trajectory time parameterizer using the TOPP-RA algorithm.")
@@ -27,7 +28,7 @@ void init_toppra(nanobind::module_& m) {
            "Time-parameterizes a joint-space path using TOPP-RA.", "path"_a, "dt"_a,
            "mode"_a = SplineFittingMode::Hermite, "velocity_scale"_a = 1.0,
            "acceleration_scale"_a = 1.0, "max_adaptive_iterations"_a = 10,
-           "max_adaptive_step_size"_a = 0.05);
+           "max_adaptive_step_size"_a = 0.05, "max_deviation"_a = 0.01);
 }
 
 }  // namespace roboplan

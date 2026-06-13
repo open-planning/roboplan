@@ -39,6 +39,7 @@ endif()
 # Add libraries
 add_library(roboplan_toppra SHARED
     src/toppra.cpp
+    src/linear_blend_path.cpp
 )
 target_include_directories(roboplan_toppra PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

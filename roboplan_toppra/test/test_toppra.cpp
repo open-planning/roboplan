@@ -1,9 +1,13 @@
+#include <algorithm>
+#include <cmath>
 #include <gtest/gtest.h>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
+#include <roboplan_toppra/linear_blend_path.hpp>
 #include <roboplan_toppra/toppra.hpp>
 
 namespace roboplan {
@@ -141,9 +145,12 @@ protected:
     const auto model_prefix = example_models::get_package_models_dir();
     const auto urdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.urdf";
     const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
+    // Load the YAML config so the scene carries realistic joint acceleration limits (the URDF
+    // alone has none); the LinearBlend limit-respect test relies on them.
+    const auto yaml_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
-    scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
+    scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths, yaml_path);
   }
 
 public:
@@ -247,6 +254,145 @@ TEST_F(RoboPlanToppraTest, Adaptive) {
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Adaptive);
   ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(RoboPlanToppraTest, ShortPathLinearBlend) {
+  auto path = createTestPathShort();
+  double dt = 0.01;
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto result = toppra.generate(path, dt, SplineFittingMode::LinearBlend);
+  ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(RoboPlanToppraTest, LongPathLinearBlend) {
+  auto path = createTestPathLong();
+  double dt = 0.01;
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto result = toppra.generate(path, dt, SplineFittingMode::LinearBlend);
+  ASSERT_TRUE(result.has_value());
+}
+
+namespace {
+/// @brief Peak |value| / |limit| ratio across a trajectory's per-step vectors.
+double peakRatio(const std::vector<Eigen::VectorXd>& values, const Eigen::VectorXd& limit) {
+  double ratio = 0.0;
+  for (const auto& value : values) {
+    for (Eigen::Index i = 0; i < value.size(); ++i) {
+      if (std::abs(limit(i)) > 1e-9) {
+        ratio = std::max(ratio, std::abs(value(i)) / std::abs(limit(i)));
+      }
+    }
+  }
+  return ratio;
+}
+}  // namespace
+
+// A densely sampled sharp corner is the input that makes the interpolating cubic spline crawl:
+// the spline overshoots near the corner, inflating curvature across the many dense knots. The
+// LinearBlend geometry keeps the legs perfectly straight (zero curvature) and rounds the corner
+// within a bounded radius, so it should (a) respect the joint acceleration limit and (b) finish
+// much faster than the cubic spline. This distills what the Cartesian planner sees per corner.
+TEST_F(RoboPlanToppraTest, LinearBlendIsFastAndRespectsLimitsOnSharpCorner) {
+  const double dt = 0.01;
+  JointPath path;
+  path.joint_names = {"shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+                      "wrist_1_joint",      "wrist_2_joint",       "wrist_3_joint"};
+  Eigen::VectorXd q0(6);
+  q0 << -1.8, -2.0, 1.0, -1.6, -1.7, 1.0;
+  Eigen::VectorXd q_corner(6);
+  q_corner << -1.0, -1.2, 0.4, -1.0, -1.1, 0.5;
+  Eigen::VectorXd q1(6);
+  q1 << -1.4, -1.6, 1.1, -0.4, -1.6, 1.2;  // second leg heads off in a different direction
+
+  // Densely sample each straight leg (collinear points the blend collapses into one segment).
+  constexpr int kPerLeg = 75;
+  const auto sample_leg = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& b,
+                              bool include_end) {
+    for (int i = 0; i < kPerLeg + (include_end ? 1 : 0); ++i) {
+      const double t = static_cast<double>(i) / static_cast<double>(kPerLeg);
+      path.positions.push_back((a + t * (b - a)).eval());
+    }
+  };
+  sample_leg(q0, q_corner, /*include_end=*/false);
+  sample_leg(q_corner, q1, /*include_end=*/true);
+
+  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  const double max_deviation = 0.05;
+  auto blend =
+      toppra.generate(path, dt, SplineFittingMode::LinearBlend, 1.0, 1.0, 10, 0.05, max_deviation);
+  auto cubic = toppra.generate(path, dt, SplineFittingMode::Cubic);
+  ASSERT_TRUE(blend.has_value());
+  ASSERT_TRUE(cubic.has_value());
+
+  // The blend trajectory respects the joint acceleration limit (a small overshoot is the
+  // ConstAccel resampler's known tolerance at the fixed dt).
+  const auto accel_limit = scene_->getAccelerationLimitVectors("arm").value().second.cwiseAbs();
+  const auto vel_limit = scene_->getVelocityLimitVectors("arm").value().second.cwiseAbs();
+  EXPECT_LT(peakRatio(blend->accelerations, accel_limit), 1.25);
+  EXPECT_LT(peakRatio(blend->velocities, vel_limit), 1.05);
+
+  // And it finishes substantially faster than the curvature-sensitive cubic spline.
+  EXPECT_LT(blend->times.back(), cubic->times.back());
+}
+
+// Geometry: three collinear waypoints reduce to a single straight line (zero curvature).
+TEST(LinearBlendPathTest, StraightLineHasZeroCurvature) {
+  Eigen::VectorXd a(2), b(2), c(2);
+  a << 0.0, 0.0;
+  b << 1.0, 0.0;
+  c << 2.0, 0.0;
+  const toppra::Vectors waypoints = {a, b, c};
+  LinearBlendPath path(waypoints, /*max_deviation=*/0.1);
+
+  const auto interval = path.pathInterval();
+  EXPECT_NEAR(interval[0], 0.0, 1e-9);
+  EXPECT_NEAR(interval[1], 2.0, 1e-9);  // collinear -> exact straight-line distance
+  EXPECT_NEAR((path.eval_single(0.0, 0) - a).norm(), 0.0, 1e-9);
+  EXPECT_NEAR((path.eval_single(interval[1], 0) - c).norm(), 0.0, 1e-9);
+  for (double s = 0.0; s <= interval[1] + 1e-12; s += 0.1) {
+    EXPECT_LT(path.eval_single(s, 2).norm(), 1e-9);         // zero curvature
+    EXPECT_NEAR(path.eval_single(s, 1).norm(), 1.0, 1e-9);  // unit tangent
+  }
+}
+
+// Geometry: a 90-degree corner is rounded within max_deviation, with continuous position and
+// unit tangent across the line<->arc junctions.
+TEST(LinearBlendPathTest, CornerBlendIsContinuousAndBounded) {
+  Eigen::VectorXd a(2), b(2), c(2);
+  a << 0.0, 0.0;
+  b << 1.0, 0.0;
+  c << 1.0, 1.0;
+  const double max_deviation = 0.1;
+  const toppra::Vectors waypoints = {a, b, c};
+  LinearBlendPath path(waypoints, max_deviation);
+
+  const auto interval = path.pathInterval();
+  EXPECT_NEAR((path.eval_single(0.0, 0) - a).norm(), 0.0, 1e-9);
+  EXPECT_NEAR((path.eval_single(interval[1], 0) - c).norm(), 0.0, 1e-9);
+  EXPECT_GT(interval[1], 0.0);
+  EXPECT_LT(interval[1], 2.0);  // corner is cut, so shorter than the polyline
+
+  const double ds = interval[1] / 400.0;
+  Eigen::VectorXd previous = path.eval_single(0.0, 0);
+  double min_corner_distance = (previous - b).norm();
+  for (double s = ds; s <= interval[1] + 1e-12; s += ds) {
+    const auto position = path.eval_single(s, 0);
+    EXPECT_LT((position - previous).norm(), 5.0 * ds);      // no positional jumps
+    EXPECT_NEAR(path.eval_single(s, 1).norm(), 1.0, 1e-6);  // unit tangent everywhere
+    min_corner_distance = std::min(min_corner_distance, (position - b).norm());
+    previous = position;
+  }
+  // The blend's closest approach to the sharp corner equals the requested deviation.
+  EXPECT_NEAR(min_corner_distance, max_deviation, 1e-3);
+}
+
+TEST(LinearBlendPathTest, RequiresAtLeastTwoWaypoints) {
+  Eigen::VectorXd a(2);
+  a << 0.0, 0.0;
+  const toppra::Vectors waypoints = {a};
+  EXPECT_THROW(LinearBlendPath(waypoints, 0.1), std::invalid_argument);
 }
 
 }  // namespace roboplan

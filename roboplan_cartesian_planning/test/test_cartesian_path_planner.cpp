@@ -1,0 +1,185 @@
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <vector>
+
+#include <Eigen/Dense>
+
+#include <roboplan/core/scene.hpp>
+#include <roboplan_cartesian_planning/cartesian_path_planner.hpp>
+#include <roboplan_example_models/resources.hpp>
+
+namespace roboplan {
+
+namespace {
+constexpr char kGroup[] = "arm";
+constexpr char kBaseFrame[] = "base";
+constexpr char kTipFrame[] = "tool0";
+}  // namespace
+
+class CartesianPlannerTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    const auto model_prefix = example_models::get_package_models_dir();
+    const auto urdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.urdf";
+    const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
+    // Load the YAML config so the joint acceleration limits are populated (they back the
+    // peak-acceleration-ratio checks and the TOPP-RA re-timing).
+    const auto yaml_config_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
+    const std::vector<std::filesystem::path> package_paths = {
+        example_models::get_package_share_dir()};
+    scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths,
+                                     yaml_config_path);
+  }
+
+  /// @brief Builds a single-frame straight-line CartesianPath of `num_waypoints` points
+  /// starting at the current tool pose and translating by `delta` (meters) per step
+  /// along the world X axis of the base frame.
+  CartesianPath makeLinePath(const Eigen::VectorXd& q_start_full, int num_waypoints, double delta) {
+    const Eigen::Matrix4d start = scene_->forwardKinematics(q_start_full, kTipFrame, kBaseFrame);
+    std::vector<Eigen::Matrix4d> waypoints;
+    for (int i = 0; i < num_waypoints; ++i) {
+      Eigen::Matrix4d pose = start;
+      pose(0, 3) += i * delta;
+      waypoints.push_back(pose);
+    }
+    return CartesianPath({kBaseFrame}, {kTipFrame}, {waypoints});
+  }
+
+public:
+  std::shared_ptr<Scene> scene_;
+};
+
+TEST_F(CartesianPlannerTest, TracesStraightLineWithinTolerance) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.dt = 0.01;
+  options.linear_speed = 0.05;
+  options.max_position_error = 0.005;
+  options.max_orientation_error = 0.01;
+
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+
+  // A short, clearly reachable line (5 cm total) from the current pose.
+  const CartesianPath path = makeLinePath(q_start.positions, 3, 0.025);
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const JointTrajectory& traj = result->trajectory;
+  ASSERT_GE(traj.positions.size(), 2u);
+  EXPECT_EQ(traj.times.size(), traj.positions.size());
+  EXPECT_EQ(traj.velocities.size(), traj.positions.size());
+  EXPECT_EQ(traj.accelerations.size(), traj.positions.size());
+
+  // Times must be strictly increasing.
+  for (size_t i = 1; i < traj.times.size(); ++i) {
+    EXPECT_GT(traj.times.at(i), traj.times.at(i - 1));
+  }
+
+  // The final configuration must reach the final waypoint within tolerance.
+  const Eigen::VectorXd q_full_final = scene_->toFullJointPositions(kGroup, traj.positions.back());
+  const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
+  const Eigen::Matrix4d& goal = path.tforms.at(0).back();
+  const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
+  EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
+
+  // The achieved path length should be close to the commanded 5 cm line.
+  EXPECT_NEAR(result->achieved_path_length, 0.05, 0.01);
+  EXPECT_GE(result->feedrate_efficiency, 0.0);
+  EXPECT_LE(result->feedrate_efficiency, 1.0);
+}
+
+TEST_F(CartesianPlannerTest, RespectsJointVelocityAndPositionLimits) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.dt = 0.01;
+  // Command an aggressive speed so the velocity limits are actively binding.
+  options.linear_speed = 0.5;
+  options.max_position_error = 0.01;
+  options.max_orientation_error = 0.05;
+
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  const CartesianPath path = makeLinePath(q_start.positions, 4, 0.05);
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const JointTrajectory& traj = result->trajectory;
+  const auto velocity_limits = scene_->getVelocityLimitVectors(kGroup);
+  ASSERT_TRUE(velocity_limits.has_value());
+  const Eigen::VectorXd v_max = velocity_limits->second.cwiseAbs();
+
+  // Allow a small relative slack for the QP's constraint-satisfaction tolerance.
+  const Eigen::ArrayXd velocity_bound = v_max.array() * 1.01 + 1e-6;
+  for (const auto& velocity : traj.velocities) {
+    ASSERT_EQ(velocity.size(), v_max.size());
+    EXPECT_TRUE((velocity.array().abs() <= velocity_bound).all())
+        << "peak |q_dot| = " << velocity.array().abs().maxCoeff() << " exceeds limit "
+        << v_max.maxCoeff();
+  }
+
+  // Every configuration along the trajectory must respect joint position limits.
+  for (const auto& group_positions : traj.positions) {
+    const Eigen::VectorXd q_full = scene_->toFullJointPositions(kGroup, group_positions);
+    EXPECT_TRUE(scene_->isValidConfiguration(q_full));
+  }
+}
+
+TEST_F(CartesianPlannerTest, RejectsMultiFramePath) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+
+  CartesianPath path = makeLinePath(q_start.positions, 2, 0.02);
+  // Duplicate the frame to create an (unsupported) two-frame path.
+  path.base_frames.push_back(kBaseFrame);
+  path.tip_frames.push_back(kTipFrame);
+  path.tforms.push_back(path.tforms.at(0));
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_FALSE(result.has_value());
+}
+
+TEST_F(CartesianPlannerTest, ToppraModeRespectsVelocityAndAccelerationLimits) {
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  const CartesianPath path = makeLinePath(q_start.positions, 4, 0.05);
+
+  CartesianPlannerOptions toppra_options;
+  toppra_options.group_name = kGroup;
+  toppra_options.max_position_error = 0.01;
+  toppra_options.max_orientation_error = 0.05;
+  toppra_options.speed_mode = CartesianSpeedMode::TimeOptimalToppra;
+  const auto toppra_result = CartesianPathPlanner(scene_, toppra_options).plan(path, q_start);
+  ASSERT_TRUE(toppra_result.has_value()) << toppra_result.error();
+
+  // Allow a small slack for spline/discretization and the QP tolerance.
+  EXPECT_LE(toppra_result->peak_velocity_ratio, 1.1);
+  EXPECT_LE(toppra_result->peak_acceleration_ratio, 1.3);
+  EXPECT_GE(toppra_result->trajectory.positions.size(), 2u);
+}
+
+TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = Eigen::VectorXd::Zero(3);  // wrong size
+  const CartesianPath path = makeLinePath(scene_->getCurrentJointPositions(), 2, 0.02);
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_FALSE(result.has_value());
+}
+
+}  // namespace roboplan

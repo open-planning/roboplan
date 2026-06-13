@@ -8,6 +8,7 @@
 #include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene_utils.hpp>
+#include <roboplan_toppra/linear_blend_path.hpp>
 #include <roboplan_toppra/toppra.hpp>
 
 namespace {
@@ -166,7 +167,7 @@ PathParameterizerTOPPRA::generateCubicHermiteSpline(const toppra::Vectors& path_
 tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
     const JointPath& path, const double dt, const SplineFittingMode mode,
     const double velocity_scale, const double acceleration_scale, const int max_adaptive_iterations,
-    const double max_adaptive_step_size) {
+    const double max_adaptive_step_size, const double max_deviation) {
   if (path.positions.size() < 2) {
     return tl::make_unexpected("Path must have at least 2 points.");
   }
@@ -202,85 +203,112 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   }
   auto path_pos_vecs = maybe_path_pos_vecs.value();
 
-  // Parse the spline fitting mode and set the options accordingly.
-  // The basic rules are:
-  // - If Hermite mode is enabled, we don't need to iterate or check collisions.
-  // - If cubic mode is enabled, we just do one iteration with collision checking.
-  // - If adaptive mode is enabled, we do need to iterate by checking collisisions.
-  int max_collision_iterations = 0;
-  switch (mode) {
-  case SplineFittingMode::Hermite:
-    max_collision_iterations = 0;
-    break;
-  case SplineFittingMode::Cubic:
-    max_collision_iterations = 1;
-    break;
-  case SplineFittingMode::Adaptive:
-    max_collision_iterations = max_adaptive_iterations;
-    break;
-  }
+  toppra::GeometricPathPtr geom_path;
+  std::shared_ptr<LinearBlendPath> blend_path;
+  if (mode == SplineFittingMode::LinearBlend) {
+    // Straight-line segments with circular corner blends. Straight segments have zero
+    // curvature, so dense/noisy waypoints do not inflate the acceleration constraint; corner
+    // curvature is bounded by max_deviation. No collision repair is performed here (deviation
+    // from the input waypoints is bounded by max_deviation).
+    blend_path = std::make_shared<LinearBlendPath>(path_pos_vecs, max_deviation);
+    geom_path = blend_path;
+  } else {
+    // Parse the spline fitting mode and set the options accordingly.
+    // The basic rules are:
+    // - If Hermite mode is enabled, we don't need to iterate or check collisions.
+    // - If cubic mode is enabled, we just do one iteration with collision checking.
+    // - If adaptive mode is enabled, we do need to iterate by checking collisisions.
+    int max_collision_iterations = 0;
+    switch (mode) {
+    case SplineFittingMode::Hermite:
+      max_collision_iterations = 0;
+      break;
+    case SplineFittingMode::Cubic:
+      max_collision_iterations = 1;
+      break;
+    case SplineFittingMode::Adaptive:
+      max_collision_iterations = max_adaptive_iterations;
+      break;
+    case SplineFittingMode::LinearBlend:
+      break;  // Handled above.
+    }
 
-  // Snapshot the scene geometry into a private collision context for the collision-check loop
-  // below, so it uses its own scratch rather than the Scene's shared collision data.
-  const CollisionContext collision_context(*scene_);
+    // Snapshot the scene geometry into a private collision context for the collision-check loop
+    // below, so it uses its own scratch rather than the Scene's shared collision data.
+    const CollisionContext collision_context(*scene_);
 
-  bool found_collision_free_path = false;
-  std::shared_ptr<toppra::PiecewisePolyPath> geom_path;
-  for (int idx = 0; idx < max_collision_iterations; ++idx) {
-    // Create the cubic spline.
-    geom_path = generateCubicSpline(path_pos_vecs);
+    bool found_collision_free_path = false;
+    for (int idx = 0; idx < max_collision_iterations; ++idx) {
+      // Create the cubic spline.
+      geom_path = generateCubicSpline(path_pos_vecs);
 
-    // Collision check the spline.
-    // This assumes the initial path has time indices for each point at exactly increments of 1.0
-    // (which is the case). These time values will later be modified by the final TOPP-RA algorithm.
-    int last_collision_index = -1;
-    size_t points_added = 0;
-    const auto time_points = geom_path->proposeGridpoints(
-        /* max_segment_error */ 1.0e-4, /* max_iteration */ 100, max_adaptive_step_size);
-    for (const auto t : time_points) {
-      // If the current point has already been added, can skip to the next time point.
-      const auto t_idx = static_cast<int>(t);
-      if (last_collision_index == t_idx) {
-        continue;
-      }
+      // Collision check the spline.
+      // This assumes the initial path has time indices for each point at exactly increments of
+      // 1.0 (which is the case). These time values will later be modified by the final TOPP-RA
+      // algorithm.
+      int last_collision_index = -1;
+      size_t points_added = 0;
+      const auto time_points = geom_path->proposeGridpoints(
+          /* max_segment_error */ 1.0e-4, /* max_iteration */ 100, max_adaptive_step_size);
+      for (const auto t : time_points) {
+        // If the current point has already been added, can skip to the next time point.
+        const auto t_idx = static_cast<int>(t);
+        if (last_collision_index == t_idx) {
+          continue;
+        }
 
-      const auto q = geom_path->eval_single(t, 0);
-      const auto maybe_q_expanded = expandContinuousJointPositions(*scene_, group_name_, q);
-      if (!maybe_q_expanded) {
-        return tl::make_unexpected("Failed to collision check geometric path: " +
-                                   maybe_q_expanded.error());
-      }
-      const auto q_full = scene_->toFullJointPositions(group_name_, maybe_q_expanded.value());
+        const auto q = geom_path->eval_single(t, 0);
+        const auto maybe_q_expanded = expandContinuousJointPositions(*scene_, group_name_, q);
+        if (!maybe_q_expanded) {
+          return tl::make_unexpected("Failed to collision check geometric path: " +
+                                     maybe_q_expanded.error());
+        }
+        const auto q_full = scene_->toFullJointPositions(group_name_, maybe_q_expanded.value());
 
-      // If a collision is found, add a waypoint in the middle of the current and next point.
-      // Don't add points in the final iteration, as it is not needed.
-      if (collision_context.hasCollisions(q_full)) {
-        last_collision_index = t_idx;
-        if (idx < max_collision_iterations - 1) {
-          const auto& q_prev = path_pos_vecs.at(t_idx + points_added);
-          const auto& q_next = path_pos_vecs.at(t_idx + points_added + 1);
-          const auto q_interp = 0.5 * (q_prev + q_next);
-          path_pos_vecs.insert(path_pos_vecs.begin() + t_idx + points_added + 1, q_interp);
-          ++points_added;
+        // If a collision is found, add a waypoint in the middle of the current and next point.
+        // Don't add points in the final iteration, as it is not needed.
+        if (collision_context.hasCollisions(q_full)) {
+          last_collision_index = t_idx;
+          if (idx < max_collision_iterations - 1) {
+            const auto& q_prev = path_pos_vecs.at(t_idx + points_added);
+            const auto& q_next = path_pos_vecs.at(t_idx + points_added + 1);
+            const auto q_interp = 0.5 * (q_prev + q_next);
+            path_pos_vecs.insert(path_pos_vecs.begin() + t_idx + points_added + 1, q_interp);
+            ++points_added;
+          }
         }
       }
+
+      if (last_collision_index == -1) {
+        found_collision_free_path = true;
+        break;
+      }
     }
 
-    if (last_collision_index == -1) {
-      found_collision_free_path = true;
-      break;
+    // If necessary, fall back to a Hermite cubic spline using the original path.
+    // This happens with Hermite mode or if we didn't find a collision-free path with other
+    // modes.
+    if (!found_collision_free_path) {
+      geom_path = generateCubicHermiteSpline(getPathPositionVectors(path).value());
     }
-  }
-
-  // If necessary, fall back to a Hermite cubic spline using the original path.
-  // This happens with Hermite mode or if we didn't find a collision-free path with other modes.
-  if (!found_collision_free_path) {
-    geom_path = generateCubicHermiteSpline(getPathPositionVectors(path).value());
   }
 
   // Solve TOPP-RA problem.
   toppra::PathParametrizationAlgorithmPtr algo =
       std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
+
+  // The LinearBlend path has discontinuous curvature at the line<->arc junctions. The
+  // algorithm's default uniform grid would miss those junctions and under-sample the arcs,
+  // letting the acceleration constraint be violated between gridpoints. Seed a
+  // curvature-adaptive grid that lands on every segment boundary so the centripetal
+  // acceleration at each blend is enforced.
+  if (blend_path) {
+    const auto gridpoints = blend_path->proposeGridpoints(
+        /* max_segment_error */ 1.0e-5, /* max_iteration */ 100, /* max_segment_length */ 0.02,
+        /* min_num_points */ 100, /* initial_gridpoints */ blend_path->segmentBoundaries());
+    algo->setGridpoints(gridpoints);
+  }
+
   const auto rc = algo->computePathParametrization();
   if (rc != toppra::ReturnCode::OK) {
     return tl::make_unexpected("TOPPRA failed with return code " +
