@@ -26,7 +26,7 @@ from roboplan.visualization import (
 
 
 def round_corners(
-    vertices: list[np.ndarray], radius: float, max_arc_step_deg: float = 15.0
+    vertices: list[np.ndarray], radius: float, max_arc_step_deg: float = 1.0
 ) -> list[np.ndarray]:
     """
     Rounds the interior corners of a polyline (list of 3D points) with circular arcs of the
@@ -80,6 +80,7 @@ def make_lawnmower_path(
     path_size: float = 0.15,
     path_num_passes: int = 5,
     path_corner_radius: float = 0.0,
+    path_corner_arc_step_deg: float = 1.0,
 ) -> CartesianPath:
     """
     Builds a "lawnmower" (boustrophedon) Cartesian path with one waypoint list per end-effector
@@ -103,7 +104,7 @@ def make_lawnmower_path(
         u_values = (0.0, path_size) if i % 2 == 0 else (path_size, 0.0)
         for u in u_values:
             vertices.append(u * u_dir + v * v_dir)
-    positions = round_corners(vertices, path_corner_radius)
+    positions = round_corners(vertices, path_corner_radius, path_corner_arc_step_deg)
 
     tforms = []
     for tip_frame in tip_frames:
@@ -132,6 +133,7 @@ def main(
     path_size: float = 0.15,
     path_num_passes: int = 5,
     path_corner_radius: float = 0.0,
+    path_corner_arc_step_deg: float = 1.0,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -155,6 +157,10 @@ def main(
         path_corner_radius: Task-space radius (m) used to round the lawnmower corners. Larger values
             round the corners more, letting the tool carry speed through them (0 = sharp corners,
             clamped per corner so adjacent arcs do not overlap).
+        path_corner_arc_step_deg: Angular step (deg) used to discretize each rounded corner arc into
+            chords. Coarse values (e.g. 15) facet the arc into a few straight segments whose kinks
+            show up as a jagged velocity profile; use a small value (~1-2) so the arc is smooth and
+            the tool carries speed cleanly through the corner. Ignored when path_corner_radius=0.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -190,6 +196,7 @@ def main(
         path_size=path_size,
         path_num_passes=path_num_passes,
         path_corner_radius=path_corner_radius,
+        path_corner_arc_step_deg=path_corner_arc_step_deg,
     )
 
     options = CartesianPlannerOptions(
