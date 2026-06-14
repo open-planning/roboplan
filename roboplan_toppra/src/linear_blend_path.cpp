@@ -144,15 +144,15 @@ toppra::Vector LinearBlendPath::eval_single(toppra::value_type s, int order) con
   }
 
   const double theta = seg.radius > 0.0 ? u / seg.radius : 0.0;
-  const double c = std::cos(theta);
-  const double sn = std::sin(theta);
+  const double cos = std::cos(theta);
+  const double sin = std::sin(theta);
   switch (order) {
   case 0:
-    return seg.center + seg.radius * (seg.x * c + seg.y * sn);
+    return seg.center + seg.radius * (seg.x * cos + seg.y * sin);
   case 1:
-    return -seg.x * sn + seg.y * c;
+    return -seg.x * sin + seg.y * cos;
   case 2:
-    return (-1.0 / seg.radius) * (seg.x * c + seg.y * sn);
+    return (-1.0 / seg.radius) * (seg.x * cos + seg.y * sin);
   default:
     return Eigen::VectorXd::Zero(dof);
   }

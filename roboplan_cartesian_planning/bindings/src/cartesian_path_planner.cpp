@@ -25,18 +25,19 @@ void init_cartesian_path_planner(nanobind::module_& m) {
 
   nanobind::class_<CartesianPlannerOptions>(m, "CartesianPlannerOptions",
                                             "Options for the Cartesian path planner.")
-      .def(nanobind::init<std::string, double, double, double, double, double, CartesianSpeedMode,
+      .def(nanobind::init<std::string, double, CartesianSpeedMode, double, double, double, double,
                           double, double, double, double, double, double, double, double, double,
                           double, int>(),
-           "group_name"_a = "", "dt"_a = 0.01, "linear_speed"_a = 0.1, "angular_speed"_a = 0.5,
-           "max_position_error"_a = 0.005, "max_orientation_error"_a = 0.01,
-           "speed_mode"_a = CartesianSpeedMode::Constant, "position_cost"_a = 1.0,
-           "orientation_cost"_a = 1.0, "task_gain"_a = 1.0, "lm_damping"_a = 0.01,
-           "regularization"_a = 1e-6, "config_task_weight"_a = 0.05, "velocity_scale"_a = 1.0,
-           "acceleration_scale"_a = 1.0, "toppra_blend_deviation"_a = 0.05,
-           "position_limit_gain"_a = 1.0, "max_attempts_per_step"_a = 16)
+           "group_name"_a = "", "dt"_a = 0.01, "speed_mode"_a = CartesianSpeedMode::Constant,
+           "linear_speed"_a = 0.1, "angular_speed"_a = 0.5, "max_position_error"_a = 0.005,
+           "max_orientation_error"_a = 0.01, "position_cost"_a = 1.0, "orientation_cost"_a = 1.0,
+           "task_gain"_a = 1.0, "lm_damping"_a = 0.01, "regularization"_a = 1e-6,
+           "config_task_weight"_a = 0.05, "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0,
+           "toppra_blend_deviation"_a = 0.05, "position_limit_gain"_a = 1.0,
+           "max_attempts_per_step"_a = 16)
       .def_rw("group_name", &CartesianPlannerOptions::group_name, "Joint group name.")
       .def_rw("dt", &CartesianPlannerOptions::dt, "Output trajectory sample period (s).")
+      .def_rw("speed_mode", &CartesianPlannerOptions::speed_mode, "Speed/timing strategy.")
       .def_rw("linear_speed", &CartesianPlannerOptions::linear_speed,
               "Commanded linear tool speed (m/s).")
       .def_rw("angular_speed", &CartesianPlannerOptions::angular_speed,
@@ -45,7 +46,6 @@ void init_cartesian_path_planner(nanobind::module_& m) {
               "Maximum position deviation from the path (m).")
       .def_rw("max_orientation_error", &CartesianPlannerOptions::max_orientation_error,
               "Maximum orientation deviation from the path (rad).")
-      .def_rw("speed_mode", &CartesianPlannerOptions::speed_mode, "Speed/timing strategy.")
       .def_rw("position_cost", &CartesianPlannerOptions::position_cost,
               "Oink frame task position cost.")
       .def_rw("orientation_cost", &CartesianPlannerOptions::orientation_cost,

@@ -19,13 +19,13 @@ enum class CartesianSpeedMode {
   /// @brief Trace the path at a (roughly) constant Cartesian tool speed.
   /// @details The reference advances at the commanded linear/angular speed wherever
   /// feasible, and is throttled below it only where the robot cannot otherwise stay
-  /// within tolerance (e.g. near a singularity or a joint velocity limit).
+  /// within tolerance (e.g., near a singularity or a joint velocity limit).
   Constant,
 
   /// @brief Time-optimal re-timing respecting joint velocity/acceleration limits.
-  /// @details Not yet implemented. Reserved for resolving the waypoints to a joint
-  /// path and handing it to roboplan_toppra's PathParameterizerTOPPRA. Tool speed
-  /// will vary along the path in this mode.
+  /// @details Resolves the waypoints to a joint path and hands it to a
+  /// PathParameterizerTOPPRA instance using linear segments with circular blends.
+  /// Tool speed will vary along the path in this mode.
   Toppra,
 };
 
@@ -35,12 +35,18 @@ struct CartesianPlannerOptions {
   std::string group_name = "";
 
   /// @brief The output trajectory sample period (control period), in seconds.
+  /// @details This is also the sample time used by the OInK solver.
   double dt = 0.01;
 
+  /// @brief Which timing/speed strategy to use.
+  CartesianSpeedMode speed_mode = CartesianSpeedMode::Constant;
+
   /// @brief Commanded linear tool speed along the path, in meters/second.
+  /// @details Only used in Constant speed mode.
   double linear_speed = 0.1;
 
   /// @brief Commanded angular tool speed along the path, in radians/second.
+  /// @details Only used in Constant speed mode.
   double angular_speed = 0.5;
 
   /// @brief Maximum allowed position deviation from the path, in meters.
@@ -48,9 +54,6 @@ struct CartesianPlannerOptions {
 
   /// @brief Maximum allowed orientation deviation from the path, in radians.
   double max_orientation_error = 0.01;
-
-  /// @brief Which timing/speed strategy to use.
-  CartesianSpeedMode speed_mode = CartesianSpeedMode::Constant;
 
   /// @brief Oink FrameTask position cost weight.
   double position_cost = 1.0;
@@ -91,9 +94,9 @@ struct CartesianPlannerOptions {
   /// from the joint position limits.
   double position_limit_gain = 1.0;
 
-  /// @brief Maximum number of feedrate-throttling attempts per control step before
-  /// declaring a stall (the robot cannot stay within tolerance even when nearly
-  /// stationary).
+  /// @brief Maximum number of feedrate-throttling attempts per control step before stalling.
+  /// @details A stall is declared when the robot cannot stay within tolerance even when nearly
+  /// stationary.
   int max_attempts_per_step = 16;
 };
 

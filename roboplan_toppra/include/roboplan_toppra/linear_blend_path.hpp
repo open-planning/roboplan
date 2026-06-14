@@ -11,21 +11,22 @@ namespace roboplan {
 /// @brief A geometric path made of straight-line segments joined by circular corner blends,
 /// parameterized by arc length and exposed through the TOPP-RA `GeometricPath` interface.
 /// @details This is the path representation used by time-optimal trajectory generation
-/// (Kunz & Stilman 2012, the algorithm behind MoveIt's TOTG). Unlike an interpolating cubic
-/// spline, straight segments have exactly zero curvature, so densely sampled, slightly noisy
-/// waypoints no longer inflate the spline's centripetal acceleration term (q'' * s_dot^2) and
-/// force TOPP-RA to crawl. Curvature exists only at the corner blends and is bounded by the
-/// `max_deviation` tolerance (the maximum distance the blend may stray from the sharp corner).
+/// (Kunz & Stilman 2012, https://www.roboticsproceedings.org/rss08/p27.pdf).
+/// Unlike an interpolating cubic spline, straight segments have exactly zero curvature,
+/// so that densely sampled, slightly noisy waypoints no longer inflate the spline's centripetal
+/// acceleration term (q'' * s_dot^2) and force TOPP-RA to crawl.
+/// Curvature exists only at the corner blends and is bounded by the `max_deviation` tolerance
+/// (the maximum distance the blend may stray from the sharp corner).
 ///
 /// Each interior waypoint is rounded with a circular arc built from the midpoints of its two
 /// adjacent segments; using midpoints guarantees a blend consumes at most half of each
 /// segment, so adjacent blends never overlap. The path is C1 (continuous position and unit
 /// tangent) with piecewise-constant curvature.
 ///
-/// @note The waypoints are expected to be monotone along the path (no sharp reversals). A
-/// near-180-degree reversal cannot be blended and becomes a tangent-discontinuous cusp, which a
-/// time parameterization cannot traverse without stopping; this matches the assumptions of
-/// TOTG and is satisfied by Cartesian-path-following traces.
+/// @note The waypoints are expected to be monotone along the path (no sharp reversals).
+/// A near-180-degree reversal cannot be blended and becomes a tangent-discontinuous cusp,
+/// which a time parameterization cannot traverse without stopping; this matches the assumptions
+/// of TOTG and is satisfied by Cartesian-path-following traces.
 class LinearBlendPath : public toppra::GeometricPath {
 public:
   /// @brief Constructs the line+blend path through the given waypoints.
