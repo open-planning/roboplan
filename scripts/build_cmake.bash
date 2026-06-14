@@ -35,6 +35,7 @@ build_project roboplan_simple_ik
 build_project roboplan_oink
 build_project roboplan_toppra
 build_project roboplan_rrt
+build_project roboplan_cartesian_planning
 build_project roboplan_examples
 
 echo "
