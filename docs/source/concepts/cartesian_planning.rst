@@ -24,3 +24,30 @@ Two speed modes are exposed:
 
 Both modes return a ``JointTrajectory`` plus ``peak_velocity_ratio`` / ``peak_acceleration_ratio`` so the caller can see how close the result is to the joint limits.
 Use ``Toppra`` when acceleration feasibility matters (e.g. high commanded speeds, or executing on hardware).
+
+Multiple end effectors
+----------------------
+
+A ``CartesianPath`` may contain more than one end-effector frame.
+The planner builds one tracking ``FrameTask`` per frame and advances all of them along a shared reference timeline, so the motions are traced simultaneously.
+The throttling/tolerance logic uses the worst-case error across all frames, and the reported ``achieved_path_length`` is summed across them.
+
+Customizing the IK problem
+--------------------------
+
+By default the planner builds its own OInK solver.
+This solver has one ``FrameTask`` per end-effector plus a nullspace ``ConfigurationTask``.
+It is bounded by ``VelocityLimit`` and ``PositionLimit`` constraints based on the robot joint limits.
+
+For full control over the differential-IK problem, you can instead construct the planner with a ``CartesianPlannerComponents``.
+This lets you supply your own:
+
+- ``oink``: the :ref:`OInK <oink-solver>` solver instance.
+- ``tracking_tasks``: one ``FrameTask`` per end-effector, ordered to match the path's tip frames.
+- ``extra_tasks``: additional tasks (e.g., a custom nullspace posture task).
+- ``constraints`` and ``barriers``: any constraints/control barrier functions to apply at every step.
+
+The planner reuses these objects across all ``plan()`` calls and never mutates them apart from the tracking-task targets.
+Any seed-dependent setup is the caller's responsibility.
+In this mode, the OInK-related fields of ``CartesianPlannerOptions`` (costs, gains, limits) are ignored.
+However, the timing/tolerance fields (``dt``, speeds, ``max_*_error``, ``speed_mode``, scales) still apply.

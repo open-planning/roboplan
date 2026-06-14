@@ -150,7 +150,7 @@ CartesianPathPlanner::buildReference(const std::vector<Eigen::Matrix4d>& waypoin
 
 CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
                                            const CartesianPlannerOptions& options)
-    : scene_{scene}, options_{options}, oink_{*scene, options.group_name},
+    : scene_{scene}, options_{options}, oink_{std::make_shared<Oink>(*scene, options.group_name)},
       toppra_{scene, options.group_name} {
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(options_.group_name);
   if (!maybe_joint_group_info) {
@@ -158,6 +158,85 @@ CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
                              maybe_joint_group_info.error());
   }
   joint_group_info_ = maybe_joint_group_info.value();
+  buildStaticSolverComponents();
+}
+
+CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
+                                           const CartesianPlannerOptions& options,
+                                           const CartesianPlannerComponents& components)
+    : scene_{scene}, options_{options}, oink_{components.oink}, components_{components},
+      toppra_{scene, options.group_name} {
+  if (!components.oink) {
+    throw std::runtime_error(
+        "Could not initialize Cartesian path planner: components.oink must not be null.");
+  }
+  if (components.tracking_tasks.empty()) {
+    throw std::runtime_error("Could not initialize Cartesian path planner: "
+                             "components.tracking_tasks must not be empty.");
+  }
+  for (const auto& tracking_task : components.tracking_tasks) {
+    if (!tracking_task) {
+      throw std::runtime_error("Could not initialize Cartesian path planner: "
+                               "components.tracking_tasks must not contain a null entry.");
+    }
+  }
+  const auto maybe_joint_group_info = scene_->getJointGroupInfo(options_.group_name);
+  if (!maybe_joint_group_info) {
+    throw std::runtime_error("Could not initialize Cartesian path planner: " +
+                             maybe_joint_group_info.error());
+  }
+  joint_group_info_ = maybe_joint_group_info.value();
+  buildStaticSolverComponents();
+}
+
+void CartesianPathPlanner::buildStaticSolverComponents() {
+  const int num_variables = oink_->num_variables;
+
+  if (components_) {
+    // Caller-supplied setup: the solver objectives are fixed, so assemble them once. The
+    // tracking tasks are prepended so they are always solved; everything else passes through.
+    tasks_.clear();
+    tasks_.reserve(components_->tracking_tasks.size() + components_->extra_tasks.size());
+    tasks_.insert(tasks_.end(), components_->tracking_tasks.begin(),
+                  components_->tracking_tasks.end());
+    tasks_.insert(tasks_.end(), components_->extra_tasks.begin(), components_->extra_tasks.end());
+    constraints_ = components_->constraints;
+    barriers_ = components_->barriers;
+
+    // Verify against the scene's physical velocity limits (unscaled) if available; the caller
+    // owns whatever velocity constraint they supplied, so this is only a hard-limit sanity net.
+    const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
+    if (maybe_velocity_limits && maybe_velocity_limits->second.size() == num_variables) {
+      verify_v_max_ = maybe_velocity_limits->second.cwiseAbs();
+      has_velocity_check_ = true;
+    }
+    return;
+  }
+
+  // Default setup: the velocity/position-limit constraints and the verification limits do not
+  // depend on the path or seed, so build them once here. The per-end-effector FrameTasks and the
+  // nullspace ConfigurationTask are (re)built in trackReference() because they do.
+  const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
+  if (!maybe_velocity_limits) {
+    throw std::runtime_error("Could not initialize Cartesian path planner: could not get joint "
+                             "velocity limits: " +
+                             maybe_velocity_limits.error());
+  }
+  Eigen::VectorXd v_max = maybe_velocity_limits->second.cwiseAbs() * options_.velocity_scale;
+  if (v_max.size() != num_variables) {
+    throw std::runtime_error(
+        "Could not initialize Cartesian path planner: velocity limit vector size (" +
+        std::to_string(v_max.size()) + ") does not match the group velocity DOF count (" +
+        std::to_string(num_variables) + ").");
+  }
+
+  // Enforce both joint velocity and joint position limits inside the QP:
+  //   - VelocityLimit bounds each step to dt * v_max (so |delta_q|/dt <= v_max).
+  //   - PositionLimit restricts each step so the integrated configuration stays within limits.
+  constraints_ = {std::make_shared<VelocityLimit>(*oink_, options_.dt, v_max),
+                  std::make_shared<PositionLimit>(*oink_, options_.position_limit_gain)};
+  verify_v_max_ = std::move(v_max);
+  has_velocity_check_ = true;
 }
 
 tl::expected<CartesianPlanResult, std::string>
@@ -165,9 +244,6 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   // Validate options.
   if (options_.dt <= 0.0) {
     return tl::make_unexpected("dt must be strictly positive.");
-  }
-  if (options_.linear_speed <= 0.0 || options_.angular_speed <= 0.0) {
-    return tl::make_unexpected("linear_speed and angular_speed must be strictly positive.");
   }
   if (options_.max_position_error <= 0.0 || options_.max_orientation_error <= 0.0) {
     return tl::make_unexpected(
@@ -177,14 +253,29 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
     return tl::make_unexpected("velocity_scale must be in the interval (0, 1].");
   }
 
-  // Validate the path (v1 supports a single end-effector frame).
-  if (path.base_frames.size() != 1 || path.tip_frames.size() != 1 || path.tforms.size() != 1) {
-    return tl::make_unexpected(
-        "CartesianPathPlanner v1 supports exactly one end-effector frame (the path must contain "
-        "exactly one base frame, tip frame, and transform list).");
+  // Validate the path: one or more end-effector frames, each with a matching base frame, tip
+  // frame, and (non-empty) transform list.
+  const size_t num_frames = path.tforms.size();
+  if (num_frames < 1) {
+    return tl::make_unexpected("The Cartesian path must contain at least one end-effector frame.");
   }
-  if (path.tforms.at(0).size() < 1) {
-    return tl::make_unexpected("The Cartesian path must contain at least one waypoint.");
+  if (path.base_frames.size() != num_frames || path.tip_frames.size() != num_frames) {
+    return tl::make_unexpected(
+        "The Cartesian path must contain the same number of base frames, tip frames, and "
+        "transform lists (one per end-effector).");
+  }
+  for (size_t f = 0; f < num_frames; ++f) {
+    if (path.tforms.at(f).size() < 1) {
+      return tl::make_unexpected("Each Cartesian path frame must contain at least one waypoint (" +
+                                 path.tip_frames.at(f) + " has none).");
+    }
+  }
+  // In the custom-components mode there must be exactly one tracking task per end-effector.
+  if (components_ && components_->tracking_tasks.size() != num_frames) {
+    return tl::make_unexpected("The number of tracking tasks (" +
+                               std::to_string(components_->tracking_tasks.size()) +
+                               ") must match the number of end-effector frames in the path (" +
+                               std::to_string(num_frames) + ").");
   }
 
   // Validate the seed configuration.
@@ -208,233 +299,269 @@ tl::expected<CartesianPathPlanner::TrackResult, std::string>
 CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::VectorXd& q_start_full,
                                      double linear_speed, double angular_speed) {
   const auto& model = scene_->getModel();
-  const std::string& base_frame = path.base_frames.at(0);
-  const std::string& tip_frame = path.tip_frames.at(0);
-  const Reference reference = buildReference(path.tforms.at(0), linear_speed, angular_speed);
+  const size_t num_frames = path.tforms.size();
 
-  // The Oink FrameTask expects its target expressed in the world frame, while the
-  // CartesianPath waypoints are given relative to `base_frame`. The base frame is
-  // fixed relative to the world for a fixed-base robot, so compute world_T_base once
-  // and use it to map each base-relative reference pose into the world frame.
-  Eigen::Matrix4d world_T_base;
-  try {
-    world_T_base = scene_->forwardKinematics(q_start_full, base_frame);
-  } catch (const std::exception& e) {
-    return tl::make_unexpected(std::string("Could not resolve base frame '") + base_frame +
-                               "': " + e.what());
+  // Per-end-effector tracking state, kept as parallel vectors indexed by frame: the arc-length
+  // reference, the fixed world<-base transform, and the FrameTask whose target the planner
+  // retargets each step. The tip frame to trace is path.tip_frames.at(f).
+  std::vector<Reference> references(num_frames);
+  std::vector<Eigen::Matrix4d> world_T_base(num_frames);
+  std::vector<std::shared_ptr<FrameTask>> frame_tasks(num_frames);
+
+  // The Oink FrameTask expects its target expressed in the world frame, while the CartesianPath
+  // waypoints are given relative to each frame's base. The base frame is fixed relative to the
+  // world for a fixed-base robot, so compute world_T_base once per frame and use it to map each
+  // base-relative reference pose into the world frame.
+  for (size_t f = 0; f < num_frames; ++f) {
+    references.at(f) = buildReference(path.tforms.at(f), linear_speed, angular_speed);
+    // Resolve the tip frame up front so the FrameTask construction below cannot throw.
+    if (const auto maybe_tip_id = scene_->getFrameId(path.tip_frames.at(f)); !maybe_tip_id) {
+      return tl::make_unexpected("Could not resolve tip frame '" + path.tip_frames.at(f) +
+                                 "': " + maybe_tip_id.error());
+    }
+    try {
+      world_T_base.at(f) = scene_->forwardKinematics(q_start_full, path.base_frames.at(f));
+    } catch (const std::exception& e) {
+      return tl::make_unexpected(std::string("Could not resolve base frame '") +
+                                 path.base_frames.at(f) + "': " + e.what());
+    }
   }
-  const auto to_world = [&world_T_base](const Eigen::Matrix4d& base_T_tip) -> Eigen::Matrix4d {
-    return world_T_base * base_T_tip;
+
+  // Common timeline: a single reference time `s` advances all frames together; each reference
+  // clamps `s` to its own duration, so a shorter motion simply holds at its final waypoint.
+  double total_time = 0.0;
+  for (const auto& reference : references) {
+    total_time = std::max(total_time, reference.total_time);
+  }
+
+  // World-frame target pose of frame `f` at reference time `s`.
+  const auto frame_target = [&world_T_base, &references](size_t f, double s) -> Eigen::Matrix4d {
+    return world_T_base.at(f) * references.at(f).eval(s);
   };
 
-  // Build the Oink tasks/constraints against the pre-constructed solver. Task construction can
-  // throw if a frame cannot be resolved, so convert any exception to an error.
-  try {
-    Oink& oink = oink_;
-    const int num_variables = oink.num_variables;
+  // Wire up the per-end-effector tracking tasks. The constraints, barriers, and velocity-limit
+  // verification were assembled once at construction (see buildStaticSolverComponents); in the
+  // custom-components mode the task list is fixed too, while the default mode rebuilds the
+  // per-end-effector FrameTasks and nullspace ConfigurationTask here because they depend on the
+  // path's frames and the seed configuration. The tip frames were validated above, so the
+  // FrameTask construction below cannot throw.
+  Oink& oink = *oink_;
+  const int num_variables = oink.num_variables;
 
-    // Priority-1 frame task: track the moving reference pose.
-    CartesianConfiguration target;
-    target.base_frame = "";  // FrameTask interprets the target tform in the world frame.
-    target.tip_frame = tip_frame;
-    target.tform = to_world(reference.eval(0.0));
-    FrameTaskOptions frame_options;
-    frame_options.position_cost = options_.position_cost;
-    frame_options.orientation_cost = options_.orientation_cost;
-    frame_options.task_gain = options_.task_gain;
-    frame_options.lm_damping = options_.lm_damping;
-    frame_options.priority = 1;
-    auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target, frame_options);
+  if (components_) {
+    // Caller-supplied setup: map each pre-assembled tracking task to its path frame (matched by
+    // order) and validate the ordering. The solver task list (tasks_) is already built.
+    for (size_t f = 0; f < num_frames; ++f) {
+      const auto& tracking_task = components_->tracking_tasks.at(f);
+      if (tracking_task->frame_name != path.tip_frames.at(f)) {
+        return tl::make_unexpected(
+            "Tracking task " + std::to_string(f) + " tracks frame '" + tracking_task->frame_name +
+            "' but path end-effector " + std::to_string(f) + " is '" + path.tip_frames.at(f) +
+            "'. Tracking tasks must be ordered to match the path's tip frames.");
+      }
+      frame_tasks.at(f) = tracking_task;
+    }
+  } else {
+    // Default setup: (re)build one priority-1 frame task per end-effector tracking its reference
+    // pose, plus a priority-2 configuration task that gently regularizes redundant joints toward
+    // the seed using only the nullspace the frame tasks leave free. Reuse the tasks_ buffer.
+    tasks_.clear();
+    tasks_.reserve(num_frames + 1);
+    for (size_t f = 0; f < num_frames; ++f) {
+      CartesianConfiguration target;
+      target.base_frame = "";  // FrameTask interprets the target tform in the world frame.
+      target.tip_frame = path.tip_frames.at(f);
+      target.tform = frame_target(f, 0.0);
+      FrameTaskOptions frame_options;
+      frame_options.position_cost = options_.position_cost;
+      frame_options.orientation_cost = options_.orientation_cost;
+      frame_options.task_gain = options_.task_gain;
+      frame_options.lm_damping = options_.lm_damping;
+      frame_options.priority = 1;
+      frame_tasks.at(f) = std::make_shared<FrameTask>(oink, *scene_, target, frame_options);
+      tasks_.push_back(frame_tasks.at(f));
+    }
 
-    // Priority-2 configuration task: gently regularize redundant joints toward the
-    // seed, using only the nullspace the frame task leaves free.
     const Eigen::VectorXd joint_weights =
         Eigen::VectorXd::Constant(num_variables, options_.config_task_weight);
     ConfigurationTaskOptions config_options;
     config_options.priority = 2;
     const Eigen::VectorXd target_q = q_start_full(oink.q_indices);
-    auto config_task =
-        std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, config_options);
+    tasks_.push_back(
+        std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, config_options));
+  }
 
-    std::vector<std::shared_ptr<Task>> tasks = {frame_task, config_task};
+  // Per-step scratch.
+  Eigen::VectorXd delta_q(num_variables);
+  Eigen::VectorXd delta_q_full(model.nv);
+  Eigen::VectorXd q = q_start_full;
 
-    // Velocity-limit constraint: bounds each differential-IK step to dt * v_max.
-    const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
-    if (!maybe_velocity_limits) {
-      return tl::make_unexpected("Could not get joint velocity limits: " +
-                                 maybe_velocity_limits.error());
+  // Runs one differential-IK step that retargets every frame to its pose at reference time
+  // `s` from the committed configuration `q`, writing the candidate configuration and the
+  // worst-case (max over frames) world-frame FK pose error. Does not commit.
+  auto solve_step = [&](double s, Eigen::VectorXd& q_candidate, double& position_error,
+                        double& orientation_error) -> tl::expected<void, std::string> {
+    // Refresh the scene state to the committed configuration so the Oink tasks read the
+    // correct current pose, and retarget every tracking task.
+    scene_->setJointPositions(q);
+    for (size_t f = 0; f < num_frames; ++f) {
+      frame_tasks.at(f)->setTargetFrameTransform(frame_target(f, s));
     }
-    Eigen::VectorXd v_max = maybe_velocity_limits->second.cwiseAbs() * options_.velocity_scale;
-    if (v_max.size() != num_variables) {
-      return tl::make_unexpected("Velocity limit vector size (" + std::to_string(v_max.size()) +
-                                 ") does not match the group velocity DOF count (" +
-                                 std::to_string(num_variables) + ").");
+    delta_q.setZero();
+    const auto result =
+        oink.solveIk(*scene_, tasks_, constraints_, barriers_, delta_q, options_.regularization);
+    if (!result) {
+      return tl::make_unexpected(result.error());
     }
+    delta_q_full.setZero();
+    delta_q_full(oink.v_indices) = delta_q;
+    q_candidate = scene_->integrate(q, delta_q_full);
 
-    // Enforce both joint velocity and joint position limits inside the QP:
-    //   - VelocityLimit bounds each step to dt * v_max (so |delta_q|/dt <= v_max).
-    //   - PositionLimit restricts each step so the integrated configuration stays
-    //     within the joint position limits.
-    std::vector<std::shared_ptr<Constraints>> constraints = {
-        std::make_shared<VelocityLimit>(oink, options_.dt, v_max),
-        std::make_shared<PositionLimit>(oink, options_.position_limit_gain)};
+    // Worst-case pose error across all tracked frames drives the tolerance/throttling logic.
+    position_error = 0.0;
+    orientation_error = 0.0;
+    for (size_t f = 0; f < num_frames; ++f) {
+      const Eigen::Matrix4d fk = scene_->forwardKinematics(q_candidate, path.tip_frames.at(f));
+      double frame_position_error = 0.0;
+      double frame_orientation_error = 0.0;
+      poseError(fk, frame_target(f, s), frame_position_error, frame_orientation_error);
+      position_error = std::max(position_error, frame_position_error);
+      orientation_error = std::max(orientation_error, frame_orientation_error);
+    }
+    return {};
+  };
 
-    // Per-step scratch.
-    Eigen::VectorXd delta_q(num_variables);
-    Eigen::VectorXd delta_q_full(model.nv);
-    Eigen::VectorXd q = q_start_full;
+  // Convergence phase: drive every frame onto its first waypoint within tolerance.
+  double position_error = 0.0;
+  double orientation_error = 0.0;
+  bool converged = false;
+  for (int i = 0; i < kMaxConvergenceIters; ++i) {
+    Eigen::VectorXd q_candidate;
+    const auto step = solve_step(0.0, q_candidate, position_error, orientation_error);
+    if (!step) {
+      return tl::make_unexpected("Oink solve failed while converging to the first waypoint: " +
+                                 step.error());
+    }
+    q = q_candidate;
 
-    // Runs one differential-IK step toward `world_tform` (a world-frame target pose)
-    // from the committed configuration `q`, writing the candidate configuration and its
-    // world-frame FK pose error. Does not commit.
-    auto solve_step = [&](const Eigen::Matrix4d& world_tform, Eigen::VectorXd& q_candidate,
-                          double& position_error,
-                          double& orientation_error) -> tl::expected<void, std::string> {
-      // Refresh the scene state and FK cache to the committed configuration so the
-      // Oink tasks read the correct current pose.
-      scene_->setJointPositions(q);
-      scene_->forwardKinematics(q, tip_frame);
-      frame_task->setTargetFrameTransform(world_tform);
-      delta_q.setZero();
-      const auto result =
-          oink.solveIk(*scene_, tasks, constraints, delta_q, options_.regularization);
-      if (!result) {
-        return tl::make_unexpected(result.error());
-      }
-      delta_q_full.setZero();
-      delta_q_full(oink.v_indices) = delta_q;
-      q_candidate = scene_->integrate(q, delta_q_full);
-      const Eigen::Matrix4d fk = scene_->forwardKinematics(q_candidate, tip_frame);
-      poseError(fk, world_tform, position_error, orientation_error);
-      return {};
-    };
+    if (position_error <= options_.max_position_error &&
+        orientation_error <= options_.max_orientation_error) {
+      converged = true;
+      break;
+    }
+  }
+  if (!converged) {
+    return tl::make_unexpected(
+        "Could not converge to the first waypoint within tolerance (position error " +
+        std::to_string(position_error) + " m, orientation error " +
+        std::to_string(orientation_error) +
+        " rad). Ensure q_start places the tool(s) at or near the first waypoint.");
+  }
 
-    // Convergence phase: drive the robot onto the first waypoint within tolerance.
-    const Eigen::Matrix4d start_pose = to_world(reference.eval(0.0));
-    double position_error = 0.0;
-    double orientation_error = 0.0;
-    bool converged = false;
-    for (int i = 0; i < kMaxConvergenceIters; ++i) {
-      Eigen::VectorXd q_candidate;
-      const auto step = solve_step(start_pose, q_candidate, position_error, orientation_error);
+  // Initialize the trace at the converged start.
+  TrackResult result;
+  result.group_positions.push_back(q(oink.q_indices).eval());
+  result.group_velocities.push_back(Eigen::VectorXd::Zero(num_variables));
+  result.times.push_back(0.0);
+
+  // Per-frame previous tip position, used to accumulate the achieved path length (summed
+  // across all end-effectors).
+  std::vector<Eigen::Vector3d> previous_positions(num_frames);
+  for (size_t f = 0; f < num_frames; ++f) {
+    previous_positions.at(f) =
+        scene_->forwardKinematics(q, path.tip_frames.at(f)).block<3, 1>(0, 3);
+  }
+
+  // Timed servo loop with feedrate throttling for tolerance enforcement.
+  double s = 0.0;
+  int total_steps = 0;
+  int throttled_steps = 0;
+  const double eps = 1e-9;
+  const int hard_cap =
+      static_cast<int>(std::ceil(total_time / options_.dt)) * (options_.max_attempts_per_step + 2) +
+      1000;
+
+  while (s < total_time - eps) {
+    bool committed = false;
+    double alpha = 1.0;
+    Eigen::VectorXd q_candidate;
+    double committed_s = s;
+    for (int attempt = 0; attempt < options_.max_attempts_per_step; ++attempt) {
+      const double s_try = std::min(s + alpha * options_.dt, total_time);
+      const auto step = solve_step(s_try, q_candidate, position_error, orientation_error);
       if (!step) {
-        return tl::make_unexpected("Oink solve failed while converging to the first waypoint: " +
-                                   step.error());
+        return tl::make_unexpected("Oink solve failed at reference time " + std::to_string(s) +
+                                   "s: " + step.error());
       }
-      q = q_candidate;
-
       if (position_error <= options_.max_position_error &&
           orientation_error <= options_.max_orientation_error) {
-        converged = true;
+        committed = true;
+        committed_s = s_try;
+        if (alpha < 1.0 - eps) {
+          ++throttled_steps;
+        }
         break;
       }
+      alpha *= 0.5;
     }
-    if (!converged) {
+
+    if (!committed) {
+      std::string hint = " The path may be unreachable or pass through a singularity.";
       return tl::make_unexpected(
-          "Could not converge to the first waypoint within tolerance (position error " +
-          std::to_string(position_error) + " m, orientation error " +
-          std::to_string(orientation_error) +
-          " rad). Ensure q_start places the tool at or near the first waypoint.");
+          "Cartesian planner stalled at reference time " + std::to_string(s) +
+          "s: cannot stay within tolerance (position error " + std::to_string(position_error) +
+          " m, orientation error " + std::to_string(orientation_error) + " rad)." + hint);
     }
 
-    // Initialize the trace at the converged start.
-    TrackResult result;
-    result.group_positions.push_back(q(oink.q_indices).eval());
-    result.group_velocities.push_back(Eigen::VectorXd::Zero(num_variables));
-    result.times.push_back(0.0);
+    // Commit the step.
+    s = committed_s;
+    q = q_candidate;
 
-    Eigen::Vector3d previous_position = scene_->forwardKinematics(q, tip_frame).block<3, 1>(0, 3);
-
-    // Timed servo loop with feedrate throttling for tolerance enforcement.
-    double s = 0.0;
-    int total_steps = 0;
-    int throttled_steps = 0;
-    const double eps = 1e-9;
-    const int hard_cap = static_cast<int>(std::ceil(reference.total_time / options_.dt)) *
-                             (options_.max_attempts_per_step + 2) +
-                         1000;
-
-    while (s < reference.total_time - eps) {
-      bool committed = false;
-      double alpha = 1.0;
-      Eigen::VectorXd q_candidate;
-      double committed_s = s;
-      for (int attempt = 0; attempt < options_.max_attempts_per_step; ++attempt) {
-        const double s_try = std::min(s + alpha * options_.dt, reference.total_time);
-        const Eigen::Matrix4d tform = to_world(reference.eval(s_try));
-        const auto step = solve_step(tform, q_candidate, position_error, orientation_error);
-        if (!step) {
-          return tl::make_unexpected("Oink solve failed at reference time " + std::to_string(s) +
-                                     "s: " + step.error());
-        }
-        if (position_error <= options_.max_position_error &&
-            orientation_error <= options_.max_orientation_error) {
-          committed = true;
-          committed_s = s_try;
-          if (alpha < 1.0 - eps) {
-            ++throttled_steps;
-          }
-          break;
-        }
-        alpha *= 0.5;
-      }
-
-      if (!committed) {
-        std::string hint = " The path may be unreachable or pass through a singularity.";
-        return tl::make_unexpected(
-            "Cartesian planner stalled at reference time " + std::to_string(s) +
-            "s: cannot stay within tolerance (position error " + std::to_string(position_error) +
-            " m, orientation error " + std::to_string(orientation_error) + " rad)." + hint);
-      }
-
-      // Commit the step.
-      s = committed_s;
-      q = q_candidate;
-
-      // The VelocityLimit and PositionLimit constraints keep each step within the
-      // joint limits inside the QP; verify the committed step actually does, to guard
-      // against solver constraint relaxation or numerical drift. A small relative
-      // tolerance absorbs the QP's constraint-satisfaction tolerance.
+    // The velocity constraint keeps each step within the joint velocity limits inside the
+    // QP; verify the committed step actually does, to guard against solver constraint
+    // relaxation or numerical drift. A small relative tolerance absorbs the QP's
+    // constraint-satisfaction tolerance. Skipped when no velocity limits are available.
+    if (has_velocity_check_) {
       constexpr double kLimitRelTolerance = 1e-2;
       const Eigen::ArrayXd velocity_bound =
-          options_.dt * v_max.array() * (1.0 + kLimitRelTolerance) + 1e-9;
+          options_.dt * verify_v_max_.array() * (1.0 + kLimitRelTolerance) + 1e-9;
       if ((delta_q.array().abs() > velocity_bound).any()) {
         return tl::make_unexpected(
             "Joint velocity limit exceeded at reference time " + std::to_string(s) +
             "s (peak |q_dot| = " +
             std::to_string((delta_q.array().abs() / options_.dt).maxCoeff()) + " vs. limit " +
-            std::to_string(v_max.maxCoeff()) + ").");
-      }
-      if (!scene_->isValidConfiguration(q)) {
-        return tl::make_unexpected("Joint position limit exceeded at reference time " +
-                                   std::to_string(s) + "s.");
-      }
-
-      ++total_steps;
-      result.times.push_back(total_steps * options_.dt);
-      result.group_positions.push_back(q(oink.q_indices).eval());
-      result.group_velocities.push_back((delta_q / options_.dt).eval());
-
-      const Eigen::Vector3d current_position =
-          scene_->forwardKinematics(q, tip_frame).block<3, 1>(0, 3);
-      result.achieved_path_length += (current_position - previous_position).norm();
-      previous_position = current_position;
-
-      if (total_steps > hard_cap) {
-        return tl::make_unexpected(
-            "Cartesian planner exceeded the maximum number of control steps (" +
-            std::to_string(hard_cap) + "). The path may be infeasible at the requested tolerance.");
+            std::to_string(verify_v_max_.maxCoeff()) + ").");
       }
     }
+    if (!scene_->isValidConfiguration(q)) {
+      return tl::make_unexpected("Joint position limit exceeded at reference time " +
+                                 std::to_string(s) + "s.");
+    }
 
-    result.feedrate_efficiency =
-        total_steps > 0
-            ? static_cast<double>(total_steps - throttled_steps) / static_cast<double>(total_steps)
-            : 1.0;
-    return result;
-  } catch (const std::exception& e) {
-    return tl::make_unexpected(std::string("Cartesian planner setup failed: ") + e.what());
+    ++total_steps;
+    result.times.push_back(total_steps * options_.dt);
+    result.group_positions.push_back(q(oink.q_indices).eval());
+    result.group_velocities.push_back((delta_q / options_.dt).eval());
+
+    for (size_t f = 0; f < num_frames; ++f) {
+      const Eigen::Vector3d current_position =
+          scene_->forwardKinematics(q, path.tip_frames.at(f)).block<3, 1>(0, 3);
+      result.achieved_path_length += (current_position - previous_positions.at(f)).norm();
+      previous_positions.at(f) = current_position;
+    }
+
+    if (total_steps > hard_cap) {
+      return tl::make_unexpected(
+          "Cartesian planner exceeded the maximum number of control steps (" +
+          std::to_string(hard_cap) + "). The path may be infeasible at the requested tolerance.");
+    }
   }
+
+  result.feedrate_efficiency =
+      total_steps > 0
+          ? static_cast<double>(total_steps - throttled_steps) / static_cast<double>(total_steps)
+          : 1.0;
+  return result;
 }
 
 void CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& trajectory,
@@ -475,6 +602,10 @@ void CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& traject
 tl::expected<CartesianPlanResult, std::string>
 CartesianPathPlanner::planConstantSpeed(const CartesianPath& path,
                                         const Eigen::VectorXd& q_start_full) {
+  if (options_.linear_speed <= 0.0 || options_.angular_speed <= 0.0) {
+    return tl::make_unexpected("linear_speed and angular_speed must be strictly positive.");
+  }
+
   auto tracked = trackReference(path, q_start_full, options_.linear_speed, options_.angular_speed);
   if (!tracked) {
     return tl::make_unexpected(tracked.error());

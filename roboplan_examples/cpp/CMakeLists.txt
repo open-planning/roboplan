@@ -46,11 +46,24 @@ target_include_directories(example_rrt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+add_executable(example_cartesian_planning example_cartesian_planning.cpp)
+target_link_libraries(example_cartesian_planning
+    roboplan::roboplan
+    roboplan_example_models::roboplan_example_models
+    roboplan_cartesian_planning::roboplan_cartesian_planning
+)
+set_property(TARGET example_cartesian_planning PROPERTY CXX_STANDARD 20)
+target_include_directories(example_cartesian_planning PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 install(
   TARGETS
   example_scene
   example_ik
   example_oink
   example_rrt
+  example_cartesian_planning
   DESTINATION lib/roboplan_examples
 )

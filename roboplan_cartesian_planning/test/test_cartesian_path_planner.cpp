@@ -8,6 +8,11 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan_cartesian_planning/cartesian_path_planner.hpp>
 #include <roboplan_example_models/resources.hpp>
+#include <roboplan_oink/constraints/position_limit.hpp>
+#include <roboplan_oink/constraints/velocity_limit.hpp>
+#include <roboplan_oink/optimal_ik.hpp>
+#include <roboplan_oink/tasks/configuration.hpp>
+#include <roboplan_oink/tasks/frame.hpp>
 
 namespace roboplan {
 
@@ -132,7 +137,39 @@ TEST_F(CartesianPlannerTest, RespectsJointVelocityAndPositionLimits) {
   }
 }
 
-TEST_F(CartesianPlannerTest, RejectsMultiFramePath) {
+TEST_F(CartesianPlannerTest, TracesMultiFramePathDefault) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.dt = 0.01;
+  options.linear_speed = 0.05;
+  options.max_position_error = 0.005;
+  options.max_orientation_error = 0.01;
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+
+  // A coordinated two-end-effector path: trace the same tip frame against two identical,
+  // trivially consistent references. This exercises the multi-frame plumbing while staying
+  // kinematically feasible for a single arm.
+  CartesianPath path = makeLinePath(q_start.positions, 3, 0.025);
+  path.base_frames.push_back(kBaseFrame);
+  path.tip_frames.push_back(kTipFrame);
+  path.tforms.push_back(path.tforms.at(0));
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  // The final configuration must reach the final waypoint within tolerance.
+  const Eigen::VectorXd q_full_final =
+      scene_->toFullJointPositions(kGroup, result->trajectory.positions.back());
+  const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
+  const Eigen::Matrix4d& goal = path.tforms.at(0).back();
+  const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
+  EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
+}
+
+TEST_F(CartesianPlannerTest, RejectsMismatchedFramePath) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;
   CartesianPathPlanner planner(scene_, options);
@@ -140,8 +177,109 @@ TEST_F(CartesianPlannerTest, RejectsMultiFramePath) {
   JointConfiguration q_start;
   q_start.positions = scene_->getCurrentJointPositions();
 
+  // Add a base/tip frame without a matching transform list: an inconsistent path.
   CartesianPath path = makeLinePath(q_start.positions, 2, 0.02);
-  // Duplicate the frame to create an (unsupported) two-frame path.
+  path.base_frames.push_back(kBaseFrame);
+  path.tip_frames.push_back(kTipFrame);
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_FALSE(result.has_value());
+}
+
+TEST_F(CartesianPlannerTest, CustomComponentsTracesLine) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.dt = 0.01;
+  options.linear_speed = 0.05;
+  options.max_position_error = 0.005;
+  options.max_orientation_error = 0.01;
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  const CartesianPath path = makeLinePath(q_start.positions, 3, 0.025);
+
+  // Build a caller-owned Oink setup mirroring the planner's built-in default.
+  auto oink = std::make_shared<Oink>(*scene_, kGroup);
+
+  CartesianConfiguration target;
+  target.base_frame = "";  // Target is interpreted in the world frame.
+  target.tip_frame = kTipFrame;
+  target.tform = scene_->forwardKinematics(q_start.positions, kTipFrame);
+  FrameTaskOptions frame_options;
+  frame_options.priority = 1;
+  auto frame_task = std::make_shared<FrameTask>(*oink, *scene_, target, frame_options);
+
+  const Eigen::VectorXd joint_weights = Eigen::VectorXd::Constant(oink->num_variables, 0.05);
+  ConfigurationTaskOptions config_options;
+  config_options.priority = 2;
+  const Eigen::VectorXd target_q = q_start.positions(oink->q_indices);
+  auto config_task =
+      std::make_shared<ConfigurationTask>(*oink, target_q, joint_weights, config_options);
+
+  const auto velocity_limits = scene_->getVelocityLimitVectors(kGroup);
+  ASSERT_TRUE(velocity_limits.has_value());
+  const Eigen::VectorXd v_max = velocity_limits->second.cwiseAbs();
+
+  CartesianPlannerComponents components;
+  components.oink = oink;
+  components.tracking_tasks = {frame_task};
+  components.extra_tasks = {config_task};
+  components.constraints = {std::make_shared<VelocityLimit>(*oink, options.dt, v_max),
+                            std::make_shared<PositionLimit>(*oink, 1.0)};
+
+  CartesianPathPlanner planner(scene_, options, components);
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const Eigen::VectorXd q_full_final =
+      scene_->toFullJointPositions(kGroup, result->trajectory.positions.back());
+  const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
+  const Eigen::Matrix4d& goal = path.tforms.at(0).back();
+  const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
+  EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
+}
+
+TEST_F(CartesianPlannerTest, CustomComponentsConstructorValidatesInputs) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+
+  // Null Oink is rejected.
+  CartesianPlannerComponents components;
+  EXPECT_THROW(CartesianPathPlanner(scene_, options, components), std::runtime_error);
+
+  // Empty tracking tasks are rejected.
+  components.oink = std::make_shared<Oink>(*scene_, kGroup);
+  EXPECT_THROW(CartesianPathPlanner(scene_, options, components), std::runtime_error);
+
+  // A null tracking-task entry is rejected.
+  components.tracking_tasks = {nullptr};
+  EXPECT_THROW(CartesianPathPlanner(scene_, options, components), std::runtime_error);
+}
+
+TEST_F(CartesianPlannerTest, CustomComponentsRejectsFrameCountMismatch) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+
+  auto oink = std::make_shared<Oink>(*scene_, kGroup);
+  CartesianConfiguration target;
+  target.base_frame = "";
+  target.tip_frame = kTipFrame;
+  target.tform = scene_->forwardKinematics(q_start.positions, kTipFrame);
+  FrameTaskOptions frame_options;
+  frame_options.priority = 1;
+  auto frame_task = std::make_shared<FrameTask>(*oink, *scene_, target, frame_options);
+
+  CartesianPlannerComponents components;
+  components.oink = oink;
+  components.tracking_tasks = {frame_task};  // one tracking task
+
+  CartesianPathPlanner planner(scene_, options, components);
+
+  // A two-end-effector path with only one tracking task must be rejected.
+  CartesianPath path = makeLinePath(q_start.positions, 2, 0.02);
   path.base_frames.push_back(kBaseFrame);
   path.tip_frames.push_back(kTipFrame);
   path.tforms.push_back(path.tforms.at(0));
@@ -165,7 +303,7 @@ TEST_F(CartesianPlannerTest, ToppraModeRespectsVelocityAndAccelerationLimits) {
 
   // Allow a small slack for spline/discretization and the QP tolerance.
   EXPECT_LE(toppra_result->peak_velocity_ratio, 1.1);
-  EXPECT_LE(toppra_result->peak_acceleration_ratio, 1.3);
+  EXPECT_LE(toppra_result->peak_acceleration_ratio, 1.1);
   EXPECT_GE(toppra_result->trajectory.positions.size(), 2u);
 }
 

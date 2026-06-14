@@ -1,6 +1,9 @@
+from collections.abc import Sequence
 import enum
+from typing import overload
 
 import roboplan.core._core_ext
+import roboplan.optimal_ik._optimal_ik_ext
 
 
 class CartesianSpeedMode(enum.Enum):
@@ -15,7 +18,7 @@ class CartesianSpeedMode(enum.Enum):
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, linear_speed: float = 0.1, angular_speed: float = 0.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Constant, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Constant, linear_speed: float = 0.1, angular_speed: float = 0.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -30,6 +33,13 @@ class CartesianPlannerOptions:
 
     @dt.setter
     def dt(self, arg: float, /) -> None: ...
+
+    @property
+    def speed_mode(self) -> CartesianSpeedMode:
+        """Speed/timing strategy."""
+
+    @speed_mode.setter
+    def speed_mode(self, arg: CartesianSpeedMode, /) -> None: ...
 
     @property
     def linear_speed(self) -> float:
@@ -58,13 +68,6 @@ class CartesianPlannerOptions:
 
     @max_orientation_error.setter
     def max_orientation_error(self, arg: float, /) -> None: ...
-
-    @property
-    def speed_mode(self) -> CartesianSpeedMode:
-        """Speed/timing strategy."""
-
-    @speed_mode.setter
-    def speed_mode(self, arg: CartesianSpeedMode, /) -> None: ...
 
     @property
     def position_cost(self) -> float:
@@ -168,12 +171,63 @@ class CartesianPlanResult:
         Peak |joint acceleration| / acceleration-limit ratio over the trajectory.
         """
 
+class CartesianPlannerComponents:
+    """
+    Caller-supplied OInK solver and IK objectives for the Cartesian path planner.
+    """
+
+    def __init__(self) -> None: ...
+
+    @property
+    def oink(self) -> roboplan.optimal_ik._optimal_ik_ext.Oink:
+        """The OInK solver to use."""
+
+    @oink.setter
+    def oink(self, arg: roboplan.optimal_ik._optimal_ik_ext.Oink, /) -> None: ...
+
+    @property
+    def tracking_tasks(self) -> list[roboplan.optimal_ik._optimal_ik_ext.FrameTask]:
+        """
+        FrameTasks that the planner updates each step, one per end-effector (ordered to match the path's tip frames).
+        """
+
+    @tracking_tasks.setter
+    def tracking_tasks(self, arg: Sequence[roboplan.optimal_ik._optimal_ik_ext.FrameTask], /) -> None: ...
+
+    @property
+    def extra_tasks(self) -> list[roboplan.optimal_ik._optimal_ik_ext.Task]:
+        """Additional tasks solved alongside the tracking tasks."""
+
+    @extra_tasks.setter
+    def extra_tasks(self, arg: Sequence[roboplan.optimal_ik._optimal_ik_ext.Task], /) -> None: ...
+
+    @property
+    def constraints(self) -> list[roboplan.optimal_ik._optimal_ik_ext.Constraints]:
+        """Constraints applied at every control step."""
+
+    @constraints.setter
+    def constraints(self, arg: Sequence[roboplan.optimal_ik._optimal_ik_ext.Constraints], /) -> None: ...
+
+    @property
+    def barriers(self) -> list[roboplan.optimal_ik._optimal_ik_ext.Barrier]:
+        """Control barrier functions applied at every control step."""
+
+    @barriers.setter
+    def barriers(self, arg: Sequence[roboplan.optimal_ik._optimal_ik_ext.Barrier], /) -> None: ...
+
 class CartesianPathPlanner:
     """
     Offline Cartesian path planner that traces a CartesianPath in joint space using Oink.
     """
 
+    @overload
     def __init__(self, scene: roboplan.core._core_ext.Scene, options: CartesianPlannerOptions) -> None: ...
+
+    @overload
+    def __init__(self, scene: roboplan.core._core_ext.Scene, options: CartesianPlannerOptions, components: CartesianPlannerComponents) -> None:
+        """
+        Constructs a planner that uses a caller-supplied OInK solver and objectives.
+        """
 
     def plan(self, path: roboplan.core._core_ext.CartesianPath, q_start: roboplan.core._core_ext.JointConfiguration) -> CartesianPlanResult:
         """Plans a joint trajectory that traces the provided Cartesian path."""

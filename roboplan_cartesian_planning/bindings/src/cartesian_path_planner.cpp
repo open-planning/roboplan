@@ -7,6 +7,8 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 #include <roboplan_cartesian_planning/cartesian_path_planner.hpp>
+#include <roboplan_oink/optimal_ik.hpp>
+#include <roboplan_oink/tasks/frame.hpp>
 
 #include <modules/cartesian_path_planner.hpp>
 #include <roboplan_bindings/expected.hpp>
@@ -81,11 +83,30 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_ro("peak_acceleration_ratio", &CartesianPlanResult::peak_acceleration_ratio,
               "Peak |joint acceleration| / acceleration-limit ratio over the trajectory.");
 
+  nanobind::class_<CartesianPlannerComponents>(
+      m, "CartesianPlannerComponents",
+      "Caller-supplied OInK solver and IK objectives for the Cartesian path planner.")
+      .def(nanobind::init<>())
+      .def_rw("oink", &CartesianPlannerComponents::oink, "The OInK solver to use.")
+      .def_rw("tracking_tasks", &CartesianPlannerComponents::tracking_tasks,
+              "FrameTasks that the planner updates each step, one per end-effector "
+              "(ordered to match the path's tip frames).")
+      .def_rw("extra_tasks", &CartesianPlannerComponents::extra_tasks,
+              "Additional tasks solved alongside the tracking tasks.")
+      .def_rw("constraints", &CartesianPlannerComponents::constraints,
+              "Constraints applied at every control step.")
+      .def_rw("barriers", &CartesianPlannerComponents::barriers,
+              "Control barrier functions applied at every control step.");
+
   nanobind::class_<CartesianPathPlanner>(
       m, "CartesianPathPlanner",
       "Offline Cartesian path planner that traces a CartesianPath in joint space using Oink.")
       .def(nanobind::init<const std::shared_ptr<Scene>, const CartesianPlannerOptions&>(),
            "scene"_a, "options"_a)
+      .def(nanobind::init<const std::shared_ptr<Scene>, const CartesianPlannerOptions&,
+                          const CartesianPlannerComponents&>(),
+           "scene"_a, "options"_a, "components"_a,
+           "Constructs a planner that uses a caller-supplied OInK solver and objectives.")
       .def("plan", unwrap_expected(&CartesianPathPlanner::plan),
            "Plans a joint trajectory that traces the provided Cartesian path.", "path"_a,
            "q_start"_a);

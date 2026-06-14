@@ -75,28 +75,27 @@ def round_corners(
 def make_lawnmower_path(
     scene: Scene,
     base_link: str,
-    tip_frame: str,
+    tip_frames: list[str],
     q_full: np.ndarray,
     path_size: float = 0.15,
     path_num_passes: int = 5,
     path_corner_radius: float = 0.0,
 ) -> CartesianPath:
     """
-    Builds a "lawnmower" (boustrophedon) Cartesian path that zigzags `path_num_passes`
-    times across a square region starting at the current tool pose and extending up and to
-    the right. The square lies in the base-frame y-z plane. Each pass sweeps across the
-    square along the in-plane "u" (y)
-    axis, alternating direction, and steps over along the "v" (z) axis between passes.
-    Interior corners are rounded with circular arcs of `path_corner_radius` meters (0
-    leaves them sharp). Returns a CartesianPath with one tip frame.
+    Builds a "lawnmower" (boustrophedon) Cartesian path with one waypoint list per end-effector
+    in `tip_frames`. Each end-effector traces an identically shaped lawnmower that zigzags
+    `path_num_passes` times across a square region starting at its own current pose and extending
+    up and to the right, so multi-arm robots execute a coordinated sweep. The square lies in the
+    base-frame y-z plane. Each pass sweeps across the square along the in-plane "u" (y) axis,
+    alternating direction, and steps over along the "v" (z) axis between passes. Interior corners
+    are rounded with circular arcs of `path_corner_radius` meters (0 leaves them sharp).
     """
-    start = scene.forwardKinematics(q_full, tip_frame, base_link)
     u_dir = np.array([0.0, 1.0, 0.0])
     v_dir = np.array([0.0, 0.0, 1.0])
 
-    # Corner vertices (positions relative to the start pose), then round them in task space.
-    # The square starts at the start pose and extends up and to the right (0 to path_size on
-    # both in-plane axes).
+    # Corner vertices (positions relative to a start pose), then round them in task space. The
+    # square starts at the start pose and extends up and to the right (0 to path_size on both
+    # in-plane axes); the same offsets are applied from each end-effector's start pose.
     vertices = []
     for i in range(path_num_passes):
         v = path_size * i / (path_num_passes - 1) if path_num_passes > 1 else 0.0
@@ -106,12 +105,18 @@ def make_lawnmower_path(
             vertices.append(u * u_dir + v * v_dir)
     positions = round_corners(vertices, path_corner_radius)
 
-    waypoints = []
-    for offset in positions:
-        pose = start.copy()
-        pose[:3, 3] += offset
-        waypoints.append(pose)
-    return CartesianPath([base_link], [tip_frame], [waypoints])
+    tforms = []
+    for tip_frame in tip_frames:
+        start = scene.forwardKinematics(q_full, tip_frame, base_link)
+        waypoints = []
+        for offset in positions:
+            pose = start.copy()
+            pose[:3, 3] += offset
+            waypoints.append(pose)
+        tforms.append(waypoints)
+
+    base_frames = [base_link] * len(tip_frames)
+    return CartesianPath(base_frames, tip_frames, tforms)
 
 
 def main(
@@ -176,11 +181,11 @@ def main(
     scene.setJointPositions(q_full)
 
     base_link = model_data.base_link
-    tip_frame = model_data.ee_names[0]
+    tip_frames = model_data.ee_names
     path = make_lawnmower_path(
         scene,
         base_link,
-        tip_frame,
+        tip_frames,
         q_full,
         path_size=path_size,
         path_num_passes=path_num_passes,
@@ -205,7 +210,8 @@ def main(
 
     print(
         f"Planning a {path_num_passes}-pass lawnmower over a {path_size} m square "
-        f"Cartesian path ({speed_mode.name} mode)..."
+        f"Cartesian path for {len(tip_frames)} end-effector(s) "
+        f"({', '.join(tip_frames)}) in {speed_mode.name} mode..."
     )
     t0 = time.time()
     try:
@@ -247,30 +253,31 @@ def main(
     viz.display(q_full)
 
     # Draw the reference path (commanded waypoints, green) vs. the actual traced
-    # path (forward kinematics of the planned trajectory, red).
+    # path (forward kinematics of the planned trajectory, red), once per end-effector.
     #
     # The CartesianPath waypoints are expressed in the base frame, so map them into
     # the world frame for visualization. The base frame is fixed relative to the
     # world, so a single forward-kinematics call suffices.
     world_T_base = scene.forwardKinematics(q_full, base_link)
-    reference_positions = np.array(
-        [(world_T_base @ waypoint)[:3, 3] for waypoint in path.tforms[0]]
-    )
-    visualizePositionTrace(
-        viz,
-        reference_positions,
-        trace_name="/reference_path",
-        waypoint_root="/reference_waypoints",
-        trace_color=(40, 180, 40),
-        waypoint_color=(40, 180, 40),
-        line_width=4.0,
-        waypoint_radius=0.0025,
-    )
+    for i, tip_frame in enumerate(tip_frames):
+        reference_positions = np.array(
+            [(world_T_base @ waypoint)[:3, 3] for waypoint in path.tforms[i]]
+        )
+        visualizePositionTrace(
+            viz,
+            reference_positions,
+            trace_name=f"/reference_path/{tip_frame}",
+            waypoint_root=f"/reference_waypoints/{tip_frame}",
+            trace_color=(40, 180, 40),
+            waypoint_color=(40, 180, 40),
+            line_width=4.0,
+            waypoint_radius=0.0025,
+        )
     visualizeJointTrajectory(
         viz,
         scene,
         traj,
-        [tip_frame],
+        tip_frames,
         color=(220, 40, 40),
         name="/actual_path",
     )

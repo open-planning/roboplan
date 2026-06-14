@@ -10,6 +10,8 @@ NB_MODULE(_cartesian_ext, m) {
 
   // Ensure core types (e.g. Scene, CartesianPath) are registered before referencing them.
   nanobind::module_::import_("roboplan.core");
+  // Ensure Oink types are registered so the custom-components constructor can accept them.
+  nanobind::module_::import_("roboplan.optimal_ik");
 
   init_cartesian_path_planner(m);
 }

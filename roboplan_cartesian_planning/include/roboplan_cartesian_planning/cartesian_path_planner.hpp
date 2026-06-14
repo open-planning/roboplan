@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,8 @@
 #include <roboplan_toppra/toppra.hpp>
 
 namespace roboplan {
+
+struct FrameTask;
 
 /// @brief Selects how the planner assigns speed/timing along the Cartesian path.
 enum class CartesianSpeedMode {
@@ -122,20 +125,77 @@ struct CartesianPlanResult {
   double peak_acceleration_ratio = 0.0;
 };
 
+/// @brief User-supplied OInK solver and objectives for the Cartesian path planner.
+/// @details Lets callers fully customize the differential-IK problem the planner solves at
+/// each control step instead of relying on the planner's built-in setup (one FrameTask per
+/// end-effector plus a nullspace ConfigurationTask, bounded by VelocityLimit and PositionLimit
+/// constraints). Pass an instance to the corresponding CartesianPathPlanner constructor to
+/// inject your own solver, tasks, constraints, and barriers.
+///
+/// The planner drives the motion by repeatedly updating each tracking FrameTask's target pose,
+/// so one tracking task must be provided per end-effector in the CartesianPath. All other
+/// tasks/constraints/barriers are passed to the solver unchanged on every step. The same
+/// objects are reused across all plan() calls; the planner never rebuilds or mutates them
+/// (other than the tracking tasks' targets), so any q_start-dependent setup (e.g. seeding a
+/// ConfigurationTask) is the caller's responsibility.
+struct CartesianPlannerComponents {
+  /// @brief The OInK solver to use.
+  /// @details Must be constructed for the same scene and joint group as the planner.
+  /// Must not be null.
+  std::shared_ptr<Oink> oink;
+
+  /// @brief The FrameTasks whose target poses uses to trace the path, one per end-effector.
+  /// @details Entry i tracks the frame named by path.tip_frames[i] of the CartesianPath,
+  /// so the count and order must match the path's specified tip frames.
+  /// Each task must be constructed against `oink` and must track the matching tip frame.
+  /// The tracking tasks are prepended to the solver's task list automatically.
+  /// Must be non-empty with no null entries.
+  std::vector<std::shared_ptr<FrameTask>> tracking_tasks;
+
+  /// @brief Additional tasks solved alongside the tracking tasks
+  /// (e.g., a nullspace ConfigurationTask). May be empty.
+  std::vector<std::shared_ptr<Task>> extra_tasks;
+
+  /// @brief Constraints applied at every control step (e.g. VelocityLimit, PositionLimit).
+  /// May be empty.
+  std::vector<std::shared_ptr<Constraints>> constraints;
+
+  /// @brief Control barrier functions applied at every control step. May be empty.
+  std::vector<std::shared_ptr<Barrier>> barriers;
+};
+
 /// @brief Offline Cartesian path planner that traces a CartesianPath in joint space.
 /// @details Uses the Oink optimal IK solver as a differential-IK tracker. See the
 /// package README for the algorithm.
 class CartesianPathPlanner {
 public:
-  /// @brief Constructor.
+  /// @brief Constructor that builds the default differential-IK setup internally.
+  /// @details Constructs its own OInK solver and, on each plan() call, one FrameTask per
+  /// end-effector in the path plus a nullspace ConfigurationTask, bounded by VelocityLimit and
+  /// PositionLimit constraints, configured from `options`.
   /// @param scene A pointer to the scene to use for planning.
   /// @param options A struct containing planner options.
   /// @throws std::runtime_error if the joint group cannot be resolved.
   CartesianPathPlanner(const std::shared_ptr<Scene> scene, const CartesianPlannerOptions& options);
 
+  /// @brief Constructor that uses a caller-supplied OInK solver and IK objectives.
+  /// @details The planner traces the path by updating each `components.tracking_tasks` target
+  /// every control step and solving with the provided solver, tasks, constraints, and barriers.
+  /// The
+  /// Oink-related fields of `options` (costs, gains, limits, etc.) are ignored in this mode
+  /// since the caller owns the objectives; timing/tolerance fields (dt, speeds, max errors,
+  /// speed_mode, scales) still apply.
+  /// @param scene A pointer to the scene to use for planning.
+  /// @param options A struct containing planner options.
+  /// @param components The caller-supplied Oink solver and IK objectives.
+  /// @throws std::runtime_error if the joint group cannot be resolved, or if
+  /// `components.oink` is null, or `components.tracking_tasks` is empty or contains a null entry.
+  CartesianPathPlanner(const std::shared_ptr<Scene> scene, const CartesianPlannerOptions& options,
+                       const CartesianPlannerComponents& components);
+
   /// @brief Plans a joint trajectory that traces the provided Cartesian path.
-  /// @details v1 supports a single end-effector frame (one entry in the path's
-  /// base_frames/tip_frames/tforms).
+  /// @details Supports one or more end-effector frames (each entry in the path's
+  /// base_frames/tip_frames/tforms is traced simultaneously by its own FrameTask).
   /// @param path The Cartesian waypoint path to trace.
   /// @param q_start The seed/start configuration, as a full model configuration
   /// (size model.nq). The robot should already be at (or near) the first waypoint.
@@ -167,6 +227,16 @@ private:
     /// @brief Fraction of steps that ran at full commanded feedrate.
     double feedrate_efficiency = 1.0;
   };
+
+  /// @brief Builds the parts of the OInK problem that do not depend on the path or seed, once,
+  /// at construction time.
+  /// @details Populates the reused solver-input buffers (constraints_, barriers_) and the
+  /// velocity-limit verification vector. In the custom-components mode this also assembles the
+  /// full task list (tracking tasks followed by extra tasks), since the caller's objectives are
+  /// fixed; in the default mode the per-end-effector tasks_ are (re)built per plan() because they
+  /// depend on the path's frames and the seed configuration.
+  /// @throws std::runtime_error if the joint velocity limits cannot be resolved (default mode).
+  void buildStaticSolverComponents();
 
   /// @brief Builds the arc-length reference from the path waypoints using the
   /// provided linear/angular speeds.
@@ -206,8 +276,33 @@ private:
   JointGroupInfo joint_group_info_;
 
   /// @brief The differential-IK solver used to resolve the Cartesian path into a joint trace.
-  /// @details Constructed once for the planner's joint group and reused across plan() calls.
-  Oink oink_;
+  /// @details Constructed once for the planner's joint group (or supplied by the caller) and
+  /// reused across plan() calls.
+  std::shared_ptr<Oink> oink_;
+
+  /// @brief Caller-supplied Oink objectives, set only when the components constructor is used.
+  /// @details When present, trackReference() uses these instead of building the default
+  /// FrameTask/ConfigurationTask/VelocityLimit/PositionLimit setup.
+  std::optional<CartesianPlannerComponents> components_;
+
+  /// @brief Reused solver task list passed to Oink::solveIk each control step.
+  /// @details Assembled once at construction in the custom-components mode; rebuilt in place each
+  /// plan() in the default mode (the per-end-effector FrameTasks depend on the path and seed).
+  std::vector<std::shared_ptr<Task>> tasks_;
+
+  /// @brief Constraints passed to the solver each step. Built once at construction.
+  std::vector<std::shared_ptr<Constraints>> constraints_;
+
+  /// @brief Barriers passed to the solver each step. Built once at construction.
+  std::vector<std::shared_ptr<Barrier>> barriers_;
+
+  /// @brief Joint velocity limits used to verify each committed step. Built once at construction.
+  /// @details Default mode uses the scene limits scaled by options_.velocity_scale; custom mode
+  /// uses the unscaled scene limits as a hard-limit sanity net.
+  Eigen::VectorXd verify_v_max_;
+
+  /// @brief Whether the per-step velocity verification runs (false if no limits are available).
+  bool has_velocity_check_ = false;
 
   /// @brief The TOPP-RA time parameterizer, used by the Toppra speed mode.
   /// @details Constructed once for the planner's joint group and reused across plan() calls.
