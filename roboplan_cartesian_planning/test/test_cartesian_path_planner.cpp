@@ -159,7 +159,7 @@ TEST_F(CartesianPlannerTest, ToppraModeRespectsVelocityAndAccelerationLimits) {
   toppra_options.group_name = kGroup;
   toppra_options.max_position_error = 0.01;
   toppra_options.max_orientation_error = 0.05;
-  toppra_options.speed_mode = CartesianSpeedMode::TimeOptimalToppra;
+  toppra_options.speed_mode = CartesianSpeedMode::Toppra;
   const auto toppra_result = CartesianPathPlanner(scene_, toppra_options).plan(path, q_start);
   ASSERT_TRUE(toppra_result.has_value()) << toppra_result.error();
 

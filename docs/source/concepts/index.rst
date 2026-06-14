@@ -6,3 +6,4 @@ Concepts
 
    trajectory_generation
    inverse_kinematics
+   cartesian_planning

@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "roboplan-cartesian-planning"
 version = "0.4.0"
-description = "Cartesian path planner for RoboPlan that traces a CartesianPath in joint space using the Oink optimal IK solver."
+description = "Cartesian path planner for RoboPlan."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [

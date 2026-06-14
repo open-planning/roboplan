@@ -6,16 +6,16 @@ import roboplan.core._core_ext
 class CartesianSpeedMode(enum.Enum):
     """Selects how the planner assigns speed/timing along the path."""
 
-    ConstantCartesianSpeed = 0
+    Constant = 0
     """Trace the path at a (roughly) constant Cartesian tool speed."""
 
-    TimeOptimalToppra = 1
+    Toppra = 1
     """Time-optimal re-timing respecting joint limits (not yet implemented)."""
 
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, linear_speed: float = 0.1, angular_speed: float = 0.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.ConstantCartesianSpeed, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, linear_speed: float = 0.1, angular_speed: float = 0.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Constant, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -117,16 +117,14 @@ class CartesianPlannerOptions:
 
     @property
     def acceleration_scale(self) -> float:
-        """Scaling factor for joint acceleration limits (TimeOptimalToppra mode)."""
+        """Scaling factor for joint acceleration limits (Toppra mode)."""
 
     @acceleration_scale.setter
     def acceleration_scale(self, arg: float, /) -> None: ...
 
     @property
     def toppra_blend_deviation(self) -> float:
-        """
-        Corner-rounding tolerance (rad) for the TimeOptimalToppra line+blend geometry.
-        """
+        """Corner-rounding tolerance (rad) for the Toppra line+blend geometry."""
 
     @toppra_blend_deviation.setter
     def toppra_blend_deviation(self, arg: float, /) -> None: ...

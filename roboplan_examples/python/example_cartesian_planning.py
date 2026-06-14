@@ -71,15 +71,21 @@ def round_corners(vertices, radius, max_arc_step_deg=15.0):
 
 
 def make_lawnmower_path(
-    scene, base_link, tip_frame, q_full, side=0.15, num_passes=5, corner_radius=0.0
+    scene,
+    base_link,
+    tip_frame,
+    q_full,
+    path_size=0.15,
+    path_num_passes=5,
+    path_corner_radius=0.0,
 ):
     """
-    Builds a lawnmower (boustrophedon) Cartesian path that zigzags `num_passes` times
+    Builds a lawnmower (boustrophedon) Cartesian path that zigzags `path_num_passes` times
     across a square region, starting from the current tool pose. The square lies in the
     plane spanned by the base-frame (1, 1, 0)/sqrt(2) and z directions. Each pass sweeps
     across the square along the in-plane "u" axis, alternating direction, and steps over
     along the "v" axis between passes. Interior corners are rounded with circular arcs of
-    `corner_radius` meters (0 leaves them sharp). Returns a CartesianPath with one tip frame.
+    `path_corner_radius` meters (0 leaves them sharp). Returns a CartesianPath with one tip frame.
     """
     start = scene.forwardKinematics(q_full, tip_frame, base_link)
     # In-plane orthonormal axes: u sweeps across each pass, v steps over between passes.
@@ -88,13 +94,13 @@ def make_lawnmower_path(
 
     # Corner vertices (positions relative to the start pose), then round them in task space.
     vertices = []
-    for i in range(num_passes):
-        v = side * i / (num_passes - 1) if num_passes > 1 else 0.0
+    for i in range(path_num_passes):
+        v = path_size * i / (path_num_passes - 1) if path_num_passes > 1 else 0.0
         # Alternate the sweep direction each pass to zigzag instead of retracing.
-        u_values = (0.0, side) if i % 2 == 0 else (side, 0.0)
+        u_values = (0.0, path_size) if i % 2 == 0 else (path_size, 0.0)
         for u in u_values:
             vertices.append(u * u_dir + v * v_dir)
-    positions = round_corners(vertices, corner_radius)
+    positions = round_corners(vertices, path_corner_radius)
 
     waypoints = []
     for offset in positions:
@@ -106,7 +112,7 @@ def make_lawnmower_path(
 
 def main(
     model: str = "ur5",
-    speed_mode: str = "toppra",
+    speed_mode: CartesianSpeedMode = CartesianSpeedMode.Toppra,
     linear_speed: float = 0.1,
     angular_speed: float = 0.5,
     max_position_error: float = 0.01,
@@ -114,19 +120,19 @@ def main(
     velocity_scale: float = 1.0,
     acceleration_scale: float = 1.0,
     dt: float = 0.01,
-    side: float = 0.15,
-    num_passes: int = 5,
-    corner_radius: float = 0.0,
+    path_size: float = 0.15,
+    path_num_passes: int = 5,
+    path_corner_radius: float = 0.0,
     host: str = "localhost",
     port: str = "8000",
 ):
     """
-    Plan a Cartesian path with the Oink-based planner and (optionally) play it back.
+    Plan a Cartesian path and visualize it.
 
     Parameters:
         model: The name of the model to use.
-        speed_mode: "constant" for a constant Cartesian tool speed (velocity-level, does
-            not bound acceleration), or "toppra" for a time-optimal re-timing that
+        speed_mode: Constant for a constant Cartesian tool speed (velocity-level, does
+            not bound acceleration), or Toppra for a time-optimal re-timing that
             respects joint velocity and acceleration limits (tool speed varies).
         linear_speed: Commanded linear tool speed along the path (m/s). Constant mode only.
         angular_speed: Commanded angular tool speed along the path (rad/s). Constant mode only.
@@ -135,9 +141,9 @@ def main(
         velocity_scale: Scaling (0, 1] applied to joint velocity limits.
         acceleration_scale: Scaling (0, 1] applied to joint acceleration limits (toppra mode).
         dt: Output trajectory sample period (s).
-        side: Side length of the square region the lawnmower covers (m).
-        num_passes: Number of zigzag passes across the square.
-        corner_radius: Task-space radius (m) used to round the lawnmower corners. Larger values
+        path_size: Side length of the square region the lawnmower covers (m).
+        path_num_passes: Number of zigzag passes across the square.
+        path_corner_radius: Task-space radius (m) used to round the lawnmower corners. Larger values
             round the corners more, letting the tool carry speed through them (0 = sharp corners,
             clamped per corner so adjacent arcs do not overlap).
         host: The host for the ViserVisualizer.
@@ -172,18 +178,10 @@ def main(
         base_link,
         tip_frame,
         q_full,
-        side=side,
-        num_passes=num_passes,
-        corner_radius=corner_radius,
+        path_size=path_size,
+        path_num_passes=path_num_passes,
+        path_corner_radius=path_corner_radius,
     )
-
-    speed_mode_map = {
-        "constant": CartesianSpeedMode.ConstantCartesianSpeed,
-        "toppra": CartesianSpeedMode.TimeOptimalToppra,
-    }
-    if speed_mode not in speed_mode_map:
-        print(f"Invalid speed_mode '{speed_mode}'. Choose from {list(speed_mode_map)}.")
-        sys.exit(1)
 
     options = CartesianPlannerOptions(
         group_name=model_data.default_joint_group,
@@ -194,7 +192,7 @@ def main(
         max_orientation_error=max_orientation_error,
         velocity_scale=velocity_scale,
         acceleration_scale=acceleration_scale,
-        speed_mode=speed_mode_map[speed_mode],
+        speed_mode=speed_mode,
     )
     planner = CartesianPathPlanner(scene, options)
 
@@ -202,8 +200,8 @@ def main(
     q_start.positions = q_full
 
     print(
-        f"Planning a {num_passes}-pass lawnmower over a {side} m square "
-        f"Cartesian path ({speed_mode} mode)..."
+        f"Planning a {path_num_passes}-pass lawnmower over a {path_size} m square "
+        f"Cartesian path ({speed_mode.name} mode)..."
     )
     t0 = time.time()
     try:
@@ -223,10 +221,13 @@ def main(
     print(f"  Peak acceleration / limit: {result.peak_acceleration_ratio:.2f}")
     # Constant mode is a velocity-level trace and does not bound joint acceleration, so it
     # can exceed the acceleration limits; flag that and point at the toppra mode.
-    if speed_mode == "constant" and result.peak_acceleration_ratio > 1.25:
+    if (
+        speed_mode == CartesianSpeedMode.Constant
+        and result.peak_acceleration_ratio > 1.25
+    ):
         print(
             "  NOTE: this velocity-level trajectory exceeds the joint acceleration limits. "
-            "Use --speed-mode toppra for an acceleration-limited, time-optimal re-timing."
+            "Use --speed-mode Toppra for an acceleration-limited, time-optimal re-timing."
         )
 
     # Plot the planned joint trajectory over time.

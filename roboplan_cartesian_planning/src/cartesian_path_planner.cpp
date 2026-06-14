@@ -196,9 +196,9 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   }
 
   switch (options_.speed_mode) {
-  case CartesianSpeedMode::ConstantCartesianSpeed:
+  case CartesianSpeedMode::Constant:
     return planConstantSpeed(path, q_start.positions);
-  case CartesianSpeedMode::TimeOptimalToppra:
+  case CartesianSpeedMode::Toppra:
     return planToppra(path, q_start.positions);
   }
   return tl::make_unexpected("Unknown CartesianSpeedMode.");
@@ -488,7 +488,7 @@ CartesianPathPlanner::planConstantSpeed(const CartesianPath& path,
   trajectory.velocities = std::move(tracked->group_velocities);
 
   // Fill accelerations by backward finite difference of the velocities. The
-  // ConstantCartesianSpeed mode is velocity-level, so these can exceed the joint
+  // Constant mode is velocity-level, so these can exceed the joint
   // acceleration limits; the peak ratios below make that explicit.
   const int num_variables =
       trajectory.velocities.empty() ? 0 : static_cast<int>(trajectory.velocities.front().size());

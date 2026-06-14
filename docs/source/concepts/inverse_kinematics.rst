@@ -98,6 +98,8 @@ Usage Example
 
    success = ik_solver.solveIk(goal, start, solution)
 
+.. _oink-solver:
+
 OInK: Optimal Inverse Kinematics
 ---------------------------------
 

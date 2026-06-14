@@ -3,7 +3,7 @@
 <package format="3">
   <name>roboplan_cartesian_planning</name>
   <version>0.4.0</version>
-  <description>Cartesian path planner for RoboPlan that traces a CartesianPath in joint space using the Oink optimal IK solver.</description>
+  <description>Cartesian path planner for RoboPlan.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 

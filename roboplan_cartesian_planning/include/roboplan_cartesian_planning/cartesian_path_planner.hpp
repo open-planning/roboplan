@@ -20,13 +20,13 @@ enum class CartesianSpeedMode {
   /// @details The reference advances at the commanded linear/angular speed wherever
   /// feasible, and is throttled below it only where the robot cannot otherwise stay
   /// within tolerance (e.g. near a singularity or a joint velocity limit).
-  ConstantCartesianSpeed,
+  Constant,
 
   /// @brief Time-optimal re-timing respecting joint velocity/acceleration limits.
   /// @details Not yet implemented. Reserved for resolving the waypoints to a joint
   /// path and handing it to roboplan_toppra's PathParameterizerTOPPRA. Tool speed
   /// will vary along the path in this mode.
-  TimeOptimalToppra,
+  Toppra,
 };
 
 /// @brief Options struct for the Cartesian path planner.
@@ -50,7 +50,7 @@ struct CartesianPlannerOptions {
   double max_orientation_error = 0.01;
 
   /// @brief Which timing/speed strategy to use.
-  CartesianSpeedMode speed_mode = CartesianSpeedMode::ConstantCartesianSpeed;
+  CartesianSpeedMode speed_mode = CartesianSpeedMode::Constant;
 
   /// @brief Oink FrameTask position cost weight.
   double position_cost = 1.0;
@@ -76,10 +76,10 @@ struct CartesianPlannerOptions {
   double velocity_scale = 1.0;
 
   /// @brief Scaling factor (0, 1] applied to the joint acceleration limits. Only used by
-  /// the TimeOptimalToppra speed mode.
+  /// the Toppra speed mode.
   double acceleration_scale = 1.0;
 
-  /// @brief Corner-rounding tolerance (joint-space radians) for the TimeOptimalToppra speed
+  /// @brief Corner-rounding tolerance (joint-space radians) for the Toppra speed
   /// mode, which times the path with TOPP-RA over a straight-segment + circular-blend geometry.
   /// Each corner is rounded by a circular arc that deviates from the sharp corner by at most
   /// this much. Larger values round corners more aggressively (faster motion, but the joint
@@ -114,8 +114,8 @@ struct CartesianPlanResult {
   double peak_velocity_ratio = 0.0;
 
   /// @brief Peak |joint acceleration| / acceleration-limit ratio over the trajectory.
-  /// The ConstantCartesianSpeed mode is velocity-level and does not bound acceleration,
-  /// so this can exceed 1.0; use the TimeOptimalToppra mode to keep it within limits.
+  /// The Constant mode is velocity-level and does not bound acceleration,
+  /// so this can exceed 1.0; use the Toppra mode to keep it within limits.
   double peak_acceleration_ratio = 0.0;
 };
 
@@ -206,7 +206,7 @@ private:
   /// @details Constructed once for the planner's joint group and reused across plan() calls.
   Oink oink_;
 
-  /// @brief The TOPP-RA time parameterizer, used by the TimeOptimalToppra speed mode.
+  /// @brief The TOPP-RA time parameterizer, used by the Toppra speed mode.
   /// @details Constructed once for the planner's joint group and reused across plan() calls.
   PathParameterizerTOPPRA toppra_;
 };

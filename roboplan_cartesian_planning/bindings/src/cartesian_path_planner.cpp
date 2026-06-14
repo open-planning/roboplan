@@ -18,9 +18,9 @@ using namespace nanobind::literals;
 void init_cartesian_path_planner(nanobind::module_& m) {
   nanobind::enum_<CartesianSpeedMode>(
       m, "CartesianSpeedMode", "Selects how the planner assigns speed/timing along the path.")
-      .value("ConstantCartesianSpeed", CartesianSpeedMode::ConstantCartesianSpeed,
+      .value("Constant", CartesianSpeedMode::Constant,
              "Trace the path at a (roughly) constant Cartesian tool speed.")
-      .value("TimeOptimalToppra", CartesianSpeedMode::TimeOptimalToppra,
+      .value("Toppra", CartesianSpeedMode::Toppra,
              "Time-optimal re-timing respecting joint limits (not yet implemented).");
 
   nanobind::class_<CartesianPlannerOptions>(m, "CartesianPlannerOptions",
@@ -30,7 +30,7 @@ void init_cartesian_path_planner(nanobind::module_& m) {
                           double, int>(),
            "group_name"_a = "", "dt"_a = 0.01, "linear_speed"_a = 0.1, "angular_speed"_a = 0.5,
            "max_position_error"_a = 0.005, "max_orientation_error"_a = 0.01,
-           "speed_mode"_a = CartesianSpeedMode::ConstantCartesianSpeed, "position_cost"_a = 1.0,
+           "speed_mode"_a = CartesianSpeedMode::Constant, "position_cost"_a = 1.0,
            "orientation_cost"_a = 1.0, "task_gain"_a = 1.0, "lm_damping"_a = 0.01,
            "regularization"_a = 1e-6, "config_task_weight"_a = 0.05, "velocity_scale"_a = 1.0,
            "acceleration_scale"_a = 1.0, "toppra_blend_deviation"_a = 0.05,
@@ -60,9 +60,9 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_rw("velocity_scale", &CartesianPlannerOptions::velocity_scale,
               "Scaling factor for joint velocity limits.")
       .def_rw("acceleration_scale", &CartesianPlannerOptions::acceleration_scale,
-              "Scaling factor for joint acceleration limits (TimeOptimalToppra mode).")
+              "Scaling factor for joint acceleration limits (Toppra mode).")
       .def_rw("toppra_blend_deviation", &CartesianPlannerOptions::toppra_blend_deviation,
-              "Corner-rounding tolerance (rad) for the TimeOptimalToppra line+blend geometry.")
+              "Corner-rounding tolerance (rad) for the Toppra line+blend geometry.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
               "Gain for the joint position-limit constraint.")
       .def_rw("max_attempts_per_step", &CartesianPlannerOptions::max_attempts_per_step,
