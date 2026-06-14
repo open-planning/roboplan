@@ -19,7 +19,7 @@ from roboplan.core import (
 )
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT, visualizeTree
-from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode
+from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOptions
 from roboplan.visualization import (
     visualizeJointTrajectory,
     visualizePath,
@@ -192,7 +192,8 @@ def main(
         print("Generating trajectory...")
         t_start = time.time()
         traj = toppra.generate(
-            shortened_path if include_shortcutting else path, traj_dt, toppra_mode
+            shortened_path if include_shortcutting else path,
+            TOPPRAOptions(dt=traj_dt, mode=toppra_mode),
         )
         print(f"Generated trajectory in {time.time() - t_start:.3f} s")
 
@@ -260,7 +261,9 @@ def main(
         if not traj_queue.empty():
             plt.clf()
             cur_traj = traj_queue.get()
-            fig = plotJointTrajectory(cur_traj, scene)
+            fig = plotJointTrajectory(
+                cur_traj, scene, group_name=model_data.default_joint_group
+            )
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()

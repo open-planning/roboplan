@@ -230,7 +230,14 @@ def main(
         )
 
     # Plot the planned joint trajectory over time.
-    fig = plotJointTrajectory(traj, scene, plot_title="Cartesian Path Joint Trajectory")
+    fig = plotJointTrajectory(
+        traj,
+        scene,
+        group_name=model_data.default_joint_group,
+        title="Cartesian Path Joint Trajectory",
+        positions=True,
+        velocities=True,
+    )
 
     # Visualize: build a redundant Pinocchio model for rendering with mimic joints.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
@@ -283,11 +290,13 @@ def main(
     try:
         while True:
             for group_positions in traj.positions:
+                t_start = time.perf_counter()
                 q_play = scene.toFullJointPositions(
                     model_data.default_joint_group, group_positions
                 )
                 viz.display(q_play)
-                time.sleep(dt)
+                fig.canvas.flush_events()
+                time.sleep(max(0.0, dt - (time.perf_counter() - t_start)))
             time.sleep(0.5)
     except KeyboardInterrupt:
         pass

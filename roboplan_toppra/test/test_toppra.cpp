@@ -163,7 +163,7 @@ TEST_F(RoboPlanToppraTest, EmptyPath) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt);
+  auto result = toppra.generate(path, {dt});
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "Path must have at least 2 points.");
 }
@@ -174,7 +174,7 @@ TEST_F(RoboPlanToppraTest, BadJointNames) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt);
+  auto result = toppra.generate(path, {dt});
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "Path joint names do not match the scene joint names.");
 }
@@ -184,7 +184,7 @@ TEST_F(RoboPlanToppraTest, NegativeDt) {
   double dt = -0.1;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt);
+  auto result = toppra.generate(path, {dt});
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "dt must be strictly positive.");
 }
@@ -196,7 +196,7 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
 
   for (const auto& vel_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
-    auto result = toppra.generate(path, dt, SplineFittingMode::Hermite, vel_scale);
+    auto result = toppra.generate(path, {dt, SplineFittingMode::Hermite, vel_scale});
     ASSERT_FALSE(result.has_value());
     ASSERT_EQ(result.error(),
               "Velocity scale must be greater than 0.0 and less than or equal to 1.0.");
@@ -204,7 +204,7 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
 
   for (const auto& acc_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
     auto result =
-        toppra.generate(path, dt, SplineFittingMode::Hermite, /* vel_scale */ 0.5, acc_scale);
+        toppra.generate(path, {dt, SplineFittingMode::Hermite, /* vel_scale */ 0.5, acc_scale});
     ASSERT_FALSE(result.has_value());
     ASSERT_EQ(result.error(),
               "Acceleration scale must be greater than 0.0 and less than or equal to 1.0.");
@@ -216,7 +216,7 @@ TEST_F(RoboPlanToppraTest, ShortPathHermite) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::Hermite);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::Hermite});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -225,7 +225,7 @@ TEST_F(RoboPlanToppraTest, LongPathHermite) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::Hermite);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::Hermite});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -234,7 +234,7 @@ TEST_F(RoboPlanToppraTest, ShortPathCubic) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::Cubic});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -243,7 +243,7 @@ TEST_F(RoboPlanToppraTest, LongPathCubic) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::Cubic});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -252,7 +252,7 @@ TEST_F(RoboPlanToppraTest, Adaptive) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::Adaptive);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::Adaptive});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -261,7 +261,7 @@ TEST_F(RoboPlanToppraTest, ShortPathLinearBlend) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::LinearBlend);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::LinearBlend});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -270,7 +270,7 @@ TEST_F(RoboPlanToppraTest, LongPathLinearBlend) {
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
-  auto result = toppra.generate(path, dt, SplineFittingMode::LinearBlend);
+  auto result = toppra.generate(path, {dt, SplineFittingMode::LinearBlend});
   ASSERT_TRUE(result.has_value());
 }
 
@@ -320,9 +320,9 @@ TEST_F(RoboPlanToppraTest, LinearBlendIsFastAndRespectsLimitsOnSharpCorner) {
 
   auto toppra = PathParameterizerTOPPRA(scene_, "arm");
   const double max_deviation = 0.05;
-  auto blend =
-      toppra.generate(path, dt, SplineFittingMode::LinearBlend, 1.0, 1.0, 10, 0.05, max_deviation);
-  auto cubic = toppra.generate(path, dt, SplineFittingMode::Cubic);
+  auto blend = toppra.generate(
+      path, {dt, SplineFittingMode::LinearBlend, 1.0, 1.0, 10, 0.05, max_deviation});
+  auto cubic = toppra.generate(path, {dt, SplineFittingMode::Cubic});
   ASSERT_TRUE(blend.has_value());
   ASSERT_TRUE(cubic.has_value());
 

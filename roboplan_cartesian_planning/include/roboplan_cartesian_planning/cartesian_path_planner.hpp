@@ -9,6 +9,8 @@
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
+#include <roboplan_oink/optimal_ik.hpp>
+#include <roboplan_toppra/toppra.hpp>
 
 namespace roboplan {
 
@@ -199,6 +201,14 @@ private:
 
   /// @brief The resolved joint group info.
   JointGroupInfo joint_group_info_;
+
+  /// @brief The differential-IK solver used to resolve the Cartesian path into a joint trace.
+  /// @details Constructed once for the planner's joint group and reused across plan() calls.
+  Oink oink_;
+
+  /// @brief The TOPP-RA time parameterizer, used by the TimeOptimalToppra speed mode.
+  /// @details Constructed once for the planner's joint group and reused across plan() calls.
+  PathParameterizerTOPPRA toppra_;
 };
 
 }  // namespace roboplan

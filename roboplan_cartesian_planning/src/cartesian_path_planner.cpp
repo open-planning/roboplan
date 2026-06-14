@@ -150,7 +150,8 @@ CartesianPathPlanner::buildReference(const std::vector<Eigen::Matrix4d>& waypoin
 
 CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
                                            const CartesianPlannerOptions& options)
-    : scene_{scene}, options_{options} {
+    : scene_{scene}, options_{options}, oink_{*scene, options.group_name},
+      toppra_{scene, options.group_name} {
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(options_.group_name);
   if (!maybe_joint_group_info) {
     throw std::runtime_error("Could not initialize Cartesian path planner: " +
@@ -226,10 +227,10 @@ CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::Vec
     return world_T_base * base_T_tip;
   };
 
-  // Build the Oink solver and its tasks/constraints. Construction can throw if a
-  // frame or group cannot be resolved, so convert any exception to an error.
+  // Build the Oink tasks/constraints against the pre-constructed solver. Task construction can
+  // throw if a frame cannot be resolved, so convert any exception to an error.
   try {
-    Oink oink(*scene_, options_.group_name);
+    Oink& oink = oink_;
     const int num_variables = oink.num_variables;
 
     // Priority-1 frame task: track the moving reference pose.
@@ -542,28 +543,25 @@ CartesianPathPlanner::planToppra(const CartesianPath& path, const Eigen::VectorX
   // blends): its straight segments have zero curvature, so the dense, slightly jittery diff-IK
   // trace no longer inflates the acceleration constraint and crawls the trajectory the way an
   // interpolating cubic spline would. Corners are rounded within toppra_blend_deviation.
-  try {
-    PathParameterizerTOPPRA parameterizer(scene_, options_.group_name);
-    auto maybe_trajectory = parameterizer.generate(
-        joint_path, options_.dt, SplineFittingMode::LinearBlend, options_.velocity_scale,
-        options_.acceleration_scale, /*max_adaptive_iterations=*/10,
-        /*max_adaptive_step_size=*/0.05, options_.toppra_blend_deviation);
-    if (!maybe_trajectory) {
-      return tl::make_unexpected("TOPP-RA time parameterization failed: " +
-                                 maybe_trajectory.error());
-    }
-
-    CartesianPlanResult plan_result;
-    plan_result.trajectory = std::move(maybe_trajectory.value());
-    // Re-timing does not change the geometric path, so reuse the resolved length.
-    plan_result.achieved_path_length = tracked->achieved_path_length;
-    plan_result.feedrate_efficiency = tracked->feedrate_efficiency;
-    computePeakLimitRatios(plan_result.trajectory, plan_result.peak_velocity_ratio,
-                           plan_result.peak_acceleration_ratio);
-    return plan_result;
-  } catch (const std::exception& e) {
-    return tl::make_unexpected(std::string("TOPP-RA setup failed: ") + e.what());
+  TOPPRAOptions toppra_options;
+  toppra_options.dt = options_.dt;
+  toppra_options.mode = SplineFittingMode::LinearBlend;
+  toppra_options.velocity_scale = options_.velocity_scale;
+  toppra_options.acceleration_scale = options_.acceleration_scale;
+  toppra_options.max_blend_deviation = options_.toppra_blend_deviation;
+  auto maybe_trajectory = toppra_.generate(joint_path, toppra_options);
+  if (!maybe_trajectory) {
+    return tl::make_unexpected("TOPP-RA time parameterization failed: " + maybe_trajectory.error());
   }
+
+  CartesianPlanResult plan_result;
+  plan_result.trajectory = std::move(maybe_trajectory.value());
+  // Re-timing does not change the geometric path, so reuse the resolved length.
+  plan_result.achieved_path_length = tracked->achieved_path_length;
+  plan_result.feedrate_efficiency = tracked->feedrate_efficiency;
+  computePeakLimitRatios(plan_result.trajectory, plan_result.peak_velocity_ratio,
+                         plan_result.peak_acceleration_ratio);
+  return plan_result;
 }
 
 }  // namespace roboplan

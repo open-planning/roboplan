@@ -70,9 +70,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
   // Set up TOPP-RA to time-parameterize the path
   std::cout << "Generating trajectory..." << std::endl;
-  const auto dt = 0.01;
   auto toppra = PathParameterizerTOPPRA(scene, "arm");
-  const auto maybe_traj = toppra.generate(path, dt, SplineFittingMode::Hermite);
+  TOPPRAOptions toppra_options;
+  toppra_options.dt = 0.01;
+  toppra_options.mode = SplineFittingMode::Hermite;
+  const auto maybe_traj = toppra.generate(path, toppra_options);
   if (!maybe_traj) {
     std::cout << "Failed to generate trajectory: " << maybe_traj.error() << std::endl;
   }
