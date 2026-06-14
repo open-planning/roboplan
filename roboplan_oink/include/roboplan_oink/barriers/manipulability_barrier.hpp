@@ -71,8 +71,8 @@ struct ManipulabilityBarrier : public Barrier {
   const double sigma_safe;       ///< Minimum σ_min the barrier enforces.
   const double fd_epsilon;       ///< Finite-difference step size.
 
-  Eigen::VectorXi v_indices;         ///< Velocity indices of the joint group.
-  Eigen::VectorXi q_indices;         ///< Position indices of the joint group.
+  const Eigen::VectorXi v_indices;   ///< Velocity indices of the joint group.
+  const Eigen::VectorXi q_indices;   ///< Position indices of the joint group.
   pinocchio::FrameIndex frame_id{};  ///< Eagerly resolved frame index.
 
 private:
@@ -81,6 +81,7 @@ private:
   pinocchio::Model model_;         ///< Copy of the model for FD computations.
   pinocchio::Data data_;           ///< Pinocchio data for FD computations.
   Eigen::MatrixXd full_jacobian_;  ///< 6 × model.nv workspace.
+  Eigen::MatrixXd j_arm_;          ///< 6 × v_indices.size() arm-Jacobian workspace.
   double cached_sigma0_ = 0.0;     ///< σ_min cached by computeBarrier for reuse.
 };
 

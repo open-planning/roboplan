@@ -17,8 +17,6 @@ from common import get_model_data
 from roboplan.core import CartesianConfiguration, Scene
 from roboplan.example_models import get_package_share_dir
 from roboplan.optimal_ik import (
-    ConfigurationTask,
-    ConfigurationTaskOptions,
     FrameTask,
     FrameTaskOptions,
     ManipulabilityBarrier,
@@ -45,16 +43,10 @@ _WAYPOINTS: dict[str, list[np.ndarray]] = {
         np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, np.pi / 2, 0.0]),
     ],
     "elbow": [
-        # Start: elbow at 90° — arm clearly bent
+        # Elbow at 90° — arm clearly bent, well away from singularity
         np.array([0.0, -np.pi / 4, np.pi / 2, -np.pi / 4, -np.pi / 2, 0.0]),
-        # Extending: elbow at 45°
-        np.array([0.0, -np.pi / 8, np.pi / 4, -np.pi / 8, -np.pi / 2, 0.0]),
-        # Elbow singularity: elbow ≈ 0 → arm nearly fully extended, rank drops by 1
-        np.array([0.0, -0.05, 0.1, -0.05, -np.pi / 2, 0.0]),
-        # Bending back: elbow at 45°
-        np.array([0.0, -np.pi / 8, np.pi / 4, -np.pi / 8, -np.pi / 2, 0.0]),
-        # Return: elbow at 90°
-        np.array([0.0, -np.pi / 4, np.pi / 2, -np.pi / 4, -np.pi / 2, 0.0]),
+        # Elbow singularity: elbow = 0 → arm fully extended, rank drops by 1
+        np.array([0.0, 0.0, 0.0, 0.0, -np.pi / 2, 0.0]),
     ],
     "shoulder": [
         # Start: j1=+45°, arm angled — wrist center clearly off j1 axis
@@ -87,14 +79,12 @@ _LABELS: dict[str, list[str]] = {
         "Past singularity (wrist_2=+90°)",
     ],
     "elbow": [
-        "Elbow bent (90°)",
-        "Extending (45°)",
-        "AT ELBOW SINGULARITY (~0°)",
-        "Bending back (45°)",
-        "Return (90°)",
+        "Elbow bent at 90° — extending toward singularity",
+        "AT ELBOW SINGULARITY (0°, arm fully extended)",
     ],
 }
 
+_CONTROL_HZ = 100.0
 _SINGULAR_THRESHOLD = 0.05
 _PLOT_HZ = 10  # sidebar plot refresh rate
 _PLOT_WINDOW_S = 15.0  # seconds of history shown in plots
@@ -126,14 +116,10 @@ def _arm_jacobian_metrics(
 
 def main(
     singularity: Literal["wrist", "elbow", "shoulder"] = "wrist",
-    task_gain: float = 1.0,
-    lm_damping: float = 0.001,
-    no_damping: bool = False,
-    regularization: float = 1e-6,
-    control_freq: float = 100.0,
+    lm_damping: float = 0.0,
     waypoint_duration: float = 5.0,
     manipulability_barrier: bool = False,
-    sigma_safe: float = 0.1,
+    sigma_safe: float = 0.05,
     barrier_gain: float = 10.0,
     host: str = "localhost",
     port: str = "8000",
@@ -150,36 +136,27 @@ def main(
     Parameters:
         singularity: Which singularity to traverse.
             "wrist"    – wrist_2 (j5) through 0°, wrist_1/wrist_3 axes align.
-            "elbow"    – elbow (j3) near 0°, arm nearly fully extended.
+            "elbow"    – elbow (j3) extends from 90° → 0° and retracts, arm passes fully extended.
             "shoulder" – shoulder_lift+elbow≈-90°, wrist center on j1 axis.
-        task_gain: IK task gain α ∈ (0, 1].
-        lm_damping: Levenberg-Marquardt damping λ added to each task's Hessian
-            (H = Jᵀ J + λ I). Prevents joint-velocity blow-up near rank loss at
-            the cost of task-tracking accuracy. Set to 0 via --no_damping.
-        no_damping: Disable all regularization (forces lm_damping=0,
-            regularization=1e-12). Near the singularity the QP gradient is
-            ill-conditioned: VelocityLimit still prevents divergence, but the
-            commanded direction becomes poorly aligned with the task and the
-            robot stalls or oscillates. Watch σ_min drop while the joints chatter.
-        regularization: Tikhonov regularization on the full QP Hessian diagonal.
-        control_freq: Control loop frequency in Hz.
+        lm_damping: Levenberg-Marquardt damping λ on the frame-task Hessian
+            (H = Jᵀ J + λ I). Default 0: the robot drives all the way to the
+            singularity (joints may chatter at σ_min ≈ 0), giving the clearest
+            contrast when the barrier is enabled. Increase to see smooth stalling
+            before the singularity even without the barrier — useful to understand
+            how damping and the barrier interact differently.
         waypoint_duration: Seconds to travel between adjacent waypoints.
-        manipulability_barrier: Enable CBF-based singularity avoidance. After
-            each OInK solve the resulting delta_q is projected onto the half-space
-            defined by ∇σ_min · Δq ≥ −γ·dt·(σ_min − σ_safe), preventing σ_min
-            from decreasing faster than the barrier allows.  The robot will stall
-            before reaching the singular configuration rather than passing through.
-        sigma_safe: Minimum σ_min the barrier enforces (metres/rad scale of the
-            Jacobian).  Tune upward if the robot still gets close to the
-            singularity; lower values allow closer approach.
+        manipulability_barrier: Enable CBF-based singularity avoidance. The robot
+            will stall before reaching the singular configuration rather than
+            passing through it.
+        sigma_safe: Minimum σ_min the barrier enforces. The UR5 elbow trajectory
+            starts at σ_min ≈ 0.15, so values above ~0.1 will activate the barrier
+            almost immediately. Default 0.05 gives a clear stopping point well into
+            the extension without activating at the start.
         barrier_gain: Class-K gain γ controlling how aggressively the barrier
             pushes back. Higher values give a stiffer wall.
         host: ViserVisualizer host.
         port: ViserVisualizer port.
     """
-    if no_damping:
-        lm_damping = 0.0
-        regularization = 1e-12
 
     model_data = get_model_data()["ur5"]
     package_paths = [get_package_share_dir()]
@@ -198,8 +175,7 @@ def main(
     joint_names = scene.getJointGroupInfo(model_data.default_joint_group).joint_names
     print(f"\n=== UR5 Singularity Demo: {singularity} ===")
     print(f"Arm joints : {joint_names}")
-    print(f"lm_damping : {lm_damping}" + ("  (DISABLED)" if no_damping else ""))
-    print(f"regulariz. : {regularization}")
+    print(f"lm_damping : {lm_damping}")
     if manipulability_barrier:
         print(f"CBF barrier: ON  σ_safe={sigma_safe}  gain={barrier_gain}")
     else:
@@ -223,7 +199,7 @@ def main(
 
     oink = Oink(scene, model_data.default_joint_group)
     num_variables = len(oink.v_indices)
-    dt = 1.0 / control_freq
+    dt = 1.0 / _CONTROL_HZ
 
     position_limit = PositionLimit(oink, gain=1.0)
     v_max = np.hstack(
@@ -247,13 +223,6 @@ def main(
     pin.updateFramePlacements(model_pin, data_traj)
     initial_target = data_traj.oMf[ee_frame_id].homogeneous.copy()
 
-    config_task = ConfigurationTask(
-        oink,
-        waypoints_q[0],
-        np.full(num_variables, 0.05),
-        ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0),
-    )
-
     goal = CartesianConfiguration()
     goal.base_frame = model_data.base_link
     goal.tip_frame = "tool0"
@@ -264,29 +233,38 @@ def main(
         FrameTaskOptions(
             position_cost=1.0,
             orientation_cost=0.1,
-            task_gain=task_gain,
+            task_gain=1.0,
             lm_damping=lm_damping,
         ),
     )
-    tasks = [frame_task, config_task]
+    tasks = [frame_task]
 
     # ── Sidebar plots ────────────────────────────────────────────────────────
     buf_len = int(_PLOT_WINDOW_S * _PLOT_HZ)
     t_buf: deque[float] = deque(maxlen=buf_len)
     err_bufs: list[deque[float]] = [deque(maxlen=buf_len) for _ in range(num_variables)]
     sigma_buf: deque[float] = deque(maxlen=buf_len)
+    pos_err_buf: deque[float] = deque(maxlen=buf_len)
+    speed_buf: deque[float] = deque(maxlen=buf_len)
     buf_lock = threading.Lock()
 
     def _make_figure(
         t_arr: np.ndarray,
         e_arrays: tuple,
         s_arr: np.ndarray,
+        pos_err_arr: np.ndarray,
+        speed_arr: np.ndarray,
     ) -> go.Figure:
         fig = make_subplots(
-            rows=1,
-            cols=2,
-            subplot_titles=("Joint Error [rad]", "σ_min"),
-            horizontal_spacing=0.12,
+            rows=4,
+            cols=1,
+            subplot_titles=(
+                "Joint Error [rad]",
+                "σ_min",
+                "Cartesian Position Error [m]",
+                "Joint Speed [rad/s]",
+            ),
+            vertical_spacing=0.12,
         )
         for i, (name, color) in enumerate(zip(joint_names, _JOINT_COLORS)):
             fig.add_trace(
@@ -295,7 +273,7 @@ def main(
                     y=e_arrays[i],
                     name=name,
                     showlegend=True,
-                    line=dict(color=color, width=2),
+                    line=dict(color=color, width=1.5),
                     legendgroup=name,
                 ),
                 row=1,
@@ -306,22 +284,22 @@ def main(
                 x=t_arr,
                 y=s_arr,
                 name="σ_min",
-                line=dict(color="#e74c3c", width=2.5),
+                line=dict(color="#e74c3c", width=2),
                 showlegend=False,
             ),
-            row=1,
-            col=2,
+            row=2,
+            col=1,
         )
         fig.add_trace(
             go.Scatter(
                 x=t_arr,
                 y=np.full_like(s_arr, _SINGULAR_THRESHOLD),
                 name="singular threshold",
-                line=dict(color="#7f8c8d", dash="dash", width=1.5),
+                line=dict(color="#7f8c8d", dash="dash", width=1),
                 showlegend=False,
             ),
-            row=1,
-            col=2,
+            row=2,
+            col=1,
         )
         if manipulability_barrier:
             fig.add_trace(
@@ -329,12 +307,34 @@ def main(
                     x=t_arr,
                     y=np.full_like(s_arr, sigma_safe),
                     name="σ_safe (barrier)",
-                    line=dict(color="#f39c12", dash="dot", width=2),
+                    line=dict(color="#f39c12", dash="dot", width=1.5),
                     showlegend=False,
                 ),
-                row=1,
-                col=2,
+                row=2,
+                col=1,
             )
+        fig.add_trace(
+            go.Scatter(
+                x=t_arr,
+                y=pos_err_arr,
+                name="pos error",
+                line=dict(color="#1abc9c", width=2),
+                showlegend=False,
+            ),
+            row=3,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=t_arr,
+                y=speed_arr,
+                name="joint speed",
+                line=dict(color="#9b59b6", width=2),
+                showlegend=False,
+            ),
+            row=4,
+            col=1,
+        )
         _axis = dict(
             showgrid=True,
             gridcolor="rgba(255,255,255,0.07)",
@@ -343,26 +343,26 @@ def main(
             zerolinecolor="rgba(255,255,255,0.15)",
             zerolinewidth=1,
             linecolor="rgba(255,255,255,0.2)",
-            tickfont=dict(size=11, color="#aaaaaa"),
-            title_font=dict(size=12, color="#cccccc"),
+            tickfont=dict(size=9, color="#aaaaaa"),
+            title_font=dict(size=10, color="#cccccc"),
         )
         fig.update_layout(
             template="plotly_dark",
-            height=1400,
-            width=1400,
-            margin=dict(l=60, r=30, t=60, b=120),
+            height=1600,
+            width=600,
+            margin=dict(l=55, r=15, t=30, b=80),
             paper_bgcolor="#1a1a2e",
             plot_bgcolor="#16213e",
-            font=dict(family="Inter, sans-serif", size=12, color="#cccccc"),
+            font=dict(family="Inter, sans-serif", size=10, color="#cccccc"),
             legend=dict(
                 orientation="h",
-                y=-0.18,
+                y=-0.06,
                 x=0.0,
-                font=dict(size=11, color="#cccccc"),
+                font=dict(size=9, color="#cccccc"),
                 bgcolor="rgba(0,0,0,0)",
             ),
         )
-        fig.update_annotations(font=dict(size=13, color="#ffffff"))
+        fig.update_annotations(font=dict(size=10, color="#ffffff"))
         fig.update_xaxes(**_axis, title_text="time [s]", type="linear")
         fig.update_yaxes(**_axis)
         return fig
@@ -372,8 +372,10 @@ def main(
             np.array([0.0]),
             tuple(np.zeros(1) for _ in range(num_variables)),
             np.array([1.0]),
+            np.array([0.0]),
+            np.array([0.0]),
         ),
-        aspect=1.4,
+        aspect=2.7,
     )
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -404,7 +406,7 @@ def main(
             )
         )
 
-    plot_downsample = max(1, round(control_freq / _PLOT_HZ))
+    plot_downsample = max(1, round(_CONTROL_HZ / _PLOT_HZ))
     tick = [0]
     t_start = time.time()
 
@@ -418,10 +420,9 @@ def main(
                 with target_lock:
                     frame_task.setTargetFrameTransform(current_target[0])
                     q_arm_target = current_q_arm_target[0].copy()
+                    target_pos = current_target[0][:3, 3].copy()
                 try:
-                    oink.solveIk(
-                        scene, tasks, constraints, barriers, delta_q, regularization
-                    )
+                    oink.solveIk(scene, tasks, constraints, barriers, delta_q)
                 except RuntimeError as e:
                     delta_q[:] = 0.0
                     print(f"\nWarning: IK solver failed: {e}")
@@ -437,6 +438,10 @@ def main(
                 manip, sigma_min = _arm_jacobian_metrics(
                     model_pin, data_man, q_cur, "tool0", oink.v_indices
                 )
+                # data_man.oMf is current after _arm_jacobian_metrics
+                actual_pos = data_man.oMf[ee_frame_id].translation
+                pos_err = float(np.linalg.norm(actual_pos - target_pos))
+                joint_speed = float(np.linalg.norm(delta_q) / dt)
                 metrics[0] = (
                     manip,
                     sigma_min,
@@ -454,6 +459,8 @@ def main(
                         for i in range(num_variables):
                             err_bufs[i].append(float(q_err[i]))
                         sigma_buf.append(sigma_min)
+                        pos_err_buf.append(pos_err)
+                        speed_buf.append(joint_speed)
 
                 viz.display(q_cur)
             time.sleep(max(0.0, dt - (time.time() - t0)))
@@ -465,7 +472,7 @@ def main(
         exact singular joint configuration, forcing OInK to encounter the rank drop.
         Ping-pong (forward then reverse) gives seamless continuous looping.
         """
-        steps = max(1, int(waypoint_duration * control_freq))
+        steps = max(1, int(waypoint_duration * _CONTROL_HZ))
         n = len(waypoints_q)
         q_test = q_template.copy()  # pre-allocated, reused each step
 
@@ -512,9 +519,13 @@ def main(
                         np.array(err_bufs[i]) for i in range(num_variables)
                     )
                     s_arr = np.array(sigma_buf)
+                    pe_arr = np.array(pos_err_buf)
+                    sp_arr = np.array(speed_buf)
 
             if n_buf >= 2:
-                plot_handle.figure = _make_figure(t_arr, e_arrays, s_arr)
+                plot_handle.figure = _make_figure(
+                    t_arr, e_arrays, s_arr, pe_arr, sp_arr
+                )
 
             # Terminal status line.
             seg = active_segment[0]

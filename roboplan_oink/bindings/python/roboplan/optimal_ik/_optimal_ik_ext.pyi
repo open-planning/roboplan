@@ -277,6 +277,29 @@ class PositionBarrier(Barrier):
     def p_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Maximum position bounds."""
 
+class ManipulabilityBarrier(Barrier):
+    """
+    Singularity-avoidance barrier based on the minimum singular value of the arm Jacobian.
+
+    Enforces h(q) = σ_min(q) − σ_safe ≥ 0 as a Control Barrier Function constraint inside
+    the OInK QP. The gradient ∂σ_min/∂q is computed via forward finite differences.
+    """
+
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_name: str, dt: float, sigma_safe: float, gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0, fd_epsilon: float = 1e-06) -> None:
+        """Create a manipulability barrier."""
+
+    @property
+    def frame_name(self) -> str:
+        """Name of the constrained frame."""
+
+    @property
+    def sigma_safe(self) -> float:
+        """Minimum σ_min enforced."""
+
+    @property
+    def fd_epsilon(self) -> float:
+        """Finite-difference step size."""
+
 class SelfCollisionBarrier(Barrier):
     """
     Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.

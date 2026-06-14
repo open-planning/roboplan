@@ -13,6 +13,13 @@ ManipulabilityBarrier::ManipulabilityBarrier(const Oink& oink, const Scene& scen
     : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name),
       sigma_safe(sigma_safe), fd_epsilon(fd_epsilon), v_indices(oink.v_indices),
       q_indices(oink.q_indices) {
+  if (sigma_safe < 0.0) {
+    throw std::invalid_argument("ManipulabilityBarrier: sigma_safe must be >= 0");
+  }
+  if (fd_epsilon <= 0.0) {
+    throw std::invalid_argument("ManipulabilityBarrier: fd_epsilon must be > 0");
+  }
+
   const auto maybe_frame_id = scene.getFrameId(frame_name);
   if (!maybe_frame_id) {
     throw std::runtime_error("ManipulabilityBarrier: frame '" + frame_name +
@@ -23,6 +30,7 @@ ManipulabilityBarrier::ManipulabilityBarrier(const Oink& oink, const Scene& scen
   model_ = scene.getModel();
   data_ = pinocchio::Data(model_);
   full_jacobian_ = Eigen::MatrixXd::Zero(6, model_.nv);
+  j_arm_ = Eigen::MatrixXd::Zero(6, v_indices.size());
 
   // One barrier constraint: σ_min(q) − σ_safe ≥ 0
   initializeStorage(1, oink.num_variables);
@@ -33,15 +41,13 @@ int ManipulabilityBarrier::getNumBarriers(const Scene& /*scene*/) const { return
 double ManipulabilityBarrier::computeSigmaMin(const Eigen::VectorXd& q) {
   full_jacobian_.setZero();
   pinocchio::computeJointJacobians(model_, data_, q);
-  pinocchio::updateFramePlacements(model_, data_);
+  pinocchio::updateFramePlacement(model_, data_, frame_id);
   pinocchio::getFrameJacobian(model_, data_, frame_id, pinocchio::LOCAL_WORLD_ALIGNED,
                               full_jacobian_);
-  // Extract the arm-joint columns and compute the smallest singular value.
-  Eigen::MatrixXd J_arm(6, v_indices.size());
-  for (int i = 0; i < v_indices.size(); ++i) {
-    J_arm.col(i) = full_jacobian_.col(v_indices[i]);
+  for (int i = 0; i < static_cast<int>(v_indices.size()); ++i) {
+    j_arm_.col(i) = full_jacobian_.col(v_indices[i]);
   }
-  return Eigen::BDCSVD<Eigen::MatrixXd>(J_arm).singularValues().minCoeff();
+  return Eigen::BDCSVD<Eigen::MatrixXd>(j_arm_).singularValues().minCoeff();
 }
 
 tl::expected<void, std::string> ManipulabilityBarrier::computeBarrier(const Scene& scene) {
