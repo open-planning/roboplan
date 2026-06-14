@@ -25,7 +25,9 @@ from roboplan.visualization import (
 )
 
 
-def round_corners(vertices, radius, max_arc_step_deg=15.0):
+def round_corners(
+    vertices: list[np.ndarray], radius: float, max_arc_step_deg: float = 15.0
+) -> list[np.ndarray]:
     """
     Rounds the interior corners of a polyline (list of 3D points) with circular arcs of the
     given radius (meters), returning a denser list of points that traces straight legs joined
@@ -71,28 +73,30 @@ def round_corners(vertices, radius, max_arc_step_deg=15.0):
 
 
 def make_lawnmower_path(
-    scene,
-    base_link,
-    tip_frame,
-    q_full,
-    path_size=0.15,
-    path_num_passes=5,
-    path_corner_radius=0.0,
-):
+    scene: Scene,
+    base_link: str,
+    tip_frame: str,
+    q_full: np.ndarray,
+    path_size: float = 0.15,
+    path_num_passes: int = 5,
+    path_corner_radius: float = 0.0,
+) -> CartesianPath:
     """
-    Builds a lawnmower (boustrophedon) Cartesian path that zigzags `path_num_passes` times
-    across a square region, starting from the current tool pose. The square lies in the
-    plane spanned by the base-frame (1, 1, 0)/sqrt(2) and z directions. Each pass sweeps
-    across the square along the in-plane "u" axis, alternating direction, and steps over
-    along the "v" axis between passes. Interior corners are rounded with circular arcs of
-    `path_corner_radius` meters (0 leaves them sharp). Returns a CartesianPath with one tip frame.
+    Builds a "lawnmower" (boustrophedon) Cartesian path that zigzags `path_num_passes`
+    times across a square region starting at the current tool pose and extending up and to
+    the right. The square lies in the base-frame y-z plane. Each pass sweeps across the
+    square along the in-plane "u" (y)
+    axis, alternating direction, and steps over along the "v" (z) axis between passes.
+    Interior corners are rounded with circular arcs of `path_corner_radius` meters (0
+    leaves them sharp). Returns a CartesianPath with one tip frame.
     """
     start = scene.forwardKinematics(q_full, tip_frame, base_link)
-    # In-plane orthonormal axes: u sweeps across each pass, v steps over between passes.
-    u_dir = np.array([1.0, 1.0, 0.0]) / np.sqrt(2.0)
+    u_dir = np.array([0.0, 1.0, 0.0])
     v_dir = np.array([0.0, 0.0, 1.0])
 
     # Corner vertices (positions relative to the start pose), then round them in task space.
+    # The square starts at the start pose and extends up and to the right (0 to path_size on
+    # both in-plane axes).
     vertices = []
     for i in range(path_num_passes):
         v = path_size * i / (path_num_passes - 1) if path_num_passes > 1 else 0.0
@@ -219,16 +223,6 @@ def main(
     print(f"  Feedrate efficiency: {result.feedrate_efficiency * 100:.1f}%")
     print(f"  Peak velocity / limit:     {result.peak_velocity_ratio:.2f}")
     print(f"  Peak acceleration / limit: {result.peak_acceleration_ratio:.2f}")
-    # Constant mode is a velocity-level trace and does not bound joint acceleration, so it
-    # can exceed the acceleration limits; flag that and point at the toppra mode.
-    if (
-        speed_mode == CartesianSpeedMode.Constant
-        and result.peak_acceleration_ratio > 1.25
-    ):
-        print(
-            "  NOTE: this velocity-level trajectory exceeds the joint acceleration limits. "
-            "Use --speed-mode Toppra for an acceleration-limited, time-optimal re-timing."
-        )
 
     # Plot the planned joint trajectory over time.
     fig = plotJointTrajectory(
@@ -286,7 +280,6 @@ def main(
     plt.show(block=False)
     plt.pause(0.2)
 
-    print("Reference path: green. Actual traced path: red.")
     print("Playing back the trajectory. Press Ctrl+C to exit.")
     try:
         while True:
