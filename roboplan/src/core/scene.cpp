@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -74,7 +75,6 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
 
   // Create additional robot information.
   size_t q_idx = 0;
-  size_t v_idx = 0;
   joint_names_.reserve(model_.njoints - 1);
   actuated_joint_names_.reserve((model_.njoints - 1) - model_.mimicking_joints.size());
   for (int idx = 1; idx < model_.njoints; ++idx) {  // omits "universe" joint.
@@ -119,60 +119,8 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     q_idx += info.num_position_dofs;
 
-    std::optional<YAML::Node> maybe_vel_limits;  // overrides URDF if supplied
-    std::optional<YAML::Node> maybe_acc_limits;
-    std::optional<YAML::Node> maybe_jerk_limits;
-    if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
-      const auto& limits_config = yaml_config["joint_limits"][joint_name];
-      if (limits_config["max_velocity"]) {
-        maybe_vel_limits = limits_config["max_velocity"];
-        if (!maybe_vel_limits->IsSequence() ||
-            (maybe_vel_limits->size() != static_cast<size_t>(joint.nv()))) {
-          throw std::runtime_error("Velocity limits for joint '" + joint_name +
-                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
-                                   ".");
-        }
-      }
-      if (limits_config["max_acceleration"]) {
-        maybe_acc_limits = limits_config["max_acceleration"];
-        if (!maybe_acc_limits->IsSequence() ||
-            (maybe_acc_limits->size() != static_cast<size_t>(joint.nv()))) {
-          throw std::runtime_error("Acceleration limits for joint '" + joint_name +
-                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
-                                   ".");
-        }
-      }
-      if (limits_config["max_jerk"]) {
-        maybe_jerk_limits = limits_config["max_jerk"];
-        if (!maybe_jerk_limits->IsSequence() ||
-            (maybe_jerk_limits->size() != static_cast<size_t>(joint.nv()))) {
-          throw std::runtime_error("Jerk limits for joint '" + joint_name +
-                                   "' must be a sequence of size " + std::to_string(joint.nv()) +
-                                   ".");
-        }
-      }
-    }
-    const auto urdf_extended_it = urdf_extended_limits.find(joint_name);
-    for (int idx = 0; idx < joint.nv(); ++idx) {
-      if (maybe_vel_limits) {
-        info.limits.max_velocity[idx] = maybe_vel_limits.value()[idx].as<double>();
-      } else {
-        info.limits.max_velocity[idx] = model_.velocityLimit(v_idx);
-      }
-      if (maybe_acc_limits) {
-        info.limits.max_acceleration[idx] = maybe_acc_limits.value()[idx].as<double>();
-      } else if (urdf_extended_it != urdf_extended_limits.end() &&
-                 urdf_extended_it->second.acceleration.has_value()) {
-        info.limits.max_acceleration[idx] = urdf_extended_it->second.acceleration.value();
-      }
-      if (maybe_jerk_limits) {
-        info.limits.max_jerk[idx] = maybe_jerk_limits.value()[idx].as<double>();
-      } else if (urdf_extended_it != urdf_extended_limits.end() &&
-                 urdf_extended_it->second.jerk.has_value()) {
-        info.limits.max_jerk[idx] = urdf_extended_it->second.jerk.value();
-      }
-      ++v_idx;
-    }
+    overrideJointLimitsFromYaml(model_, yaml_config, urdf_extended_limits, joint_name, info);
+
     joint_info_map_.emplace(joint_name, info);
   }
 

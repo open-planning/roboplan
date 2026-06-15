@@ -1,5 +1,8 @@
+#include <cmath>
+#include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -515,6 +518,79 @@ TEST_F(RoboPlanSceneTest, TestJerkLimitsVector) {
   const auto& [group_lower_limits, group_upper_limits] = maybe_jerk_limits.value();
   EXPECT_TRUE(group_lower_limits.isApprox(expected_lower_limits, kTolerance));
   EXPECT_TRUE(group_upper_limits.isApprox(expected_upper_limits, kTolerance));
+}
+
+TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
+  // Write a temporary YAML config that overrides the position limits of one joint.
+  const auto tmp_config = std::filesystem::temp_directory_path() / "ur5_position_override.yaml";
+  {
+    std::ofstream out(tmp_config);
+    out << "joint_limits:\n"
+           "  shoulder_pan_joint:\n"
+           "    min_position: [-1.0]\n"
+           "    max_position: [1.0]\n";
+  }
+
+  Scene scene("override_scene", urdf_path_, srdf_path_, package_paths_, tmp_config);
+
+  const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
+  ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
+  const auto& limits = maybe_joint_info.value().limits;
+  ASSERT_EQ(limits.min_position.size(), 1u);
+  EXPECT_NEAR(limits.min_position[0], -1.0, kTolerance);
+  ASSERT_EQ(limits.max_position.size(), 1u);
+  EXPECT_NEAR(limits.max_position[0], 1.0, kTolerance);
+
+  // A non-overridden joint should keep its URDF limits.
+  const auto maybe_other = scene.getJointInfo("elbow_joint");
+  ASSERT_TRUE(maybe_other.has_value()) << maybe_other.error();
+  EXPECT_NEAR(maybe_other.value().limits.min_position[0], -M_PI, kTolerance);
+  EXPECT_NEAR(maybe_other.value().limits.max_position[0], M_PI, kTolerance);
+
+  std::filesystem::remove(tmp_config);
+}
+
+TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideInfinityFromYaml) {
+  // Confirm that yaml-cpp parses the YAML infinity spellings (.inf / -.inf) for an unbounded
+  // position limit, and that they are normalized to the same lowest()/max() sentinels that
+  // JointInfo uses for an unbounded limit by default.
+  const auto tmp_config = std::filesystem::temp_directory_path() / "ur5_position_inf.yaml";
+  {
+    std::ofstream out(tmp_config);
+    out << "joint_limits:\n"
+           "  shoulder_pan_joint:\n"
+           "    min_position: [-.inf]\n"
+           "    max_position: [.inf]\n";
+  }
+
+  Scene scene("inf_scene", urdf_path_, srdf_path_, package_paths_, tmp_config);
+
+  const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
+  ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
+  const auto& limits = maybe_joint_info.value().limits;
+  ASSERT_EQ(limits.min_position.size(), 1u);
+  EXPECT_TRUE(std::isfinite(limits.min_position[0]));
+  EXPECT_EQ(limits.min_position[0], std::numeric_limits<double>::lowest());
+  ASSERT_EQ(limits.max_position.size(), 1u);
+  EXPECT_TRUE(std::isfinite(limits.max_position[0]));
+  EXPECT_EQ(limits.max_position[0], std::numeric_limits<double>::max());
+
+  std::filesystem::remove(tmp_config);
+}
+
+TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
+  const auto tmp_config = std::filesystem::temp_directory_path() / "ur5_position_bad_size.yaml";
+  {
+    std::ofstream out(tmp_config);
+    out << "joint_limits:\n"
+           "  shoulder_pan_joint:\n"
+           "    max_position: [1.0, 2.0]\n";  // joint nv is 1, so this is invalid.
+  }
+
+  EXPECT_THROW(Scene("bad_size_scene", urdf_path_, srdf_path_, package_paths_, tmp_config),
+               std::runtime_error);
+
+  std::filesystem::remove(tmp_config);
 }
 
 }  // namespace roboplan
