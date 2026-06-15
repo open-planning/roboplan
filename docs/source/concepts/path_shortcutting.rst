@@ -7,9 +7,6 @@ Because the tree grows by random extension, the resulting path tends to wander, 
 
 RoboPlan provides the ``PathShortcutter`` class (in ``roboplan/include/roboplan/core/path_utils.hpp``), which shortens a ``JointPath`` using random shortcutting.
 
-Algorithm
----------
-
 Each iteration of the shortcutter:
 
 1. **Samples** two configurations at random along the current path.
@@ -20,9 +17,6 @@ Repeatedly cutting corners this way monotonically shortens the path while keepin
 Because corner-cutting introduces new interpolated vertices, a deterministic **redundant-vertex removal** pass is interleaved periodically (and run once at the end) to collapse vertices whose neighbors have become directly connectable, preventing an accumulation of unhelpful micro-segments.
 
 This implementation follows `Section 3.5.3 of Motion Planning in Higher Dimensions <https://motion.cs.illinois.edu/RoboticSystems/MotionPlanningHigherDimensions.html>`_.
-
-Configuration
--------------
 
 The shortcutter is configured through ``PathShortcuttingOptions``:
 
@@ -43,8 +37,7 @@ The shortcutter is configured through ``PathShortcuttingOptions``:
 | ``redundant_removal_iters``   | Cadence (in iterations) of the redundant-vertex removal pass    | 20        |
 +-------------------------------+-----------------------------------------------------------------+-----------+
 
-Usage Example
--------------
+Applying the shortcutter to a path is a single call:
 
 .. code-block:: python
 

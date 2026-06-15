@@ -37,7 +37,7 @@ This pulls the tree toward the goal and speeds up convergence, while still sampl
 RRT was introduced by `LaValle (1998) <http://msl.cs.illinois.edu/~lavalle/papers/Lav98c.pdf>`_.
 
 RRT-Connect
------------
+~~~~~~~~~~~
 
 RRT-Connect grows **two** trees simultaneously — one rooted at the start and one rooted at the goal — and attempts to join them.
 Enabling ``rrt_connect`` switches the planner into this mode.
@@ -52,10 +52,15 @@ Goal biasing is therefore disabled in this mode: the bidirectional ``CONNECT`` s
 RRT-Connect was introduced by `Kuffner and LaValle (2000) <http://msl.cs.illinois.edu/~lavalle/papers/KufLav00.pdf>`_.
 
 State Spaces and the ``dynotree`` Library
------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Nearest-neighbor lookups dominate the cost of RRT: every iteration queries the tree for the node closest to a new sample.
 RoboPlan delegates these queries to `dynotree <https://github.com/quimortiz/dynotree>`_, a header-only k-d tree library that is vendored into ``roboplan_rrt/include/dynotree``.
+
+**k-d trees for efficiency.**
+Internally, dynotree partitions the state space with a k-d tree, so nearest-neighbor queries run in roughly logarithmic rather than linear time in the number of nodes.
+The tree splits along whichever dimension currently has the widest spread, and its branch-and-bound search uses each state space's ``distance_to_rectangle`` routine to prune entire subtrees that cannot contain a closer neighbor.
+This keeps RRT efficient even as the tree grows to thousands of nodes.
 
 **Proper state spaces.**
 A naive planner treats every joint as a real-valued coordinate in :math:`\mathbb{R}^n` and measures distances with a plain Euclidean norm.
@@ -72,38 +77,8 @@ RoboPlan builds a ``dynotree::Combined`` state space by concatenating one of the
 Continuous joints are mapped to ``SO2``, planar joints to ``Rn:2`` + ``SO2`` (i.e., SE(2)), and ordinary single-DOF joints to ``Rn:1``.
 Because the k-d tree understands this structure, its nearest-neighbor results respect the true configuration-space metric — for example, finding that a sample near :math:`+\pi` is close to a tree node near :math:`-\pi`.
 
-**k-d trees for efficiency.**
-Internally, dynotree partitions the state space with a k-d tree, so nearest-neighbor queries run in roughly logarithmic rather than linear time in the number of nodes.
-The tree splits along whichever dimension currently has the widest spread, and its branch-and-bound search uses each state space's ``distance_to_rectangle`` routine to prune entire subtrees that cannot contain a closer neighbor.
-This keeps RRT efficient even as the tree grows to thousands of nodes.
-
-Visualization and Debugging
-----------------------------
-
-Sampling-based planners are inherently random, so inspecting *how* a tree explored the space is invaluable when a plan fails, takes too long, or produces an unexpected detour.
-The RRT planner retains every node it sampled, and exposes the start and goal trees through ``rrt.getNodes()`` after planning.
-
-The :func:`visualizeTree` helper (in ``roboplan.rrt``) renders these trees in a `Viser <https://viser.studio>`_ scene.
-For each tree edge, it runs forward kinematics along the connecting motion and draws the resulting end-effector path as line segments, so you can see exactly where the planner reached.
-The start and goal trees are drawn in different colors, which makes the bidirectional growth of RRT-Connect easy to follow.
-
-.. code-block:: python
-
-   from roboplan.rrt import visualizeTree
-
-   # After a successful rrt.plan(...) call:
-   visualizeTree(
-       viz,                       # a ViserVisualizer instance
-       scene,
-       rrt,
-       frame_names=["tool0"],     # end-effector frame(s) to trace
-       max_step_size=0.05,        # interpolation resolution along each edge
-   )
-
-A dense, space-filling tree that never reaches the goal usually points to an overly small ``max_connection_distance`` or a goal trapped behind obstacles, while a sparse tree that stops early often indicates the planner hit ``max_nodes`` or ``max_planning_time``.
-
 Configuration
--------------
+~~~~~~~~~~~~~
 
 The planner is configured through ``RRTOptions``:
 
@@ -128,7 +103,7 @@ The planner is configured through ``RRTOptions``:
 +-----------------------------------+------------------------------------------------------------+-----------+
 
 Usage Example
--------------
+~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -159,3 +134,28 @@ Usage Example
 
 The resulting :class:`JointPath` is a sequence of collision-free waypoints.
 It is typically post-processed with :doc:`path shortcutting <path_shortcutting>` to remove redundant detours, and then timed into a smooth, executable trajectory with :doc:`trajectory_generation`.
+
+Visualization and Debugging
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sampling-based planners are inherently random, so inspecting *how* a tree explored the space is invaluable when a plan fails, takes too long, or produces an unexpected detour.
+The RRT planner retains every node it sampled, and exposes the start and goal trees through ``rrt.getNodes()`` after planning.
+
+The :func:`visualizeTree` helper (in ``roboplan.rrt``) renders these trees in a `Viser <https://viser.studio>`_ scene.
+For each tree edge, it runs forward kinematics along the connecting motion and draws the resulting end-effector path as line segments, so you can see exactly where the planner reached.
+The start and goal trees are drawn in different colors, which makes the bidirectional growth of RRT-Connect easy to follow.
+
+.. code-block:: python
+
+   from roboplan.rrt import visualizeTree
+
+   # After a successful rrt.plan(...) call:
+   visualizeTree(
+       viz,                       # a ViserVisualizer instance
+       scene,
+       rrt,
+       frame_names=["tool0"],     # end-effector frame(s) to trace
+       max_step_size=0.05,        # interpolation resolution along each edge
+   )
+
+For example, a dense, space-filling tree that never reaches the goal usually points to an overly small ``max_connection_distance`` or a goal trapped behind obstacles.
