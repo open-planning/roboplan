@@ -35,8 +35,11 @@ def main(
     collision_check_use_bisection: bool = False,
     goal_biasing_probability: float = 0.15,
     max_nodes: int = 1000,
-    max_planning_time: float = 5.0,
+    max_planning_time: float = 2.0,
     rrt_connect: bool = False,
+    rrt_star: bool = False,
+    rewire_distance: float = 5.0,
+    fast_return: bool = True,
     include_shortcutting: bool = False,
     max_shortcutting_iters: int = 100,
     toppra_mode: SplineFittingMode = SplineFittingMode.Adaptive,
@@ -59,6 +62,9 @@ def main(
         max_nodes: The maximum number of nodes to add to the search tree.
         max_planning_time: The maximum time (in seconds) to search for a path.
         rrt_connect: Whether or not to use RRT-Connect.
+        rrt_star: Whether or not to use RRT*, which keeps optimizing until the node or time budget is exhausted and returns the lowest-cost path. Can be combined with `rrt_connect`.
+        rewire_distance: The configuration-distance radius used to find neighbors for RRT* rewiring (only used when `rrt_star` is true). Should generally be at least `max_connection_distance`.
+        fast_return: If true, return on the first path found; if false, plan until the node or time budget is exhausted and return the lowest-cost path. Set to false to get RRT*'s asymptotically optimal behavior.
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         max_shortcutting_iters: The maximum number of path shortcutting iterations.
         toppra_mode: The trajectory generation mode for TOPP-RA. Can be `Hermite`, `Cubic`, or `Adaptive` (default).
@@ -128,6 +134,9 @@ def main(
         goal_biasing_probability=goal_biasing_probability,
         max_planning_time=max_planning_time,
         rrt_connect=rrt_connect,
+        rrt_star=rrt_star,
+        rewire_distance=rewire_distance,
+        fast_return=fast_return,
     )
     rrt = RRT(scene, options)
 

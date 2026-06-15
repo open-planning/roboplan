@@ -41,3 +41,30 @@ def test_plan(test_scene: Scene) -> None:
     path = rrt.plan(start, goal)
     assert path is not None
     print(path)
+
+
+def test_plan_rrt_star(test_scene: Scene) -> None:
+    options = RRTOptions()
+    options.group_name = "arm"
+    options.max_connection_distance = 1.0
+    options.collision_check_step_size = 0.05
+    options.rrt_star = True
+    options.rewire_distance = 2.0
+    # Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
+    options.fast_return = False
+    options.max_planning_time = 1.0
+
+    rrt = RRT(test_scene, options)
+    rrt.setRngSeed(1234)
+
+    start = JointConfiguration()
+    start.positions = test_scene.randomCollisionFreePositions()
+    assert start.positions is not None
+
+    goal = JointConfiguration()
+    goal.positions = test_scene.randomCollisionFreePositions()
+    assert goal.positions is not None
+
+    path = rrt.plan(start, goal)
+    assert path is not None
+    print(path)

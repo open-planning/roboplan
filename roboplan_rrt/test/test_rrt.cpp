@@ -77,6 +77,93 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
   ASSERT_EQ(path.positions.back(), goal.positions);
 }
 
+TEST_F(RoboPlanRRTTest, PlanRRTStar) {
+  RRTOptions options;
+  options.group_name = "arm";
+  options.rrt_star = true;
+  // Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
+  options.fast_return = false;
+  options.max_planning_time = 1.0;
+  auto rrt = std::make_unique<RRT>(scene_, options);
+  rrt->setRngSeed(1234);
+
+  const auto maybe_q_start = scene_->randomCollisionFreePositions();
+  ASSERT_TRUE(maybe_q_start.has_value());
+  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
+  ASSERT_TRUE(maybe_q_goal.has_value());
+
+  JointConfiguration start;
+  start.positions = maybe_q_start.value();
+  JointConfiguration goal;
+  goal.positions = maybe_q_goal.value();
+
+  const auto maybe_path = rrt->plan(start, goal);
+  ASSERT_TRUE(maybe_path.has_value());
+
+  // Ensure the path starts and ends at the correct poses.
+  const auto path = maybe_path.value();
+  std::cout << path << "\n";
+  ASSERT_EQ(path.positions[0], start.positions);
+  ASSERT_EQ(path.positions.back(), goal.positions);
+}
+
+TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
+  // RRT* rewiring combined with the bidirectional RRT-Connect tree growth.
+  RRTOptions options;
+  options.group_name = "arm";
+  options.rrt_star = true;
+  options.rrt_connect = true;
+  options.fast_return = false;
+  options.max_planning_time = 1.0;
+  auto rrt = std::make_unique<RRT>(scene_, options);
+  rrt->setRngSeed(1234);
+
+  const auto maybe_q_start = scene_->randomCollisionFreePositions();
+  ASSERT_TRUE(maybe_q_start.has_value());
+  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
+  ASSERT_TRUE(maybe_q_goal.has_value());
+
+  JointConfiguration start;
+  start.positions = maybe_q_start.value();
+  JointConfiguration goal;
+  goal.positions = maybe_q_goal.value();
+
+  const auto maybe_path = rrt->plan(start, goal);
+  ASSERT_TRUE(maybe_path.has_value());
+
+  // Ensure the path starts and ends at the correct poses.
+  const auto path = maybe_path.value();
+  std::cout << path << "\n";
+  ASSERT_EQ(path.positions[0], start.positions);
+  ASSERT_EQ(path.positions.back(), goal.positions);
+}
+
+TEST_F(RoboPlanRRTTest, FastReturnUsesFullBudget) {
+  // fast_return is independent of the planner mode: with plain RRT, disabling it should keep
+  // planning past the first solution until the node budget is exhausted.
+  const auto plan_and_count = [this](bool fast_return) {
+    RRTOptions options;
+    options.group_name = "arm";
+    options.max_connection_distance = 0.5;
+    options.max_nodes = 200;
+    options.fast_return = fast_return;
+    auto rrt = std::make_unique<RRT>(scene_, options);
+    rrt->setRngSeed(1234);
+
+    JointConfiguration start, goal;
+    start.positions = scene_->randomCollisionFreePositions().value();
+    goal.positions = scene_->randomCollisionFreePositions().value();
+
+    const auto maybe_path = rrt->plan(start, goal);
+    EXPECT_TRUE(maybe_path.has_value());
+    const auto [start_nodes, goal_nodes] = rrt->getNodes();
+    return start_nodes.size() + goal_nodes.size();
+  };
+
+  // Returning on the first path uses fewer nodes than running to the full budget.
+  EXPECT_LT(plan_and_count(/*fast_return*/ true), plan_and_count(/*fast_return*/ false));
+}
+
 TEST_F(RoboPlanRRTTest, InvalidPoses) {
   RRTOptions options;
   options.group_name = "arm";
@@ -194,13 +281,13 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   const auto maybe_path =
       rrt->joinTrees(start_nodes, goal_tree, goal_nodes, true, collision_context);
   ASSERT_TRUE(maybe_path.has_value());
-  ASSERT_EQ(maybe_path.value().positions, expected_positions);
+  ASSERT_EQ(maybe_path.value().first.positions, expected_positions);
 
   // Starting from the goal_tree, the trees should be joinable.
   const auto maybe_path2 =
       rrt->joinTrees(goal_nodes, start_tree, start_nodes, false, collision_context);
   ASSERT_TRUE(maybe_path2.has_value());
-  ASSERT_EQ(maybe_path2.value().positions, expected_positions);
+  ASSERT_EQ(maybe_path2.value().first.positions, expected_positions);
 }
 
 }  // namespace roboplan
