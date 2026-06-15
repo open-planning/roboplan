@@ -13,9 +13,9 @@ constexpr double kMinNormSq = 1e-12;
 namespace roboplan {
 
 // Barrier base class implementation
-Barrier::Barrier(double gain_, double dt_, double safe_displacement_gain_, double safety_margin_)
-    : gain(gain_), dt(dt_), safe_displacement_gain(safe_displacement_gain_),
-      safety_margin(safety_margin_) {
+Barrier::Barrier(double gain, double dt, double safe_displacement_gain, double safety_margin)
+    : gain(gain), dt(dt), safe_displacement_gain(safe_displacement_gain),
+      safety_margin(safety_margin) {
   if (gain <= 0.0) {
     throw std::invalid_argument("Barrier gain must be positive");
   }
@@ -312,7 +312,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
       return tl::make_unexpected("Internal error: constraint row offset exceeds total rows");
     }
 
-    Eigen::Ref<Eigen::MatrixXd> constraint_A_view =
+    Eigen::Ref<Eigen::MatrixXd> constraint_a_view =
         constraint_workspace_A.middleRows(row_offset, num_rows);
     Eigen::Ref<Eigen::VectorXd> constraint_lower_view =
         constraint_workspace_lower.segment(row_offset, num_rows);
@@ -320,7 +320,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
         constraint_workspace_upper.segment(row_offset, num_rows);
 
     auto constraint_result = constraints.at(i)->computeQpConstraints(
-        scene, constraint_A_view, constraint_lower_view, constraint_upper_view);
+        scene, constraint_a_view, constraint_lower_view, constraint_upper_view);
     if (!constraint_result.has_value()) {
       return tl::make_unexpected("Failed to compute constraints: " + constraint_result.error());
     }
@@ -337,12 +337,12 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
       return tl::make_unexpected("Internal error: barrier row offset exceeds total rows");
     }
 
-    Eigen::Ref<Eigen::MatrixXd> barrier_G_view =
+    Eigen::Ref<Eigen::MatrixXd> barrier_g_view =
         constraint_workspace_A.middleRows(row_offset, num_rows);
     Eigen::Ref<Eigen::VectorXd> barrier_h_view =
         constraint_workspace_upper.segment(row_offset, num_rows);
 
-    barriers.at(i)->formatQpInequalities(barrier_G_view, barrier_h_view);
+    barriers.at(i)->formatQpInequalities(barrier_g_view, barrier_h_view);
 
     constraint_workspace_lower.segment(row_offset, num_rows).setConstant(-OsqpEigen::INFTY);
 
@@ -516,11 +516,11 @@ void Oink::rebuildNullspaceProjector(double lambda_sq) {
   // At well-conditioned configurations (sigma >> sqrt(lambda_sq)) this is numerically the
   // standard nullspace projector; near singularities the damping preserves SPD-ness of
   // (J J^T + lambda_sq I).
-  Eigen::MatrixXd JJt = jacobian_stack * jacobian_stack.transpose();
-  JJt.diagonal().array() += lambda_sq;
-  const Eigen::MatrixXd JJt_inv_J = JJt.llt().solve(jacobian_stack);
+  Eigen::MatrixXd jjt_damped = jacobian_stack * jacobian_stack.transpose();
+  jjt_damped.diagonal().array() += lambda_sq;
+  const Eigen::MatrixXd jjt_inv_j = jjt_damped.llt().solve(jacobian_stack);
   nullspace_projector.setIdentity(num_variables, num_variables);
-  nullspace_projector.noalias() -= jacobian_stack.transpose() * JJt_inv_J;
+  nullspace_projector.noalias() -= jacobian_stack.transpose() * jjt_inv_j;
 }
 
 }  // namespace roboplan

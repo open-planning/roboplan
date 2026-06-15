@@ -140,7 +140,7 @@ jobs:
           pixi run -e ci test_all
       - name: Run clang-tidy
         run: |
-          pixi run clang-tidy
+          pixi run -e clang-tidy
       - name: Check bindings stub files
         run: |
           if ! git diff --exit-code --shortstat -- '*.pyi'; then

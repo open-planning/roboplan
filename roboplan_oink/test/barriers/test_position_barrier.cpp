@@ -158,9 +158,9 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
 
   // Run IK loop
   Eigen::VectorXd q_current = q;
-  constexpr int kMaxIterations = 100;
+  constexpr int k_max_iterations = 100;
 
-  for (int iter = 0; iter < kMaxIterations; ++iter) {
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
     scene_->setJointPositions(q_current);
     scene_->forwardKinematics(q_current, "tool0");
 
@@ -222,10 +222,10 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
 
   // Run IK loop
   Eigen::VectorXd q_current = q;
-  constexpr int kMaxIterations = 100;
-  constexpr double kPositionTolerance = 0.02;  // 2cm
+  constexpr int k_max_iterations = 100;
+  constexpr double k_position_tolerance = 0.02;  // 2cm
 
-  for (int iter = 0; iter < kMaxIterations; ++iter) {
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
     scene_->setJointPositions(q_current);
     scene_->forwardKinematics(q_current, "tool0");
 
@@ -238,7 +238,7 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
     // Check convergence
     Eigen::Matrix4d final_pose = scene_->forwardKinematics(q_current, "tool0");
     Eigen::Vector3d final_pos = final_pose.block<3, 1>(0, 3);
-    if ((final_pos - target_pos).norm() < kPositionTolerance) {
+    if ((final_pos - target_pos).norm() < k_position_tolerance) {
       break;
     }
   }
@@ -248,7 +248,7 @@ TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
   Eigen::Matrix4d final_pose = scene_->forwardKinematics(q_current, "tool0");
   Eigen::Vector3d final_pos = final_pose.block<3, 1>(0, 3);
 
-  EXPECT_LT((final_pos - target_pos).norm(), kPositionTolerance)
+  EXPECT_LT((final_pos - target_pos).norm(), k_position_tolerance)
       << "Failed to reach target. Target: [" << target_pos.transpose() << "], Final: ["
       << final_pos.transpose() << "]";
 }
@@ -512,9 +512,9 @@ TEST_F(PositionBarrierTest, SolverWithBarrier) {
   std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
 
   Eigen::VectorXd q_current = q;
-  constexpr int kMaxIterations = 50;
+  constexpr int k_max_iterations = 50;
 
-  for (int iter = 0; iter < kMaxIterations; ++iter) {
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
     scene_->setJointPositions(q_current);
     scene_->forwardKinematics(q_current, "tool0");
 

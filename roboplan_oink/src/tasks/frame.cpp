@@ -51,9 +51,9 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   // Compute linear and angular errors from target to frame, in the world frame.
   Eigen::Vector3d e_pos =
       transform_world_to_target.translation() - transform_world_to_frame.translation();
-  Eigen::Matrix3d R_err =
+  Eigen::Matrix3d rotation_error =
       transform_world_to_frame.rotation().transpose() * transform_world_to_target.rotation();
-  Eigen::Vector3d e_rot = transform_world_to_frame.rotation() * pinocchio::log3(R_err);
+  Eigen::Vector3d e_rot = transform_world_to_frame.rotation() * pinocchio::log3(rotation_error);
   error_container.head<3>() = e_pos;
   error_container.tail<3>() = e_rot;
 

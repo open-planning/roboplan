@@ -143,19 +143,19 @@ protected:
     const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
-    scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
+    scene = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
   }
 
 public:
   // No default constructors, so must be pointers.
-  std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Scene> scene;
 };
 
 TEST_F(RoboPlanToppraTest, EmptyPath) {
   JointPath path;
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "Path must have at least 2 points.");
@@ -166,7 +166,7 @@ TEST_F(RoboPlanToppraTest, BadJointNames) {
   path.joint_names = {"fr3_joint1", "fr3_joint2"};
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "Path joint names do not match the scene joint names.");
@@ -176,7 +176,7 @@ TEST_F(RoboPlanToppraTest, NegativeDt) {
   auto path = createTestPathShort();
   double dt = -0.1;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error(), "dt must be strictly positive.");
@@ -186,7 +186,7 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
 
   for (const auto& vel_scale : std::vector<double>{-0.1, 0.0, 1.1}) {
     auto result = toppra.generate(path, dt, SplineFittingMode::Hermite, vel_scale);
@@ -208,7 +208,7 @@ TEST_F(RoboPlanToppraTest, ShortPathHermite) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Hermite);
   ASSERT_TRUE(result.has_value());
 }
@@ -217,7 +217,7 @@ TEST_F(RoboPlanToppraTest, LongPathHermite) {
   auto path = createTestPathLong();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Hermite);
   ASSERT_TRUE(result.has_value());
 }
@@ -226,7 +226,7 @@ TEST_F(RoboPlanToppraTest, ShortPathCubic) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
   ASSERT_TRUE(result.has_value());
 }
@@ -235,7 +235,7 @@ TEST_F(RoboPlanToppraTest, LongPathCubic) {
   auto path = createTestPathLong();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Cubic);
   ASSERT_TRUE(result.has_value());
 }
@@ -244,7 +244,7 @@ TEST_F(RoboPlanToppraTest, Adaptive) {
   auto path = createTestPathWithCollisions();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, dt, SplineFittingMode::Adaptive);
   ASSERT_TRUE(result.has_value());
 }

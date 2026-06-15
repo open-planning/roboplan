@@ -4,56 +4,50 @@
 # then explicitly exclude noisy or impractical checks.
 #
 # Check categories enabled:
-# - bugprone-*: Catches dangerous patterns (use-after-move, dangling references, etc.)
-# - cert-*: Security checks from CERT Secure Coding Standards
-# - clang-analyzer-*: Deep path-sensitive static analysis
-# - concurrency-*: Thread-unsafe function usage warnings
-# - cppcoreguidelines-*: C++ Core Guidelines best practices
-# - misc-*: Miscellaneous useful checks
-# - modernize-*: C++11/14/17/20 features (nullptr, override, auto, etc.)
-# - performance-*: Efficiency improvements (unnecessary copies, move semantics)
-# - portability-*: Cross-platform compatibility
-# - readability-*: Code clarity (braces, naming, magic numbers, etc.)
+# - readability-identifier-naming: Enforces naming conventions (PascalCase, camelCase, snake_case, etc.)
 #
 # Checks are excluded when they:
 # - Generate excessive false positives
 # - Conflict with necessary C++ patterns
 # - Are too restrictive for practical development
 #
+# Disabled checks (re-enable by adding back to Checks below):
+# - modernize-*: C++11/14/17/20 features (nullptr, override, auto, etc.)
+#   -modernize-use-trailing-return-type,
+# - performance-*: Efficiency improvements (unnecessary copies, move semantics)
+#   -performance-enum-size,
+# - portability-*: Cross-platform compatibility
+# - readability-*: Code clarity (braces, naming, magic numbers, etc.)
+#   -readability-function-cognitive-complexity,
+#   -readability-identifier-length,
+# - llvm-namespace-comment
+# - bugprone-*: Catches dangerous patterns (use-after-move, dangling references, etc.)
+#   -bugprone-easily-swappable-parameters,
+#   -bugprone-narrowing-conversions,
+# - cert-*: Security checks from CERT Secure Coding Standards (deep analysis)
+#   -cert-err58-cpp,
+# - clang-analyzer-*: Deep path-sensitive static analysis (10-100x slower)
+# - concurrency-*: Thread-unsafe function usage warnings
+# - cppcoreguidelines-*: C++ Core Guidelines best practices
+#   -cppcoreguidelines-avoid-c-arrays,
+#   -cppcoreguidelines-avoid-magic-numbers,
+#   -cppcoreguidelines-avoid-non-const-global-variables,
+#   -cppcoreguidelines-narrowing-conversions,
+#   -cppcoreguidelines-non-private-member-variables-in-classes,
+#   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+#   -cppcoreguidelines-pro-bounds-constant-array-index,
+#   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+#   -cppcoreguidelines-pro-type-const-cast,
+#   -cppcoreguidelines-pro-type-union-access,
+#   -cppcoreguidelines-pro-type-vararg,
+# - misc-*: Miscellaneous useful checks
+#   -misc-include-cleaner,
+#   -misc-no-recursion,
+#   -misc-non-private-member-variables-in-classes,
+#
 ---
 Checks: '-*,
-bugprone-*,
--bugprone-easily-swappable-parameters,
--bugprone-narrowing-conversions,
-cert-*,
--cert-err58-cpp,
-clang-analyzer-*,
-concurrency-*,
-cppcoreguidelines-*,
--cppcoreguidelines-avoid-c-arrays,
--cppcoreguidelines-avoid-magic-numbers,
--cppcoreguidelines-avoid-non-const-global-variables,
--cppcoreguidelines-narrowing-conversions,
--cppcoreguidelines-non-private-member-variables-in-classes,
--cppcoreguidelines-pro-bounds-array-to-pointer-decay,
--cppcoreguidelines-pro-bounds-constant-array-index,
--cppcoreguidelines-pro-bounds-pointer-arithmetic,
--cppcoreguidelines-pro-type-const-cast,
--cppcoreguidelines-pro-type-union-access,
--cppcoreguidelines-pro-type-vararg,
-misc-*,
--misc-include-cleaner,
--misc-no-recursion,
--misc-non-private-member-variables-in-classes,
-modernize-*,
--modernize-use-trailing-return-type,
-performance-*,
--performance-enum-size,
-portability-*,
-readability-*,
--readability-function-cognitive-complexity,
--readability-identifier-length,
-llvm-namespace-comment'
+readability-identifier-naming'
 
 HeaderFilterRegex: '(roboplan[^/]*/(?!.*/(tinyxml2|tl|dynotree|roboplan_ext)/).*|external/toppra/cpp/.*)\.(h|hpp)$'
 
@@ -103,6 +97,17 @@ CheckOptions:
     value:           lower_case
   - key:             readability-identifier-naming.LocalVariableCase
     value:           lower_case
+
+  # Allow single uppercase letters (with optional index) for standard matrix/vector names:
+  #   H = Hessian, A = constraint matrix, J = Jacobian, W = weight matrix,
+  #   K = gain matrix, G = gravity, Q/R/P = LQR cost/covariance,
+  #   M = mass matrix, T = transformation, I = identity
+  - key:             readability-identifier-naming.VariableIgnoredRegexp
+    value:           '^[AGHIJKMPQRTW][0-9]*$'
+  - key:             readability-identifier-naming.ParameterIgnoredRegexp
+    value:           '^[AGHIJKMPQRTW][0-9]*$'
+  - key:             readability-identifier-naming.LocalVariableIgnoredRegexp
+    value:           '^[AGHIJKMPQRTW][0-9]*$'
 
   # Private and protected member variables have trailing underscore
   - key:             readability-identifier-naming.ProtectedMemberSuffix

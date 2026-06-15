@@ -283,7 +283,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 
   // Store matrix data pointers to verify no reallocation
-  const double* A_data_ptr = oink.constraint_workspace_A.data();
+  const double* a_data_ptr = oink.constraint_workspace_A.data();
   const double* lower_data_ptr = oink.constraint_workspace_lower.data();
   const double* upper_data_ptr = oink.constraint_workspace_upper.data();
 
@@ -296,7 +296,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
 
   // Verify workspace was reused (same pointers)
-  EXPECT_EQ(oink.constraint_workspace_A.data(), A_data_ptr) << "Workspace A was reallocated!";
+  EXPECT_EQ(oink.constraint_workspace_A.data(), a_data_ptr) << "Workspace A was reallocated!";
   EXPECT_EQ(oink.constraint_workspace_lower.data(), lower_data_ptr)
       << "Workspace lower was reallocated!";
   EXPECT_EQ(oink.constraint_workspace_upper.data(), upper_data_ptr)
@@ -545,10 +545,10 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
 
   // Iterate IK solver
   Eigen::VectorXd q_current = q_canonical;
-  constexpr int kMaxIterations = 100;
-  constexpr double kPositionTolerance = 0.02;  // 2cm tolerance
+  constexpr int k_max_iterations = 100;
+  constexpr double k_position_tolerance = 0.02;  // 2cm tolerance
 
-  for (int iter = 0; iter < kMaxIterations; ++iter) {
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
     scene_->setJointPositions(q_current);
     scene_->forwardKinematics(q_current, "tool0");
 
@@ -566,8 +566,8 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
   const Eigen::Vector3d final_position = final_pose.block<3, 1>(0, 3);
   const double final_error = (target_position - final_position).norm();
 
-  EXPECT_LT(final_error, kPositionTolerance)
-      << "IK did not converge after " << kMaxIterations << " iterations. "
+  EXPECT_LT(final_error, k_position_tolerance)
+      << "IK did not converge after " << k_max_iterations << " iterations. "
       << "Target: [" << target_position.transpose() << "], "
       << "Achieved: [" << final_position.transpose() << "], "
       << "Error: " << final_error << "m";
@@ -789,12 +789,12 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
 
   // Iterate IK solver
   Eigen::VectorXd q_current = q;
-  constexpr int kMaxIterations = 100;
-  constexpr double kTolerance = 0.01;  // 1cm tolerance
+  constexpr int k_max_iterations = 100;
+  constexpr double k_tolerance = 0.01;  // 1cm tolerance
 
   double initial_error = (initial_pos - target_pos).norm();
 
-  for (int iter = 0; iter < kMaxIterations; ++iter) {
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
     scene_->setJointPositions(q_current);
 
     Eigen::VectorXd delta_q(num_variables_);
@@ -810,7 +810,7 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
     double current_error = (target_pos - current_pos).norm();
 
     // Check for convergence
-    if (current_error < kTolerance) {
+    if (current_error < k_tolerance) {
       break;
     }
   }
@@ -849,10 +849,10 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
 
   // Iterate IK solver
   Eigen::VectorXd q_current = q_initial;
-  constexpr int kMaxIterations = 50;
-  constexpr double kTolerance = 0.001;  // rad
+  constexpr int k_max_iterations = 50;
+  constexpr double k_tolerance = 0.001;  // rad
 
-  for (int iter = 0; iter < kMaxIterations; ++iter) {
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
     scene_->setJointPositions(q_current);
 
     Eigen::VectorXd delta_q(num_variables_);
@@ -864,14 +864,14 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
 
     // Check for convergence
     double config_error = (target_q - q_current).norm();
-    if (config_error < kTolerance) {
+    if (config_error < k_tolerance) {
       break;
     }
   }
 
   // Final check
   double final_error = (target_q - q_current).norm();
-  EXPECT_LT(final_error, kTolerance)
+  EXPECT_LT(final_error, k_tolerance)
       << "ConfigurationTask did not converge. Target: [" << target_q.transpose() << "], Achieved: ["
       << q_current.transpose() << "], Error: " << final_error;
 }
@@ -999,8 +999,8 @@ TEST_F(OinkTest, PriorityStackingImprovesFrameTracking) {
     std::vector<std::shared_ptr<Task>> tasks = {frame_task, cfg_task};
     std::vector<std::shared_ptr<Constraints>> constraints;
 
-    constexpr int kIters = 100;
-    for (int i = 0; i < kIters; ++i) {
+    constexpr int k_iters = 100;
+    for (int i = 0; i < k_iters; ++i) {
       scene_->setJointPositions(q_current);
       scene_->forwardKinematics(q_current, "tool0");
       Eigen::VectorXd delta_q(num_variables_);

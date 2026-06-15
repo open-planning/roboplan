@@ -14,7 +14,7 @@ namespace roboplan {
 
 using namespace nanobind::literals;
 
-void init_rrt(nanobind::module_& m) {
+void initRrt(nanobind::module_& m) {
   nanobind::class_<Node>(m, "Node", "Defines a graph node for search-based planners.")
       .def(nanobind::init<const Eigen::VectorXd&, int>(), "config"_a, "parent_id"_a)
       .def_ro("config", &Node::config, "The configuration (e.g., joint positions) of this node.")

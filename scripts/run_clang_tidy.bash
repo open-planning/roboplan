@@ -7,12 +7,22 @@ set -e
 
 # Calculate paths
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-REPO_ROOT_DIR="${SCRIPT_DIR}/.."
+REPO_ROOT_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
 
 # Default values
 PACKAGE_NAME=""
 FIX_FLAG=""
 EXIT_CODE=0
+
+# Discover packages dynamically: subdirs at repo root with a CMakeLists.txt, excluding external/
+mapfile -t ALL_PACKAGES < <(
+  find "${REPO_ROOT_DIR}" -maxdepth 2 -mindepth 2 -name "CMakeLists.txt" \
+    -not -path "${REPO_ROOT_DIR}/external/*" \
+    -not -path "${REPO_ROOT_DIR}/build/*" \
+    | xargs -I{} dirname {} \
+    | xargs -I{} basename {} \
+    | sort
+)
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -31,9 +41,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --fix      Apply clang-tidy fixes automatically"
       echo "  --help     Show this help message"
       echo ""
-      echo "Valid package names: roboplan, roboplan_simple_ik, roboplan_rrt,"
-      echo "                     roboplan_oink, roboplan_toppra, roboplan_examples,"
-      echo "                     roboplan_example_models"
+      echo "Valid package names: ${ALL_PACKAGES[*]}"
       echo ""
       echo "Examples:"
       echo "  $0                    # Check all packages"
@@ -59,20 +67,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Define packages to check (in dependency order)
+# Validate package name if provided
 if [[ -n "$PACKAGE_NAME" ]]; then
+  if [[ ! -d "${REPO_ROOT_DIR}/${PACKAGE_NAME}" ]]; then
+    echo "Error: Unknown package '${PACKAGE_NAME}'"
+    echo "Valid package names: ${ALL_PACKAGES[*]}"
+    exit 1
+  fi
   PACKAGES=("$PACKAGE_NAME")
 else
-  # All packages with C++ source code
-  PACKAGES=(
-    "roboplan_example_models"
-    "roboplan"
-    "roboplan_simple_ik"
-    "roboplan_rrt"
-    "roboplan_oink"
-    "roboplan_toppra"
-    "roboplan_examples"
-  )
+  PACKAGES=("${ALL_PACKAGES[@]}")
 fi
 
 pushd "${REPO_ROOT_DIR}" > /dev/null || exit
@@ -104,7 +108,8 @@ for PKG in "${PACKAGES[@]}"; do
   if ! run-clang-tidy \
     -p "${BUILD_DIR}" \
     ${FIX_FLAG} \
-    -quiet; then
+    -quiet \
+    "^${REPO_ROOT_DIR}/[^.]"; then
     EXIT_CODE=1
     echo ""
     echo "clang-tidy found issues in ${PKG}"

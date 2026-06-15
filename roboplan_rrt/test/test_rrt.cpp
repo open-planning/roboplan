@@ -16,23 +16,23 @@ protected:
     const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
-    scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
+    scene = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
   }
 
 public:
   // No default constructors, so must be pointers.
-  std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Scene> scene;
 };
 
 TEST_F(RoboPlanRRTTest, Plan) {
   RRTOptions options;
   options.group_name = "arm";
-  auto rrt = std::make_unique<RRT>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene, options);
   rrt->setRngSeed(1234);
 
-  const auto maybe_q_start = scene_->randomCollisionFreePositions();
+  const auto maybe_q_start = scene->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_start.has_value());
-  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
+  const auto maybe_q_goal = scene->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_goal.has_value());
 
   JointConfiguration start;
@@ -54,12 +54,12 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
   RRTOptions options;
   options.group_name = "arm";
   options.rrt_connect = true;
-  auto rrt = std::make_unique<RRT>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene, options);
   rrt->setRngSeed(1234);
 
-  const auto maybe_q_start = scene_->randomCollisionFreePositions();
+  const auto maybe_q_start = scene->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_start.has_value());
-  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
+  const auto maybe_q_goal = scene->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_goal.has_value());
 
   JointConfiguration start;
@@ -80,10 +80,10 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
 TEST_F(RoboPlanRRTTest, InvalidPoses) {
   RRTOptions options;
   options.group_name = "arm";
-  auto rrt = std::make_unique<RRT>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene, options);
   rrt->setRngSeed(1234);
 
-  const auto valid_pose = scene_->randomCollisionFreePositions().value();
+  const auto valid_pose = scene->randomCollisionFreePositions().value();
   const Eigen::VectorXd invalid_pose{{-6, -6, -6, -6, -6, -6}};
 
   JointConfiguration start;
@@ -102,11 +102,11 @@ TEST_F(RoboPlanRRTTest, PlanningTimeout) {
   options.group_name = "arm";
   options.max_planning_time = 1E-6;
   options.max_connection_distance = 0.1;
-  auto rrt = std::make_unique<RRT>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene, options);
   rrt->setRngSeed(1234);
 
-  const auto maybe_q_start = scene_->randomCollisionFreePositions();
-  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
+  const auto maybe_q_start = scene->randomCollisionFreePositions();
+  const auto maybe_q_goal = scene->randomCollisionFreePositions();
 
   JointConfiguration start;
   start.positions = maybe_q_start.value();
@@ -123,13 +123,13 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   options.group_name = "arm";
   options.rrt_connect = false;
   options.max_connection_distance = 0.1;
-  auto rrt = std::make_unique<RRT>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene, options);
 
   const Eigen::VectorXd q_start{{0, 0, 0, 0, 0, 0}};
   const Eigen::VectorXd q_extend_expected{{0.1, 0, 0, 0, 0, 0}};
   const Eigen::VectorXd q_end{{0.5, 0, 0, 0, 0, 0}};
 
-  const CollisionContext collision_context(*scene_);
+  const CollisionContext collision_context(*scene);
 
   // Initialize the search to the start pose.
   KdTree tree;
@@ -144,7 +144,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
 
   // Reset the search tree and enable RRT-Connect.
   options.rrt_connect = true;
-  auto rrt_connect = std::make_unique<RRT>(scene_, options);
+  auto rrt_connect = std::make_unique<RRT>(scene, options);
   rrt_connect->initializeTree(tree, nodes, q_start);
 
   // A greedy CONNECT step will add exactly 6 nodes and reach q_end.
@@ -158,7 +158,7 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   options.group_name = "arm";
   options.rrt_connect = false;
   options.max_connection_distance = 0.1;
-  auto rrt = std::make_unique<RRT>(scene_, options);
+  auto rrt = std::make_unique<RRT>(scene, options);
 
   // Tree1 Nodes
   const Eigen::VectorXd q_start{{0, 0, 0, 0, 0, 0}};
@@ -171,7 +171,7 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   const std::vector<Eigen::VectorXd> expected_positions = {q_start, q_start_nearest, q_goal_nearest,
                                                            q_goal};
 
-  const CollisionContext collision_context(*scene_);
+  const CollisionContext collision_context(*scene);
 
   // Initialize the search to the start pose.
   KdTree start_tree, goal_tree;
