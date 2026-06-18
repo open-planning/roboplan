@@ -229,28 +229,34 @@ public:
                                                       const JointConfiguration& q_start);
 
 private:
-  /// @brief A single arc-length time-parameterized SE(3) reference built from waypoints.
-  struct Reference {
-    std::vector<Eigen::Matrix4d> waypoints;  ///< The SE(3) waypoints.
-    std::vector<double> cumulative_times;    ///< Cumulative reference time at each waypoint.
+  /// @brief Per-end-effector tracking state for one frame of the path: the arc-length-timed
+  /// waypoint reference plus the world transform, tip frame, and task used to trace it. Held
+  /// together so the servo loop indexes a single vector instead of several parallel ones.
+  struct FrameTrack {
+    std::vector<Eigen::Matrix4d> waypoints;  ///< Base-relative SE(3) waypoints.
+    std::vector<double> cumulative_times;    ///< Cumulative reference time at each waypoint (s).
     double total_time = 0.0;                 ///< Total reference duration (s).
+    Eigen::Matrix4d world_T_base = Eigen::Matrix4d::Identity();  ///< Fixed world<-base transform.
+    std::shared_ptr<FrameTask> task;  ///< Tracking task whose target is retargeted each step.
+    std::string tip_frame;            ///< Name of the tip frame traced (path.tip_frames[f]).
 
-    /// @brief Evaluates the reference pose at reference time s in [0, total_time].
+    /// @brief Base-relative reference pose at reference time `s` in [0, total_time].
     Eigen::Matrix4d eval(double s) const;
+    /// @brief World-frame target pose of this frame at reference time `s`.
+    Eigen::Matrix4d target(double s) const { return world_T_base * eval(s); }
   };
 
-  /// @brief Output of resolving the Cartesian path into a joint-space trace.
-  struct TrackResult {
-    /// @brief Committed group joint positions (one per control step).
-    std::vector<Eigen::VectorXd> group_positions;
-    /// @brief Per-step group joint velocities (delta_q / dt).
-    std::vector<Eigen::VectorXd> group_velocities;
-    /// @brief Control-step timestamps (step * dt).
-    std::vector<double> times;
-    /// @brief Achieved Cartesian path length (m).
-    double achieved_path_length = 0.0;
-    /// @brief Fraction of steps that ran at full commanded feedrate.
-    double feedrate_efficiency = 1.0;
+  /// @brief Trapezoidal feedrate profile: a ceiling on the feedrate (ds/dt) over a uniform
+  /// reference-time grid that bounds the Cartesian acceleration and forces a stop at the path end.
+  struct FeedrateProfile {
+    bool enabled = false;         ///< When false, sample() returns 1.0 (constant full feedrate).
+    std::vector<double> ceiling;  ///< Feedrate ceiling at each grid knot.
+    double ds = 0.0;              ///< Reference-time spacing between knots (s).
+    double s_ddot_max = 0.0;      ///< Maximum feedrate acceleration (1/s).
+    size_t num_corner_knots = 0;  ///< Number of corner caps applied (used to size the loop cap).
+
+    /// @brief Samples the ceiling at reference time `s` (linear interpolation; 1.0 if disabled).
+    double sample(double s) const;
   };
 
   /// @brief Builds the parts of the OInK problem that do not depend on the path or seed, once,
@@ -263,23 +269,65 @@ private:
   /// @throws std::runtime_error if the joint velocity limits cannot be resolved (default mode).
   void buildStaticSolverComponents();
 
-  /// @brief Builds the arc-length reference from the path waypoints using the
-  /// provided linear/angular speeds.
-  Reference buildReference(const std::vector<Eigen::Matrix4d>& waypoints, double linear_speed,
-                           double angular_speed) const;
+  /// @brief Builds the per-end-effector tracking state (arc-length-timed waypoints, world<-base
+  /// transform, tip frame, and tracking task) for every frame in the path, and wires the tracking
+  /// tasks into the reused solver task list (tasks_).
+  /// @details In the custom-components mode the tasks are the caller's (validated to match the
+  /// path's tip-frame order); otherwise one priority-1 FrameTask per end-effector plus a
+  /// priority-2 nullspace ConfigurationTask are (re)built from the seed configuration.
+  tl::expected<std::vector<FrameTrack>, std::string>
+  buildFrameTracks(const CartesianPath& path, const Eigen::VectorXd& q_start_full,
+                   double linear_speed, double angular_speed);
+
+  /// @brief Precomputes the trapezoidal feedrate profile for the given references.
+  /// @details Bounds the feedrate acceleration so the Cartesian acceleration stays within the
+  /// commanded maxima, caps the feedrate at each corner (see cornerFeedrateCap), and runs a
+  /// backward pass so the feedrate can always decelerate to each corner cap and stop at the end.
+  /// A non-positive acceleration returns a disabled profile (constant full feedrate).
+  FeedrateProfile buildFeedrateProfile(const std::vector<FrameTrack>& tracks, double total_time,
+                                       double linear_speed, double angular_speed,
+                                       double linear_acceleration,
+                                       double angular_acceleration) const;
+
+  /// @brief Runs one differential-IK step that retargets every frame to its pose at reference
+  /// time `s` from the committed configuration `q`. Writes the candidate configuration, the group
+  /// step `delta_q`, and the worst-case (max over frames) FK pose error. Does not commit.
+  tl::expected<void, std::string> solveStep(const std::vector<FrameTrack>& tracks,
+                                            const Eigen::VectorXd& q, double s,
+                                            Eigen::VectorXd& q_candidate, Eigen::VectorXd& delta_q,
+                                            double& position_error, double& orientation_error);
+
+  /// @brief Drives every frame onto its first waypoint within tolerance, updating `q` in place.
+  tl::expected<void, std::string> convergeToStart(const std::vector<FrameTrack>& tracks,
+                                                  Eigen::VectorXd& q);
+
+  /// @brief Runs the timed servo loop from the converged start `q`, advancing the reference under
+  /// the feedrate profile and throttling further to stay within the path tolerance and joint
+  /// limits.
+  /// @return A partially-populated result: the trajectory's positions, velocities, and times plus
+  /// achieved_path_length and feedrate_efficiency. The accelerations and peak ratios are left for
+  /// the plan*() caller to fill.
+  tl::expected<CartesianPlanResult, std::string> runServoLoop(const std::vector<FrameTrack>& tracks,
+                                                              const FeedrateProfile& profile,
+                                                              double total_time,
+                                                              Eigen::VectorXd& q);
 
   /// @brief Resolves the Cartesian path into a joint-space trace with the Oink tracker.
-  /// @details Advances an arc-length reference whose feedrate follows a trapezoidal velocity
-  /// profile bounded by the given Cartesian speeds and accelerations, throttling the feedrate
-  /// further to stay within the path tolerance. Joint velocity and position limits are enforced
-  /// per step.
+  /// @details Orchestrates buildFrameTracks -> buildFeedrateProfile -> convergeToStart ->
+  /// runServoLoop. The reference advances at the commanded Cartesian speeds, ramped under a
+  /// trapezoidal feedrate profile bounded by the accelerations, and throttled to stay within the
+  /// path tolerance. Joint velocity and position limits are enforced per step.
   /// @param linear_acceleration,angular_acceleration Cartesian acceleration maxima for the
   /// trapezoidal feedrate profile. A non-positive value disables the profile (constant feedrate).
-  tl::expected<TrackResult, std::string> trackReference(const CartesianPath& path,
-                                                        const Eigen::VectorXd& q_start_full,
-                                                        double linear_speed, double angular_speed,
-                                                        double linear_acceleration,
-                                                        double angular_acceleration);
+  /// @return The partially-populated result from runServoLoop (see there).
+  tl::expected<CartesianPlanResult, std::string>
+  trackReference(const CartesianPath& path, const Eigen::VectorXd& q_start_full,
+                 double linear_speed, double angular_speed, double linear_acceleration,
+                 double angular_acceleration);
+
+  /// @brief Fills a trajectory's accelerations by backward finite difference of the velocities,
+  /// zeroing the (at-rest) boundary accelerations.
+  void fillAccelerations(JointTrajectory& trajectory) const;
 
   /// @brief Generates a trajectory that traces the path under a trapezoidal Cartesian feedrate
   /// profile: the tool speed ramps up/down within the commanded Cartesian acceleration maxima and
