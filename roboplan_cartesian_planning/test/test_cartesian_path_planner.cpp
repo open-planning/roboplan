@@ -59,7 +59,7 @@ TEST_F(CartesianPlannerTest, TracesStraightLineWithinTolerance) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;
   options.dt = 0.01;
-  options.linear_speed = 0.05;
+  options.max_linear_speed = 0.05;
   options.max_position_error = 0.005;
   options.max_orientation_error = 0.01;
 
@@ -103,7 +103,7 @@ TEST_F(CartesianPlannerTest, RespectsJointVelocityAndPositionLimits) {
   options.group_name = kGroup;
   options.dt = 0.01;
   // Command an aggressive speed so the velocity limits are actively binding.
-  options.linear_speed = 0.5;
+  options.max_linear_speed = 0.5;
   options.max_position_error = 0.01;
   options.max_orientation_error = 0.05;
 
@@ -141,7 +141,7 @@ TEST_F(CartesianPlannerTest, TracesMultiFramePathDefault) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;
   options.dt = 0.01;
-  options.linear_speed = 0.05;
+  options.max_linear_speed = 0.05;
   options.max_position_error = 0.005;
   options.max_orientation_error = 0.01;
   CartesianPathPlanner planner(scene_, options);
@@ -190,7 +190,7 @@ TEST_F(CartesianPlannerTest, CustomComponentsTracesLine) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;
   options.dt = 0.01;
-  options.linear_speed = 0.05;
+  options.max_linear_speed = 0.05;
   options.max_position_error = 0.005;
   options.max_orientation_error = 0.01;
 
@@ -288,23 +288,60 @@ TEST_F(CartesianPlannerTest, CustomComponentsRejectsFrameCountMismatch) {
   ASSERT_FALSE(result.has_value());
 }
 
-TEST_F(CartesianPlannerTest, ToppraModeRespectsVelocityAndAccelerationLimits) {
+TEST_F(CartesianPlannerTest, TimeOptimalModeRespectsVelocityAndAccelerationLimits) {
   JointConfiguration q_start;
   q_start.positions = scene_->getCurrentJointPositions();
   const CartesianPath path = makeLinePath(q_start.positions, 4, 0.05);
 
-  CartesianPlannerOptions toppra_options;
-  toppra_options.group_name = kGroup;
-  toppra_options.max_position_error = 0.01;
-  toppra_options.max_orientation_error = 0.05;
-  toppra_options.speed_mode = CartesianSpeedMode::Toppra;
-  const auto toppra_result = CartesianPathPlanner(scene_, toppra_options).plan(path, q_start);
-  ASSERT_TRUE(toppra_result.has_value()) << toppra_result.error();
+  CartesianPlannerOptions time_optimal_options;
+  time_optimal_options.group_name = kGroup;
+  time_optimal_options.max_position_error = 0.01;
+  time_optimal_options.max_orientation_error = 0.05;
+  time_optimal_options.speed_mode = CartesianSpeedMode::TimeOptimal;
+  const auto time_optimal_result =
+      CartesianPathPlanner(scene_, time_optimal_options).plan(path, q_start);
+  ASSERT_TRUE(time_optimal_result.has_value()) << time_optimal_result.error();
 
   // Allow a small slack for spline/discretization and the QP tolerance.
-  EXPECT_LE(toppra_result->peak_velocity_ratio, 1.1);
-  EXPECT_LE(toppra_result->peak_acceleration_ratio, 1.1);
-  EXPECT_GE(toppra_result->trajectory.positions.size(), 2u);
+  EXPECT_LE(time_optimal_result->peak_velocity_ratio, 1.1);
+  EXPECT_LE(time_optimal_result->peak_acceleration_ratio, 1.1);
+  EXPECT_GE(time_optimal_result->trajectory.positions.size(), 2u);
+}
+
+TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.dt = 0.01;
+  // Aggressive commanded speed so the acceleration profile and joint-limit throttle are active.
+  options.max_linear_speed = 0.5;
+  options.max_linear_acceleration = 0.5;
+  options.max_angular_acceleration = 2.5;
+  options.max_position_error = 0.01;
+  options.max_orientation_error = 0.05;
+  options.speed_mode = CartesianSpeedMode::Bounded;
+
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  const CartesianPath path = makeLinePath(q_start.positions, 4, 0.05);
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const JointTrajectory& traj = result->trajectory;
+  ASSERT_GE(traj.velocities.size(), 3u);
+
+  // The trapezoidal profile ramps from rest and back to rest, so the first and last joint
+  // velocities should be (near) zero.
+  EXPECT_LT(traj.velocities.front().cwiseAbs().maxCoeff(), 1e-6);
+  EXPECT_LT(traj.velocities.back().cwiseAbs().maxCoeff(), 0.05);
+
+  // The bounded-acceleration profile plus the global slow-down retry should keep the peak joint
+  // acceleration near its limit, unlike the old constant-speed trace which ignored acceleration
+  // entirely. Allow slack for the finite-difference accelerations and the retry's accept tolerance.
+  EXPECT_LE(result->peak_acceleration_ratio, 1.1);
+  EXPECT_LE(result->peak_velocity_ratio, 1.1);
 }
 
 TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {

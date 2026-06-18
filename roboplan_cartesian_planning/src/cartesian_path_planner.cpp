@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 #include <Eigen/Geometry>
 
@@ -17,6 +19,9 @@
 namespace roboplan {
 
 namespace {
+
+/// @brief Small epsilon for distance/angle/limit comparisons and strict-inequality slack.
+constexpr double kEps = 1e-9;
 
 /// @brief Maximum number of differential-IK steps used to drive the robot onto the
 /// first waypoint before the timed trace begins.
@@ -66,7 +71,7 @@ std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>&
       continue;
     }
     const double span = cumulative.at(segment + 1) - cumulative.at(segment);
-    const double fraction = span > 1e-12 ? (target - cumulative.at(segment)) / span : 0.0;
+    const double fraction = span > kEps ? (target - cumulative.at(segment)) / span : 0.0;
     result.push_back(
         (positions.at(segment) + fraction * (positions.at(segment + 1) - positions.at(segment)))
             .eval());
@@ -252,6 +257,12 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   if (options_.velocity_scale <= 0.0 || options_.velocity_scale > 1.0) {
     return tl::make_unexpected("velocity_scale must be in the interval (0, 1].");
   }
+  if (options_.acceleration_scale <= 0.0 || options_.acceleration_scale > 1.0) {
+    return tl::make_unexpected("acceleration_scale must be in the interval (0, 1].");
+  }
+  if (options_.limit_ratio_tolerance < 1.0) {
+    return tl::make_unexpected("limit_ratio_tolerance must be >= 1.0.");
+  }
 
   // Validate the path: one or more end-effector frames, each with a matching base frame, tip
   // frame, and (non-empty) transform list.
@@ -287,17 +298,18 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   }
 
   switch (options_.speed_mode) {
-  case CartesianSpeedMode::Constant:
-    return planConstantSpeed(path, q_start.positions);
-  case CartesianSpeedMode::Toppra:
-    return planToppra(path, q_start.positions);
+  case CartesianSpeedMode::Bounded:
+    return planBounded(path, q_start.positions);
+  case CartesianSpeedMode::TimeOptimal:
+    return planTimeOptimal(path, q_start.positions);
   }
   return tl::make_unexpected("Unknown CartesianSpeedMode.");
 }
 
 tl::expected<CartesianPathPlanner::TrackResult, std::string>
 CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::VectorXd& q_start_full,
-                                     double linear_speed, double angular_speed) {
+                                     double linear_speed, double angular_speed,
+                                     double linear_acceleration, double angular_acceleration) {
   const auto& model = scene_->getModel();
   const size_t num_frames = path.tforms.size();
 
@@ -327,12 +339,138 @@ CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::Vec
     }
   }
 
-  // Common timeline: a single reference time `s` advances all frames together; each reference
-  // clamps `s` to its own duration, so a shorter motion simply holds at its final waypoint.
+  // Common timeline: a single reference time  `s` advances all frames together; each reference
+  // clamps `s` to its own duration, so a shorter motion simply holds at its final waypoint. The
+  // reference time is the nominal full-speed traversal time: advancing `s` at a rate (feedrate) of
+  // 1.0 traces the path at exactly the commanded max linear OR angular speed (whichever binds) on
+  // each segment, by construction of buildReference().
   double total_time = 0.0;
   for (const auto& reference : references) {
     total_time = std::max(total_time, reference.total_time);
   }
+
+  // Trapezoidal feedrate profile setup. We bound the feedrate acceleration s_ddot (units 1/s) so
+  // the Cartesian acceleration stays within the commanded maxima. On a straight segment the
+  // Cartesian linear acceleration is s_ddot * v_nominal, where v_nominal <= linear_speed is the
+  // segment's full-speed linear speed; bounding s_ddot <= linear_acceleration / linear_speed
+  // therefore keeps it within linear_acceleration (and likewise for rotation). We take the binding
+  // (smaller) of the two limits, ignoring a modality the path has no motion in. A non-positive
+  // acceleration disables the profile, recovering the constant-feedrate trace used by TimeOptimal.
+  bool use_accel_profile = linear_acceleration > 0.0 && angular_acceleration > 0.0;
+  double s_ddot_max = 0.0;
+  // Feedrate ceiling grid (sampled uniformly in reference time): the maximum feedrate at each `s`
+  // such that the motion can still decelerate to every upcoming corner speed cap and stop at the
+  // end, all within s_ddot_max. Empty when the profile is disabled.
+  std::vector<double> feedrate_ceiling;
+  double ceiling_ds = 0.0;
+  size_t num_corner_knots = 0;
+  if (use_accel_profile) {
+    double total_linear_distance = 0.0;
+    double total_angular_distance = 0.0;
+    for (const auto& reference : references) {
+      for (size_t i = 1; i < reference.waypoints.size(); ++i) {
+        total_linear_distance += (reference.waypoints.at(i).block<3, 1>(0, 3) -
+                                  reference.waypoints.at(i - 1).block<3, 1>(0, 3))
+                                     .norm();
+        const Eigen::Matrix3d relative_rotation =
+            reference.waypoints.at(i - 1).block<3, 3>(0, 0).transpose() *
+            reference.waypoints.at(i).block<3, 3>(0, 0);
+        total_angular_distance += Eigen::AngleAxisd(relative_rotation).angle();
+      }
+    }
+    s_ddot_max = std::numeric_limits<double>::infinity();
+    if (total_linear_distance > kEps && linear_speed > 0.0) {
+      s_ddot_max = std::min(s_ddot_max, linear_acceleration / linear_speed);
+    }
+    if (total_angular_distance > kEps && angular_speed > 0.0) {
+      s_ddot_max = std::min(s_ddot_max, angular_acceleration / angular_speed);
+    }
+    if (!std::isfinite(s_ddot_max) || s_ddot_max <= 0.0 || total_time <= 0.0) {
+      use_accel_profile = false;  // Degenerate (zero-length path): fall back to constant feedrate.
+    }
+  }
+
+  if (use_accel_profile) {
+    // Corner speed caps. The reference is piecewise-linear (linear position interpolation, SLERP
+    // orientation), so at a waypoint where the path direction turns by an angle theta the commanded
+    // velocity direction flips abruptly. Crossing that corner at Cartesian speed v changes the
+    // velocity by |dv| = 2 v sin(theta/2) over roughly one control period dt, implying an
+    // acceleration |dv|/dt. Capping that at the commanded maximum gives the cornering speed
+    // v <= a * dt / (2 sin(theta/2)); converting to a feedrate cap (v / commanded speed) and taking
+    // the binding of position and orientation yields the maximum feedrate through the corner. A
+    // near-reversal drives the cap toward zero (handled by the feedrate floor in the servo loop).
+    constexpr double kCornerAngleMin = 1.0 * M_PI / 180.0;  // Treat smaller turns as straight.
+    const auto corner_feedrate_cap = [&](const Eigen::Matrix4d& prev, const Eigen::Matrix4d& cur,
+                                         const Eigen::Matrix4d& next) -> double {
+      double cap = 1.0;
+      const auto cap_from_turn = [&](double deflection, double accel, double speed) {
+        if (deflection <= kCornerAngleMin || speed <= 0.0) {
+          return;
+        }
+        const double velocity_change = 2.0 * std::sin(0.5 * deflection);
+        cap = std::min(cap, accel * options_.dt / (speed * velocity_change));
+      };
+      // Position turn.
+      const Eigen::Vector3d in_pos = cur.block<3, 1>(0, 3) - prev.block<3, 1>(0, 3);
+      const Eigen::Vector3d out_pos = next.block<3, 1>(0, 3) - cur.block<3, 1>(0, 3);
+      if (in_pos.norm() > kEps && out_pos.norm() > kEps) {
+        const double cos_angle =
+            std::clamp(in_pos.normalized().dot(out_pos.normalized()), -1.0, 1.0);
+        cap_from_turn(std::acos(cos_angle), linear_acceleration, linear_speed);
+      }
+      // Orientation turn: change of rotation axis between the incoming and outgoing relative
+      // rotations (only meaningful when both actually rotate).
+      const Eigen::AngleAxisd in_rot(prev.block<3, 3>(0, 0).transpose() * cur.block<3, 3>(0, 0));
+      const Eigen::AngleAxisd out_rot(cur.block<3, 3>(0, 0).transpose() * next.block<3, 3>(0, 0));
+      if (in_rot.angle() > kEps && out_rot.angle() > kEps) {
+        const double cos_angle = std::clamp(in_rot.axis().dot(out_rot.axis()), -1.0, 1.0);
+        cap_from_turn(std::acos(cos_angle), angular_acceleration, angular_speed);
+      }
+      return std::clamp(cap, 0.0, 1.0);
+    };
+
+    // Build the ceiling on a uniform grid in reference time (one knot per control period).
+    const size_t num_intervals =
+        std::max<size_t>(1, static_cast<size_t>(std::ceil(total_time / options_.dt)));
+    ceiling_ds = total_time / static_cast<double>(num_intervals);
+    feedrate_ceiling.assign(num_intervals + 1, 1.0);
+    feedrate_ceiling.back() = 0.0;  // Stop at the path end.
+    for (const auto& reference : references) {
+      if (reference.waypoints.size() < 3) {
+        continue;
+      }
+      for (size_t i = 1; i + 1 < reference.waypoints.size(); ++i) {
+        const double cap =
+            corner_feedrate_cap(reference.waypoints.at(i - 1), reference.waypoints.at(i),
+                                reference.waypoints.at(i + 1));
+        const size_t k = std::min(
+            num_intervals,
+            static_cast<size_t>(std::llround(reference.cumulative_times.at(i) / ceiling_ds)));
+        feedrate_ceiling.at(k) = std::min(feedrate_ceiling.at(k), cap);
+        ++num_corner_knots;
+      }
+    }
+    // Backward pass: enforce that the feedrate at each knot can still decelerate to the cap at the
+    // next knot within s_ddot_max (v^2 <= v_next^2 + 2 * a * ds). This turns the per-corner caps
+    // into a continuous deceleration envelope the online generator below ramps up against.
+    for (size_t k = feedrate_ceiling.size() - 1; k-- > 0;) {
+      const double feasible = std::sqrt(feedrate_ceiling.at(k + 1) * feedrate_ceiling.at(k + 1) +
+                                        2.0 * s_ddot_max * ceiling_ds);
+      feedrate_ceiling.at(k) = std::min(feedrate_ceiling.at(k), feasible);
+    }
+  }
+
+  // Samples the feedrate ceiling at reference time `s` (linear interpolation between grid knots).
+  const auto sample_ceiling = [&](double s_query) -> double {
+    if (feedrate_ceiling.empty()) {
+      return 1.0;
+    }
+    const double x =
+        std::clamp(s_query / ceiling_ds, 0.0, static_cast<double>(feedrate_ceiling.size() - 1));
+    const size_t k = std::min(feedrate_ceiling.size() - 2, static_cast<size_t>(x));
+    const double frac = x - static_cast<double>(k);
+    return feedrate_ceiling.at(k) + frac * (feedrate_ceiling.at(k + 1) - feedrate_ceiling.at(k));
+  };
 
   // World-frame target pose of frame `f` at reference time `s`.
   const auto frame_target = [&world_T_base, &references](size_t f, double s) -> Eigen::Matrix4d {
@@ -472,22 +610,43 @@ CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::Vec
         scene_->forwardKinematics(q, path.tip_frames.at(f)).block<3, 1>(0, 3);
   }
 
-  // Timed servo loop with feedrate throttling for tolerance enforcement.
+  // Timed servo loop. Each step advances the reference by the commanded feedrate, throttling it
+  // further wherever the robot would leave the path tolerance or exceed its joint limits.
   double s = 0.0;
+  double feedrate = 0.0;  // Current feedrate ds/dt in [0, 1]; ramped under the trapezoidal profile.
   int total_steps = 0;
   int throttled_steps = 0;
-  const double eps = 1e-9;
-  const int hard_cap =
-      static_cast<int>(std::ceil(total_time / options_.dt)) * (options_.max_attempts_per_step + 2) +
-      1000;
+  // The acceleration ramps (start, end, and every corner where the feedrate dips to a stop) extend
+  // the motion past the nominal full-speed duration, so size the safety cap on an estimate that
+  // adds a full ramp-up/ramp-down per corner knot plus the endpoints.
+  const double profile_duration =
+      use_accel_profile
+          ? total_time + (static_cast<double>(num_corner_knots) + 2.0) * 2.0 / s_ddot_max
+          : total_time;
+  const int hard_cap = static_cast<int>(std::ceil(profile_duration / options_.dt)) *
+                           (options_.max_attempts_per_step + 2) +
+                       1000;
 
-  while (s < total_time - eps) {
+  while (s < total_time - kEps) {
+    // Commanded feedrate for this step. Without the profile this is simply full speed; with it,
+    // ramp toward full speed at s_ddot_max but never above the precomputed deceleration envelope,
+    // which forces the feedrate down before each corner cap and to a stop at the path end. This
+    // bounds the Cartesian acceleration along straights and through corners alike.
+    double feedrate_cmd = 1.0;
+    if (use_accel_profile) {
+      feedrate_cmd = std::min({1.0, sample_ceiling(s), feedrate + s_ddot_max * options_.dt});
+      // Floor the feedrate at one ramp step so a corner whose cap collapses to ~0 (a near-reversal)
+      // is crawled through rather than deadlocking the reference. At this speed the corner is
+      // traversed in ~one step, keeping its acceleration close to the commanded maximum.
+      feedrate_cmd = std::max(feedrate_cmd, s_ddot_max * options_.dt);
+    }
+
     bool committed = false;
-    double alpha = 1.0;
+    double feedrate_eff = feedrate_cmd;
     Eigen::VectorXd q_candidate;
     double committed_s = s;
     for (int attempt = 0; attempt < options_.max_attempts_per_step; ++attempt) {
-      const double s_try = std::min(s + alpha * options_.dt, total_time);
+      const double s_try = std::min(s + feedrate_eff * options_.dt, total_time);
       const auto step = solve_step(s_try, q_candidate, position_error, orientation_error);
       if (!step) {
         return tl::make_unexpected("Oink solve failed at reference time " + std::to_string(s) +
@@ -497,24 +656,26 @@ CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::Vec
           orientation_error <= options_.max_orientation_error) {
         committed = true;
         committed_s = s_try;
-        if (alpha < 1.0 - eps) {
+        if (feedrate_eff < feedrate_cmd - kEps) {
           ++throttled_steps;
         }
         break;
       }
-      alpha *= 0.5;
+      feedrate_eff *= 0.5;
     }
 
     if (!committed) {
-      std::string hint = " The path may be unreachable or pass through a singularity.";
       return tl::make_unexpected(
           "Cartesian planner stalled at reference time " + std::to_string(s) +
           "s: cannot stay within tolerance (position error " + std::to_string(position_error) +
-          " m, orientation error " + std::to_string(orientation_error) + " rad)." + hint);
+          " m, orientation error " + std::to_string(orientation_error) +
+          " rad). The path may be unreachable or pass through a singularity.");
     }
 
-    // Commit the step.
+    // Commit the step. Carry the achieved feedrate forward so the next ramp continues from the
+    // real speed (a throttled step naturally slows the profile).
     s = committed_s;
+    feedrate = feedrate_eff;
     q = q_candidate;
 
     // The velocity constraint keeps each step within the joint velocity limits inside the
@@ -524,7 +685,7 @@ CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::Vec
     if (has_velocity_check_) {
       constexpr double kLimitRelTolerance = 1e-2;
       const Eigen::ArrayXd velocity_bound =
-          options_.dt * verify_v_max_.array() * (1.0 + kLimitRelTolerance) + 1e-9;
+          options_.dt * verify_v_max_.array() * (1.0 + kLimitRelTolerance) + kEps;
       if ((delta_q.array().abs() > velocity_bound).any()) {
         return tl::make_unexpected(
             "Joint velocity limit exceeded at reference time " + std::to_string(s) +
@@ -564,12 +725,8 @@ CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::Vec
   return result;
 }
 
-void CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& trajectory,
-                                                  double& velocity_ratio,
-                                                  double& acceleration_ratio) const {
-  velocity_ratio = 0.0;
-  acceleration_ratio = 0.0;
-
+std::pair<double, double>
+CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& trajectory) const {
   const auto velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
   const auto acceleration_limits = scene_->getAccelerationLimitVectors(options_.group_name);
 
@@ -582,7 +739,7 @@ void CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& traject
       }
       for (Eigen::Index i = 0; i < value.size(); ++i) {
         // Skip joints with negligible limits to avoid divide-by-zero.
-        if (std::abs(limit(i)) > 1e-9) {
+        if (std::abs(limit(i)) > kEps) {
           ratio = std::max(ratio, std::abs(value(i)) / std::abs(limit(i)));
         }
       }
@@ -590,6 +747,8 @@ void CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& traject
     return ratio;
   };
 
+  double velocity_ratio = 0.0;
+  double acceleration_ratio = 0.0;
   if (velocity_limits) {
     velocity_ratio = peak_ratio(trajectory.velocities, velocity_limits->second.cwiseAbs());
   }
@@ -597,48 +756,109 @@ void CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& traject
     acceleration_ratio =
         peak_ratio(trajectory.accelerations, acceleration_limits->second.cwiseAbs());
   }
+  return {velocity_ratio, acceleration_ratio};
 }
 
 tl::expected<CartesianPlanResult, std::string>
-CartesianPathPlanner::planConstantSpeed(const CartesianPath& path,
-                                        const Eigen::VectorXd& q_start_full) {
-  if (options_.linear_speed <= 0.0 || options_.angular_speed <= 0.0) {
-    return tl::make_unexpected("linear_speed and angular_speed must be strictly positive.");
+CartesianPathPlanner::planBounded(const CartesianPath& path, const Eigen::VectorXd& q_start_full) {
+  if (options_.max_linear_speed <= 0.0 || options_.max_angular_speed <= 0.0) {
+    return tl::make_unexpected("max_linear_speed and max_angular_speed must be strictly positive.");
+  }
+  if (options_.max_linear_acceleration <= 0.0 || options_.max_angular_acceleration <= 0.0) {
+    return tl::make_unexpected(
+        "max_linear_acceleration and max_angular_acceleration must be strictly positive.");
   }
 
-  auto tracked = trackReference(path, q_start_full, options_.linear_speed, options_.angular_speed);
-  if (!tracked) {
-    return tl::make_unexpected(tracked.error());
-  }
+  // The Cartesian feedrate profile bounds the *Cartesian* acceleration, but where the Jacobian
+  // varies quickly (corners, near-singular poses) the implied *joint* acceleration can still
+  // exceed the robot's limits. There is no single-step feedrate that fixes this (slowing one step
+  // only trades a high acceleration for a high deceleration), so instead we re-time the whole
+  // motion slower: traversing the same path in time-scale m multiplies joint velocities by 1/m and
+  // joint accelerations by 1/m^2, so we scale the commanded speeds by 1/m and accelerations by
+  // 1/m^2 and retry until the (scaled) joint limits are met. The commanded values therefore act as
+  // maxima that are relaxed only as much as the kinematics require.
+  constexpr int kMaxSlowdownIters = 6;
+  // Target ratios: the velocity constraint is already scaled by velocity_scale inside the QP, and
+  // we want the peak acceleration to land within acceleration_scale of the unscaled limit.
+  const double velocity_target = options_.velocity_scale;
+  const double acceleration_target = options_.acceleration_scale;
+  // Accept a small overshoot before slowing further (user-tunable; >= 1.0, default 1.05).
+  const double ratio_tolerance = options_.limit_ratio_tolerance;
 
+  double speed_scale = 1.0;
   CartesianPlanResult plan_result;
-  JointTrajectory& trajectory = plan_result.trajectory;
-  trajectory.joint_names = joint_group_info_.joint_names;
-  trajectory.times = std::move(tracked->times);
-  trajectory.positions = std::move(tracked->group_positions);
-  trajectory.velocities = std::move(tracked->group_velocities);
+  for (int iter = 0; iter < kMaxSlowdownIters; ++iter) {
+    auto tracked = trackReference(path, q_start_full, options_.max_linear_speed * speed_scale,
+                                  options_.max_angular_speed * speed_scale,
+                                  options_.max_linear_acceleration * speed_scale * speed_scale,
+                                  options_.max_angular_acceleration * speed_scale * speed_scale);
+    if (!tracked) {
+      // A failure (e.g. a stall) may be speed-induced; halve the speed and retry while we can.
+      if (iter + 1 < kMaxSlowdownIters) {
+        speed_scale *= 0.5;
+        continue;
+      }
+      return tl::make_unexpected(tracked.error());
+    }
 
-  // Fill accelerations by backward finite difference of the velocities. The
-  // Constant mode is velocity-level, so these can exceed the joint
-  // acceleration limits; the peak ratios below make that explicit.
-  const int num_variables =
-      trajectory.velocities.empty() ? 0 : static_cast<int>(trajectory.velocities.front().size());
-  trajectory.accelerations.assign(trajectory.velocities.size(),
-                                  Eigen::VectorXd::Zero(num_variables));
-  for (size_t i = 1; i < trajectory.velocities.size(); ++i) {
-    trajectory.accelerations.at(i) =
-        (trajectory.velocities.at(i) - trajectory.velocities.at(i - 1)) / options_.dt;
+    plan_result = CartesianPlanResult{};
+    JointTrajectory& trajectory = plan_result.trajectory;
+    trajectory.joint_names = joint_group_info_.joint_names;
+    trajectory.times = std::move(tracked->times);
+    trajectory.positions = std::move(tracked->group_positions);
+    trajectory.velocities = std::move(tracked->group_velocities);
+
+    // Fill accelerations by backward finite difference of the velocities.
+    const int num_variables =
+        trajectory.velocities.empty() ? 0 : static_cast<int>(trajectory.velocities.front().size());
+    trajectory.accelerations.assign(trajectory.velocities.size(),
+                                    Eigen::VectorXd::Zero(num_variables));
+    for (size_t i = 1; i < trajectory.velocities.size(); ++i) {
+      trajectory.accelerations.at(i) =
+          (trajectory.velocities.at(i) - trajectory.velocities.at(i - 1)) / options_.dt;
+    }
+    // The motion starts and ends at rest, so the boundary accelerations are zero. The final
+    // servo step lands exactly on the path end as a sub-dt fragment, which makes its
+    // finite-difference acceleration spuriously large; zero both boundaries so this sampling
+    // artifact does not pollute the reported peak or trigger an unnecessary slow-down.
+    if (!trajectory.accelerations.empty()) {
+      trajectory.accelerations.front().setZero();
+      trajectory.accelerations.back().setZero();
+    }
+
+    plan_result.achieved_path_length = tracked->achieved_path_length;
+    plan_result.feedrate_efficiency = tracked->feedrate_efficiency;
+    std::tie(plan_result.peak_velocity_ratio, plan_result.peak_acceleration_ratio) =
+        computePeakLimitRatios(trajectory);
+
+    // Within the (scaled) joint limits: accept this trace.
+    const bool velocity_ok =
+        plan_result.peak_velocity_ratio <= velocity_target * ratio_tolerance + kEps;
+    const bool acceleration_ok =
+        plan_result.peak_acceleration_ratio <= acceleration_target * ratio_tolerance + kEps;
+    if ((velocity_ok && acceleration_ok) || iter + 1 == kMaxSlowdownIters) {
+      break;
+    }
+
+    // Slow down so the next trace lands within limits: acceleration scales with the square of the
+    // speed scale (so sqrt of its overshoot), velocity scales linearly. Damp by 1.1 for headroom.
+    double slowdown = 1.0;
+    if (!acceleration_ok) {
+      slowdown = std::max(
+          slowdown, std::sqrt(plan_result.peak_acceleration_ratio / acceleration_target) * 1.1);
+    }
+    if (!velocity_ok) {
+      slowdown = std::max(slowdown, plan_result.peak_velocity_ratio / velocity_target * 1.1);
+    }
+    speed_scale /= slowdown;
   }
 
-  plan_result.achieved_path_length = tracked->achieved_path_length;
-  plan_result.feedrate_efficiency = tracked->feedrate_efficiency;
-  computePeakLimitRatios(trajectory, plan_result.peak_velocity_ratio,
-                         plan_result.peak_acceleration_ratio);
   return plan_result;
 }
 
 tl::expected<CartesianPlanResult, std::string>
-CartesianPathPlanner::planToppra(const CartesianPath& path, const Eigen::VectorXd& q_start_full) {
+CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
+                                      const Eigen::VectorXd& q_start_full) {
   // Resolve a dense geometric joint path that hugs the Cartesian path. The resolution
   // speed only sets sampling density and tracking tightness here (TOPP-RA assigns the
   // final timing), so use a deliberately low speed that essentially any robot can follow
@@ -647,10 +867,11 @@ CartesianPathPlanner::planToppra(const CartesianPath& path, const Eigen::VectorX
   constexpr double kResolutionLinearSpeed = 0.05;   // m/s
   constexpr double kResolutionAngularSpeed = 0.25;  // rad/s
 
-  // Geometric resolution is velocity-level only; TOPP-RA enforces the acceleration limits
-  // in the re-timing stage.
-  auto tracked =
-      trackReference(path, q_start_full, kResolutionLinearSpeed, kResolutionAngularSpeed);
+  // Geometric resolution is velocity-level only; TOPP-RA enforces the acceleration limits in the
+  // re-timing stage, so trace at a constant resolution feedrate (no Cartesian acceleration
+  // profile).
+  auto tracked = trackReference(path, q_start_full, kResolutionLinearSpeed, kResolutionAngularSpeed,
+                                /*linear_acceleration=*/0.0, /*angular_acceleration=*/0.0);
   if (!tracked) {
     return tl::make_unexpected(tracked.error());
   }
@@ -690,8 +911,8 @@ CartesianPathPlanner::planToppra(const CartesianPath& path, const Eigen::VectorX
   // Re-timing does not change the geometric path, so reuse the resolved length.
   plan_result.achieved_path_length = tracked->achieved_path_length;
   plan_result.feedrate_efficiency = tracked->feedrate_efficiency;
-  computePeakLimitRatios(plan_result.trajectory, plan_result.peak_velocity_ratio,
-                         plan_result.peak_acceleration_ratio);
+  std::tie(plan_result.peak_velocity_ratio, plan_result.peak_acceleration_ratio) =
+      computePeakLimitRatios(plan_result.trajectory);
   return plan_result;
 }
 

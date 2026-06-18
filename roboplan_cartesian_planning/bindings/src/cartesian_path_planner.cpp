@@ -20,30 +20,36 @@ using namespace nanobind::literals;
 void init_cartesian_path_planner(nanobind::module_& m) {
   nanobind::enum_<CartesianSpeedMode>(
       m, "CartesianSpeedMode", "Selects how the planner assigns speed/timing along the path.")
-      .value("Constant", CartesianSpeedMode::Constant,
-             "Trace the path at a (roughly) constant Cartesian tool speed.")
-      .value("Toppra", CartesianSpeedMode::Toppra,
-             "Time-optimal re-timing respecting joint limits (not yet implemented).");
+      .value("Bounded", CartesianSpeedMode::Bounded,
+             "Trace the path under bounded Cartesian velocity and acceleration.")
+      .value("TimeOptimal", CartesianSpeedMode::TimeOptimal,
+             "Time-optimal re-timing respecting joint velocity and acceleration limits.");
 
   nanobind::class_<CartesianPlannerOptions>(m, "CartesianPlannerOptions",
                                             "Options for the Cartesian path planner.")
       .def(nanobind::init<std::string, double, CartesianSpeedMode, double, double, double, double,
                           double, double, double, double, double, double, double, double, double,
-                          double, int>(),
-           "group_name"_a = "", "dt"_a = 0.01, "speed_mode"_a = CartesianSpeedMode::Constant,
-           "linear_speed"_a = 0.1, "angular_speed"_a = 0.5, "max_position_error"_a = 0.005,
-           "max_orientation_error"_a = 0.01, "position_cost"_a = 1.0, "orientation_cost"_a = 1.0,
-           "task_gain"_a = 1.0, "lm_damping"_a = 0.01, "regularization"_a = 1e-6,
-           "config_task_weight"_a = 0.05, "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0,
+                          double, double, double, double, int>(),
+           "group_name"_a = "", "dt"_a = 0.01, "speed_mode"_a = CartesianSpeedMode::Bounded,
+           "max_linear_speed"_a = 0.1, "max_angular_speed"_a = 0.5,
+           "max_linear_acceleration"_a = 0.5, "max_angular_acceleration"_a = 2.5,
+           "max_position_error"_a = 0.005, "max_orientation_error"_a = 0.01,
+           "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
+           "lm_damping"_a = 0.01, "regularization"_a = 1e-6, "config_task_weight"_a = 0.05,
+           "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0, "limit_ratio_tolerance"_a = 1.05,
            "toppra_blend_deviation"_a = 0.05, "position_limit_gain"_a = 1.0,
            "max_attempts_per_step"_a = 16)
       .def_rw("group_name", &CartesianPlannerOptions::group_name, "Joint group name.")
       .def_rw("dt", &CartesianPlannerOptions::dt, "Output trajectory sample period (s).")
       .def_rw("speed_mode", &CartesianPlannerOptions::speed_mode, "Speed/timing strategy.")
-      .def_rw("linear_speed", &CartesianPlannerOptions::linear_speed,
-              "Commanded linear tool speed (m/s).")
-      .def_rw("angular_speed", &CartesianPlannerOptions::angular_speed,
-              "Commanded angular tool speed (rad/s).")
+      .def_rw("max_linear_speed", &CartesianPlannerOptions::max_linear_speed,
+              "Maximum linear tool speed (m/s).")
+      .def_rw("max_angular_speed", &CartesianPlannerOptions::max_angular_speed,
+              "Maximum angular tool speed (rad/s).")
+      .def_rw("max_linear_acceleration", &CartesianPlannerOptions::max_linear_acceleration,
+              "Maximum linear tool acceleration (m/s^2), Bounded mode.")
+      .def_rw("max_angular_acceleration", &CartesianPlannerOptions::max_angular_acceleration,
+              "Maximum angular tool acceleration (rad/s^2), Bounded mode.")
       .def_rw("max_position_error", &CartesianPlannerOptions::max_position_error,
               "Maximum position deviation from the path (m).")
       .def_rw("max_orientation_error", &CartesianPlannerOptions::max_orientation_error,
@@ -62,9 +68,14 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_rw("velocity_scale", &CartesianPlannerOptions::velocity_scale,
               "Scaling factor for joint velocity limits.")
       .def_rw("acceleration_scale", &CartesianPlannerOptions::acceleration_scale,
-              "Scaling factor for joint acceleration limits (Toppra mode).")
+              "Scaling factor for joint acceleration limits (TimeOptimal re-timing and Bounded "
+              "joint-acceleration throttle).")
+      .def_rw("limit_ratio_tolerance", &CartesianPlannerOptions::limit_ratio_tolerance,
+              "Acceptance tolerance (>= 1.0) for the Bounded mode's slow-down retry; the peak "
+              "velocity/acceleration ratios may exceed the (scaled) limits by up to this factor.")
       .def_rw("toppra_blend_deviation", &CartesianPlannerOptions::toppra_blend_deviation,
-              "Corner-rounding tolerance (rad) for the Toppra line+blend geometry.")
+              "Corner-rounding tolerance (rad) for the TimeOptimal mode's TOPP-RA line+blend "
+              "geometry.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
               "Gain for the joint position-limit constraint.")
       .def_rw("max_attempts_per_step", &CartesianPlannerOptions::max_attempts_per_step,

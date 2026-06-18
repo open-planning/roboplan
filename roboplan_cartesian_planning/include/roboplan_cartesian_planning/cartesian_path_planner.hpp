@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -19,17 +20,21 @@ struct FrameTask;
 
 /// @brief Selects how the planner assigns speed/timing along the Cartesian path.
 enum class CartesianSpeedMode {
-  /// @brief Trace the path at a (roughly) constant Cartesian tool speed.
-  /// @details The reference advances at the commanded linear/angular speed wherever
-  /// feasible, and is throttled below it only where the robot cannot otherwise stay
-  /// within tolerance (e.g., near a singularity or a joint velocity limit).
-  Constant,
+  /// @brief Trace the path under bounded Cartesian velocity and acceleration.
+  /// @details Builds a trapezoidal feedrate profile that ramps the Cartesian tool speed up to the
+  /// commanded linear/angular maxima and back down to a stop at the path end, bounding the
+  /// Cartesian linear/angular acceleration by the commanded maxima. The profile is traced with the
+  /// differential-IK tracker, and the feedrate is throttled further wherever the robot would
+  /// otherwise exceed its joint velocity or acceleration limits, or fall outside the path
+  /// tolerance (e.g., near a singularity). The commanded speeds and accelerations therefore act as
+  /// maxima, not fixed values.
+  Bounded,
 
   /// @brief Time-optimal re-timing respecting joint velocity/acceleration limits.
   /// @details Resolves the waypoints to a joint path and hands it to a
   /// PathParameterizerTOPPRA instance using linear segments with circular blends.
   /// Tool speed will vary along the path in this mode.
-  Toppra,
+  TimeOptimal,
 };
 
 /// @brief Options struct for the Cartesian path planner.
@@ -42,15 +47,25 @@ struct CartesianPlannerOptions {
   double dt = 0.01;
 
   /// @brief Which timing/speed strategy to use.
-  CartesianSpeedMode speed_mode = CartesianSpeedMode::Constant;
+  CartesianSpeedMode speed_mode = CartesianSpeedMode::Bounded;
 
-  /// @brief Commanded linear tool speed along the path, in meters/second.
-  /// @details Only used in Constant speed mode.
-  double linear_speed = 0.1;
+  /// @brief Maximum linear tool speed along the path, in meters/second.
+  /// @details Only used in Bounded speed mode.
+  double max_linear_speed = 0.1;
 
-  /// @brief Commanded angular tool speed along the path, in radians/second.
-  /// @details Only used in Constant speed mode.
-  double angular_speed = 0.5;
+  /// @brief Maximum angular tool speed along the path, in radians/second.
+  /// @details Only used in Bounded speed mode.
+  double max_angular_speed = 0.5;
+
+  /// @brief Maximum linear tool acceleration along the path, in meters/second^2.
+  /// @details Only used in Bounded speed mode, where the tool speed is ramped up and down so
+  /// the Cartesian linear acceleration stays within this bound.
+  double max_linear_acceleration = 0.5;
+
+  /// @brief Maximum angular tool acceleration along the path, in radians/second^2.
+  /// @details Only used in Bounded speed mode, where the tool speed is ramped up and down so
+  /// the Cartesian angular acceleration stays within this bound.
+  double max_angular_acceleration = 2.5;
 
   /// @brief Maximum allowed position deviation from the path, in meters.
   double max_position_error = 0.005;
@@ -81,11 +96,22 @@ struct CartesianPlannerOptions {
   /// each differential-IK step.
   double velocity_scale = 1.0;
 
-  /// @brief Scaling factor (0, 1] applied to the joint acceleration limits. Only used by
-  /// the Toppra speed mode.
+  /// @brief Scaling factor (0, 1] applied to the joint acceleration limits.
+  /// @details Used both by the TimeOptimal re-timing and by the Bounded mode's joint-acceleration
+  /// throttle (which slows the feedrate wherever a step would exceed the scaled limits).
   double acceleration_scale = 1.0;
 
-  /// @brief Corner-rounding tolerance (joint-space radians) for the Toppra speed
+  /// @brief Acceptance tolerance (>= 1.0) for the Bounded mode's slow-down retry.
+  /// @details A trace is accepted once its peak joint velocity and acceleration ratios land within
+  /// this factor of the (scaled) limits; otherwise the whole motion is re-timed slower and retried.
+  /// Because the Bounded mode has no hard joint-acceleration constraint and estimates acceleration
+  /// by finite difference, a value > 1.0 absorbs single-sample spikes at corners/tolerance events
+  /// and avoids needless extra slow-down passes. Set to 1.0 to require the peaks to land within the
+  /// (scaled) limits; for extra margin below the limits use velocity_scale/acceleration_scale
+  /// instead. Only used in Bounded speed mode.
+  double limit_ratio_tolerance = 1.05;
+
+  /// @brief Corner-rounding tolerance (joint-space radians) for the TimeOptimal speed
   /// mode, which times the path with TOPP-RA over a straight-segment + circular-blend geometry.
   /// Each corner is rounded by a circular arc that deviates from the sharp corner by at most
   /// this much. Larger values round corners more aggressively (faster motion, but the joint
@@ -120,8 +146,8 @@ struct CartesianPlanResult {
   double peak_velocity_ratio = 0.0;
 
   /// @brief Peak |joint acceleration| / acceleration-limit ratio over the trajectory.
-  /// The Constant mode is velocity-level and does not bound acceleration,
-  /// so this can exceed 1.0; use the Toppra mode to keep it within limits.
+  /// The Bounded mode throttles the feedrate to keep this near 1.0, but it can still spike
+  /// briefly at hard tolerance/joint-limit events; the TimeOptimal mode bounds it directly.
   double peak_acceleration_ratio = 0.0;
 };
 
@@ -165,8 +191,7 @@ struct CartesianPlannerComponents {
 };
 
 /// @brief Offline Cartesian path planner that traces a CartesianPath in joint space.
-/// @details Uses the Oink optimal IK solver as a differential-IK tracker. See the
-/// package README for the algorithm.
+/// @details Uses the Oink optimal IK solver as a differential-IK tracker.
 class CartesianPathPlanner {
 public:
   /// @brief Constructor that builds the default differential-IK setup internally.
@@ -243,28 +268,37 @@ private:
   Reference buildReference(const std::vector<Eigen::Matrix4d>& waypoints, double linear_speed,
                            double angular_speed) const;
 
-  /// @brief Resolves the Cartesian path into a joint-space trace with the Oink tracker,
-  /// advancing the reference at the given Cartesian speeds and throttling the feedrate to
-  /// stay within the path tolerance. Velocity and position limits are enforced per step.
+  /// @brief Resolves the Cartesian path into a joint-space trace with the Oink tracker.
+  /// @details Advances an arc-length reference whose feedrate follows a trapezoidal velocity
+  /// profile bounded by the given Cartesian speeds and accelerations, throttling the feedrate
+  /// further to stay within the path tolerance. Joint velocity and position limits are enforced
+  /// per step.
+  /// @param linear_acceleration,angular_acceleration Cartesian acceleration maxima for the
+  /// trapezoidal feedrate profile. A non-positive value disables the profile (constant feedrate).
   tl::expected<TrackResult, std::string> trackReference(const CartesianPath& path,
                                                         const Eigen::VectorXd& q_start_full,
-                                                        double linear_speed, double angular_speed);
+                                                        double linear_speed, double angular_speed,
+                                                        double linear_acceleration,
+                                                        double angular_acceleration);
 
-  /// @brief Generates a trajectory that traces the path at a (throttled) constant
-  /// Cartesian speed. This is a velocity-level trace: it respects joint velocity and
-  /// position limits but not acceleration/jerk limits (see peak ratios in the result).
-  tl::expected<CartesianPlanResult, std::string>
-  planConstantSpeed(const CartesianPath& path, const Eigen::VectorXd& q_start_full);
+  /// @brief Generates a trajectory that traces the path under a trapezoidal Cartesian feedrate
+  /// profile: the tool speed ramps up/down within the commanded Cartesian acceleration maxima and
+  /// is capped at the commanded speeds.
+  /// @details If the resulting motion still exceeds the (scaled) joint velocity or acceleration
+  /// limits, the whole trace is re-timed slower (commanded speeds/accelerations scaled down) and
+  /// retried, so the commanded values act as maxima that are relaxed only as needed.
+  tl::expected<CartesianPlanResult, std::string> planBounded(const CartesianPath& path,
+                                                             const Eigen::VectorXd& q_start_full);
 
   /// @brief Resolves the path geometrically, then time-parameterizes it with TOPP-RA so
   /// the result respects joint velocity and acceleration limits (tool speed varies).
-  tl::expected<CartesianPlanResult, std::string> planToppra(const CartesianPath& path,
-                                                            const Eigen::VectorXd& q_start_full);
+  tl::expected<CartesianPlanResult, std::string>
+  planTimeOptimal(const CartesianPath& path, const Eigen::VectorXd& q_start_full);
 
   /// @brief Computes the peak |velocity|/limit and |acceleration|/limit ratios across the
   /// trajectory, so callers can see how close the result is to the joint limits.
-  void computePeakLimitRatios(const JointTrajectory& trajectory, double& velocity_ratio,
-                              double& acceleration_ratio) const;
+  /// @return A pair of {peak velocity ratio, peak acceleration ratio}.
+  std::pair<double, double> computePeakLimitRatios(const JointTrajectory& trajectory) const;
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
@@ -304,7 +338,7 @@ private:
   /// @brief Whether the per-step velocity verification runs (false if no limits are available).
   bool has_velocity_check_ = false;
 
-  /// @brief The TOPP-RA time parameterizer, used by the Toppra speed mode.
+  /// @brief The TOPP-RA time parameterizer, used by the TimeOptimal speed mode.
   /// @details Constructed once for the planner's joint group and reused across plan() calls.
   PathParameterizerTOPPRA toppra_;
 };

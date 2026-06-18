@@ -9,16 +9,18 @@ import roboplan.optimal_ik._optimal_ik_ext
 class CartesianSpeedMode(enum.Enum):
     """Selects how the planner assigns speed/timing along the path."""
 
-    Constant = 0
-    """Trace the path at a (roughly) constant Cartesian tool speed."""
+    Bounded = 0
+    """Trace the path under bounded Cartesian velocity and acceleration."""
 
-    Toppra = 1
-    """Time-optimal re-timing respecting joint limits (not yet implemented)."""
+    TimeOptimal = 1
+    """
+    Time-optimal re-timing respecting joint velocity and acceleration limits.
+    """
 
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Constant, linear_speed: float = 0.1, angular_speed: float = 0.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, limit_ratio_tolerance: float = 1.05, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -42,18 +44,32 @@ class CartesianPlannerOptions:
     def speed_mode(self, arg: CartesianSpeedMode, /) -> None: ...
 
     @property
-    def linear_speed(self) -> float:
-        """Commanded linear tool speed (m/s)."""
+    def max_linear_speed(self) -> float:
+        """Maximum linear tool speed (m/s)."""
 
-    @linear_speed.setter
-    def linear_speed(self, arg: float, /) -> None: ...
+    @max_linear_speed.setter
+    def max_linear_speed(self, arg: float, /) -> None: ...
 
     @property
-    def angular_speed(self) -> float:
-        """Commanded angular tool speed (rad/s)."""
+    def max_angular_speed(self) -> float:
+        """Maximum angular tool speed (rad/s)."""
 
-    @angular_speed.setter
-    def angular_speed(self, arg: float, /) -> None: ...
+    @max_angular_speed.setter
+    def max_angular_speed(self, arg: float, /) -> None: ...
+
+    @property
+    def max_linear_acceleration(self) -> float:
+        """Maximum linear tool acceleration (m/s^2), Bounded mode."""
+
+    @max_linear_acceleration.setter
+    def max_linear_acceleration(self, arg: float, /) -> None: ...
+
+    @property
+    def max_angular_acceleration(self) -> float:
+        """Maximum angular tool acceleration (rad/s^2), Bounded mode."""
+
+    @max_angular_acceleration.setter
+    def max_angular_acceleration(self, arg: float, /) -> None: ...
 
     @property
     def max_position_error(self) -> float:
@@ -120,14 +136,27 @@ class CartesianPlannerOptions:
 
     @property
     def acceleration_scale(self) -> float:
-        """Scaling factor for joint acceleration limits (Toppra mode)."""
+        """
+        Scaling factor for joint acceleration limits (TimeOptimal re-timing and Bounded joint-acceleration throttle).
+        """
 
     @acceleration_scale.setter
     def acceleration_scale(self, arg: float, /) -> None: ...
 
     @property
+    def limit_ratio_tolerance(self) -> float:
+        """
+        Acceptance tolerance (>= 1.0) for the Bounded mode's slow-down retry; the peak velocity/acceleration ratios may exceed the (scaled) limits by up to this factor.
+        """
+
+    @limit_ratio_tolerance.setter
+    def limit_ratio_tolerance(self, arg: float, /) -> None: ...
+
+    @property
     def toppra_blend_deviation(self) -> float:
-        """Corner-rounding tolerance (rad) for the Toppra line+blend geometry."""
+        """
+        Corner-rounding tolerance (rad) for the TimeOptimal mode's TOPP-RA line+blend geometry.
+        """
 
     @toppra_blend_deviation.setter
     def toppra_blend_deviation(self, arg: float, /) -> None: ...

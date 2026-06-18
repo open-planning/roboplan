@@ -26,7 +26,10 @@ from roboplan.visualization import (
 
 
 def round_corners(
-    vertices: list[np.ndarray], radius: float, max_arc_step_deg: float = 1.0
+    vertices: list[np.ndarray],
+    radius: float,
+    max_arc_step_deg: float = 1.0,
+    min_arc_length: float = 0.0,
 ) -> list[np.ndarray]:
     """
     Rounds the interior corners of a polyline (list of 3D points) with circular arcs of the
@@ -35,6 +38,13 @@ def round_corners(
     requested radius, tangent to both adjacent legs. The tangent length is clamped to half of
     each adjacent segment so neighbouring arcs never overlap (the effective radius shrinks at
     corners whose legs are too short). A radius <= 0 leaves the corners sharp.
+
+    Corners whose rounded arc would be shorter than `min_arc_length` meters are left sharp
+    instead. Such a sub-resolution arc cannot be traced as a blend: the whole direction change
+    happens within roughly one control step, spiking the joint acceleration and forcing the
+    Bounded planner to slow the entire motion down. A sharp corner is handled better there (its
+    single large-deflection vertex is caught by the corner-speed cap). Pass one control step of
+    tool travel (max_linear_speed * dt) to snap exactly the arcs the planner cannot resolve.
     """
     if radius <= 0.0 or len(vertices) < 3:
         return vertices
@@ -57,6 +67,10 @@ def round_corners(
         # Tangent length for the requested radius, clamped to half of each leg.
         tangent = min(radius * np.tan(half), 0.5 * len_in, 0.5 * len_out)
         eff_radius = tangent / np.tan(half)
+        # Snap sub-resolution arcs to a sharp corner (see the note in the docstring).
+        if eff_radius * deflection < min_arc_length:
+            out.append(corner)
+            continue
         center = corner + (d_out - d_in) / np.linalg.norm(d_out - d_in) * (
             eff_radius / np.cos(half)
         )
@@ -81,6 +95,7 @@ def make_lawnmower_path(
     path_num_passes: int = 5,
     path_corner_radius: float = 0.0,
     path_corner_arc_step_deg: float = 1.0,
+    path_corner_min_arc_length: float = 0.0,
 ) -> CartesianPath:
     """
     Builds a "lawnmower" (boustrophedon) Cartesian path with one waypoint list per end-effector
@@ -89,7 +104,8 @@ def make_lawnmower_path(
     up and to the right, so multi-arm robots execute a coordinated sweep. The square lies in the
     base-frame y-z plane. Each pass sweeps across the square along the in-plane "u" (y) axis,
     alternating direction, and steps over along the "v" (z) axis between passes. Interior corners
-    are rounded with circular arcs of `path_corner_radius` meters (0 leaves them sharp).
+    are rounded with circular arcs of `path_corner_radius` meters (0 leaves them sharp); arcs
+    shorter than `path_corner_min_arc_length` meters are snapped back to sharp.
     """
     u_dir = np.array([0.0, 1.0, 0.0])
     v_dir = np.array([0.0, 0.0, 1.0])
@@ -104,7 +120,12 @@ def make_lawnmower_path(
         u_values = (0.0, path_size) if i % 2 == 0 else (path_size, 0.0)
         for u in u_values:
             vertices.append(u * u_dir + v * v_dir)
-    positions = round_corners(vertices, path_corner_radius, path_corner_arc_step_deg)
+    positions = round_corners(
+        vertices,
+        path_corner_radius,
+        path_corner_arc_step_deg,
+        path_corner_min_arc_length,
+    )
 
     tforms = []
     for tip_frame in tip_frames:
@@ -122,9 +143,11 @@ def make_lawnmower_path(
 
 def main(
     model: str = "ur5",
-    speed_mode: CartesianSpeedMode = CartesianSpeedMode.Toppra,
-    linear_speed: float = 0.1,
-    angular_speed: float = 0.5,
+    speed_mode: CartesianSpeedMode = CartesianSpeedMode.TimeOptimal,
+    max_linear_speed: float = 0.1,
+    max_angular_speed: float = 0.5,
+    max_linear_acceleration: float = 0.5,
+    max_angular_acceleration: float = 2.5,
     max_position_error: float = 0.01,
     max_orientation_error: float = 0.1,
     velocity_scale: float = 1.0,
@@ -142,15 +165,20 @@ def main(
 
     Parameters:
         model: The name of the model to use.
-        speed_mode: Constant for a constant Cartesian tool speed (velocity-level, does
-            not bound acceleration), or Toppra for a time-optimal re-timing that
-            respects joint velocity and acceleration limits (tool speed varies).
-        linear_speed: Commanded linear tool speed along the path (m/s). Constant mode only.
-        angular_speed: Commanded angular tool speed along the path (rad/s). Constant mode only.
+        speed_mode: Bounded for a bounded-acceleration Cartesian tool speed (ramps up/down
+            within the commanded Cartesian acceleration maxima, capped at the commanded speeds,
+            and slowed further to respect joint velocity/acceleration limits), or TimeOptimal for a
+            time-optimal re-timing that respects joint velocity and acceleration limits.
+        max_linear_speed: Maximum linear tool speed along the path (m/s). Bounded mode only.
+        max_angular_speed: Maximum angular tool speed along the path (rad/s). Bounded mode only.
+        max_linear_acceleration: Maximum linear tool acceleration along the path (m/s^2).
+            Bounded mode only.
+        max_angular_acceleration: Maximum angular tool acceleration along the path (rad/s^2).
+            Bounded mode only.
         max_position_error: Maximum position deviation from the path (m).
         max_orientation_error: Maximum orientation deviation from the path (rad).
         velocity_scale: Scaling (0, 1] applied to joint velocity limits.
-        acceleration_scale: Scaling (0, 1] applied to joint acceleration limits (toppra mode).
+        acceleration_scale: Scaling (0, 1] applied to joint acceleration limits (TimeOptimal mode).
         dt: Output trajectory sample period (s).
         path_size: Side length of the square region the lawnmower covers (m).
         path_num_passes: Number of zigzag passes across the square.
@@ -188,6 +216,9 @@ def main(
 
     base_link = model_data.base_link
     tip_frames = model_data.ee_names
+    # Snap corner arcs that the planner cannot resolve (shorter than one control step of tool
+    # travel) back to sharp corners: a sub-step arc spikes the joint acceleration and makes the
+    # Bounded planner slow the whole motion down, whereas a sharp corner is handled cleanly.
     path = make_lawnmower_path(
         scene,
         base_link,
@@ -197,13 +228,16 @@ def main(
         path_num_passes=path_num_passes,
         path_corner_radius=path_corner_radius,
         path_corner_arc_step_deg=path_corner_arc_step_deg,
+        path_corner_min_arc_length=max_linear_speed * dt,
     )
 
     options = CartesianPlannerOptions(
         group_name=model_data.default_joint_group,
         dt=dt,
-        linear_speed=linear_speed,
-        angular_speed=angular_speed,
+        max_linear_speed=max_linear_speed,
+        max_angular_speed=max_angular_speed,
+        max_linear_acceleration=max_linear_acceleration,
+        max_angular_acceleration=max_angular_acceleration,
         max_position_error=max_position_error,
         max_orientation_error=max_orientation_error,
         velocity_scale=velocity_scale,

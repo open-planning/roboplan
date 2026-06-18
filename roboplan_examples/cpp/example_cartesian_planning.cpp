@@ -39,11 +39,12 @@ int main(int /*argc*/, char* /*argv*/[]) {
   }
   const CartesianPath path({base_frame}, {tip_frame}, {waypoints});
 
-  // Plan the joint trajectory that traces the path at a constant Cartesian speed.
+  // Plan the joint trajectory that traces the path under a bounded-acceleration Cartesian feedrate
+  // profile (the default Bounded speed mode).
   CartesianPlannerOptions options;
   options.group_name = "arm";
   options.dt = 0.01;
-  options.linear_speed = 0.05;
+  options.max_linear_speed = 0.05;
 
   CartesianPathPlanner planner(scene, options);
   const auto result = planner.plan(path, q_start);

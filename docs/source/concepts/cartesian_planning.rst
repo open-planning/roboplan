@@ -15,15 +15,18 @@ Joint **velocity** and **position** limits are enforced inside the QP (and verif
 
 Two speed modes are exposed:
 
-- ``Constant``: the tool moves at the commanded linear/angular speed wherever feasible, respecting joint velocity and position limits.
-  This is a velocity-level trace: it does **not** bound joint acceleration, so its ``peak_acceleration_ratio`` can be large.
-- ``Toppra``: resolves the path to a dense joint path with the same Oink tracker, then
+- ``Bounded``: the tool traces the path under a trapezoidal feedrate profile.
+  The Cartesian tool speed ramps up to the commanded linear/angular maxima and back down to a stop at the path end,
+  bounded by the commanded linear/angular **acceleration** maxima.
+  The feedrate is throttled below that profile wherever the robot would otherwise leave the path tolerance or exceed its joint **velocity** limit.
+  If the resulting motion still exceeds the joint **velocity or acceleration** limits (e.g. at a corner or near a singularity), the whole trace is re-timed slower and retried, so the commanded speeds and accelerations act as **maxima**, not fixed values.
+  The result is a physically smooth motion rather than a constant-speed crawl.
+- ``TimeOptimal``: resolves the path to a dense joint path with the same Oink tracker, then
   time-parameterizes it with :doc:`TOPP-RA <trajectory_generation>` over a straight-segment + circular-blend geometry.
-  This way, the trajectory respects joint **velocity and acceleration** limits.
-  Unlike ``Constant`` mode, the tool speed varies along the path.
+  This way, the trajectory respects joint **velocity and acceleration** limits, and is time-optimal (the tool speed varies along the path).
 
 Both modes return a ``JointTrajectory`` plus ``peak_velocity_ratio`` / ``peak_acceleration_ratio`` so the caller can see how close the result is to the joint limits.
-Use ``Toppra`` when acceleration feasibility matters (e.g. high commanded speeds, or executing on hardware).
+Use ``Bounded`` for a predictable, velocity- and acceleration-limited Cartesian motion, and ``TimeOptimal`` when time-optimality matters.
 
 Multiple end effectors
 ----------------------
