@@ -20,7 +20,7 @@ std::filesystem::path get_install_prefix() {
 
   // Then we can just pull the relative path to the share directory
   // <install_directory>/lib/roboplan_example_models/<executable>
-  const auto prefix =  lib_path.parent_path().parent_path();
+  const auto prefix = lib_path.parent_path().parent_path();
 
   // For compiled installs with symlinks, dladdr may follow and break (e.g. on MacOS).
   // If the path doesn't exist we must rely on a compile time prefix.
