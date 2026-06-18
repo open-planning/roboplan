@@ -99,7 +99,7 @@ def test_scene_properties(test_scene: Scene) -> None:
     assert np.allclose(joint_info.limits.min_position, np.array([-np.pi]))
     assert np.allclose(joint_info.limits.max_position, np.array([np.pi]))
     assert np.allclose(joint_info.limits.max_velocity, np.array([3.15]))
-    assert np.allclose(joint_info.limits.max_acceleration, np.array([2.0]))
+    assert np.allclose(joint_info.limits.max_acceleration, np.array([5.0]))
     assert np.allclose(joint_info.limits.max_jerk, np.array([10.0]))
 
     print(test_scene)  # Test printing for good measure
@@ -310,8 +310,8 @@ def test_velocity_limits_vector(test_scene: Scene) -> None:
 
 
 def test_acceleration_limits_vector(test_scene: Scene) -> None:
-    expected_lower_limits = np.array([-2.0, -2.0, -2.0, -2.0, -2.0, -2.0])
-    expected_upper_limits = np.array([2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+    expected_lower_limits = np.array([-5.0, -5.0, -5.0, -5.0, -5.0, -5.0])
+    expected_upper_limits = np.array([5.0, 5.0, 5.0, 5.0, 5.0, 5.0])
 
     # Default group (all joints)
     lower_limits, upper_limits = test_scene.getAccelerationLimitVectors()

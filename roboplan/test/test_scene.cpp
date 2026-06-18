@@ -78,7 +78,7 @@ TEST_F(RoboPlanSceneTest, SceneProperties) {
   ASSERT_EQ(joint_info.limits.max_velocity.size(), 1u);
   EXPECT_NEAR(joint_info.limits.max_velocity[0], 3.15, kTolerance);
   ASSERT_EQ(joint_info.limits.max_acceleration.size(), 1u);
-  EXPECT_NEAR(joint_info.limits.max_acceleration[0], 2.0, kTolerance);
+  EXPECT_NEAR(joint_info.limits.max_acceleration[0], 5.0, kTolerance);
   ASSERT_EQ(joint_info.limits.max_jerk.size(), 1u);
   EXPECT_NEAR(joint_info.limits.max_jerk[0], 10.0, kTolerance);
 
@@ -542,9 +542,9 @@ TEST_F(RoboPlanSceneTest, TestVelocityLimitsVector) {
 
 TEST_F(RoboPlanSceneTest, TestAccelerationLimitsVector) {
   Eigen::VectorXd expected_lower_limits(6);
-  expected_lower_limits << -2.0, -2.0, -2.0, -2.0, -2.0, -2.0;
+  expected_lower_limits << -5.0, -5.0, -5.0, -5.0, -5.0, -5.0;
   Eigen::VectorXd expected_upper_limits(6);
-  expected_upper_limits << 2.0, 2.0, 2.0, 2.0, 2.0, 2.0;
+  expected_upper_limits << 5.0, 5.0, 5.0, 5.0, 5.0, 5.0;
 
   // Default group (all joints)
   auto maybe_acceleration_limits = scene_->getAccelerationLimitVectors();
