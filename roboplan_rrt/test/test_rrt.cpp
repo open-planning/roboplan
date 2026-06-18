@@ -89,9 +89,11 @@ TEST_F(RoboPlanRRTTest, PlanRRTStar) {
     RRTOptions options;
     options.group_name = "arm";
     options.rrt_star = rrt_star;
-    // Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
+    // Disable fast_return so RRT* optimizes, and bound the search by a fixed node budget (not a
+    // wall-clock time budget). A node budget makes both runs do exactly the same amount of work
+    // for the same seed, so the comparison is deterministic and independent of machine load.
     options.fast_return = false;
-    options.max_planning_time = 1.0;
+    options.max_nodes = 500;
     auto rrt = std::make_unique<RRT>(scene_, options);
     rrt->setRngSeed(1234);
     return rrt->plan(start, goal);
@@ -127,8 +129,10 @@ TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
     options.group_name = "arm";
     options.rrt_connect = true;
     options.rrt_star = rrt_star;
+    // Bound by a fixed node budget rather than wall-clock time, so the comparison is deterministic
+    // and independent of machine load (see PlanRRTStar for the rationale).
     options.fast_return = false;
-    options.max_planning_time = 1.0;
+    options.max_nodes = 500;
     auto rrt = std::make_unique<RRT>(scene_, options);
     rrt->setRngSeed(1234);
     return rrt->plan(start, goal);
