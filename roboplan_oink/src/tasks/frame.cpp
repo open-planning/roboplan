@@ -30,6 +30,16 @@ FrameTask::FrameTask(const Oink& oink, const Scene& scene,
   }
   frame_id = maybe_frame_id.value();
 
+  // Resolve optional base frame
+  if (!target_pose.base_frame.empty()) {
+    const auto maybe_base_frame_id = scene.getFrameId(target_pose.base_frame);
+    if (!maybe_base_frame_id) {
+      throw std::runtime_error("Base frame '" + target_pose.base_frame +
+                               "' not found: " + maybe_base_frame_id.error());
+    }
+    base_frame_id = maybe_base_frame_id.value();
+  }
+
   v_indices = oink.v_indices;
 
   // Pre-allocate storage: 6 rows (SE(3) task) × group velocity DOFs columns
@@ -45,8 +55,16 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   // Get current frame pose in world frame
   const pinocchio::SE3& transform_world_to_frame = data.oMf.at(frame_id);
 
-  // Get target pose as SE3
-  const pinocchio::SE3 transform_world_to_target(target_pose.tform);
+  // Get target pose in world frame.
+  // If a base frame is set, the stored tform is in the base frame's coordinates,
+  // so we compose with the base frame's current world pose.
+  pinocchio::SE3 transform_world_to_target;
+  if (base_frame_id.has_value()) {
+    const pinocchio::SE3& transform_world_to_base = data.oMf.at(base_frame_id.value());
+    transform_world_to_target = transform_world_to_base * pinocchio::SE3(target_pose.tform);
+  } else {
+    transform_world_to_target = pinocchio::SE3(target_pose.tform);
+  }
 
   // Compute linear and angular errors from target to frame, in the world frame.
   Eigen::Vector3d e_pos =
@@ -86,10 +104,19 @@ tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
   // Get current joint configuration
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
 
-  // Compute full-robot frame Jacobian, then select the group's velocity columns
+  // Compute the full-robot frame Jacobian, then select the group's velocity columns.
+  // When a base frame is set, use the relative Jacobian (expressed in LOCAL_WORLD_ALIGNED),
+  // which accounts for the base frame's own motion through the joints; otherwise the
+  // standard world-rooted Jacobian.
   full_jacobian.setZero();
-  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                             full_jacobian);
+  if (base_frame_id.has_value()) {
+    scene.computeRelativeFrameJacobian(q, frame_id, target_pose.base_frame,
+                                       pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                                       full_jacobian);
+  } else {
+    scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                               full_jacobian);
+  }
 
   // The negative sign ensures that with the QP formulation (min ||J*dq + gain*e||^2),
   // the solution dq = -gain * J^{-1} * e moves toward the target.

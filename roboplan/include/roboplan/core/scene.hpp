@@ -178,14 +178,33 @@ public:
   Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name,
                                     const std::string& base_frame = "") const;
 
-  /// @brief Computes the frame Jacobian for a specific frame.
+  /// @brief Computes the frame Jacobian for a specific frame expressed in world frame.
+  /// @note Requires that forward kinematics and frame placements are up-to-date, or that
+  /// this is the first kinematics call for the given q (the underlying Pinocchio call runs FK).
   /// @param q The joint configuration.
-  /// @param frame_id The Pinocchio frame ID.
-  /// @param reference_frame The reference frame for the Jacobian (LOCAL or WORLD).
+  /// @param frame_id The Pinocchio frame ID of the frame.
+  /// @param reference_frame The reference frame for the Jacobian output (LOCAL, WORLD, or
+  /// LOCAL_WORLD_ALIGNED).
   /// @param jacobian Output matrix to store the Jacobian (must be pre-allocated to 6 x nv).
   void computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,
                             pinocchio::ReferenceFrame reference_frame,
                             Eigen::Ref<Eigen::MatrixXd> jacobian) const;
+
+  /// @brief Computes the Jacobian of a frame's velocity relative to a (possibly moving) base frame.
+  /// @details Computes the Jacobian of the EE frame velocity relative to the base frame, expressed
+  /// in the reference frame of the relative transform T_rel = T_base^{-1} * T_ee.
+  /// @note Requires that forward kinematics and frame placements are up-to-date, or that
+  /// this is the first kinematics call for the given q (the underlying Pinocchio call runs FK).
+  /// @param q The joint configuration.
+  /// @param frame_id The Pinocchio frame ID of the end-effector frame.
+  /// @param base_frame The name of the base frame (its ID is looked up internally).
+  /// @param reference_frame The reference frame for the Jacobian output. LOCAL is expressed in the
+  /// body frame of T_rel; LOCAL_WORLD_ALIGNED is at the T_rel origin with world orientation.
+  /// @param jacobian Output matrix to store the Jacobian (must be pre-allocated to 6 x nv).
+  void computeRelativeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,
+                                    const std::string& base_frame,
+                                    pinocchio::ReferenceFrame reference_frame,
+                                    Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
   /// @brief Computes the joint Jacobians for every joint at the given configuration.
   /// @details Populates the internal Pinocchio data so that pinocchio::getJointJacobian

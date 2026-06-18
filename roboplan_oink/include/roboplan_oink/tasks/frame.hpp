@@ -115,6 +115,11 @@ struct FrameTask : public Task {
   /// @brief Index of the frame in the scene's Pinocchio model.
   pinocchio::Index frame_id;
 
+  /// @brief Optional index of the base frame (from CartesianConfiguration::base_frame).
+  /// When set, computeError converts the target to world frame using the base frame's current
+  /// FK pose, and computeJacobian returns the relative Jacobian of the EE w.r.t. the base.
+  std::optional<pinocchio::FrameIndex> base_frame_id;
+
   /// @brief Velocity vector indices for the joint group (used to select Jacobian columns).
   Eigen::VectorXi v_indices;
 
