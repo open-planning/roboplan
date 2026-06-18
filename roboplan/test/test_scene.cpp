@@ -1,5 +1,8 @@
+#include <cmath>
+#include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -153,6 +156,68 @@ TEST_F(RoboPlanSceneTest, TestForwardKinematics) {
   expected << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.1753, 0.0, -1.0, 0.0, 0.09465, 0.0, 0.0, 0.0,
       1.0;
   EXPECT_TRUE(fk_wrist.isApprox(expected, 1e-6));
+}
+
+TEST_F(RoboPlanSceneTest, TestFrameJacobianSameBaseAndTipIsZero) {
+  // When frame_id == base_frame_id the relative Jacobian must be zero: the EE is
+  // stationary relative to itself regardless of which joints move.
+  Eigen::VectorXd q(6);
+  q << 0.5, -0.5, 1.0, 0.0, 0.3, 0.0;
+
+  const auto maybe_frame_id = scene_->getFrameId("tool0");
+  ASSERT_TRUE(maybe_frame_id.has_value());
+  const pinocchio::FrameIndex frame_id = maybe_frame_id.value();
+
+  for (auto rf : {pinocchio::LOCAL, pinocchio::LOCAL_WORLD_ALIGNED, pinocchio::WORLD}) {
+    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, scene_->getModel().nv);
+    scene_->computeRelativeFrameJacobian(q, frame_id, "tool0", rf, J);
+    EXPECT_NEAR(J.norm(), 0.0, kTolerance)
+        << "Relative Jacobian should be zero when base frame == tip frame";
+  }
+}
+
+TEST_F(RoboPlanSceneTest, TestFrameJacobianBaseFrameNumerical) {
+  // Property-based verification of the relative Jacobian for tool0 relative to
+  // wrist_1_link on the UR5. Two mathematically certain properties hold regardless
+  // of reference frame convention:
+  //
+  // 1. Joints UPSTREAM of the base frame (joints 0-3: shoulder_pan, shoulder_lift,
+  //    elbow, wrist_1) move the entire sub-arm rigidly → no relative motion between
+  //    wrist_1_link and tool0 → J_rel[:,0:4] = 0.
+  //
+  // 2. Joints DOWNSTREAM of the base frame (joints 4-5: wrist_2, wrist_3) do not
+  //    affect wrist_1_link at all → J_rel[:,4:6] = J_ee_abs[:,4:6].
+  Eigen::VectorXd q(6);
+  q << 0.5, -0.5, 1.0, 0.2, 0.3, -0.1;
+  const int nv = scene_->getModel().nv;
+
+  const auto maybe_ee_id = scene_->getFrameId("tool0");
+  const auto maybe_base_id = scene_->getFrameId("wrist_1_link");
+  ASSERT_TRUE(maybe_ee_id.has_value());
+  ASSERT_TRUE(maybe_base_id.has_value());
+  const pinocchio::FrameIndex ee_id = maybe_ee_id.value();
+
+  // Relative Jacobian (tool0 relative to wrist_1_link)
+  Eigen::MatrixXd J_rel = Eigen::MatrixXd::Zero(6, nv);
+  scene_->computeRelativeFrameJacobian(q, ee_id, "wrist_1_link", pinocchio::LOCAL_WORLD_ALIGNED,
+                                       J_rel);
+
+  // Absolute EE Jacobian (no base frame)
+  Eigen::MatrixXd J_ee = Eigen::MatrixXd::Zero(6, nv);
+  scene_->computeFrameJacobian(q, ee_id, pinocchio::LOCAL_WORLD_ALIGNED, J_ee);
+
+  // Property 1: upstream joints (0-3) → zero relative Jacobian columns.
+  EXPECT_NEAR(J_rel.leftCols(4).norm(), 0.0, kTolerance)
+      << "Joints upstream of the base frame should produce zero relative Jacobian.\n"
+      << "J_rel.leftCols(4):\n"
+      << J_rel.leftCols(4);
+
+  // Property 2: downstream joints (4-5) → relative Jacobian == absolute EE Jacobian.
+  EXPECT_TRUE(J_rel.rightCols(2).isApprox(J_ee.rightCols(2), kTolerance))
+      << "Joints between base and EE should give J_rel == J_ee_abs.\n"
+      << "J_rel.rightCols(2):\n"
+      << J_rel.rightCols(2) << "\nJ_ee.rightCols(2):\n"
+      << J_ee.rightCols(2);
 }
 
 TEST_F(RoboPlanSceneTest, TestLoadXMLStrings) {
@@ -515,6 +580,79 @@ TEST_F(RoboPlanSceneTest, TestJerkLimitsVector) {
   const auto& [group_lower_limits, group_upper_limits] = maybe_jerk_limits.value();
   EXPECT_TRUE(group_lower_limits.isApprox(expected_lower_limits, kTolerance));
   EXPECT_TRUE(group_upper_limits.isApprox(expected_upper_limits, kTolerance));
+}
+
+TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
+  // Write a temporary YAML config that overrides the position limits of one joint.
+  const auto tmp_config = std::filesystem::temp_directory_path() / "ur5_position_override.yaml";
+  {
+    std::ofstream out(tmp_config);
+    out << "joint_limits:\n"
+           "  shoulder_pan_joint:\n"
+           "    min_position: [-1.0]\n"
+           "    max_position: [1.0]\n";
+  }
+
+  Scene scene("override_scene", urdf_path_, srdf_path_, package_paths_, tmp_config);
+
+  const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
+  ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
+  const auto& limits = maybe_joint_info.value().limits;
+  ASSERT_EQ(limits.min_position.size(), 1u);
+  EXPECT_NEAR(limits.min_position[0], -1.0, kTolerance);
+  ASSERT_EQ(limits.max_position.size(), 1u);
+  EXPECT_NEAR(limits.max_position[0], 1.0, kTolerance);
+
+  // A non-overridden joint should keep its URDF limits.
+  const auto maybe_other = scene.getJointInfo("elbow_joint");
+  ASSERT_TRUE(maybe_other.has_value()) << maybe_other.error();
+  EXPECT_NEAR(maybe_other.value().limits.min_position[0], -M_PI, kTolerance);
+  EXPECT_NEAR(maybe_other.value().limits.max_position[0], M_PI, kTolerance);
+
+  std::filesystem::remove(tmp_config);
+}
+
+TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideInfinityFromYaml) {
+  // Confirm that yaml-cpp parses the YAML infinity spellings (.inf / -.inf) for an unbounded
+  // position limit, and that they are normalized to the same lowest()/max() sentinels that
+  // JointInfo uses for an unbounded limit by default.
+  const auto tmp_config = std::filesystem::temp_directory_path() / "ur5_position_inf.yaml";
+  {
+    std::ofstream out(tmp_config);
+    out << "joint_limits:\n"
+           "  shoulder_pan_joint:\n"
+           "    min_position: [-.inf]\n"
+           "    max_position: [.inf]\n";
+  }
+
+  Scene scene("inf_scene", urdf_path_, srdf_path_, package_paths_, tmp_config);
+
+  const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
+  ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
+  const auto& limits = maybe_joint_info.value().limits;
+  ASSERT_EQ(limits.min_position.size(), 1u);
+  EXPECT_TRUE(std::isfinite(limits.min_position[0]));
+  EXPECT_EQ(limits.min_position[0], std::numeric_limits<double>::lowest());
+  ASSERT_EQ(limits.max_position.size(), 1u);
+  EXPECT_TRUE(std::isfinite(limits.max_position[0]));
+  EXPECT_EQ(limits.max_position[0], std::numeric_limits<double>::max());
+
+  std::filesystem::remove(tmp_config);
+}
+
+TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
+  const auto tmp_config = std::filesystem::temp_directory_path() / "ur5_position_bad_size.yaml";
+  {
+    std::ofstream out(tmp_config);
+    out << "joint_limits:\n"
+           "  shoulder_pan_joint:\n"
+           "    max_position: [1.0, 2.0]\n";  // joint nv is 1, so this is invalid.
+  }
+
+  EXPECT_THROW(Scene("bad_size_scene", urdf_path_, srdf_path_, package_paths_, tmp_config),
+               std::runtime_error);
+
+  std::filesystem::remove(tmp_config);
 }
 
 }  // namespace roboplan

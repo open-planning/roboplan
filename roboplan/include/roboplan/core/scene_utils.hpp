@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include <pinocchio/multibody/model.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
@@ -90,5 +91,22 @@ struct UrdfExtendedJointLimits {
 /// @return A map from joint name to its extended limits.
 std::unordered_map<std::string, UrdfExtendedJointLimits>
 parseUrdfExtendedJointLimits(const std::string& urdf);
+
+/// @brief Overrides a joint's limits in-place from a YAML configuration.
+/// @details Position, velocity, acceleration, and jerk limits may each be overridden via a
+/// `joint_limits/<joint_name>` entry, where every limit is a sequence sized to the joint's number
+/// of velocity DOFs. When no override is present, velocity limits fall back to the URDF values from
+/// the model and acceleration/jerk limits fall back to the extended URDF limits. Position limits
+/// for free-rotating DOFs (continuous joints and the orientation DOFs of planar/floating joints)
+/// are meaningless and are discarded with a warning unless given as '.inf' / '-.inf'.
+/// @param model The Pinocchio model, used for URDF-derived velocity limits.
+/// @param yaml_config The parsed YAML configuration node (may be empty/null).
+/// @param urdf_extended_limits Extended (acceleration, jerk) limits parsed from the URDF.
+/// @param joint_name The name of the joint to override.
+/// @param info The joint info to modify in-place.
+void overrideJointLimitsFromYaml(
+    const pinocchio::Model& model, const YAML::Node& yaml_config,
+    const std::unordered_map<std::string, UrdfExtendedJointLimits>& urdf_extended_limits,
+    const std::string& joint_name, JointInfo& info);
 
 }  // namespace roboplan

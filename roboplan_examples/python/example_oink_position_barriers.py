@@ -254,12 +254,21 @@ def main(
                     # Get current joint configuration
                     q_current = scene.getCurrentJointPositions()
 
+                    # Marker targets are in the world frame, but each FrameTask expects its
+                    # target expressed in the task's base frame. Convert using the base
+                    # frame's current world pose (identity when base_frame is "universe").
+                    base_T_world = np.linalg.inv(
+                        scene.forwardKinematics(q_current, model_data.base_link)
+                    )
+
                     # Update reference filters (tau=0 acts as pass-through)
                     for idx in range(len(frame_tasks)):
                         filtered_target = reference_filters[idx].update(
                             raw_targets[idx], dt
                         )
-                        frame_tasks[idx].setTargetFrameTransform(filtered_target)
+                        frame_tasks[idx].setTargetFrameTransform(
+                            base_T_world @ filtered_target
+                        )
 
                     # Solve IK for one step with constraints and barriers
                     try:
