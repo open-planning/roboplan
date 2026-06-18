@@ -18,6 +18,8 @@ add_library(roboplan_example_models SHARED
     src/resources.cpp
     src/anchor.cpp
 )
+target_compile_definitions(roboplan_example_models PRIVATE
+  ROBOPLAN_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}")
 target_include_directories(roboplan_example_models PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
