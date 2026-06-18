@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 
+#include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_rrt/rrt.hpp>
@@ -78,64 +79,76 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
 }
 
 TEST_F(RoboPlanRRTTest, PlanRRTStar) {
-  RRTOptions options;
-  options.group_name = "arm";
-  options.rrt_star = true;
-  // Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
-  options.fast_return = false;
-  options.max_planning_time = 1.0;
-  auto rrt = std::make_unique<RRT>(scene_, options);
-  rrt->setRngSeed(1234);
+  // Plan the same problem with and without RRT*. RRT* keeps rewiring and optimizing until its
+  // budget runs out, so its path must be equal or shorter than plain RRT.
+  JointConfiguration start, goal;
+  start.positions = scene_->randomCollisionFreePositions().value();
+  goal.positions = scene_->randomCollisionFreePositions().value();
 
-  const auto maybe_q_start = scene_->randomCollisionFreePositions();
-  ASSERT_TRUE(maybe_q_start.has_value());
-  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
-  ASSERT_TRUE(maybe_q_goal.has_value());
+  const auto plan_with = [&](bool rrt_star) {
+    RRTOptions options;
+    options.group_name = "arm";
+    options.rrt_star = rrt_star;
+    // Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
+    options.fast_return = false;
+    options.max_planning_time = 1.0;
+    auto rrt = std::make_unique<RRT>(scene_, options);
+    rrt->setRngSeed(1234);
+    return rrt->plan(start, goal);
+  };
 
-  JointConfiguration start;
-  start.positions = maybe_q_start.value();
-  JointConfiguration goal;
-  goal.positions = maybe_q_goal.value();
-
-  const auto maybe_path = rrt->plan(start, goal);
-  ASSERT_TRUE(maybe_path.has_value());
+  const auto maybe_star_path = plan_with(/*rrt_star*/ true);
+  const auto maybe_rrt_path = plan_with(/*rrt_star*/ false);
+  ASSERT_TRUE(maybe_star_path.has_value());
+  ASSERT_TRUE(maybe_rrt_path.has_value());
 
   // Ensure the path starts and ends at the correct poses.
-  const auto path = maybe_path.value();
+  const auto path = maybe_star_path.value();
   std::cout << path << "\n";
   ASSERT_EQ(path.positions[0], start.positions);
   ASSERT_EQ(path.positions.back(), goal.positions);
+
+  // RRT* must never produce a longer path than plain RRT.
+  const auto star_length = computePathLength(*scene_, "arm", maybe_star_path.value()).value();
+  const auto rrt_length = computePathLength(*scene_, "arm", maybe_rrt_path.value()).value();
+  EXPECT_LE(star_length, rrt_length);
 }
 
 TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
-  // RRT* rewiring combined with the bidirectional RRT-Connect tree growth.
-  RRTOptions options;
-  options.group_name = "arm";
-  options.rrt_star = true;
-  options.rrt_connect = true;
-  options.fast_return = false;
-  options.max_planning_time = 1.0;
-  auto rrt = std::make_unique<RRT>(scene_, options);
-  rrt->setRngSeed(1234);
+  // RRT* rewiring combined with the bidirectional RRT-Connect tree growth, contrasted against plain
+  // RRT-Connect on the same (seeded) problem. As with single-tree RRT*, the rewired path must be
+  // equal or shorter than its non-star counterpart.
+  JointConfiguration start, goal;
+  start.positions = scene_->randomCollisionFreePositions().value();
+  goal.positions = scene_->randomCollisionFreePositions().value();
 
-  const auto maybe_q_start = scene_->randomCollisionFreePositions();
-  ASSERT_TRUE(maybe_q_start.has_value());
-  const auto maybe_q_goal = scene_->randomCollisionFreePositions();
-  ASSERT_TRUE(maybe_q_goal.has_value());
+  const auto plan_with = [&](bool rrt_star) {
+    RRTOptions options;
+    options.group_name = "arm";
+    options.rrt_connect = true;
+    options.rrt_star = rrt_star;
+    options.fast_return = false;
+    options.max_planning_time = 1.0;
+    auto rrt = std::make_unique<RRT>(scene_, options);
+    rrt->setRngSeed(1234);
+    return rrt->plan(start, goal);
+  };
 
-  JointConfiguration start;
-  start.positions = maybe_q_start.value();
-  JointConfiguration goal;
-  goal.positions = maybe_q_goal.value();
-
-  const auto maybe_path = rrt->plan(start, goal);
-  ASSERT_TRUE(maybe_path.has_value());
+  const auto maybe_star_path = plan_with(/*rrt_star*/ true);
+  const auto maybe_connect_path = plan_with(/*rrt_star*/ false);
+  ASSERT_TRUE(maybe_star_path.has_value());
+  ASSERT_TRUE(maybe_connect_path.has_value());
 
   // Ensure the path starts and ends at the correct poses.
-  const auto path = maybe_path.value();
+  const auto path = maybe_star_path.value();
   std::cout << path << "\n";
   ASSERT_EQ(path.positions[0], start.positions);
   ASSERT_EQ(path.positions.back(), goal.positions);
+
+  // RRT*-Connect must never produce a longer path than plain RRT-Connect.
+  const auto star_length = computePathLength(*scene_, "arm", maybe_star_path.value()).value();
+  const auto connect_length = computePathLength(*scene_, "arm", maybe_connect_path.value()).value();
+  EXPECT_LE(star_length, connect_length);
 }
 
 TEST_F(RoboPlanRRTTest, FastReturnUsesFullBudget) {
@@ -147,6 +160,7 @@ TEST_F(RoboPlanRRTTest, FastReturnUsesFullBudget) {
     options.max_connection_distance = 0.5;
     options.max_nodes = 200;
     options.fast_return = fast_return;
+    options.max_planning_time = 1.0;
     auto rrt = std::make_unique<RRT>(scene_, options);
     rrt->setRngSeed(1234);
 

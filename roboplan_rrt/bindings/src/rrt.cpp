@@ -48,7 +48,7 @@ void init_rrt(nanobind::module_& m) {
       .def_rw("rrt_star", &RRTOptions::rrt_star,
               "If true, use the RRT* algorithm to grow asymptotically optimal trees.")
       .def_rw("rewire_distance", &RRTOptions::rewire_distance,
-              "The configuration-distance radius used to find neighbors for RRT* rewiring.")
+              "The configuration-space radius used to find neighbors for RRT* rewiring.")
       .def_rw("fast_return", &RRTOptions::fast_return,
               "If true, return on the first path found; if false, plan until the budget is "
               "exhausted and return the lowest-cost path.");

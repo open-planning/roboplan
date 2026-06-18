@@ -77,6 +77,16 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
                             const bool bisection = false, const bool check_endpoints = true);
 
+/// @brief Computes the total configuration-space length of a joint path.
+/// @details Sums the Scene's configuration distance between consecutive waypoints. The path's
+///   positions are group positions, so each is expanded to full joint positions before measuring.
+/// @param scene The scene used to measure configuration distances.
+/// @param group_name The joint group the path was planned for.
+/// @param path The joint path to measure. Must contain at least two waypoints.
+/// @return The total path length, or an error if the path has fewer than two points.
+tl::expected<double, std::string>
+computePathLength(const Scene& scene, const std::string& group_name, const JointPath& path);
+
 /// @brief Options struct for path shortcutting.
 struct PathShortcuttingOptions {
   /// @brief The joint group name to be used for path shortcutting.

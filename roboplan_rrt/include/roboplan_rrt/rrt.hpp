@@ -56,7 +56,7 @@ struct RRTOptions {
   /// in which case both trees are rewired.
   bool rrt_star = false;
 
-  /// @brief The configuration-distance radius used to find neighbors for RRT* rewiring.
+  /// @brief The configuration-space radius used to find neighbors for RRT* rewiring.
   /// @details Only used when `rrt_star` is true. Expressed in the same units as
   /// `max_connection_distance`, and should generally be at least that large so that neighbors a
   /// single connection step away are considered. Larger values consider more neighbors when

@@ -420,7 +420,7 @@ std::vector<int> RRT::findNearNodes(const KdTree& tree, const std::vector<Node>&
                                     const Eigen::VectorXd& q) const {
   // The k-d tree metric sums the per-joint distances (an L1-style norm), whereas the planner's
   // costs and `max_connection_distance` use the scene's configuration distance (an L2-style norm).
-  // To keep `rewire_distance` in the same (configuration-distance) units as the other options, we
+  // To keep `rewire_distance` in the same (configuration-space) units as the other options, we
   // search a ball large enough to be a superset of the L2 ball of that radius -- since the L1 norm
   // is at most sqrt(dim) times the L2 norm -- and then filter the candidates by the actual
   // configuration distance.

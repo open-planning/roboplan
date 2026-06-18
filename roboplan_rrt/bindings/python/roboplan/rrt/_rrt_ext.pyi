@@ -95,7 +95,7 @@ class RRTOptions:
     @property
     def rewire_distance(self) -> float:
         """
-        The configuration-distance radius used to find neighbors for RRT* rewiring.
+        The configuration-space radius used to find neighbors for RRT* rewiring.
         """
 
     @rewire_distance.setter

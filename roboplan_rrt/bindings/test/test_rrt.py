@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from roboplan.core import JointConfiguration, Scene
+from roboplan.core import JointConfiguration, Scene, computePathLength
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 
@@ -44,19 +44,8 @@ def test_plan(test_scene: Scene) -> None:
 
 
 def test_plan_rrt_star(test_scene: Scene) -> None:
-    options = RRTOptions()
-    options.group_name = "arm"
-    options.max_connection_distance = 1.0
-    options.collision_check_step_size = 0.05
-    options.rrt_star = True
-    options.rewire_distance = 2.0
-    # Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
-    options.fast_return = False
-    options.max_planning_time = 1.0
-
-    rrt = RRT(test_scene, options)
-    rrt.setRngSeed(1234)
-
+    # Plan the same problem with and without RRT*. RRT* keeps rewiring and optimizing,
+    # so its path must be equal or shorter than plain RRT.
     start = JointConfiguration()
     start.positions = test_scene.randomCollisionFreePositions()
     assert start.positions is not None
@@ -65,6 +54,28 @@ def test_plan_rrt_star(test_scene: Scene) -> None:
     goal.positions = test_scene.randomCollisionFreePositions()
     assert goal.positions is not None
 
-    path = rrt.plan(start, goal)
-    assert path is not None
-    print(path)
+    def plan_with(rrt_star: bool):
+        options = RRTOptions()
+        options.group_name = "arm"
+        options.max_connection_distance = 1.0
+        options.collision_check_step_size = 0.05
+        options.rrt_star = rrt_star
+        options.rewire_distance = 2.0
+        # Disable fast_return so RRT* optimizes, and cap the budget so the test does not run too long.
+        options.fast_return = False
+        options.max_planning_time = 1.0
+
+        rrt = RRT(test_scene, options)
+        rrt.setRngSeed(1234)
+        return rrt.plan(start, goal)
+
+    star_path = plan_with(rrt_star=True)
+    rrt_path = plan_with(rrt_star=False)
+    assert star_path is not None
+    assert rrt_path is not None
+    print(star_path)
+
+    # RRT* must never produce a longer path than plain RRT.
+    star_length = computePathLength(test_scene, "arm", star_path)
+    rrt_length = computePathLength(test_scene, "arm", rrt_path)
+    assert star_length <= rrt_length
