@@ -89,7 +89,9 @@ void init_optimal_ik(nanobind::module_& m) {
            "oink"_a, "target_q"_a, "joint_weights"_a, "options"_a = ConfigurationTaskOptions{})
       .def_rw("target_q", &ConfigurationTask::target_q, "Target joint configuration.")
       .def_rw("joint_weights", &ConfigurationTask::joint_weights,
-              "Weights for each joint in the configuration task.");
+              "Weights for each joint in the configuration task.")
+      .def("setTargetConfiguration", &ConfigurationTask::setTargetConfiguration, "target"_a,
+           "Sets the target joint configuration for this task, for runtime retargeting.");
 
   // Bind the abstract Constraints base class
   nanobind::class_<Constraints>(m, "Constraints", "Abstract base class for IK constraints.");

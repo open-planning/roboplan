@@ -167,6 +167,11 @@ class ConfigurationTask(Task):
     @joint_weights.setter
     def joint_weights(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
+    def setTargetConfiguration(self, target: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Sets the target joint configuration for this task, for runtime retargeting.
+        """
+
 class Constraints:
     """Abstract base class for IK constraints."""
 

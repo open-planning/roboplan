@@ -59,6 +59,16 @@ struct ConfigurationTask : public Task {
                     const Eigen::VectorXd& joint_weights,
                     const ConfigurationTaskOptions& options = {});
 
+  /// @brief Sets the target joint configuration for this task.
+  ///
+  /// Allows updating the tracked configuration at runtime (e.g., to follow a
+  /// sequence of joint targets) without reconstructing the task. Mirrors
+  /// FrameTask::setTargetFrameTransform for joint-space tracking.
+  ///
+  /// @param target The new target joint configuration (size must equal q_indices.size()).
+  /// @throws std::invalid_argument if target size doesn't match the group's q_indices size.
+  void setTargetConfiguration(const Eigen::VectorXd& target);
+
   /// @brief Computes the configuration space error.
   ///
   ///     error = pin.difference(model, q_current, q_target)
