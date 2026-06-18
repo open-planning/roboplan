@@ -15,6 +15,7 @@ from roboplan.filters import SE3LowPassFilter
 from roboplan.core import Scene, CartesianConfiguration
 from roboplan.example_models import get_package_share_dir
 from roboplan.optimal_ik import (
+    AccelerationLimit,
     ConfigurationTask,
     ConfigurationTaskOptions,
     FrameTask,
@@ -36,6 +37,7 @@ def main(
     self_collision_num_pairs: int = 0,
     self_collision_d_min: float = 0.02,
     self_collision_gain: float = 1.0,
+    limit_acceleration: bool = False,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -59,6 +61,8 @@ def main(
             between every pair of self-collision bodies declared by the SRDF.
         self_collision_gain: Barrier gain (gamma) for the self-collision barrier. Higher
             values produce stronger pushback as bodies approach `self_collision_d_min`.
+        limit_acceleration: If true, adds an acceleration limit.
+            Note that this can cause overshoot with sudden marker motions, though.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -130,6 +134,13 @@ def main(
     velocity_limit = VelocityLimit(oink, dt, v_max)
 
     constraints = [position_limit, velocity_limit]
+
+    if limit_acceleration:
+        a_max = np.hstack(
+            [scene.getJointInfo(name).limits.max_acceleration for name in joint_names]
+        )
+        accel_limit = AccelerationLimit(oink, dt, a_max)
+        constraints.append(accel_limit)
 
     # Self-collision barrier: keep every collision pair in the model at least
     # `self_collision_d_min` meters apart. Skip when the model has no collision pairs.
@@ -270,6 +281,11 @@ def main(
                             frame_tasks[idx].setTargetFrameTransform(
                                 base_T_world @ raw_targets[idx]
                             )
+
+                    # Center the acceleration bound on the previous step's velocity
+                    # (delta_q / dt) so the limit couples consecutive control steps.
+                    if limit_acceleration:
+                        accel_limit.setLastVelocity(delta_q / dt)
 
                     # Solve IK for one step with constraints (and the self-collision
                     # barrier when the model has collision pairs).

@@ -206,6 +206,49 @@ class VelocityLimit(Constraints):
     @v_max.setter
     def v_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
+class AccelerationLimit(Constraints):
+    """
+    Constraint to enforce joint acceleration limits by bounding the change in velocity
+    between successive IK steps (plus a braking-distance term toward position limits).
+    Inspired by pink.limits.AccelerationLimit.
+    """
+
+    def __init__(self, oink: Oink, dt: float, a_max: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """Create an acceleration limit with per-joint maximum accelerations."""
+
+    def setLastVelocity(self, v_prev: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Record the velocity integrated on the previous step (Delta_q_prev = v_prev * dt,
+        reusing the constraint's dt). Call once per control step before solving so the
+        acceleration bound is centered on the previous velocity.
+        """
+
+    def reset(self) -> None:
+        """
+        Reset the previous-step displacement to zero (e.g. when the robot is at rest).
+        """
+
+    @property
+    def dt(self) -> float:
+        """Time step for acceleration calculation."""
+
+    @dt.setter
+    def dt(self, arg: float, /) -> None: ...
+
+    @property
+    def a_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Maximum joint accelerations."""
+
+    @a_max.setter
+    def a_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+
+    @property
+    def Delta_q_prev(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Displacement applied on the previous step."""
+
+    @Delta_q_prev.setter
+    def Delta_q_prev(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
 

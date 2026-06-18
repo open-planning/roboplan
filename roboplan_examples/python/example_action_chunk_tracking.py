@@ -2,7 +2,8 @@
 Track mock learned policy action chunks.
 This example demonstrates how a learned policy action chunk can be treated as a
 short-horizon command sequence, interpolated at a smaller control timestep, and
-tracked through the OInK solver to respect position and velocity limits.
+tracked through the OInK solver to respect position and velocity limits (and an optional
+acceleration limit).
 
 Supported chunk types:
   1. Cartesian/end-effector targets: sparse absolute SE(3) target poses
@@ -13,8 +14,9 @@ The main idea is:
       -> sparse target poses/configurations
       -> dense interpolated targets at control_dt
       -> Cartesian actions: OInK FrameTasks tracking with PositionLimit + VelocityLimit
+         (+ optional AccelerationLimit)
       -> joint-space actions: OInK ConfigurationTask tracking with PositionLimit +
-         VelocityLimit
+         VelocityLimit (+ optional AccelerationLimit)
       -> visualization
 
 For multi-arm models such as "dual", Cartesian chunks create one frame task per
@@ -45,6 +47,7 @@ from roboplan.interpolation import (
     interpolateJointTrajectory,
 )
 from roboplan.optimal_ik import (
+    AccelerationLimit,
     ConfigurationTask,
     ConfigurationTaskOptions,
     FrameTask,
@@ -272,11 +275,12 @@ def main(
     action_space: ActionSpace = "cartesian",
     chunk_horizon: int = 6,
     action_scale: float = 1.0,
-    segment_time: float = 0.2,
+    segment_time: float = 0.5,
     control_freq: float = 100.0,
     task_gain: float = 1.0,
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
+    limit_acceleration: bool = False,
     sleep: bool = False,
     playback_speed: float = 1.0,
     host: str = "localhost",
@@ -294,6 +298,12 @@ def main(
         task_gain: OInK task gain (FrameTask in Cartesian mode, ConfigurationTask in joint mode).
         lm_damping: OInK task Levenberg-Marquardt damping.
         regularization: Tikhonov regularization passed to OInK.
+        limit_acceleration: If true (and the model defines acceleration limits), add an OInK
+            AccelerationLimit so the executed motion respects joint acceleration limits. Off by
+            default: it bounds how fast velocity can change but does not brake toward the task
+            target, so aggressive chunks will overshoot (the arm saturates velocity and cannot
+            decelerate in time). Use a gentler chunk (smaller action_scale / larger segment_time)
+            when enabling it.
         sleep: If true, sleep between dense tracking steps while initially generating the trajectory.
         playback_speed: Playback speed multiplier for GUI animation.
         host: Viser host.
@@ -385,6 +395,19 @@ def main(
         PositionLimit(oink, gain=1.0),
         VelocityLimit(oink, dt, v_max),
     ]
+
+    # Acceleration limit (opt-in): bounds the change in velocity between control steps so the
+    # motion does not snap/jerk. It needs the previous step's velocity, so the rollout loops call
+    # accel_limit.setLastVelocity(...) each iteration. Off by default because it does not brake
+    # toward the task target, so aggressive chunks will overshoot.
+    accel_limit = None
+    if limit_acceleration:
+        a_max = np.hstack(
+            [scene.getJointInfo(name).limits.max_acceleration for name in joint_names]
+        )
+        accel_limit = AccelerationLimit(oink, dt, a_max)
+        constraints.append(accel_limit)
+        print(f"Acceleration limit enabled (a_max={a_max}).")
 
     if action_space == "cartesian":
         # Regularize toward the start configuration at priority 2 so it is projected into
@@ -509,6 +532,10 @@ def main(
             ):
                 frame_task.setTargetFrameTransform(base_T_world @ frame_tforms[idx])
 
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
+            if accel_limit is not None:
+                accel_limit.setLastVelocity(delta_q / dt)
+
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)
             except RuntimeError as exc:
@@ -537,6 +564,10 @@ def main(
 
             # Retarget the ConfigurationTask to the current dense joint waypoint.
             config_task.setTargetConfiguration(dense_targets[idx][oink.q_indices])
+
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
+            if accel_limit is not None:
+                accel_limit.setLastVelocity(delta_q / dt)
 
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)
