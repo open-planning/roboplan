@@ -7,6 +7,7 @@
 #include <nanobind/stl/vector.h>
 
 #include <roboplan/core/scene.hpp>
+#include <roboplan_oink/barriers/manipulability_barrier.hpp>
 #include <roboplan_oink/barriers/position_barrier.hpp>
 #include <roboplan_oink/barriers/self_collision_barrier.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
@@ -146,6 +147,21 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("axis_selection", &PositionBarrier::axis_selection, "Axis selection for constraints.")
       .def_ro("p_min", &PositionBarrier::p_min, "Minimum position bounds.")
       .def_ro("p_max", &PositionBarrier::p_max, "Maximum position bounds.");
+
+  // Bind ManipulabilityBarrier
+  nanobind::class_<ManipulabilityBarrier, Barrier>(
+      m, "ManipulabilityBarrier",
+      "Singularity-avoidance barrier based on the minimum singular value of the arm Jacobian.\n\n"
+      "Enforces h(q) = σ_min(q) − σ_safe ≥ 0 as a Control Barrier Function constraint inside\n"
+      "the OInK QP. The gradient ∂σ_min/∂q is computed via forward finite differences.")
+      .def(nanobind::init<const Oink&, const Scene&, const std::string&, double, double, double,
+                          double, double, double>(),
+           "oink"_a, "scene"_a, "frame_name"_a, "dt"_a, "sigma_safe"_a, "gain"_a = 1.0,
+           "safe_displacement_gain"_a = 1.0, "safety_margin"_a = 0.0, "fd_epsilon"_a = 1e-6,
+           "Create a manipulability barrier.")
+      .def_ro("frame_name", &ManipulabilityBarrier::frame_name, "Name of the constrained frame.")
+      .def_ro("sigma_safe", &ManipulabilityBarrier::sigma_safe, "Minimum σ_min enforced.")
+      .def_ro("fd_epsilon", &ManipulabilityBarrier::fd_epsilon, "Finite-difference step size.");
 
   // Bind SelfCollisionBarrier
   nanobind::class_<SelfCollisionBarrier, Barrier>(

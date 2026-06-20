@@ -231,6 +231,7 @@ matplotlib        = ">=3.10.5,<4"
 nodeenv           = ">=1.10.0, <2"
 tyro              = ">=0.9.26,<0.10"
 viser             = ">=1.0.29,<2.0"  # See https://github.com/viser-project/viser/issues/719
+plotly            = ">=5.0,<6"
 zstandard         = ">=0.25.0,<0.26"
 plyfile           = ">=1.1,<2"
 pycollada         = ">=0.9.2, <0.10"
