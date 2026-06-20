@@ -334,6 +334,9 @@ void init_core_path_utils(nanobind::module_& m) {
         "Scene.",
         "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
         "check_endpoints"_a = true);
+  m.def("computePathLength", unwrap_expected(&computePathLength),
+        "Computes the total configuration-space length of a joint path.", "scene"_a, "group_name"_a,
+        "path"_a);
 
   nanobind::class_<PathShortcuttingOptions>(m, "PathShortcuttingOptions",
                                             "Options struct for path shortcutting.")

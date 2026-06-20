@@ -18,10 +18,14 @@ class Node:
     def parent_id(self) -> int:
         """The parent node ID."""
 
+    @property
+    def cost(self) -> float:
+        """The cost-to-come from the tree root to this node (RRT* only)."""
+
 class RRTOptions:
     """Options struct for RRT planner."""
 
-    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, collision_check_use_bisection: bool = False, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False) -> None: ...
+    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, collision_check_use_bisection: bool = False, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False, rrt_star: bool = False, rewire_distance: float = 5.0, fast_return: bool = True) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -80,6 +84,31 @@ class RRTOptions:
 
     @rrt_connect.setter
     def rrt_connect(self, arg: bool, /) -> None: ...
+
+    @property
+    def rrt_star(self) -> bool:
+        """If true, use the RRT* algorithm to grow asymptotically optimal trees."""
+
+    @rrt_star.setter
+    def rrt_star(self, arg: bool, /) -> None: ...
+
+    @property
+    def rewire_distance(self) -> float:
+        """
+        The configuration-space radius used to find neighbors for RRT* rewiring.
+        """
+
+    @rewire_distance.setter
+    def rewire_distance(self, arg: float, /) -> None: ...
+
+    @property
+    def fast_return(self) -> bool:
+        """
+        If true, return on the first path found; if false, plan until the budget is exhausted and return the lowest-cost path.
+        """
+
+    @fast_return.setter
+    def fast_return(self, arg: bool, /) -> None: ...
 
 class RRT:
     """

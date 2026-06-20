@@ -534,6 +534,9 @@ def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float6
     Checks collisions along a specified configuration space path. Uses the Scene's own collision scratch, so it is not safe to call concurrently with other queries on the same Scene.
     """
 
+def computePathLength(scene: Scene, group_name: str, path: JointPath) -> float:
+    """Computes the total configuration-space length of a joint path."""
+
 class PathShortcuttingOptions:
     """Options struct for path shortcutting."""
 
