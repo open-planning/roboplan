@@ -301,41 +301,44 @@ RRT::joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
   const auto& nearest_node = target_nodes.at(nn.id);
   const auto& q_nearest = nearest_node.config;
 
-  // If the nearest and latest nodes are equal we only need one of them, so start from the parent.
-  const auto& latest_node =
-      q_last_added == q_nearest ? nodes.at(last_added_node.parent_id) : last_added_node;
-  const auto& q_latest = latest_node.config;
+  // Helper function to build the connected path
+  const auto build_path = [&](const Node& from_node, const Node& to_node,
+                              double cost) -> std::pair<JointPath, double> {
+    JointPath start_path =
+        grow_start_tree ? getPath(nodes, from_node) : getPath(target_nodes, to_node);
+    JointPath goal_path =
+        grow_start_tree ? getPath(target_nodes, to_node) : getPath(nodes, from_node);
 
-  // If the latest sampled node in one tree can be connected to the nearest node in the target tree,
-  // then a path exists and we should return it. Both endpoints are existing tree nodes and are
-  // therefore already known collision-free, so we skip re-checking them.
-  const auto connection_distance = scene_->configurationDistance(q_latest, q_nearest);
+    std::reverse(start_path.positions.begin(), start_path.positions.end());
+    start_path.positions.insert(start_path.positions.end(), goal_path.positions.begin(),
+                                goal_path.positions.end());
+    return {std::move(start_path), cost};
+  };
+
+  // If the trees meet at the same point, stitch directly through the shared node with no
+  // connecting edge. This avoids the need to fall back to a parent that may be farther
+  // than max_connection_distance away (which can happen say, after RRT* rewiring).
+  if (q_last_added == q_nearest) {
+    // Since they are the same, the total cost-to-come of the joint path is just the last added
+    // nodes costs. Note that the node costs are only meaningful when the planner is tracking
+    // them (RRT*, or any mode with fast_return disabled); callers returning the first path
+    // ignore this value.
+    const auto path_cost = last_added_node.cost + nearest_node.cost;
+    return build_path(last_added_node, nearest_node, path_cost);
+  }
+
+  // Otherwise attempt a normal connection edge between the two nearest nodes.
+  const auto connection_distance = scene_->configurationDistance(q_last_added, q_nearest);
   if ((connection_distance <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, collision_context, q_latest, q_nearest,
+      (!hasCollisionsAlongPath(*scene_, collision_context, q_last_added, q_nearest,
                                options_.collision_check_step_size,
                                options_.collision_check_use_bisection,
                                /*check_endpoints*/ false))) {
 
-    // The total cost-to-come of the joined path (used to rank solutions when not returning on the
-    // first path): the two connected nodes' costs plus the connecting edge length. The node costs
-    // are only meaningful when the planner is tracking them (RRT*, or any mode with fast_return
-    // disabled); callers returning the first path ignore this value.
-    const auto path_cost = latest_node.cost + nearest_node.cost + connection_distance;
-
-    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree.
-    // Otherwise it is reversed.
-    JointPath start_path =
-        grow_start_tree ? getPath(nodes, latest_node) : getPath(target_nodes, nearest_node);
-    JointPath goal_path =
-        grow_start_tree ? getPath(target_nodes, nearest_node) : getPath(nodes, latest_node);
-
-    // We always set start_path as connection -> start_node and goal_path is connection ->
-    // goal_node.
-    std::reverse(start_path.positions.begin(), start_path.positions.end());
-    start_path.positions.insert(start_path.positions.end(), goal_path.positions.begin(),
-                                goal_path.positions.end());
-
-    return std::make_pair(std::move(start_path), path_cost);
+    // If the nodes are not the same the total cost-to-come of the joined path is the two
+    // connected nodes' costs plus the connecting edge length.
+    const auto path_cost = last_added_node.cost + nearest_node.cost + connection_distance;
+    return build_path(last_added_node, nearest_node, path_cost);
   }
 
   return std::nullopt;

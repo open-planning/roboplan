@@ -121,6 +121,10 @@ TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
   // RRT-Connect on the same (seeded) problem. As with single-tree RRT*, the rewired path must be
   // equal or shorter than its non-star counterpart.
   JointConfiguration start, goal;
+
+  // Seeds that failed between 1 - 1000
+  // 272, 385, 405, 482, 616, 863
+  // scene_->setRngSeed(385);
   start.positions = scene_->randomCollisionFreePositions().value();
   goal.positions = scene_->randomCollisionFreePositions().value();
 
