@@ -262,14 +262,19 @@ def main(
         sys.exit(1)
     elapsed = time.time() - t0
 
-    traj = result.trajectory
+    traj = result
+    peak_velocity_ratio, peak_acceleration_ratio = planner.compute_peak_limit_ratios(
+        traj
+    )
     print(f"  Planned in {elapsed * 1e3:.1f} ms")
     print(f"  Trajectory samples: {len(traj.times)}")
     print(f"  Trajectory duration: {traj.times[-1]:.3f} s")
-    print(f"  Achieved Cartesian path length: {result.achieved_path_length:.4f} m")
-    print(f"  Feedrate efficiency: {result.feedrate_efficiency * 100:.1f}%")
-    print(f"  Peak velocity / limit:     {result.peak_velocity_ratio:.2f}")
-    print(f"  Peak acceleration / limit: {result.peak_acceleration_ratio:.2f}")
+    print(
+        f"  Achieved Cartesian path length: "
+        f"{planner.compute_achieved_path_length(traj, path):.4f} m"
+    )
+    print(f"  Peak velocity / limit:     {peak_velocity_ratio:.2f}")
+    print(f"  Peak acceleration / limit: {peak_acceleration_ratio:.2f}")
 
     # Plot the planned joint trajectory over time.
     fig = plotJointTrajectory(

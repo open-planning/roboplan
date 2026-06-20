@@ -14,6 +14,7 @@ NB_MODULE(_core_ext, m) {
   init_core_geometry_wrappers(m);
   init_core_scene(m);
   init_core_path_utils(m);
+  init_core_pose_utils(m);
   init_core_scene_utils(m);
 }
 

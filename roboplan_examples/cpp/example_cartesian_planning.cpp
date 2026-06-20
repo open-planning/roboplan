@@ -53,11 +53,15 @@ int main(int /*argc*/, char* /*argv*/[]) {
     return 1;
   }
 
-  const JointTrajectory& traj = result->trajectory;
+  const JointTrajectory& traj = *result;
+  const auto [peak_velocity_ratio, peak_acceleration_ratio] = planner.computePeakLimitRatios(traj);
   std::cout << "Cartesian planning succeeded!\n";
   std::cout << "  Trajectory samples:  " << traj.times.size() << "\n";
   std::cout << "  Trajectory duration: " << traj.times.back() << " s\n";
-  std::cout << "  Achieved path length: " << result->achieved_path_length << " m\n";
+  std::cout << "  Achieved path length: " << planner.computeAchievedPathLength(traj, path)
+            << " m\n";
+  std::cout << "  Peak velocity / limit:     " << peak_velocity_ratio << "\n";
+  std::cout << "  Peak acceleration / limit: " << peak_acceleration_ratio << "\n";
 
   return 0;
 }

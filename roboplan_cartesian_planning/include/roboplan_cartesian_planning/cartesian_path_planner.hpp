@@ -127,28 +127,12 @@ struct CartesianPlannerOptions {
   /// @details A stall is declared when the robot cannot stay within tolerance even when nearly
   /// stationary.
   int max_attempts_per_step = 16;
-};
 
-/// @brief Result of a successful Cartesian plan.
-struct CartesianPlanResult {
-  /// @brief The time-parameterized joint trajectory that traces the path.
-  JointTrajectory trajectory;
-
-  /// @brief The achieved Cartesian path length (meters) of the resulting motion.
-  double achieved_path_length = 0.0;
-
-  /// @brief The fraction of control steps that ran at the full commanded feedrate
-  /// (i.e. were not throttled). 1.0 means the commanded speed was held throughout.
-  double feedrate_efficiency = 1.0;
-
-  /// @brief Peak |joint velocity| / velocity-limit ratio over the trajectory.
-  /// Values <= 1.0 mean the joint velocity limits are respected.
-  double peak_velocity_ratio = 0.0;
-
-  /// @brief Peak |joint acceleration| / acceleration-limit ratio over the trajectory.
-  /// The Bounded mode throttles the feedrate to keep this near 1.0, but it can still spike
-  /// briefly at hard tolerance/joint-limit events; the TimeOptimal mode bounds it directly.
-  double peak_acceleration_ratio = 0.0;
+  /// @brief Validates the mode-independent option values (dt, tolerances, scales).
+  /// @details Mode-specific options (e.g. the Bounded mode's commanded speeds/accelerations) are
+  /// validated where they are used.
+  /// @return Nothing on success, else a string describing the first invalid option.
+  tl::expected<void, std::string> validate() const;
 };
 
 /// @brief User-supplied OInK solver and objectives for the Cartesian path planner.
@@ -224,9 +208,30 @@ public:
   /// @param path The Cartesian waypoint path to trace.
   /// @param q_start The seed/start configuration, as a full model configuration
   /// (size model.nq). The robot should already be at (or near) the first waypoint.
-  /// @return The plan result on success, else a string describing the error.
-  tl::expected<CartesianPlanResult, std::string> plan(const CartesianPath& path,
-                                                      const JointConfiguration& q_start);
+  /// @return The time-parameterized joint trajectory on success, else a string describing the
+  /// error. Quality metrics (peak limit ratios, achieved path length) are not bundled in; compute
+  /// them on demand from the returned trajectory with computePeakLimitRatios() /
+  /// computeAchievedPathLength().
+  tl::expected<JointTrajectory, std::string> plan(const CartesianPath& path,
+                                                  const JointConfiguration& q_start);
+
+  /// @brief Computes the peak |velocity|/limit and |acceleration|/limit ratios across the
+  /// trajectory, so callers can see how close the result is to the joint limits.
+  /// @param trajectory The joint trajectory to evaluate (e.g. the output of plan()).
+  /// @return A pair of {peak velocity ratio, peak acceleration ratio}.
+  /// Values <= 1.0 mean the respective joint limits are respected.
+  std::pair<double, double> computePeakLimitRatios(const JointTrajectory& trajectory) const;
+
+  /// @brief Computes the achieved Cartesian path length (meters) traced by the path's tip frames.
+  /// @details Re-runs forward kinematics over the trajectory and sums the world-frame translation
+  /// travelled by every tip frame in `path`. Joints outside the planning group are held at the
+  /// scene's current state; because that contributes only a constant rigid offset, it cancels in
+  /// the per-step differences and does not affect the result.
+  /// @param trajectory The joint trajectory to evaluate (e.g. the output of plan()).
+  /// @param path The Cartesian path whose tip frames were traced.
+  /// @return The summed Cartesian path length (meters) across all tip frames.
+  double computeAchievedPathLength(const JointTrajectory& trajectory,
+                                   const CartesianPath& path) const;
 
 private:
   /// @brief Per-end-effector tracking state for one frame of the path: the arc-length-timed
@@ -262,12 +267,14 @@ private:
   /// @brief Builds the parts of the OInK problem that do not depend on the path or seed, once,
   /// at construction time.
   /// @details Populates the reused solver-input buffers (constraints_, barriers_) and the
-  /// velocity-limit verification vector. In the custom-components mode this also assembles the
-  /// full task list (tracking tasks followed by extra tasks), since the caller's objectives are
-  /// fixed; in the default mode the per-end-effector tasks_ are (re)built per plan() because they
-  /// depend on the path's frames and the seed configuration.
-  /// @throws std::runtime_error if the joint velocity limits cannot be resolved (default mode).
-  void buildStaticSolverComponents();
+  /// velocity-limit verification vector. When `components` is provided this also assembles the
+  /// full task list (tracking tasks followed by extra tasks) and caches the tracking tasks
+  /// (tracking_tasks_) for per-plan() wiring, since the caller's objectives are fixed; otherwise
+  /// the per-end-effector tasks_ are (re)built per plan() because they depend on the path's frames
+  /// and the seed configuration.
+  /// @param components The caller-supplied objectives, or std::nullopt for the default setup.
+  /// @throws std::runtime_error if the joint velocity limits cannot be resolved (default setup).
+  void buildStaticSolverComponents(const std::optional<CartesianPlannerComponents>& components);
 
   /// @brief Builds the per-end-effector tracking state (arc-length-timed waypoints, world<-base
   /// transform, tip frame, and tracking task) for every frame in the path, and wires the tracking
@@ -304,13 +311,11 @@ private:
   /// @brief Runs the timed servo loop from the converged start `q`, advancing the reference under
   /// the feedrate profile and throttling further to stay within the path tolerance and joint
   /// limits.
-  /// @return A partially-populated result: the trajectory's positions, velocities, and times plus
-  /// achieved_path_length and feedrate_efficiency. The accelerations and peak ratios are left for
-  /// the plan*() caller to fill.
-  tl::expected<CartesianPlanResult, std::string> runServoLoop(const std::vector<FrameTrack>& tracks,
-                                                              const FeedrateProfile& profile,
-                                                              double total_time,
-                                                              Eigen::VectorXd& q);
+  /// @return A trajectory with positions, velocities, and times populated. The accelerations are
+  /// left for the plan*() caller to fill.
+  tl::expected<JointTrajectory, std::string> runServoLoop(const std::vector<FrameTrack>& tracks,
+                                                          const FeedrateProfile& profile,
+                                                          double total_time, Eigen::VectorXd& q);
 
   /// @brief Resolves the Cartesian path into a joint-space trace with the Oink tracker.
   /// @details Orchestrates buildFrameTracks -> buildFeedrateProfile -> convergeToStart ->
@@ -319,8 +324,8 @@ private:
   /// path tolerance. Joint velocity and position limits are enforced per step.
   /// @param linear_acceleration,angular_acceleration Cartesian acceleration maxima for the
   /// trapezoidal feedrate profile. A non-positive value disables the profile (constant feedrate).
-  /// @return The partially-populated result from runServoLoop (see there).
-  tl::expected<CartesianPlanResult, std::string>
+  /// @return The trajectory from runServoLoop (positions, velocities, times; see there).
+  tl::expected<JointTrajectory, std::string>
   trackReference(const CartesianPath& path, const Eigen::VectorXd& q_start_full,
                  double linear_speed, double angular_speed, double linear_acceleration,
                  double angular_acceleration);
@@ -335,18 +340,13 @@ private:
   /// @details If the resulting motion still exceeds the (scaled) joint velocity or acceleration
   /// limits, the whole trace is re-timed slower (commanded speeds/accelerations scaled down) and
   /// retried, so the commanded values act as maxima that are relaxed only as needed.
-  tl::expected<CartesianPlanResult, std::string> planBounded(const CartesianPath& path,
-                                                             const Eigen::VectorXd& q_start_full);
+  tl::expected<JointTrajectory, std::string> planBounded(const CartesianPath& path,
+                                                         const Eigen::VectorXd& q_start_full);
 
   /// @brief Resolves the path geometrically, then time-parameterizes it with TOPP-RA so
   /// the result respects joint velocity and acceleration limits (tool speed varies).
-  tl::expected<CartesianPlanResult, std::string>
-  planTimeOptimal(const CartesianPath& path, const Eigen::VectorXd& q_start_full);
-
-  /// @brief Computes the peak |velocity|/limit and |acceleration|/limit ratios across the
-  /// trajectory, so callers can see how close the result is to the joint limits.
-  /// @return A pair of {peak velocity ratio, peak acceleration ratio}.
-  std::pair<double, double> computePeakLimitRatios(const JointTrajectory& trajectory) const;
+  tl::expected<JointTrajectory, std::string> planTimeOptimal(const CartesianPath& path,
+                                                             const Eigen::VectorXd& q_start_full);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
@@ -362,10 +362,13 @@ private:
   /// reused across plan() calls.
   std::shared_ptr<Oink> oink_;
 
-  /// @brief Caller-supplied Oink objectives, set only when the components constructor is used.
-  /// @details When present, trackReference() uses these instead of building the default
-  /// FrameTask/ConfigurationTask/VelocityLimit/PositionLimit setup.
-  std::optional<CartesianPlannerComponents> components_;
+  /// @brief Caller-supplied tracking tasks, non-empty only when the components constructor is used.
+  /// @details Cached at construction so buildFrameTracks() can wire each FrameTrack to its task on
+  /// every plan() call; a non-empty value also marks the custom-components mode (in which the
+  /// default FrameTask/ConfigurationTask/VelocityLimit/PositionLimit setup is bypassed). The other
+  /// caller-supplied objectives are consumed into oink_/tasks_/constraints_/barriers_ at
+  /// construction, so they do not need to be retained.
+  std::vector<std::shared_ptr<FrameTask>> tracking_tasks_;
 
   /// @brief Reused solver task list passed to Oink::solveIk each control step.
   /// @details Assembled once at construction in the custom-components mode; rebuilt in place each

@@ -8,6 +8,7 @@
 #include <nanobind/stl/vector.h>
 
 #include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/pose_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan/core/types.hpp>
@@ -371,6 +372,16 @@ void init_core_path_utils(nanobind::module_& m) {
            &PathShortcutter::getConfigurationFromNormalizedPathScaling,
            "Gets joint configurations from a path with normalized joint scalings.", "path"_a,
            "path_scalings"_a, "value"_a);
+}
+
+void init_core_pose_utils(nanobind::module_& m) {
+  m.def("poseError", &poseError,
+        "Computes the (position error [m], orientation error [rad]) between two SE(3) transforms "
+        "expressed in the same frame.",
+        "a"_a, "b"_a);
+  m.def("interpolatePose", &interpolatePose,
+        "Interpolates between two SE(3) transforms: linear in position, SLERP in orientation.",
+        "start"_a, "end"_a, "fraction"_a);
 }
 
 void init_core_scene_utils(nanobind::module_& m) {

@@ -74,7 +74,7 @@ TEST_F(CartesianPlannerTest, TracesStraightLineWithinTolerance) {
   const auto result = planner.plan(path, q_start);
   ASSERT_TRUE(result.has_value()) << result.error();
 
-  const JointTrajectory& traj = result->trajectory;
+  const JointTrajectory& traj = *result;
   ASSERT_GE(traj.positions.size(), 2u);
   EXPECT_EQ(traj.times.size(), traj.positions.size());
   EXPECT_EQ(traj.velocities.size(), traj.positions.size());
@@ -93,9 +93,7 @@ TEST_F(CartesianPlannerTest, TracesStraightLineWithinTolerance) {
   EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
 
   // The achieved path length should be close to the commanded 5 cm line.
-  EXPECT_NEAR(result->achieved_path_length, 0.05, 0.01);
-  EXPECT_GE(result->feedrate_efficiency, 0.0);
-  EXPECT_LE(result->feedrate_efficiency, 1.0);
+  EXPECT_NEAR(planner.computeAchievedPathLength(traj, path), 0.05, 0.01);
 }
 
 TEST_F(CartesianPlannerTest, RespectsJointVelocityAndPositionLimits) {
@@ -116,7 +114,7 @@ TEST_F(CartesianPlannerTest, RespectsJointVelocityAndPositionLimits) {
   const auto result = planner.plan(path, q_start);
   ASSERT_TRUE(result.has_value()) << result.error();
 
-  const JointTrajectory& traj = result->trajectory;
+  const JointTrajectory& traj = *result;
   const auto velocity_limits = scene_->getVelocityLimitVectors(kGroup);
   ASSERT_TRUE(velocity_limits.has_value());
   const Eigen::VectorXd v_max = velocity_limits->second.cwiseAbs();
@@ -162,7 +160,7 @@ TEST_F(CartesianPlannerTest, TracesMultiFramePathDefault) {
 
   // The final configuration must reach the final waypoint within tolerance.
   const Eigen::VectorXd q_full_final =
-      scene_->toFullJointPositions(kGroup, result->trajectory.positions.back());
+      scene_->toFullJointPositions(kGroup, result->positions.back());
   const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
   const Eigen::Matrix4d& goal = path.tforms.at(0).back();
   const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
@@ -232,7 +230,7 @@ TEST_F(CartesianPlannerTest, CustomComponentsTracesLine) {
   ASSERT_TRUE(result.has_value()) << result.error();
 
   const Eigen::VectorXd q_full_final =
-      scene_->toFullJointPositions(kGroup, result->trajectory.positions.back());
+      scene_->toFullJointPositions(kGroup, result->positions.back());
   const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
   const Eigen::Matrix4d& goal = path.tforms.at(0).back();
   const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
@@ -298,14 +296,16 @@ TEST_F(CartesianPlannerTest, TimeOptimalModeRespectsVelocityAndAccelerationLimit
   time_optimal_options.max_position_error = 0.01;
   time_optimal_options.max_orientation_error = 0.05;
   time_optimal_options.speed_mode = CartesianSpeedMode::TimeOptimal;
-  const auto time_optimal_result =
-      CartesianPathPlanner(scene_, time_optimal_options).plan(path, q_start);
+  CartesianPathPlanner planner(scene_, time_optimal_options);
+  const auto time_optimal_result = planner.plan(path, q_start);
   ASSERT_TRUE(time_optimal_result.has_value()) << time_optimal_result.error();
 
   // Allow a small slack for spline/discretization and the QP tolerance.
-  EXPECT_LE(time_optimal_result->peak_velocity_ratio, 1.1);
-  EXPECT_LE(time_optimal_result->peak_acceleration_ratio, 1.1);
-  EXPECT_GE(time_optimal_result->trajectory.positions.size(), 2u);
+  const auto [peak_velocity_ratio, peak_acceleration_ratio] =
+      planner.computePeakLimitRatios(*time_optimal_result);
+  EXPECT_LE(peak_velocity_ratio, 1.1);
+  EXPECT_LE(peak_acceleration_ratio, 1.1);
+  EXPECT_GE(time_optimal_result->positions.size(), 2u);
 }
 
 TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) {
@@ -329,7 +329,7 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   const auto result = planner.plan(path, q_start);
   ASSERT_TRUE(result.has_value()) << result.error();
 
-  const JointTrajectory& traj = result->trajectory;
+  const JointTrajectory& traj = *result;
   ASSERT_GE(traj.velocities.size(), 3u);
 
   // The trapezoidal profile ramps from rest and back to rest, so the first and last joint
@@ -340,8 +340,9 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   // The bounded-acceleration profile plus the global slow-down retry should keep the peak joint
   // acceleration near its limit, unlike the old constant-speed trace which ignored acceleration
   // entirely. Allow slack for the finite-difference accelerations and the retry's accept tolerance.
-  EXPECT_LE(result->peak_acceleration_ratio, 1.1);
-  EXPECT_LE(result->peak_velocity_ratio, 1.1);
+  const auto [peak_velocity_ratio, peak_acceleration_ratio] = planner.computePeakLimitRatios(traj);
+  EXPECT_LE(peak_acceleration_ratio, 1.1);
+  EXPECT_LE(peak_velocity_ratio, 1.1);
 }
 
 TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {

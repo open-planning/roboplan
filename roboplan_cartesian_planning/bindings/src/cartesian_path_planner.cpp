@@ -1,5 +1,6 @@
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
+#include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
@@ -81,19 +82,6 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_rw("max_attempts_per_step", &CartesianPlannerOptions::max_attempts_per_step,
               "Maximum feedrate-throttling attempts per control step.");
 
-  nanobind::class_<CartesianPlanResult>(m, "CartesianPlanResult",
-                                        "Result of a successful Cartesian plan.")
-      .def_ro("trajectory", &CartesianPlanResult::trajectory,
-              "The joint trajectory that traces the path.")
-      .def_ro("achieved_path_length", &CartesianPlanResult::achieved_path_length,
-              "Achieved Cartesian path length (m).")
-      .def_ro("feedrate_efficiency", &CartesianPlanResult::feedrate_efficiency,
-              "Fraction of control steps run at the full commanded feedrate.")
-      .def_ro("peak_velocity_ratio", &CartesianPlanResult::peak_velocity_ratio,
-              "Peak |joint velocity| / velocity-limit ratio over the trajectory.")
-      .def_ro("peak_acceleration_ratio", &CartesianPlanResult::peak_acceleration_ratio,
-              "Peak |joint acceleration| / acceleration-limit ratio over the trajectory.");
-
   nanobind::class_<CartesianPlannerComponents>(
       m, "CartesianPlannerComponents",
       "Caller-supplied OInK solver and IK objectives for the Cartesian path planner.")
@@ -120,7 +108,14 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "Constructs a planner that uses a caller-supplied OInK solver and objectives.")
       .def("plan", unwrap_expected(&CartesianPathPlanner::plan),
            "Plans a joint trajectory that traces the provided Cartesian path.", "path"_a,
-           "q_start"_a);
+           "q_start"_a)
+      .def("compute_peak_limit_ratios", &CartesianPathPlanner::computePeakLimitRatios,
+           "Computes the (peak velocity / limit, peak acceleration / limit) ratios over a "
+           "trajectory.",
+           "trajectory"_a)
+      .def("compute_achieved_path_length", &CartesianPathPlanner::computeAchievedPathLength,
+           "Computes the achieved Cartesian path length (m) traced by the path's tip frames.",
+           "trajectory"_a, "path"_a);
 }
 
 }  // namespace roboplan

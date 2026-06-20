@@ -10,6 +10,7 @@ The planner builds an arc-length SE(3) reference from the waypoints (linear inte
 It then runs an offline servo loop using the OInK solver.
 At each control step, the planner advances the reference, solves one differential-IK step, and integrates the result.
 When the robot cannot keep up (e.g., near a singularity or joint velocity limit), the reference feedrate is throttled so that every committed sample stays within tolerance of the geometric path.
+If throttling fails after some number of iterations, the planner returns with a failure state.
 
 Joint **velocity** and **position** limits are enforced inside the QP (and verified per step).
 
@@ -25,7 +26,8 @@ Two speed modes are exposed:
   time-parameterizes it with :doc:`TOPP-RA <trajectory_generation>` over a straight-segment + circular-blend geometry.
   This way, the trajectory respects joint **velocity and acceleration** limits, and is time-optimal (the tool speed varies along the path).
 
-Both modes return a ``JointTrajectory`` plus ``peak_velocity_ratio`` / ``peak_acceleration_ratio`` so the caller can see how close the result is to the joint limits.
+Both modes return a ``JointTrajectory``.
+Quality metrics are computed on demand from that trajectory: ``computePeakLimitRatios`` returns the peak velocity/acceleration-to-limit ratios so the caller can see how close the result is to the joint limits, and ``computeAchievedPathLength`` returns the Cartesian distance traced by the tip frames.
 Use ``Bounded`` for a predictable, velocity- and acceleration-limited Cartesian motion, and ``TimeOptimal`` when time-optimality matters.
 
 Multiple end effectors
@@ -33,7 +35,7 @@ Multiple end effectors
 
 A ``CartesianPath`` may contain more than one end-effector frame.
 The planner builds one tracking ``FrameTask`` per frame and advances all of them along a shared reference timeline, so the motions are traced simultaneously.
-The throttling/tolerance logic uses the worst-case error across all frames, and the reported ``achieved_path_length`` is summed across them.
+The throttling/tolerance logic uses the worst-case error across all frames, and ``computeAchievedPathLength`` sums the Cartesian distance across them.
 
 Customizing the IK problem
 --------------------------

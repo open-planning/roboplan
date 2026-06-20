@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <queue>
 #include <utility>
 
@@ -35,6 +36,64 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
     frame_path.push_back(scene.forwardKinematics(q, frame_name));
   }
   return frame_path;
+}
+
+std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>& positions,
+                                             size_t count, const Scene& scene,
+                                             const Eigen::VectorXi& q_indices) {
+  // Slack guarding the divide-by-span when a segment has effectively zero length.
+  constexpr double kEps = 1e-9;
+
+  const size_t n = positions.size();
+  if (n <= 2 || count < 2) {
+    return positions;
+  }
+
+  // Scene::configurationDistance / interpolate operate on full model configurations, while the
+  // input stores only the group coordinates. Reuse two full-configuration buffers, writing each
+  // group waypoint into the group slice so the manifold-aware operations see the correct tangent
+  // space. The non-group joints are arbitrary (they cancel in the distance and pass through
+  // interpolation unchanged), so just seed both buffers from the scene's current state.
+  Eigen::VectorXd q_lhs = scene.getCurrentJointPositions();
+  Eigen::VectorXd q_rhs = q_lhs;
+
+  // Cumulative configuration-space arc length along the dense path.
+  std::vector<double> cumulative(n, 0.0);
+  q_lhs(q_indices) = positions.front();
+  for (size_t i = 1; i < n; ++i) {
+    q_rhs(q_indices) = positions.at(i);
+    cumulative.at(i) = cumulative.at(i - 1) + scene.configurationDistance(q_lhs, q_rhs);
+    q_lhs(q_indices) = positions.at(i);
+  }
+  const double total_length = cumulative.back();
+  if (total_length <= 0.0) {
+    return {positions.front(), positions.back()};
+  }
+
+  const size_t num_points = std::min(count, n);
+  std::vector<Eigen::VectorXd> result;
+  result.reserve(num_points);
+  size_t segment = 0;
+  for (size_t k = 0; k < num_points; ++k) {
+    const double target =
+        total_length * static_cast<double>(k) / static_cast<double>(num_points - 1);
+    while (segment + 1 < n && cumulative.at(segment + 1) < target) {
+      ++segment;
+    }
+    if (segment + 1 >= n) {
+      result.push_back(positions.back());
+      continue;
+    }
+    const double span = cumulative.at(segment + 1) - cumulative.at(segment);
+    const double fraction = span > kEps ? (target - cumulative.at(segment)) / span : 0.0;
+    q_lhs(q_indices) = positions.at(segment);
+    q_rhs(q_indices) = positions.at(segment + 1);
+    result.push_back(scene.interpolate(q_lhs, q_rhs, fraction)(q_indices).eval());
+  }
+  // Pin the exact endpoints.
+  result.front() = positions.front();
+  result.back() = positions.back();
+  return result;
 }
 
 namespace {

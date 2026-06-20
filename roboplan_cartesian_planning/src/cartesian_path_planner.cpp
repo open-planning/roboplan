@@ -5,10 +5,11 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 
 #include <Eigen/Geometry>
 
+#include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/pose_utils.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -25,7 +26,7 @@ constexpr double kEps = 1e-9;
 
 /// @brief Maximum number of differential-IK steps used to drive the robot onto the
 /// first waypoint before the timed trace begins.
-constexpr int kMaxConvergenceIters = 500;
+constexpr int kMaxIkConvergenceIters = 500;
 
 /// @brief Turns smaller than this (radians) are treated as straight by the corner feedrate cap.
 constexpr double kCornerAngleMin = 1.0 * M_PI / 180.0;
@@ -47,63 +48,10 @@ constexpr double kSlowdownHeadroom = 1.1;
 /// time-parameterization problem size (and hence planning time).
 constexpr size_t kMaxToppraWaypoints = 10000;
 
-/// @brief Resamples a dense sequence of joint positions to `count` waypoints spaced
-/// uniformly in joint-space arc length (endpoints preserved).
-/// @details TOPP-RA parameterizes its cubic spline by waypoint index, so evenly spaced
-/// knots are essential: unevenly spaced waypoints (e.g. clustered where the tracker
-/// throttled at corners) leave large gaps that the spline overshoots, deviating from
-/// the path. Linear interpolation between the closely spaced dense samples is accurate.
-std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>& positions,
-                                             size_t count) {
-  const size_t n = positions.size();
-  if (n <= 2 || count < 2) {
-    return positions;
-  }
-
-  // Cumulative joint-space arc length along the dense path.
-  std::vector<double> cumulative(n, 0.0);
-  for (size_t i = 1; i < n; ++i) {
-    cumulative.at(i) = cumulative.at(i - 1) + (positions.at(i) - positions.at(i - 1)).norm();
-  }
-  const double total_length = cumulative.back();
-  if (total_length <= 0.0) {
-    return {positions.front(), positions.back()};
-  }
-
-  const size_t num_points = std::min(count, n);
-  std::vector<Eigen::VectorXd> result;
-  result.reserve(num_points);
-  size_t segment = 0;
-  for (size_t k = 0; k < num_points; ++k) {
-    const double target =
-        total_length * static_cast<double>(k) / static_cast<double>(num_points - 1);
-    while (segment + 1 < n && cumulative.at(segment + 1) < target) {
-      ++segment;
-    }
-    if (segment + 1 >= n) {
-      result.push_back(positions.back());
-      continue;
-    }
-    const double span = cumulative.at(segment + 1) - cumulative.at(segment);
-    const double fraction = span > kEps ? (target - cumulative.at(segment)) / span : 0.0;
-    result.push_back(
-        (positions.at(segment) + fraction * (positions.at(segment + 1) - positions.at(segment)))
-            .eval());
-  }
-  // Pin the exact endpoints.
-  result.front() = positions.front();
-  result.back() = positions.back();
-  return result;
-}
-
-/// @brief Computes the position (meters) and orientation (radians) error between two
-/// SE(3) transforms expressed in the same frame.
-void poseError(const Eigen::Matrix4d& a, const Eigen::Matrix4d& b, double& position_error,
-               double& orientation_error) {
-  position_error = (a.block<3, 1>(0, 3) - b.block<3, 1>(0, 3)).norm();
-  const Eigen::Matrix3d relative_rotation = a.block<3, 3>(0, 0).transpose() * b.block<3, 3>(0, 0);
-  orientation_error = Eigen::AngleAxisd(relative_rotation).angle();
-}
+/// @brief Fixed additive slack (in control steps) added to the servo loop's step budget, on top of
+/// the estimate derived from the reference duration and throttling attempts. Guards short motions,
+/// whose estimate is tiny, against tripping the safety cap on benign sub-dt fragments and retries.
+constexpr int kHardCapStepMargin = 1000;
 
 /// @brief Maximum feedrate (fraction of full speed) the reference may carry through the corner at
 /// `cur` between `prev` and `next`, keeping the Cartesian acceleration within the commanded maxima.
@@ -187,22 +135,7 @@ Eigen::Matrix4d CartesianPathPlanner::FrameTrack::eval(double s) const {
   const double segment_duration = t1 - t0;
   const double fraction = segment_duration > 0.0 ? (s - t0) / segment_duration : 0.0;
 
-  const Eigen::Matrix4d& start = waypoints.at(i);
-  const Eigen::Matrix4d& end = waypoints.at(i + 1);
-
-  // Linear interpolation for position, SLERP for orientation.
-  const Eigen::Vector3d position =
-      start.block<3, 1>(0, 3) + fraction * (end.block<3, 1>(0, 3) - start.block<3, 1>(0, 3));
-  Eigen::Quaterniond q_start(start.block<3, 3>(0, 0));
-  Eigen::Quaterniond q_end(end.block<3, 3>(0, 0));
-  q_start.normalize();
-  q_end.normalize();
-  const Eigen::Quaterniond q_interp = q_start.slerp(fraction, q_end);
-
-  Eigen::Matrix4d out = Eigen::Matrix4d::Identity();
-  out.block<3, 3>(0, 0) = q_interp.toRotationMatrix();
-  out.block<3, 1>(0, 3) = position;
-  return out;
+  return interpolatePose(waypoints.at(i), waypoints.at(i + 1), fraction);
 }
 
 double CartesianPathPlanner::FeedrateProfile::sample(double s) const {
@@ -225,14 +158,13 @@ CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
                              maybe_joint_group_info.error());
   }
   joint_group_info_ = maybe_joint_group_info.value();
-  buildStaticSolverComponents();
+  buildStaticSolverComponents(std::nullopt);
 }
 
 CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
                                            const CartesianPlannerOptions& options,
                                            const CartesianPlannerComponents& components)
-    : scene_{scene}, options_{options}, oink_{components.oink}, components_{components},
-      toppra_{scene, options.group_name} {
+    : scene_{scene}, options_{options}, oink_{components.oink}, toppra_{scene, options.group_name} {
   if (!components.oink) {
     throw std::runtime_error(
         "Could not initialize Cartesian path planner: components.oink must not be null.");
@@ -253,26 +185,31 @@ CartesianPathPlanner::CartesianPathPlanner(const std::shared_ptr<Scene> scene,
                              maybe_joint_group_info.error());
   }
   joint_group_info_ = maybe_joint_group_info.value();
-  buildStaticSolverComponents();
+  buildStaticSolverComponents(components);
 }
 
-void CartesianPathPlanner::buildStaticSolverComponents() {
+void CartesianPathPlanner::buildStaticSolverComponents(
+    const std::optional<CartesianPlannerComponents>& components) {
   const int num_variables = oink_->num_variables;
+  const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
 
-  if (components_) {
-    // Caller-supplied setup: the solver objectives are fixed, so assemble them once. The
-    // tracking tasks are prepended so they are always solved; everything else passes through.
+  if (components) {
+    // Caller-supplied setup: the solver objectives are fixed, so assemble them once. The tracking
+    // tasks are prepended so they are always solved; everything else passes through. Cache the
+    // tracking tasks for per-plan() wiring in buildFrameTracks().
+    tracking_tasks_ = components->tracking_tasks;
     tasks_.clear();
-    tasks_.reserve(components_->tracking_tasks.size() + components_->extra_tasks.size());
-    tasks_.insert(tasks_.end(), components_->tracking_tasks.begin(),
-                  components_->tracking_tasks.end());
-    tasks_.insert(tasks_.end(), components_->extra_tasks.begin(), components_->extra_tasks.end());
-    constraints_ = components_->constraints;
-    barriers_ = components_->barriers;
+    tasks_.reserve(tracking_tasks_.size() + components->extra_tasks.size());
+    tasks_.insert(tasks_.end(), tracking_tasks_.begin(), tracking_tasks_.end());
+    tasks_.insert(tasks_.end(), components->extra_tasks.begin(), components->extra_tasks.end());
+    constraints_ = components->constraints;
+    barriers_ = components->barriers;
 
-    // Verify against the scene's physical velocity limits (unscaled) if available; the caller
-    // owns whatever velocity constraint they supplied, so this is only a hard-limit sanity net.
-    const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
+    // The caller owns limit handling through the constraints they supplied, so the planner relies
+    // entirely on their OInK setup here. The scene's physical velocity limits (unscaled) are used
+    // only as an optional hard-limit verification net: if unavailable or mismatched, we simply
+    // skip the per-step check rather than failing (unlike the default setup below, which must build
+    // the VelocityLimit constraint itself and therefore requires the limits).
     if (maybe_velocity_limits && maybe_velocity_limits->second.size() == num_variables) {
       verify_v_max_ = maybe_velocity_limits->second.cwiseAbs();
       has_velocity_check_ = true;
@@ -283,7 +220,6 @@ void CartesianPathPlanner::buildStaticSolverComponents() {
   // Default setup: the velocity/position-limit constraints and the verification limits do not
   // depend on the path or seed, so build them once here. The per-end-effector FrameTasks and the
   // nullspace ConfigurationTask are (re)built in buildFrameTracks() because they do.
-  const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
   if (!maybe_velocity_limits) {
     throw std::runtime_error("Could not initialize Cartesian path planner: could not get joint "
                              "velocity limits: " +
@@ -306,24 +242,30 @@ void CartesianPathPlanner::buildStaticSolverComponents() {
   has_velocity_check_ = true;
 }
 
-tl::expected<CartesianPlanResult, std::string>
-CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& q_start) {
-  // Validate options.
-  if (options_.dt <= 0.0) {
+tl::expected<void, std::string> CartesianPlannerOptions::validate() const {
+  if (dt <= 0.0) {
     return tl::make_unexpected("dt must be strictly positive.");
   }
-  if (options_.max_position_error <= 0.0 || options_.max_orientation_error <= 0.0) {
+  if (max_position_error <= 0.0 || max_orientation_error <= 0.0) {
     return tl::make_unexpected(
         "max_position_error and max_orientation_error must be strictly positive.");
   }
-  if (options_.velocity_scale <= 0.0 || options_.velocity_scale > 1.0) {
+  if (velocity_scale <= 0.0 || velocity_scale > 1.0) {
     return tl::make_unexpected("velocity_scale must be in the interval (0, 1].");
   }
-  if (options_.acceleration_scale <= 0.0 || options_.acceleration_scale > 1.0) {
+  if (acceleration_scale <= 0.0 || acceleration_scale > 1.0) {
     return tl::make_unexpected("acceleration_scale must be in the interval (0, 1].");
   }
-  if (options_.limit_ratio_tolerance < 1.0) {
+  if (limit_ratio_tolerance < 1.0) {
     return tl::make_unexpected("limit_ratio_tolerance must be >= 1.0.");
+  }
+  return {};
+}
+
+tl::expected<JointTrajectory, std::string>
+CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& q_start) {
+  if (const auto valid = options_.validate(); !valid) {
+    return tl::make_unexpected(valid.error());
   }
 
   // Validate the path: one or more end-effector frames, each with a matching base frame, tip
@@ -344,9 +286,9 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
     }
   }
   // In the custom-components mode there must be exactly one tracking task per end-effector.
-  if (components_ && components_->tracking_tasks.size() != num_frames) {
+  if (!tracking_tasks_.empty() && tracking_tasks_.size() != num_frames) {
     return tl::make_unexpected("The number of tracking tasks (" +
-                               std::to_string(components_->tracking_tasks.size()) +
+                               std::to_string(tracking_tasks_.size()) +
                                ") must match the number of end-effector frames in the path (" +
                                std::to_string(num_frames) + ").");
   }
@@ -389,13 +331,8 @@ CartesianPathPlanner::buildFrameTracks(const CartesianPath& path,
     track.waypoints = path.tforms.at(f);
     track.cumulative_times.assign(track.waypoints.size(), 0.0);
     for (size_t i = 1; i < track.waypoints.size(); ++i) {
-      const double linear_distance =
-          (track.waypoints.at(i).block<3, 1>(0, 3) - track.waypoints.at(i - 1).block<3, 1>(0, 3))
-              .norm();
-      const Eigen::Matrix3d relative_rotation =
-          track.waypoints.at(i - 1).block<3, 3>(0, 0).transpose() *
-          track.waypoints.at(i).block<3, 3>(0, 0);
-      const double angular_distance = Eigen::AngleAxisd(relative_rotation).angle();
+      const auto [linear_distance, angular_distance] =
+          poseError(track.waypoints.at(i - 1), track.waypoints.at(i));
       const double linear_time = linear_speed > 0.0 ? linear_distance / linear_speed : 0.0;
       const double angular_time = angular_speed > 0.0 ? angular_distance / angular_speed : 0.0;
       track.cumulative_times.at(i) =
@@ -418,11 +355,11 @@ CartesianPathPlanner::buildFrameTracks(const CartesianPath& path,
 
   // Wire up the per-end-effector tracking tasks. The constraints, barriers, and velocity-limit
   // verification were assembled once at construction (see buildStaticSolverComponents).
-  if (components_) {
+  if (!tracking_tasks_.empty()) {
     // Caller-supplied setup: map each pre-assembled tracking task to its path frame (matched by
     // order) and validate the ordering. The solver task list (tasks_) is already built.
     for (size_t f = 0; f < num_frames; ++f) {
-      const auto& tracking_task = components_->tracking_tasks.at(f);
+      const auto& tracking_task = tracking_tasks_.at(f);
       if (tracking_task->frame_name != tracks.at(f).tip_frame) {
         return tl::make_unexpected(
             "Tracking task " + std::to_string(f) + " tracks frame '" + tracking_task->frame_name +
@@ -484,11 +421,10 @@ CartesianPathPlanner::FeedrateProfile CartesianPathPlanner::buildFeedrateProfile
   for (const auto& track : tracks) {
     const auto& waypoints = track.waypoints;
     for (size_t i = 1; i < waypoints.size(); ++i) {
-      total_linear_distance +=
-          (waypoints.at(i).block<3, 1>(0, 3) - waypoints.at(i - 1).block<3, 1>(0, 3)).norm();
-      const Eigen::Matrix3d relative_rotation =
-          waypoints.at(i - 1).block<3, 3>(0, 0).transpose() * waypoints.at(i).block<3, 3>(0, 0);
-      total_angular_distance += Eigen::AngleAxisd(relative_rotation).angle();
+      const auto [linear_distance, angular_distance] =
+          poseError(waypoints.at(i - 1), waypoints.at(i));
+      total_linear_distance += linear_distance;
+      total_angular_distance += angular_distance;
     }
   }
   double s_ddot_max = std::numeric_limits<double>::infinity();
@@ -569,9 +505,7 @@ CartesianPathPlanner::solveStep(const std::vector<FrameTrack>& tracks, const Eig
   orientation_error = 0.0;
   for (const auto& track : tracks) {
     const Eigen::Matrix4d fk = scene_->forwardKinematics(q_candidate, track.tip_frame);
-    double frame_position_error = 0.0;
-    double frame_orientation_error = 0.0;
-    poseError(fk, track.target(s), frame_position_error, frame_orientation_error);
+    const auto [frame_position_error, frame_orientation_error] = poseError(fk, track.target(s));
     position_error = std::max(position_error, frame_position_error);
     orientation_error = std::max(orientation_error, frame_orientation_error);
   }
@@ -584,7 +518,7 @@ CartesianPathPlanner::convergeToStart(const std::vector<FrameTrack>& tracks, Eig
   Eigen::VectorXd q_candidate;
   double position_error = 0.0;
   double orientation_error = 0.0;
-  for (int i = 0; i < kMaxConvergenceIters; ++i) {
+  for (int i = 0; i < kMaxIkConvergenceIters; ++i) {
     const auto step =
         solveStep(tracks, q, 0.0, q_candidate, delta_q, position_error, orientation_error);
     if (!step) {
@@ -604,29 +538,20 @@ CartesianPathPlanner::convergeToStart(const std::vector<FrameTrack>& tracks, Eig
       " rad). Ensure q_start places the tool(s) at or near the first waypoint.");
 }
 
-tl::expected<CartesianPlanResult, std::string>
+tl::expected<JointTrajectory, std::string>
 CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
                                    const FeedrateProfile& profile, double total_time,
                                    Eigen::VectorXd& q) {
   Oink& oink = *oink_;
   const int num_variables = oink.num_variables;
 
-  // Initialize the trace at the converged start. The accelerations and peak ratios are filled by
-  // the plan*() caller; here we only produce positions, velocities, times, and the scalar metrics.
-  CartesianPlanResult result;
-  JointTrajectory& trajectory = result.trajectory;
+  // Initialize the trace at the converged start. The accelerations are filled by the plan*()
+  // caller; here we only produce positions, velocities, and times.
+  JointTrajectory trajectory;
   trajectory.joint_names = joint_group_info_.joint_names;
   trajectory.positions.push_back(q(oink.q_indices).eval());
   trajectory.velocities.push_back(Eigen::VectorXd::Zero(num_variables));
   trajectory.times.push_back(0.0);
-
-  // Per-frame previous tip position, used to accumulate the achieved path length (summed across
-  // all end-effectors).
-  std::vector<Eigen::Vector3d> previous_positions(tracks.size());
-  for (size_t f = 0; f < tracks.size(); ++f) {
-    previous_positions.at(f) =
-        scene_->forwardKinematics(q, tracks.at(f).tip_frame).block<3, 1>(0, 3);
-  }
 
   // The acceleration ramps (start, end, and every corner where the feedrate dips to a stop) extend
   // the motion past the nominal full-speed duration, so size the safety cap on an estimate that
@@ -637,7 +562,7 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
                       : total_time;
   const int hard_cap = static_cast<int>(std::ceil(profile_duration / options_.dt)) *
                            (options_.max_attempts_per_step + 2) +
-                       1000;
+                       kHardCapStepMargin;
 
   // Per-step scratch reused across iterations.
   Eigen::VectorXd delta_q(num_variables);
@@ -648,7 +573,6 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
   double s = 0.0;
   double feedrate = 0.0;  // Current feedrate ds/dt in [0, 1]; ramped under the trapezoidal profile.
   int total_steps = 0;
-  int throttled_steps = 0;
   while (s < total_time - kEps) {
     // Commanded feedrate for this step. Without the profile this is full speed; with it, ramp
     // toward full speed at s_ddot_max but never above the precomputed deceleration envelope (which
@@ -676,9 +600,6 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
           orientation_error <= options_.max_orientation_error) {
         committed = true;
         committed_s = s_try;
-        if (feedrate_eff < feedrate_cmd - kEps) {
-          ++throttled_steps;
-        }
         break;
       }
       feedrate_eff *= 0.5;
@@ -722,13 +643,6 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     trajectory.positions.push_back(q(oink.q_indices).eval());
     trajectory.velocities.push_back((delta_q / options_.dt).eval());
 
-    for (size_t f = 0; f < tracks.size(); ++f) {
-      const Eigen::Vector3d current_position =
-          scene_->forwardKinematics(q, tracks.at(f).tip_frame).block<3, 1>(0, 3);
-      result.achieved_path_length += (current_position - previous_positions.at(f)).norm();
-      previous_positions.at(f) = current_position;
-    }
-
     if (total_steps > hard_cap) {
       return tl::make_unexpected(
           "Cartesian planner exceeded the maximum number of control steps (" +
@@ -736,14 +650,10 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     }
   }
 
-  result.feedrate_efficiency =
-      total_steps > 0
-          ? static_cast<double>(total_steps - throttled_steps) / static_cast<double>(total_steps)
-          : 1.0;
-  return result;
+  return trajectory;
 }
 
-tl::expected<CartesianPlanResult, std::string>
+tl::expected<JointTrajectory, std::string>
 CartesianPathPlanner::trackReference(const CartesianPath& path, const Eigen::VectorXd& q_start_full,
                                      double linear_speed, double angular_speed,
                                      double linear_acceleration, double angular_acceleration) {
@@ -823,7 +733,34 @@ CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& trajectory) 
   return {velocity_ratio, acceleration_ratio};
 }
 
-tl::expected<CartesianPlanResult, std::string>
+double CartesianPathPlanner::computeAchievedPathLength(const JointTrajectory& trajectory,
+                                                       const CartesianPath& path) const {
+  if (trajectory.positions.size() < 2 || path.tip_frames.empty()) {
+    return 0.0;
+  }
+
+  // The trajectory stores only the group coordinates; forwardKinematics needs a full model
+  // configuration. Reuse one buffer, writing each waypoint into the group slice. The non-group
+  // joints are held at the scene's current state: that is a constant rigid offset on every tip
+  // pose, which cancels in the per-step differences below.
+  Eigen::VectorXd q_full = scene_->getCurrentJointPositions();
+
+  double length = 0.0;
+  for (const auto& tip_frame : path.tip_frames) {
+    q_full(joint_group_info_.q_indices) = trajectory.positions.front();
+    Eigen::Vector3d previous = scene_->forwardKinematics(q_full, tip_frame).block<3, 1>(0, 3);
+    for (size_t i = 1; i < trajectory.positions.size(); ++i) {
+      q_full(joint_group_info_.q_indices) = trajectory.positions.at(i);
+      const Eigen::Vector3d current =
+          scene_->forwardKinematics(q_full, tip_frame).block<3, 1>(0, 3);
+      length += (current - previous).norm();
+      previous = current;
+    }
+  }
+  return length;
+}
+
+tl::expected<JointTrajectory, std::string>
 CartesianPathPlanner::planBounded(const CartesianPath& path, const Eigen::VectorXd& q_start_full) {
   if (options_.max_linear_speed <= 0.0 || options_.max_angular_speed <= 0.0) {
     return tl::make_unexpected("max_linear_speed and max_angular_speed must be strictly positive.");
@@ -844,7 +781,7 @@ CartesianPathPlanner::planBounded(const CartesianPath& path, const Eigen::Vector
   const double ratio_tolerance = options_.limit_ratio_tolerance;
 
   double speed_scale = 1.0;
-  CartesianPlanResult plan_result;
+  JointTrajectory trajectory;
   for (int iter = 0; iter < kMaxSlowdownIters; ++iter) {
     auto tracked = trackReference(path, q_start_full, options_.max_linear_speed * speed_scale,
                                   options_.max_angular_speed * speed_scale,
@@ -859,28 +796,27 @@ CartesianPathPlanner::planBounded(const CartesianPath& path, const Eigen::Vector
       return tl::make_unexpected(tracked.error());
     }
 
-    // trackReference returns the trace with positions/velocities/times and the scalar metrics
-    // populated; finalize it here by filling accelerations and the peak limit ratios.
-    plan_result = std::move(*tracked);
-    fillAccelerations(plan_result.trajectory);
-    std::tie(plan_result.peak_velocity_ratio, plan_result.peak_acceleration_ratio) =
-        computePeakLimitRatios(plan_result.trajectory);
+    // trackReference returns the trace with positions/velocities/times; fill its accelerations so
+    // the peak limit ratios that drive the slow-down decision are available.
+    trajectory = std::move(*tracked);
+    fillAccelerations(trajectory);
+    const auto [peak_velocity_ratio, peak_acceleration_ratio] = computePeakLimitRatios(trajectory);
 
     // Accept the trace once it lands within the (scaled) joint limits; otherwise slow the whole
     // motion down and retry.
-    const double slowdown = computeSlowdownFactor(plan_result.peak_velocity_ratio, velocity_target,
-                                                  plan_result.peak_acceleration_ratio,
-                                                  acceleration_target, ratio_tolerance);
+    const double slowdown =
+        computeSlowdownFactor(peak_velocity_ratio, velocity_target, peak_acceleration_ratio,
+                              acceleration_target, ratio_tolerance);
     if (slowdown <= 1.0 || iter + 1 == kMaxSlowdownIters) {
       break;
     }
     speed_scale /= slowdown;
   }
 
-  return plan_result;
+  return trajectory;
 }
 
-tl::expected<CartesianPlanResult, std::string>
+tl::expected<JointTrajectory, std::string>
 CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
                                       const Eigen::VectorXd& q_start_full) {
   // Resolve a dense geometric joint path that hugs the Cartesian path. The resolution
@@ -901,13 +837,14 @@ CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
   }
 
   // Hand the dense diff-IK trace straight to TOPP-RA: the LinearBlend geometry is density-robust
-  // (straight segments have zero curvature), so decimating only throws away path detail. Decimate
-  // solely as a safety cap on the problem size for very long paths.
-  const std::vector<Eigen::VectorXd>& trace_positions = tracked->trajectory.positions;
+  // (straight segments have zero curvature), so decimating only throws away path detail.
+  // Decimate solely as a safety cap on the problem size for very long paths.
+  const std::vector<Eigen::VectorXd>& trace_positions = tracked->positions;
   JointPath joint_path;
   joint_path.joint_names = joint_group_info_.joint_names;
   joint_path.positions = trace_positions.size() > kMaxToppraWaypoints
-                             ? resampleUniform(trace_positions, kMaxToppraWaypoints)
+                             ? resampleUniform(trace_positions, kMaxToppraWaypoints, *scene_,
+                                               joint_group_info_.q_indices)
                              : trace_positions;
   if (joint_path.positions.size() < 2) {
     return tl::make_unexpected(
@@ -930,15 +867,7 @@ CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
   if (!maybe_trajectory) {
     return tl::make_unexpected("TOPP-RA time parameterization failed: " + maybe_trajectory.error());
   }
-
-  CartesianPlanResult plan_result;
-  plan_result.trajectory = std::move(maybe_trajectory.value());
-  // Re-timing does not change the geometric path, so reuse the resolved length.
-  plan_result.achieved_path_length = tracked->achieved_path_length;
-  plan_result.feedrate_efficiency = tracked->feedrate_efficiency;
-  std::tie(plan_result.peak_velocity_ratio, plan_result.peak_acceleration_ratio) =
-      computePeakLimitRatios(plan_result.trajectory);
-  return plan_result;
+  return std::move(maybe_trajectory.value());
 }
 
 }  // namespace roboplan

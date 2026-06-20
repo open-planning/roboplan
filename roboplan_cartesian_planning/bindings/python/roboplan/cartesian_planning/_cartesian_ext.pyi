@@ -175,31 +175,6 @@ class CartesianPlannerOptions:
     @max_attempts_per_step.setter
     def max_attempts_per_step(self, arg: int, /) -> None: ...
 
-class CartesianPlanResult:
-    """Result of a successful Cartesian plan."""
-
-    @property
-    def trajectory(self) -> roboplan.core._core_ext.JointTrajectory:
-        """The joint trajectory that traces the path."""
-
-    @property
-    def achieved_path_length(self) -> float:
-        """Achieved Cartesian path length (m)."""
-
-    @property
-    def feedrate_efficiency(self) -> float:
-        """Fraction of control steps run at the full commanded feedrate."""
-
-    @property
-    def peak_velocity_ratio(self) -> float:
-        """Peak |joint velocity| / velocity-limit ratio over the trajectory."""
-
-    @property
-    def peak_acceleration_ratio(self) -> float:
-        """
-        Peak |joint acceleration| / acceleration-limit ratio over the trajectory.
-        """
-
 class CartesianPlannerComponents:
     """
     Caller-supplied OInK solver and IK objectives for the Cartesian path planner.
@@ -258,5 +233,15 @@ class CartesianPathPlanner:
         Constructs a planner that uses a caller-supplied OInK solver and objectives.
         """
 
-    def plan(self, path: roboplan.core._core_ext.CartesianPath, q_start: roboplan.core._core_ext.JointConfiguration) -> CartesianPlanResult:
+    def plan(self, path: roboplan.core._core_ext.CartesianPath, q_start: roboplan.core._core_ext.JointConfiguration) -> roboplan.core._core_ext.JointTrajectory:
         """Plans a joint trajectory that traces the provided Cartesian path."""
+
+    def compute_peak_limit_ratios(self, trajectory: roboplan.core._core_ext.JointTrajectory) -> tuple[float, float]:
+        """
+        Computes the (peak velocity / limit, peak acceleration / limit) ratios over a trajectory.
+        """
+
+    def compute_achieved_path_length(self, trajectory: roboplan.core._core_ext.JointTrajectory, path: roboplan.core._core_ext.CartesianPath) -> float:
+        """
+        Computes the achieved Cartesian path length (m) traced by the path's tip frames.
+        """

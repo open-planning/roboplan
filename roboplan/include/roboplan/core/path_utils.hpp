@@ -31,6 +31,26 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
                                               const std::vector<Eigen::VectorXd>& q_vec,
                                               const std::string& frame_name);
 
+/// @brief Resamples a dense sequence of group joint positions to `count` waypoints spaced
+/// uniformly in configuration-space arc length (endpoints preserved).
+/// @details Arc length and interpolation are computed with Scene::configurationDistance and
+/// Scene::interpolate so that continuous / free-rotating joints are measured and blended on
+/// their true manifold rather than as raw coordinates: differencing those coordinates as a flat
+/// Euclidean vector mishandles their tangent space (e.g. the wrap from +pi to -pi reads as a
+/// large jump, and the SO(2) cos/sin pair of a continuous joint does not subtract linearly).
+///
+/// This is useful when downstream consumers need evenly spaced knots: e.g. TOPP-RA parameterizes
+/// its spline by waypoint index, so unevenly spaced waypoints (clustered where a tracker throttled
+/// at corners) leave large gaps that the spline overshoots, deviating from the path.
+/// @param positions Dense group joint positions, each of size `q_indices.size()`.
+/// @param count Target number of (uniformly spaced) waypoints.
+/// @param scene Scene providing the manifold-aware distance/interpolation over the full model.
+/// @param q_indices The full-configuration indices occupied by the group's coordinates.
+/// @return The resampled group joint positions.
+std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>& positions,
+                                             size_t count, const Scene& scene,
+                                             const Eigen::VectorXi& q_indices);
+
 /// @brief Checks collisions along a specified configuration space path.
 /// @details All collision checks are answered by the caller-owned `context`, so the traversal does
 ///   not contend on the Scene's shared collision scratch. Interpolation and distance use `scene`,

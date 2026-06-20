@@ -606,6 +606,16 @@ class PathShortcutter:
     def getConfigurationfromNormalizedPathScaling(self, path: JointPath, path_scalings: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], value: float) -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], int]:
         """Gets joint configurations from a path with normalized joint scalings."""
 
+def poseError(a: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], b: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> tuple[float, float]:
+    """
+    Computes the (position error [m], orientation error [rad]) between two SE(3) transforms expressed in the same frame.
+    """
+
+def interpolatePose(start: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], end: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], fraction: float) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
+    """
+    Interpolates between two SE(3) transforms: linear in position, SLERP in orientation.
+    """
+
 def collapseContinuousJointPositions(scene: Scene, group_name: str, q_orig: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
     """
     Collapses a joint position vector's continuous joints for downstream algorithms.
