@@ -4,6 +4,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <dynotree/KDTree.h>
@@ -46,6 +47,28 @@ struct RRTOptions {
 
   /// @brief If true, use the RRT-Connect algorithm to grow the search trees.
   bool rrt_connect = false;
+
+  /// @brief If true, use the RRT* algorithm to grow asymptotically optimal trees.
+  /// @details As new nodes are added, RRT* picks the lowest-cost parent among nearby nodes and
+  /// rewires nearby nodes through the new node when that lowers their cost. Unlike plain RRT, it
+  /// does not stop at the first solution: it keeps sampling and rewiring until the node or time
+  /// budget is exhausted, then returns the lowest-cost path found. Compatible with `rrt_connect`,
+  /// in which case both trees are rewired.
+  bool rrt_star = false;
+
+  /// @brief The configuration-space radius used to find neighbors for RRT* rewiring.
+  /// @details Only used when `rrt_star` is true. Expressed in the same units as
+  /// `max_connection_distance`, and should generally be at least that large so that neighbors a
+  /// single connection step away are considered. Larger values consider more neighbors when
+  /// choosing parents and rewiring, improving path quality at the cost of more collision checks.
+  double rewire_distance = 5.0;
+
+  /// @brief If true, return as soon as the first path is found; if false, keep planning until the
+  /// node or time budget is exhausted and return the lowest-cost path found.
+  /// @details Applies to every mode. With RRT* (`rrt_star`), set this to false to obtain the
+  /// asymptotically optimal behavior; with plain RRT or RRT-Connect, setting it to false simply
+  /// keeps the cheapest path discovered across the whole budget.
+  bool fast_return = true;
 };
 
 /// @brief Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.
@@ -98,10 +121,15 @@ public:
   /// @param target_nodes The nodes in the target tree.
   /// @param grow_start_tree If true, the target_tree is the goal tree.
   /// @param collision_context This plan's private collision context, used for all collision checks.
-  /// @return A completed path from the start to the goal node if it exists, otherwise none.
-  std::optional<JointPath> joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                     const std::vector<Node>& target_nodes, bool grow_start_tree,
-                                     const CollisionContext& collision_context);
+  /// @return If a path is found, a pair of the completed start-to-goal path and its total
+  /// cost-to-come (the two connected nodes' costs plus the connecting edge length); otherwise none.
+  /// The cost is only meaningful when the planner tracks node costs (RRT*, or any mode with
+  /// fast_return disabled); callers returning the first path can ignore it.
+  std::optional<std::pair<JointPath, double>> joinTrees(const std::vector<Node>& nodes,
+                                                        const KdTree& target_tree,
+                                                        const std::vector<Node>& target_nodes,
+                                                        bool grow_start_tree,
+                                                        const CollisionContext& collision_context);
 
   /// @brief Returns a path from the specified index to the first added node.
   /// @param nodes The list of nodes in the tree.
@@ -121,6 +149,39 @@ private:
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
 
+  /// @brief Finds the IDs of all nodes in a tree within `rewire_distance` (in configuration
+  /// distance) of a configuration.
+  /// @details Used by the RRT* variant to gather candidate parents and rewiring targets. Only nodes
+  /// already inserted into `tree` are returned, so calling this before inserting the query node
+  /// excludes it from the result.
+  /// @param tree The tree to search.
+  /// @param nodes The nodes backing `tree`, used to measure configuration distance to candidates.
+  /// @param q The query configuration, as full (model-sized) joint positions.
+  /// @return The IDs of the neighboring nodes.
+  std::vector<int> findNearNodes(const KdTree& tree, const std::vector<Node>& nodes,
+                                 const Eigen::VectorXd& q) const;
+
+  /// @brief Inserts a node into an RRT* tree, choosing the best parent and rewiring its neighbors.
+  /// @details The RRT* insertion step: among the new node's neighbors (within `rewire_distance`) it
+  /// picks the collision-free parent that minimizes the new node's cost-to-come, inserts the node,
+  /// then reconnects any neighbor through the new node when that lowers the neighbor's cost-to-come
+  /// (propagating the change through that neighbor's subtree).
+  /// @param kd_tree The tree to insert into.
+  /// @param nodes The nodes backing `kd_tree`.
+  /// @param q_new The configuration to insert. Must already be validated as collision-free.
+  /// @param default_parent_id The node `q_new` was extended from, used as the fallback parent.
+  /// @param collision_context This plan's private collision context, used for all collision checks.
+  /// @return The ID of the newly inserted node.
+  int rewire(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_new,
+             int default_parent_id, const CollisionContext& collision_context);
+
+  /// @brief Propagates an RRT* cost change down a node's subtree.
+  /// @details Call after a node's parent and cost have been updated by a rewire. Each descendant's
+  /// cost-to-come is recomputed from its (already updated) parent's cost plus the edge length.
+  /// @param nodes The list of nodes in the tree.
+  /// @param root_id The node whose cost just changed.
+  void propagateCost(std::vector<Node>& nodes, int root_id);
+
   /// @brief Collapses group joint positions to the k-d tree state space coordinates.
   /// @details Thin wrapper around `collapseContinuousJointPositions` that throws on failure, so the
   /// tree operations can call it without repeating the error handling at each call site.
@@ -139,6 +200,12 @@ private:
 
   /// @brief A state space for the k-d tree for nearest neighbor lookup.
   CombinedStateSpace state_space_;
+
+  /// @brief The runtime dimension of the (collapsed) k-d tree state space.
+  /// @details Cached at construction because `CombinedStateSpace::get_runtime_dim()` is not
+  /// const-qualified in the vendored dynotree, so it cannot be called from the const
+  /// `findNearNodes` where the dimension is needed.
+  int state_dim_ = 0;
 
   /// @brief A random number generator for the planner.
   std::mt19937 rng_gen_;

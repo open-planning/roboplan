@@ -18,14 +18,17 @@ void init_rrt(nanobind::module_& m) {
   nanobind::class_<Node>(m, "Node", "Defines a graph node for search-based planners.")
       .def(nanobind::init<const Eigen::VectorXd&, int>(), "config"_a, "parent_id"_a)
       .def_ro("config", &Node::config, "The configuration (e.g., joint positions) of this node.")
-      .def_ro("parent_id", &Node::parent_id, "The parent node ID.");
+      .def_ro("parent_id", &Node::parent_id, "The parent node ID.")
+      .def_ro("cost", &Node::cost, "The cost-to-come from the tree root to this node (RRT* only).");
 
   nanobind::class_<RRTOptions>(m, "RRTOptions", "Options struct for RRT planner.")
-      .def(nanobind::init<const std::string&, size_t, double, double, bool, double, double, bool>(),
+      .def(nanobind::init<const std::string&, size_t, double, double, bool, double, double, bool,
+                          bool, double, bool>(),
            "group_name"_a = "", "max_nodes"_a = 1000, "max_connection_distance"_a = 3.0,
            "collision_check_step_size"_a = 0.05, "collision_check_use_bisection"_a = false,
            "goal_biasing_probability"_a = 0.15, "max_planning_time"_a = 0.0,
-           "rrt_connect"_a = false)
+           "rrt_connect"_a = false, "rrt_star"_a = false, "rewire_distance"_a = 5.0,
+           "fast_return"_a = true)
       .def_rw("group_name", &RRTOptions::group_name,
               "The joint group name to be used by the planner.")
       .def_rw("max_nodes", &RRTOptions::max_nodes, "The maximum number of nodes to sample.")
@@ -41,7 +44,14 @@ void init_rrt(nanobind::module_& m) {
       .def_rw("max_planning_time", &RRTOptions::max_planning_time,
               "The maximum amount of time to allow for planning, in seconds.")
       .def_rw("rrt_connect", &RRTOptions::rrt_connect,
-              "If true, use the RRT-Connect algorithm to grow the search trees.");
+              "If true, use the RRT-Connect algorithm to grow the search trees.")
+      .def_rw("rrt_star", &RRTOptions::rrt_star,
+              "If true, use the RRT* algorithm to grow asymptotically optimal trees.")
+      .def_rw("rewire_distance", &RRTOptions::rewire_distance,
+              "The configuration-space radius used to find neighbors for RRT* rewiring.")
+      .def_rw("fast_return", &RRTOptions::fast_return,
+              "If true, return on the first path found; if false, plan until the budget is "
+              "exhausted and return the lowest-cost path.");
 
   nanobind::class_<RRT>(
       m, "RRT", "Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.")
