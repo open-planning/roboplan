@@ -152,6 +152,8 @@ jobs:
           fi
           echo "✅ .pyi stub files look good!"
       # TODO: Decide on a method for automated benchmark performance testing.
+      # TODO: These are currently running in debug mode due to `-e ci`. We should fix this.
       - name: Run benchmarks
+        if: matrix.ubuntu_version != '24.04'  # Just to not share time with clang-tidy
         run: |
           pixi run -e ci test_benchmarks
