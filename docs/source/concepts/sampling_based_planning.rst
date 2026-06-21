@@ -12,7 +12,7 @@ RoboPlan implements the **Rapidly-exploring Random Tree (RRT)** family of planne
 
    RRT planning for a dual-arm Franka system.
 
-Both the classic single-tree RRT and the bidirectional RRT-Connect variant are supported.
+The classic single-tree RRT, the bidirectional RRT-Connect variant, and the asymptotically optimal RRT* are all supported — and RRT* can be combined with RRT-Connect.
 There are many other variants of RRT, as well as other types of sampling-based planning algorithms.
 We would always appreciate new contributions!
 
@@ -50,6 +50,41 @@ Because each tree actively reaches for the other, RRT-Connect typically converge
 Goal biasing is therefore disabled in this mode: the bidirectional ``CONNECT`` step already pulls the trees toward one another, so the planner samples uniformly at random instead of repeatedly aiming at the fixed opposite endpoint.
 
 RRT-Connect was introduced by `Kuffner and LaValle (2000) <http://msl.cs.illinois.edu/~lavalle/papers/KufLav00.pdf>`_.
+
+RRT*
+~~~~
+
+Plain RRT and RRT-Connect stop at the *first* path they find, which is typically jagged and far from optimal.
+RRT* augments tree growth with an *optimization* step so that, given enough samples, the path it returns converges toward the shortest one.
+Enabling ``rrt_star`` switches on this behavior; it can be combined with ``rrt_connect``, in which case both trees are optimized.
+
+Every node stores its **cost-to-come** — the length of the path from the tree root to that node.
+When a new node is added, RRT* does two extra things beyond plain RRT:
+
+1. **Choose the best parent.** Rather than always attaching the new node to the nearest existing node, RRT* considers every node within ``rewire_distance`` and connects through whichever collision-free neighbor yields the lowest cost-to-come.
+2. **Rewire neighbors.** It then checks whether routing any of those same neighbors *through the new node* would lower their cost-to-come, and reconnects them if so (propagating the cost change down through their subtrees).
+
+Over many iterations, this incremental rewiring continually straightens and shortens the tree, removing the wandering detours that plain RRT leaves behind.
+
+``rewire_distance`` is the configuration-space radius of the neighborhood considered when choosing parents and rewiring, expressed in the same units as ``max_connection_distance``.
+It should generally be at least as large as ``max_connection_distance`` so that nodes a single connection step away are considered; larger values explore more neighbors and yield shorter paths, at the cost of more collision checks per node.
+
+To actually reap RRT*'s optimization, the planner must keep sampling past the first solution — see :ref:`fast_return <fast-return>` below.
+
+RRT* was introduced by `Karaman and Frazzoli (2011) <https://arxiv.org/abs/1105.1186>`_.
+
+.. _fast-return:
+
+Returning Early vs. Using the Full Budget
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default (``fast_return = true``), the planner returns as soon as it finds the first complete path, in every mode.
+Setting ``fast_return = false`` instead keeps planning until the node or time budget (``max_nodes`` / ``max_planning_time``) is exhausted, then returns the lowest-cost path found.
+
+This flag is what unlocks RRT*'s optimality: because RRT* only improves the tree as it samples, it must keep running to refine the solution, so pair ``rrt_star = true`` with ``fast_return = false`` for asymptotically optimal paths.
+With plain RRT or RRT-Connect — which never rewire — disabling ``fast_return`` simply keeps the cheapest of the independently discovered paths, which rarely improves enough to justify the extra time.
+
+Note that even with ``fast_return = true``, RRT* still rewires the tree as it grows, so the first path it returns is already noticeably shorter than plain RRT's; you only forgo the additional refinement that the remaining budget would buy.
 
 State Spaces and the ``dynotree`` Library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -101,6 +136,12 @@ The planner is configured through ``RRTOptions``:
 +-----------------------------------+------------------------------------------------------------+-----------+
 | ``rrt_connect``                   | Use RRT-Connect (two trees) instead of single-tree RRT     | false     |
 +-----------------------------------+------------------------------------------------------------+-----------+
+| ``rrt_star``                      | Use RRT* to optimize the tree and return shorter paths     | false     |
++-----------------------------------+------------------------------------------------------------+-----------+
+| ``rewire_distance``               | Neighborhood radius for RRT* rewiring (only if rrt_star)   | 5.0       |
++-----------------------------------+------------------------------------------------------------+-----------+
+| ``fast_return``                   | Return on first path, or plan until the budget is spent    | true      |
++-----------------------------------+------------------------------------------------------------+-----------+
 
 Usage Example
 ~~~~~~~~~~~~~
@@ -120,6 +161,8 @@ Usage Example
        goal_biasing_probability=0.15,
        max_planning_time=5.0,
        rrt_connect=True,
+       rrt_start=False,
+       fast_return=True,
    )
    rrt = RRT(scene, options)
 

@@ -3,6 +3,7 @@
 #include <limits>
 #include <optional>
 #include <stdexcept>
+#include <unordered_set>
 
 #include <tinyxml2.h>
 
@@ -82,11 +83,22 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
 
     JointGroupInfo group_info;
 
-    // There are a few valid elements in groups: "joint", "chain", and "group".
+    // Accumulate the group's links in a set so duplicates collapse automatically.
+    std::unordered_set<std::string> link_name_set;
+
+    // There are a few valid elements in groups: "link", "joint", "chain", and "group".
     for (tinyxml2::XMLElement* child = group->FirstChildElement(); child != nullptr;
          child = child->NextSiblingElement()) {
       const std::string elem_name = child->Name();
-      if (elem_name == "joint") {
+      if (elem_name == "link") {
+        // Links can be manually specified to be part of a group in the SRDF.
+        const char* link_name;
+        if (child->QueryStringAttribute("name", &link_name) != tinyxml2::XML_SUCCESS) {
+          throw std::runtime_error("Group '" + std::string(name) +
+                                   "' specifies a link with no name in the SRDF!");
+        }
+        link_name_set.insert(link_name);
+      } else if (elem_name == "joint") {
         // The joint case is straightforward; just add the joint name.
         const char* joint_name;
         if (child->QueryStringAttribute("name", &joint_name) != tinyxml2::XML_SUCCESS) {
@@ -164,8 +176,22 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
         group_info.joint_indices.insert(group_info.joint_indices.end(),
                                         subgroup_info.joint_indices.begin(),
                                         subgroup_info.joint_indices.end());
+        link_name_set.insert(subgroup_info.link_names.begin(), subgroup_info.link_names.end());
       }
     }
+
+    // Now that all the group's joints are known, collect the links that they drive.
+    // A single moving joint can support multiple links: the link it actuates plus any links rigidly
+    // attached to it through fixed joints, which Pinocchio collapses into the same parent joint.
+    for (const auto jid : group_info.joint_indices) {
+      for (const auto& frame : model.frames) {
+        if (frame.type == pinocchio::BODY && frame.parentJoint == jid) {
+          link_name_set.insert(frame.name);
+        }
+      }
+    }
+
+    group_info.link_names.assign(link_name_set.begin(), link_name_set.end());
 
     // Once we've defined all joint names in the group, compute the position and velocity indices.
     std::vector<int> q_indices;
@@ -232,9 +258,19 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     }
   }
 
+  // The default group contains every link (body frame) in the model.
+  std::vector<std::string> all_link_names;
+  all_link_names.reserve(model.nframes);
+  for (const auto& frame : model.frames) {
+    if (frame.type == pinocchio::BODY) {
+      all_link_names.push_back(frame.name);
+    }
+  }
+
   joint_group_map[""] = JointGroupInfo{
       .joint_names = std::vector<std::string>(model.names.begin() + 1, model.names.end()),
-      .joint_indices = all_joint_indices,
+      .joint_indices = std::move(all_joint_indices),
+      .link_names = std::move(all_link_names),
       .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
       .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1),
       .has_continuous_dofs = default_group_has_continuous_dofs,

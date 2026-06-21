@@ -1,4 +1,7 @@
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <limits>
 #include <stdexcept>
 
 #include <roboplan/core/path_utils.hpp>
@@ -61,6 +64,7 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
 
   state_space_ = CombinedStateSpace(state_space_names);
   state_space_.set_bounds(maybe_joint_position_limits->first, maybe_joint_position_limits->second);
+  state_dim_ = state_space_.get_runtime_dim();
 
   if (state_space_.get_runtime_dim() != static_cast<int>(maybe_collapsed_pos->size())) {
     throw std::runtime_error("Failed to instantiate RRT planner: State space dimension (" +
@@ -123,17 +127,31 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
   // For switching which tree we grow when using RRT-Connect.
   bool grow_start_tree = true;
 
+  // When fast_return is disabled, planning does not stop at the first solution; it keeps growing
+  // (and, for RRT*, rewiring) until the budget runs out and returns the lowest-cost path found so
+  // far. When fast_return is enabled these are unused, as the first solution is returned directly.
+  std::optional<JointPath> best_path;
+  double best_cost = std::numeric_limits<double>::infinity();
+
   while (true) {
     // Check for timeout.
     auto elapsed =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count();
     if (options_.max_planning_time > 0 && options_.max_planning_time <= elapsed) {
+      // Without fast_return, the budget running out is the normal stopping condition: return the
+      // best path found so far, if any.
+      if (best_path.has_value()) {
+        return best_path.value();
+      }
       return tl::make_unexpected("RRT timed out after " +
                                  std::to_string(options_.max_planning_time) + " seconds.");
     }
 
     // Check loop termination criteria.
     if (start_nodes_.size() + goal_nodes_.size() >= options_.max_nodes) {
+      if (best_path.has_value()) {
+        return best_path.value();
+      }
       return tl::make_unexpected("Added maximum number of nodes (" +
                                  std::to_string(options_.max_nodes) + ").");
     }
@@ -169,11 +187,20 @@ tl::expected<JointPath, std::string> RRT::plan(const JointConfiguration& start,
       growTree(target_tree, target_nodes, nodes.back().config, collision_context, /*greedy*/ true);
     }
 
-    // Check if the trees can be connected from the latest added node. If so we are done.
+    // Check if the trees can be connected from the latest added node.
     auto maybe_path =
         joinTrees(nodes, target_tree, target_nodes, grow_start_tree, collision_context);
     if (maybe_path.has_value()) {
-      return maybe_path.value();
+      auto& [path, path_cost] = maybe_path.value();
+      // With fast_return, return the first path found. Otherwise keep the cheapest path seen and
+      // keep growing (and, for RRT*, rewiring) until the budget is exhausted.
+      if (options_.fast_return) {
+        return std::move(path);
+      }
+      if (path_cost < best_cost) {
+        best_cost = path_cost;
+        best_path = std::move(path);
+      }
     }
 
     // Switch the grow and target trees for the next iteration, if required.
@@ -224,9 +251,20 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     }
 
     grew_tree = true;
-    auto new_id = nodes.size();
-    kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
-    nodes.emplace_back(q_extend, parent_id);
+    int new_id;
+    if (options_.rrt_star) {
+      new_id = rewire(kd_tree, nodes, q_extend, parent_id, collision_context);
+    } else {
+      new_id = static_cast<int>(nodes.size());
+      kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
+      // Track cost-to-come when the planner will run to budget, so the cheapest path can be picked.
+      // With fast_return the first path is returned, so the cost is unused and left at zero.
+      const double cost =
+          options_.fast_return
+              ? 0.0
+              : nodes.at(parent_id).cost + scene_->configurationDistance(q_current, q_extend);
+      nodes.emplace_back(q_extend, parent_id, cost);
+    }
 
     // A plain EXTEND adds a single node; only the greedy CONNECT step keeps extending.
     if (!greedy) {
@@ -246,9 +284,10 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
   return grew_tree;
 }
 
-std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
-                                        const std::vector<Node>& target_nodes, bool grow_start_tree,
-                                        const CollisionContext& collision_context) {
+std::optional<std::pair<JointPath, double>>
+RRT::joinTrees(const std::vector<Node>& nodes, const KdTree& target_tree,
+               const std::vector<Node>& target_nodes, bool grow_start_tree,
+               const CollisionContext& collision_context) {
   // The most recently added node is the last appended node in the nodes list.
   const auto& last_added_node = nodes.back();
   const auto& q_last_added = last_added_node.config;
@@ -262,34 +301,44 @@ std::optional<JointPath> RRT::joinTrees(const std::vector<Node>& nodes, const Kd
   const auto& nearest_node = target_nodes.at(nn.id);
   const auto& q_nearest = nearest_node.config;
 
-  // If the nearest and latest nodes are equal we only need one of them, so start from the parent.
-  const auto& latest_node =
-      q_last_added == q_nearest ? nodes.at(last_added_node.parent_id) : last_added_node;
-  const auto& q_latest = latest_node.config;
+  // Helper function to build the connected path
+  const auto build_path = [&](const Node& from_node, const Node& to_node,
+                              double cost) -> std::pair<JointPath, double> {
+    JointPath start_path =
+        grow_start_tree ? getPath(nodes, from_node) : getPath(target_nodes, to_node);
+    JointPath goal_path =
+        grow_start_tree ? getPath(target_nodes, to_node) : getPath(nodes, from_node);
 
-  // If the latest sampled node in one tree can be connected to the nearest node in the target tree,
-  // then a path exists and we should return it. Both endpoints are existing tree nodes and are
-  // therefore already known collision-free, so we skip re-checking them.
-  if ((scene_->configurationDistance(q_latest, q_nearest) <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, collision_context, q_latest, q_nearest,
+    std::reverse(start_path.positions.begin(), start_path.positions.end());
+    start_path.positions.insert(start_path.positions.end(), goal_path.positions.begin(),
+                                goal_path.positions.end());
+    return {std::move(start_path), cost};
+  };
+
+  // If the trees meet at the same point, stitch directly through the shared node with no
+  // connecting edge. This avoids the need to fall back to a parent that may be farther
+  // than max_connection_distance away (which can happen say, after RRT* rewiring).
+  if (q_last_added == q_nearest) {
+    // Since they are the same, the total cost-to-come of the joint path is just the last added
+    // nodes costs. Note that the node costs are only meaningful when the planner is tracking
+    // them (RRT*, or any mode with fast_return disabled); callers returning the first path
+    // ignore this value.
+    const auto path_cost = last_added_node.cost + nearest_node.cost;
+    return build_path(last_added_node, nearest_node, path_cost);
+  }
+
+  // Otherwise attempt a normal connection edge between the two nearest nodes.
+  const auto connection_distance = scene_->configurationDistance(q_last_added, q_nearest);
+  if ((connection_distance <= options_.max_connection_distance) &&
+      (!hasCollisionsAlongPath(*scene_, collision_context, q_last_added, q_nearest,
                                options_.collision_check_step_size,
                                options_.collision_check_use_bisection,
                                /*check_endpoints*/ false))) {
 
-    // If (grow_start_tree), nodes is start_tree, target_nodes is goal_tree.
-    // Otherwise it is reversed.
-    JointPath start_path =
-        grow_start_tree ? getPath(nodes, latest_node) : getPath(target_nodes, nearest_node);
-    JointPath goal_path =
-        grow_start_tree ? getPath(target_nodes, nearest_node) : getPath(nodes, latest_node);
-
-    // We always set start_path as connection -> start_node and goal_path is connection ->
-    // goal_node.
-    std::reverse(start_path.positions.begin(), start_path.positions.end());
-    start_path.positions.insert(start_path.positions.end(), goal_path.positions.begin(),
-                                goal_path.positions.end());
-
-    return start_path;
+    // If the nodes are not the same the total cost-to-come of the joined path is the two
+    // connected nodes' costs plus the connecting edge length.
+    const auto path_cost = last_added_node.cost + nearest_node.cost + connection_distance;
+    return build_path(last_added_node, nearest_node, path_cost);
   }
 
   return std::nullopt;
@@ -310,6 +359,102 @@ JointPath RRT::getPath(const std::vector<Node>& nodes, const Node& end_node) {
     path.positions.push_back(cur_node->config(q_indices));
   }
   return path;
+}
+
+int RRT::rewire(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_new,
+                int default_parent_id, const CollisionContext& collision_context) {
+  const auto& q_indices = joint_group_info_.q_indices;
+  const int new_id = static_cast<int>(nodes.size());
+
+  // Gather the new node's neighbors before it is inserted, so it is not its own neighbor.
+  const auto near_ids = findNearNodes(kd_tree, nodes, q_new);
+
+  // Choose the parent that yields the lowest cost-to-come, defaulting to the node we extended from.
+  // Each candidate edge runs between two known collision-free tree configurations (or the
+  // just-validated q_new), so the endpoints themselves are not re-checked.
+  int best_parent = default_parent_id;
+  double best_cost = nodes.at(default_parent_id).cost +
+                     scene_->configurationDistance(nodes.at(default_parent_id).config, q_new);
+  for (const int near_id : near_ids) {
+    const auto& q_near = nodes.at(near_id).config;
+    const double candidate_cost =
+        nodes.at(near_id).cost + scene_->configurationDistance(q_near, q_new);
+    if (candidate_cost < best_cost &&
+        !hasCollisionsAlongPath(*scene_, collision_context, q_near, q_new,
+                                options_.collision_check_step_size,
+                                options_.collision_check_use_bisection,
+                                /*check_endpoints*/ false)) {
+      best_cost = candidate_cost;
+      best_parent = near_id;
+    }
+  }
+
+  kd_tree.addPoint(collapse(q_new(q_indices)), new_id);
+  nodes.emplace_back(q_new, best_parent, best_cost);
+  nodes.at(best_parent).children.push_back(new_id);
+
+  // Rewire: route a neighbor through the new node whenever that lowers its cost-to-come.
+  for (const int near_id : near_ids) {
+    if (near_id == best_parent) {
+      continue;
+    }
+    Node& near_node = nodes.at(near_id);
+    const double rewired_cost = best_cost + scene_->configurationDistance(q_new, near_node.config);
+    if (rewired_cost < near_node.cost &&
+        !hasCollisionsAlongPath(*scene_, collision_context, q_new, near_node.config,
+                                options_.collision_check_step_size,
+                                options_.collision_check_use_bisection,
+                                /*check_endpoints*/ false)) {
+      // Detach from the old parent, attach to the new node, then refresh the subtree's costs.
+      auto& old_siblings = nodes.at(near_node.parent_id).children;
+      old_siblings.erase(std::remove(old_siblings.begin(), old_siblings.end(), near_id),
+                         old_siblings.end());
+      near_node.parent_id = new_id;
+      near_node.cost = rewired_cost;
+      nodes.at(new_id).children.push_back(near_id);
+      propagateCost(nodes, near_id);
+    }
+  }
+
+  return new_id;
+}
+
+std::vector<int> RRT::findNearNodes(const KdTree& tree, const std::vector<Node>& nodes,
+                                    const Eigen::VectorXd& q) const {
+  // The k-d tree metric sums the per-joint distances (an L1-style norm), whereas the planner's
+  // costs and `max_connection_distance` use the scene's configuration distance (an L2-style norm).
+  // To keep `rewire_distance` in the same (configuration-space) units as the other options, we
+  // search a ball large enough to be a superset of the L2 ball of that radius -- since the L1 norm
+  // is at most sqrt(dim) times the L2 norm -- and then filter the candidates by the actual
+  // configuration distance.
+  const auto& q_indices = joint_group_info_.q_indices;
+  const double search_radius =
+      options_.rewire_distance * std::sqrt(static_cast<double>(state_dim_));
+  const auto neighbors = tree.searchBall(collapse(q(q_indices)), search_radius);
+
+  std::vector<int> ids;
+  ids.reserve(neighbors.size());
+  for (const auto& neighbor : neighbors) {
+    if (scene_->configurationDistance(nodes.at(neighbor.id).config, q) <=
+        options_.rewire_distance) {
+      ids.push_back(neighbor.id);
+    }
+  }
+  return ids;
+}
+
+void RRT::propagateCost(std::vector<Node>& nodes, int root_id) {
+  // Iterative DFS over the subtree. The root's cost was already updated by the caller; each
+  // descendant's cost-to-come is its (now up-to-date) parent's cost plus the edge length to it.
+  std::vector<int> stack(nodes.at(root_id).children);
+  while (!stack.empty()) {
+    const int id = stack.back();
+    stack.pop_back();
+    Node& node = nodes.at(id);
+    const Node& parent = nodes.at(node.parent_id);
+    node.cost = parent.cost + scene_->configurationDistance(parent.config, node.config);
+    stack.insert(stack.end(), node.children.begin(), node.children.end());
+  }
 }
 
 Eigen::VectorXd RRT::collapse(const Eigen::VectorXd& q_group) const {

@@ -83,6 +83,9 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   ASSERT_EQ(full_group_info.v_indices.size(), 2);
   ASSERT_EQ(full_group_info.nq_collapsed, 2);
   ASSERT_TRUE(full_group_info.has_continuous_dofs);
+  // The default group should contain every link in the model.
+  EXPECT_THAT(full_group_info.link_names,
+              ::testing::UnorderedElementsAre("base_link", "link1", "link2", "link3"));
 
   const auto arm_group_info = scene_->getJointGroupInfo("arm").value();
   const std::vector<std::string> expected_arm_joint_names = {"revolute_joint", "mimic_joint"};
@@ -91,6 +94,33 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   ASSERT_EQ(arm_group_info.v_indices.size(), 1);
   ASSERT_EQ(arm_group_info.nq_collapsed, 1);
   ASSERT_FALSE(arm_group_info.has_continuous_dofs);
+  // The arm group lists revolute_joint and mimic_joint, whose child links are link2 and link3.
+  EXPECT_THAT(arm_group_info.link_names, ::testing::UnorderedElementsAre("link2", "link3"));
+}
+
+TEST_F(RoboPlanJointTest, JointGroupLinksFromChainAndExplicitLinks) {
+  // A chain group should pull in every link along the chain, and an explicit <link> element
+  // should be added on top of the links derived from the group's joints.
+  const std::string srdf = R"(
+<robot name="robot">
+  <group name="chain_group">
+    <chain base_link="base_link" tip_link="link3"/>
+  </group>
+  <group name="explicit_group">
+    <joint name="revolute_joint"/>
+    <link name="base_link"/>
+  </group>
+</robot>
+)";
+  Scene scene("chain_scene", URDF, srdf);
+
+  // The chain from base_link to link3 covers link1, link2, and link3 (base_link is excluded).
+  const auto chain_info = scene.getJointGroupInfo("chain_group").value();
+  EXPECT_THAT(chain_info.link_names, ::testing::UnorderedElementsAre("link1", "link2", "link3"));
+
+  // The explicit group derives link2 from revolute_joint and additionally includes base_link.
+  const auto explicit_info = scene.getJointGroupInfo("explicit_group").value();
+  EXPECT_THAT(explicit_info.link_names, ::testing::UnorderedElementsAre("base_link", "link2"));
 }
 
 TEST_F(RoboPlanJointTest, CurrentJointPositionsWithMimics) {

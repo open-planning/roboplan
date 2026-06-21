@@ -90,6 +90,8 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("joint_names", &JointGroupInfo::joint_names,
               "The joint names that make up the group.")
       .def_rw("joint_indices", &JointGroupInfo::joint_indices, "The joint indices in the group.")
+      .def_rw("link_names", &JointGroupInfo::link_names,
+              "The link (body) names that make up the group.")
       .def_rw("q_indices", &JointGroupInfo::q_indices, "The position vector indices in the group.")
       .def_rw("v_indices", &JointGroupInfo::v_indices, "The velocity vector indices in the group.")
       .def_rw("has_continuous_dofs", &JointGroupInfo::has_continuous_dofs,
@@ -333,6 +335,9 @@ void init_core_path_utils(nanobind::module_& m) {
         "Scene.",
         "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
         "check_endpoints"_a = true);
+  m.def("computePathLength", unwrap_expected(&computePathLength),
+        "Computes the total configuration-space length of a joint path.", "scene"_a, "group_name"_a,
+        "path"_a);
 
   nanobind::class_<PathShortcuttingOptions>(m, "PathShortcuttingOptions",
                                             "Options struct for path shortcutting.")

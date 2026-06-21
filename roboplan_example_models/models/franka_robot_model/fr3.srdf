@@ -2,6 +2,9 @@
 <robot name="fr3">
   <group name="fr3_arm">
     <chain base_link="fr3_link0" tip_link="fr3_link8"/>
+    <!-- Include these links to render in ROS visualizers. -->
+    <link name="fr3_leftfinger"/>
+    <link name="fr3_rightfinger"/>
   </group>
   <group_state group="fr3_arm" name="ready">
     <joint name="fr3_joint1" value="0"/>
