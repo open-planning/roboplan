@@ -585,13 +585,13 @@ TEST_F(PositionBarrierTest, SafetyMarginTightensConstraint) {
                                         roboplan::ConstraintAxisSelection(), 5.0, 1.0, 0.1);
 
   int num_barriers = barrier_no_margin->getNumBarriers(*scene_);
-  Eigen::MatrixXd G_no(num_barriers, num_variables_);
+  Eigen::MatrixXd G_no_margin(num_barriers, num_variables_);
   Eigen::VectorXd b_no(num_barriers);
-  Eigen::MatrixXd G_with(num_barriers, num_variables_);
+  Eigen::MatrixXd G_with_margin(num_barriers, num_variables_);
   Eigen::VectorXd b_with(num_barriers);
 
-  auto result_no = barrier_no_margin->computeQpInequalities(*scene_, G_no, b_no);
-  auto result_with = barrier_with_margin->computeQpInequalities(*scene_, G_with, b_with);
+  auto result_no = barrier_no_margin->computeQpInequalities(*scene_, G_no_margin, b_no);
+  auto result_with = barrier_with_margin->computeQpInequalities(*scene_, G_with_margin, b_with);
   ASSERT_TRUE(result_no.has_value());
   ASSERT_TRUE(result_with.has_value());
 

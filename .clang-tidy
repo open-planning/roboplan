@@ -103,11 +103,11 @@ CheckOptions:
   #   K = gain matrix, G = gravity, Q/R/P = LQR cost/covariance,
   #   M = mass matrix, T = transformation, I = identity
   - key:             readability-identifier-naming.VariableIgnoredRegexp
-    value:           '^[AGHIJKMPQRTW][0-9]*$'
+    value:           '^([a-z0-9_]*_)?[AGHIJKMPQRTW][0-9]*(_[a-z0-9_]*)?$'
   - key:             readability-identifier-naming.ParameterIgnoredRegexp
-    value:           '^[AGHIJKMPQRTW][0-9]*$'
+    value:           '^([a-z0-9_]*_)?[AGHIJKMPQRTW][0-9]*(_[a-z0-9_]*)?$'
   - key:             readability-identifier-naming.LocalVariableIgnoredRegexp
-    value:           '^[AGHIJKMPQRTW][0-9]*$'
+    value:           '^([a-z0-9_]*_)?[AGHIJKMPQRTW][0-9]*(_[a-z0-9_]*)?$'
 
   # Private and protected member variables have trailing underscore
   - key:             readability-identifier-naming.ProtectedMemberSuffix

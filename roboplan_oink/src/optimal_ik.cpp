@@ -312,7 +312,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
       return tl::make_unexpected("Internal error: constraint row offset exceeds total rows");
     }
 
-    Eigen::Ref<Eigen::MatrixXd> constraint_a_view =
+    Eigen::Ref<Eigen::MatrixXd> constraint_A_view =
         constraint_workspace_A.middleRows(row_offset, num_rows);
     Eigen::Ref<Eigen::VectorXd> constraint_lower_view =
         constraint_workspace_lower.segment(row_offset, num_rows);
@@ -320,7 +320,7 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
         constraint_workspace_upper.segment(row_offset, num_rows);
 
     auto constraint_result = constraints.at(i)->computeQpConstraints(
-        scene, constraint_a_view, constraint_lower_view, constraint_upper_view);
+        scene, constraint_A_view, constraint_lower_view, constraint_upper_view);
     if (!constraint_result.has_value()) {
       return tl::make_unexpected("Failed to compute constraints: " + constraint_result.error());
     }
@@ -337,12 +337,12 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
       return tl::make_unexpected("Internal error: barrier row offset exceeds total rows");
     }
 
-    Eigen::Ref<Eigen::MatrixXd> barrier_g_view =
+    Eigen::Ref<Eigen::MatrixXd> barrier_G_view =
         constraint_workspace_A.middleRows(row_offset, num_rows);
     Eigen::Ref<Eigen::VectorXd> barrier_h_view =
         constraint_workspace_upper.segment(row_offset, num_rows);
 
-    barriers.at(i)->formatQpInequalities(barrier_g_view, barrier_h_view);
+    barriers.at(i)->formatQpInequalities(barrier_G_view, barrier_h_view);
 
     constraint_workspace_lower.segment(row_offset, num_rows).setConstant(-OsqpEigen::INFTY);
 
