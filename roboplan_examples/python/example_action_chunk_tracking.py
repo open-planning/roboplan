@@ -474,10 +474,16 @@ def main(
         for idx in range(len(dense_cartesian_trajectory.times)):
             loop_start = time.time()
 
+            # Trajectory targets are authored in the world frame, but each FrameTask
+            # expects its target in the task's base frame. Convert using the base frame's
+            # current world pose (identity when base_frame is "universe").
+            base_T_world = np.linalg.inv(
+                scene.forwardKinematics(q_current, model_data.base_link)
+            )
             for frame_task, frame_tforms in zip(
                 frame_tasks, dense_cartesian_trajectory.tforms
             ):
-                frame_task.setTargetFrameTransform(frame_tforms[idx])
+                frame_task.setTargetFrameTransform(base_T_world @ frame_tforms[idx])
 
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)

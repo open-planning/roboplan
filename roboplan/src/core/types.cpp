@@ -50,6 +50,11 @@ std::ostream& operator<<(std::ostream& os, const JointGroupInfo& info) {
     os << " " << name;
   }
   os << "\n";
+  os << "  Links:";
+  for (const auto& name : info.link_names) {
+    os << " " << name;
+  }
+  os << "\n";
   os << "  q indices: " << info.q_indices.transpose() << "\n";
   os << "  v indices: " << info.v_indices.transpose() << "\n";
   return os;

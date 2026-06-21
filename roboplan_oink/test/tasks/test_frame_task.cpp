@@ -532,6 +532,129 @@ TEST_F(FrameTaskTest, BackwardCompatibilityNoSaturation) {
   EXPECT_NEAR(position_error.norm(), 1.0, 1e-6);
 }
 
+// ── Base frame tests ──────────────────────────────────────────────────────────
+
+// Test that constructing a FrameTask with a base frame resolves the base_frame_id correctly.
+TEST_F(FrameTaskTest, BaseFrameConstruction) {
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  target.base_frame = "wrist_1_link";
+  target.tform = Eigen::Matrix4d::Identity();
+
+  FrameTask task(*oink_, *scene_, target);
+  EXPECT_EQ(task.frame_name, "tool0");
+  EXPECT_TRUE(task.base_frame_id.has_value());
+
+  // Verify the resolved ID matches what getFrameId returns directly
+  const auto maybe_id = scene_->getFrameId("wrist_1_link");
+  ASSERT_TRUE(maybe_id.has_value());
+  EXPECT_EQ(task.base_frame_id.value(), maybe_id.value());
+}
+
+// Test that constructing a FrameTask with an invalid base frame throws.
+TEST_F(FrameTaskTest, BaseFrameInvalidName) {
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  target.base_frame = "nonexistent_frame";
+  target.tform = Eigen::Matrix4d::Identity();
+
+  EXPECT_THROW(FrameTask(*oink_, *scene_, target), std::runtime_error);
+}
+
+// Test that no base frame and an empty base_frame string both leave base_frame_id unset.
+TEST_F(FrameTaskTest, BaseFrameUnsetWhenEmpty) {
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  // base_frame intentionally left empty
+  target.tform = Eigen::Matrix4d::Identity();
+
+  FrameTask task(*oink_, *scene_, target);
+  EXPECT_FALSE(task.base_frame_id.has_value());
+}
+
+// Test that when tip == base, computeError reports zero error when the EE is at identity
+// in the base frame (i.e., the EE pose relative to itself is identity).
+TEST_F(FrameTaskTest, BaseFrameEqualsTipZeroError) {
+  // Target: identity transform in the "tool0" frame (EE is at itself)
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  target.base_frame = "tool0";
+  target.tform = Eigen::Matrix4d::Identity();
+
+  FrameTask task(*oink_, *scene_, target);
+
+  const auto q = scene_->getCurrentJointPositions();
+  // Run computeJacobian first (updates oMf, as required by computeError)
+  auto jac_result = task.computeJacobian(*scene_);
+  ASSERT_TRUE(jac_result.has_value());
+
+  auto err_result = task.computeError(*scene_);
+  ASSERT_TRUE(err_result.has_value());
+
+  EXPECT_NEAR(task.error_container.norm(), 0.0, 1e-10)
+      << "Error should be zero when tip == base and tform == Identity";
+}
+
+// Test that with a base frame, the Jacobian is zero when tip == base (no relative motion).
+TEST_F(FrameTaskTest, BaseFrameJacobianZeroWhenTipEqualsBase) {
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  target.base_frame = "tool0";
+  target.tform = Eigen::Matrix4d::Identity();
+
+  FrameTask task(*oink_, *scene_, target);
+
+  auto result = task.computeJacobian(*scene_);
+  ASSERT_TRUE(result.has_value());
+
+  EXPECT_NEAR(task.jacobian_container.norm(), 0.0, 1e-10)
+      << "Relative Jacobian should be zero when tip == base";
+}
+
+// Test that the error correctly reflects a target expressed in the base frame.
+// Strategy: FK gives us T_rel = T_base^{-1} * T_ee in world. We set the target to
+// T_rel itself (so the desired relative pose == current), then check zero error.
+TEST_F(FrameTaskTest, BaseFrameErrorAtCurrentRelativePose) {
+  const Eigen::VectorXd q = scene_->getCurrentJointPositions();
+
+  // Compute the current relative transform T_rel = T_base^{-1} * T_ee
+  const Eigen::Matrix4d T_ee_mat = scene_->forwardKinematics(q, "tool0");
+  const Eigen::Matrix4d T_base_mat = scene_->forwardKinematics(q, "wrist_1_link");
+  const Eigen::Matrix4d T_rel_mat =
+      pinocchio::SE3(T_base_mat).actInv(pinocchio::SE3(T_ee_mat)).toHomogeneousMatrix();
+
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  target.base_frame = "wrist_1_link";
+  target.tform = T_rel_mat;  // target == current relative pose → zero error
+
+  FrameTask task(*oink_, *scene_, target);
+
+  auto jac_result = task.computeJacobian(*scene_);  // updates oMf
+  ASSERT_TRUE(jac_result.has_value());
+
+  auto err_result = task.computeError(*scene_);
+  ASSERT_TRUE(err_result.has_value());
+
+  EXPECT_NEAR(task.error_container.norm(), 0.0, 1e-10)
+      << "Error should be zero when target equals current relative pose";
+}
+
+// Test that the base-frame task Jacobian has the correct dimensions.
+TEST_F(FrameTaskTest, BaseFrameJacobianDimensions) {
+  CartesianConfiguration target;
+  target.tip_frame = "tool0";
+  target.base_frame = "wrist_1_link";
+  target.tform = Eigen::Matrix4d::Identity();
+
+  FrameTask task(*oink_, *scene_, target);
+
+  auto result = task.computeJacobian(*scene_);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(task.jacobian_container.rows(), 6);
+  EXPECT_EQ(task.jacobian_container.cols(), num_variables_);
+}
+
 // Test combined position and rotation error computation without saturation
 TEST_F(FrameTaskTest, CombinedPositionAndRotationError) {
   // Get current end-effector pose

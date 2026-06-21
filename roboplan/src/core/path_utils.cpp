@@ -119,6 +119,21 @@ bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
       max_step_size, bisection, check_endpoints);
 }
 
+tl::expected<double, std::string>
+computePathLength(const Scene& scene, const std::string& group_name, const JointPath& path) {
+  if (path.positions.size() < 2) {
+    return tl::make_unexpected("Path must contain 2 or more points!");
+  }
+
+  double length = 0.0;
+  for (size_t idx = 0; idx + 1 < path.positions.size(); ++idx) {
+    const auto q_start = scene.toFullJointPositions(group_name, path.positions[idx]);
+    const auto q_end = scene.toFullJointPositions(group_name, path.positions[idx + 1]);
+    length += scene.configurationDistance(q_start, q_end);
+  }
+  return length;
+}
+
 PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene,
                                  const PathShortcuttingOptions& options)
     : scene_{scene}, options_{options} {

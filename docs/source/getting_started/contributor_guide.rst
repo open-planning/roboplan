@@ -81,4 +81,8 @@ Coding assistants such as Claude Code, GitHub Copilot, etc. are powerful tools t
 However, be advised that *you are ultimately responsible for your code*.
 Please make sure you aren't just "vibe coding" changes without reviewing your work first.
 
-The maintainers will close contributions that are obviously AI generated without verification.
+Additionally, you should keep in mind the human maintainers and/or reviewers looking at your code.
+When interacting with maintainers through Git issues or pull requests, please refrain from copying feedback and pasting back blatantly AI-generated responses.
+
+As a general rule, if it will take reviewers more effort to review your code and/or responses than it took you to generate them, please reconsider your level of effort.
+The maintainers will close contributions that are obviously AI generated without verification or consideration for maintainers.

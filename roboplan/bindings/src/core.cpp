@@ -90,6 +90,8 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("joint_names", &JointGroupInfo::joint_names,
               "The joint names that make up the group.")
       .def_rw("joint_indices", &JointGroupInfo::joint_indices, "The joint indices in the group.")
+      .def_rw("link_names", &JointGroupInfo::link_names,
+              "The link (body) names that make up the group.")
       .def_rw("q_indices", &JointGroupInfo::q_indices, "The position vector indices in the group.")
       .def_rw("v_indices", &JointGroupInfo::v_indices, "The velocity vector indices in the group.")
       .def_rw("has_continuous_dofs", &JointGroupInfo::has_continuous_dofs,
@@ -234,12 +236,32 @@ void init_core_scene(nanobind::module_& m) {
             }
             const auto reference_frame =
                 local ? pinocchio::ReferenceFrame::LOCAL : pinocchio::ReferenceFrame::WORLD;
+
             Eigen::MatrixXd jacobian = Eigen::MatrixXd::Zero(6, self.getModel().nv);
             self.computeFrameJacobian(q, maybe_frame_id.value(), reference_frame, jacobian);
             return jacobian;
           },
-          "Computes the frame Jacobian for a specific frame.", "q"_a, "frame_name"_a,
-          "local"_a = true)
+          "Computes the frame Jacobian for a specific frame, expressed in world frame.", "q"_a,
+          "frame_name"_a, "local"_a = true)
+      .def(
+          "computeRelativeFrameJacobian",
+          [](const Scene& self, const Eigen::VectorXd& q, const std::string& frame_name,
+             const std::string& base_frame, bool local) -> Eigen::MatrixXd {
+            const auto maybe_frame_id = self.getFrameId(frame_name);
+            if (!maybe_frame_id) {
+              throw std::runtime_error("Frame '" + frame_name +
+                                       "' not found: " + maybe_frame_id.error());
+            }
+            const auto reference_frame =
+                local ? pinocchio::ReferenceFrame::LOCAL : pinocchio::ReferenceFrame::WORLD;
+
+            Eigen::MatrixXd jacobian = Eigen::MatrixXd::Zero(6, self.getModel().nv);
+            self.computeRelativeFrameJacobian(q, maybe_frame_id.value(), base_frame,
+                                              reference_frame, jacobian);
+            return jacobian;
+          },
+          "Computes the Jacobian of a frame's velocity relative to a base frame.", "q"_a,
+          "frame_name"_a, "base_frame"_a, "local"_a = true)
       .def("getFrameId", unwrap_expected(&Scene::getFrameId),
            "Get the Pinocchio model ID of a frame by its name.", "name"_a)
       .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo),
@@ -313,6 +335,9 @@ void init_core_path_utils(nanobind::module_& m) {
         "Scene.",
         "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
         "check_endpoints"_a = true);
+  m.def("computePathLength", unwrap_expected(&computePathLength),
+        "Computes the total configuration-space length of a joint path.", "scene"_a, "group_name"_a,
+        "path"_a);
 
   nanobind::class_<PathShortcuttingOptions>(m, "PathShortcuttingOptions",
                                             "Options struct for path shortcutting.")
