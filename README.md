@@ -26,8 +26,8 @@ The main folders found in this repo are as follows.
 
 ---
 
-![Interactive inverse kinematics (IK) with Kinova Gen3 arm.](docs/source/media/kinova_ik.gif)
+<img src="docs/source/media/kinova_ik.gif" alt="Interactive inverse kinematics (IK) with Kinova Gen3 arm." width="600">
 
-![Rapidly-exploring random tree (RRT) with dual Franka FR3 arms.](docs/source/media/dual_franka_rrt.gif)
+<img src="docs/source/media/dual_franka_rrt.gif" alt="Rapidly-exploring random tree (RRT) with dual Franka FR3 arms." width="600">
 
-![Cartesian path planning with a UR5 arm.](docs/source/media/cartesian_planning_ur5.gif)
+<img src="docs/source/media/cartesian_planning_ur5.gif" alt="Cartesian path planning with a UR5 arm." width="600">

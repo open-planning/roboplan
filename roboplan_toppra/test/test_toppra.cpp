@@ -245,6 +245,10 @@ TEST_F(RoboPlanToppraTest, LongPathCubic) {
   auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, {dt, SplineFittingMode::Cubic});
   ASSERT_TRUE(result.has_value());
+}
+
+TEST_F(RoboPlanToppraTest, LongPathAdaptive) {
+  auto path = createTestPathLong();
   double dt = 0.01;
 
   auto toppra = PathParameterizerTOPPRA(scene, "arm");
@@ -256,7 +260,7 @@ TEST_F(RoboPlanToppraTest, ShortPathLinearBlend) {
   auto path = createTestPathShort();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, {dt, SplineFittingMode::LinearBlend});
   ASSERT_TRUE(result.has_value());
 }
@@ -265,7 +269,7 @@ TEST_F(RoboPlanToppraTest, LongPathLinearBlend) {
   auto path = createTestPathLong();
   double dt = 0.01;
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   auto result = toppra.generate(path, {dt, SplineFittingMode::LinearBlend});
   ASSERT_TRUE(result.has_value());
 }
@@ -314,7 +318,7 @@ TEST_F(RoboPlanToppraTest, LinearBlendIsFastAndRespectsLimitsOnSharpCorner) {
   sample_leg(q0, q_corner, /*include_end=*/false);
   sample_leg(q_corner, q1, /*include_end=*/true);
 
-  auto toppra = PathParameterizerTOPPRA(scene_, "arm");
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
   const double max_deviation = 0.05;
   auto blend = toppra.generate(
       path, {dt, SplineFittingMode::LinearBlend, 1.0, 1.0, 10, 0.05, max_deviation});
@@ -324,8 +328,8 @@ TEST_F(RoboPlanToppraTest, LinearBlendIsFastAndRespectsLimitsOnSharpCorner) {
 
   // The blend trajectory respects the joint acceleration limit (a small overshoot is the
   // ConstAccel resampler's known tolerance at the fixed dt).
-  const auto accel_limit = scene_->getAccelerationLimitVectors("arm").value().second.cwiseAbs();
-  const auto vel_limit = scene_->getVelocityLimitVectors("arm").value().second.cwiseAbs();
+  const auto accel_limit = scene->getAccelerationLimitVectors("arm").value().second.cwiseAbs();
+  const auto vel_limit = scene->getVelocityLimitVectors("arm").value().second.cwiseAbs();
   EXPECT_LT(peakRatio(blend->accelerations, accel_limit), 1.25);
   EXPECT_LT(peakRatio(blend->velocities, vel_limit), 1.05);
 

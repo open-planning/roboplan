@@ -113,14 +113,9 @@ else()
     gtest_add_tests(TARGET test_oink)
     gtest_add_tests(TARGET test_frame_task)
     gtest_add_tests(TARGET test_configuration_task)
-<<<<<<< HEAD
-    gtest_add_tests(TARGET test_velocity_limit)
-    gtest_add_tests(TARGET test_position_limit)
-=======
     gtest_add_tests(TARGET test_position_limit)
     gtest_add_tests(TARGET test_velocity_limit)
     gtest_add_tests(TARGET test_acceleration_limit)
->>>>>>> origin/main
     gtest_add_tests(TARGET test_position_barrier)
     gtest_add_tests(TARGET test_self_collision_barrier)
 endif()
