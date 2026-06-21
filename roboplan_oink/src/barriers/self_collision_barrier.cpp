@@ -14,11 +14,10 @@
 
 namespace roboplan {
 
-SelfCollisionBarrier::SelfCollisionBarrier(const Oink& oink, const Scene& scene,
-                                           int n_collision_pairs, double dt,
+SelfCollisionBarrier::SelfCollisionBarrier(const Oink& oink, const Scene& scene, double dt,
                                            const SelfCollisionBarrierOptions& options)
     : Barrier(options.gain, dt, options.safe_displacement_gain, options.safety_margin),
-      n_collision_pairs(n_collision_pairs), d_min(options.d_min), d_max(options.d_max),
+      n_collision_pairs(options.n_collision_pairs), d_min(options.d_min), d_max(options.d_max),
       v_indices(oink.v_indices) {
   if (d_min < 0.0) {
     throw std::invalid_argument("SelfCollisionBarrier: d_min must be non-negative (got " +
@@ -28,13 +27,10 @@ SelfCollisionBarrier::SelfCollisionBarrier(const Oink& oink, const Scene& scene,
     throw std::invalid_argument("SelfCollisionBarrier: n_collision_pairs must be positive (got " +
                                 std::to_string(n_collision_pairs) + ")");
   }
+
+  // Clip the requested pair count to what the scene actually has.
   const auto total_pairs = static_cast<int>(scene.getCollisionModel().collisionPairs.size());
-  if (n_collision_pairs > total_pairs) {
-    throw std::invalid_argument("SelfCollisionBarrier: requested " +
-                                std::to_string(n_collision_pairs) +
-                                " collision pairs but the scene only has " +
-                                std::to_string(total_pairs) + " collision pairs.");
-  }
+  n_collision_pairs = std::min(n_collision_pairs, total_pairs);
 
   initializeStorage(n_collision_pairs, oink.num_variables);
   closest_pair_indices.assign(n_collision_pairs, 0);

@@ -151,9 +151,12 @@ void init_optimal_ik(nanobind::module_& m) {
   // Bind SelfCollisionBarrierOptions configuration struct
   nanobind::class_<SelfCollisionBarrierOptions>(m, "SelfCollisionBarrierOptions",
                                                 "Parameters for SelfCollisionBarrier.")
-      .def(nanobind::init<double, double, double, double, std::optional<double>>(), "gain"_a = 1.0,
-           "safe_displacement_gain"_a = 1.0, "d_min"_a = 0.02, "safety_margin"_a = 0.0,
-           "d_max"_a = std::optional<double>(0.5), "Constructor with custom parameters.")
+      .def(nanobind::init<int, double, double, double, double, std::optional<double>>(),
+           "n_collision_pairs"_a = 1, "gain"_a = 1.0, "safe_displacement_gain"_a = 1.0,
+           "d_min"_a = 0.02, "safety_margin"_a = 0.0, "d_max"_a = std::optional<double>(0.5),
+           "Constructor with custom parameters.")
+      .def_rw("n_collision_pairs", &SelfCollisionBarrierOptions::n_collision_pairs,
+              "Maximum number of closest collision pairs to constrain.")
       .def_rw("gain", &SelfCollisionBarrierOptions::gain, "Barrier gain (gamma).")
       .def_rw("safe_displacement_gain", &SelfCollisionBarrierOptions::safe_displacement_gain,
               "Gain for safe displacement regularization.")
@@ -173,12 +176,11 @@ void init_optimal_ik(nanobind::module_& m) {
       "Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.\n\n"
       "Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at\n"
       "least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.")
-      .def(nanobind::init<const Oink&, const Scene&, int, double,
-                          const SelfCollisionBarrierOptions&>(),
-           "oink"_a, "scene"_a, "n_collision_pairs"_a, "dt"_a,
-           "options"_a = SelfCollisionBarrierOptions{}, "Create a self-collision barrier.")
+      .def(nanobind::init<const Oink&, const Scene&, double, const SelfCollisionBarrierOptions&>(),
+           "oink"_a, "scene"_a, "dt"_a, "options"_a = SelfCollisionBarrierOptions{},
+           "Create a self-collision barrier.")
       .def_ro("n_collision_pairs", &SelfCollisionBarrier::n_collision_pairs,
-              "Number of closest collision pairs to constrain.")
+              "Number of closest collision pairs constrained (clipped to the scene's pair count).")
       .def_ro("d_min", &SelfCollisionBarrier::d_min,
               "Minimum allowed distance between any pair of bodies.")
       .def_ro(

@@ -11,8 +11,13 @@
 
 namespace roboplan {
 
-/// @brief Optional parameters for SelfCollisionBarrier configuration.
+/// @brief Parameters for SelfCollisionBarrier configuration.
 struct SelfCollisionBarrierOptions {
+  /// @brief Maximum number of closest collision pairs to constrain. Must be > 0. Only the closest
+  /// `n_collision_pairs` pairs at the current configuration are constrained. Values larger than the
+  /// number of collision pairs in the scene are clipped to that count.
+  int n_collision_pairs = 1;
+
   /// @brief Barrier gain (gamma), controls convergence to safe set (default: 1.0).
   double gain = 1.0;
 
@@ -62,14 +67,10 @@ struct SelfCollisionBarrier : public Barrier {
   /// @brief Constructs a self-collision barrier.
   /// @param oink The Oink solver this barrier will be used with.
   /// @param scene The scene whose collision model defines the collision pairs to monitor.
-  /// @param n_collision_pairs Number of closest collision pairs to consider. Must be > 0 and
-  ///        no greater than the number of collision pairs in the scene's collision model.
-  ///        If fewer pairs than the total are requested, only the closest ones are constrained.
-  /// @param dt Timestep matching the control loop period (must match actual control loop).
+  /// @param dt Timestep matching the control loop period. Must be positive.
   /// @param options Optional tuning parameters (default: all options set to defaults).
-  /// @throws std::invalid_argument if d_min is negative, n_collision_pairs is non-positive,
-  ///         or n_collision_pairs exceeds the number of collision pairs in the scene.
-  SelfCollisionBarrier(const Oink& oink, const Scene& scene, int n_collision_pairs, double dt,
+  /// @throws std::invalid_argument if d_min is negative or n_collision_pairs is non-positive.
+  SelfCollisionBarrier(const Oink& oink, const Scene& scene, double dt,
                        const SelfCollisionBarrierOptions& options = {});
 
   /// @brief Get the number of active barrier constraints.
@@ -117,8 +118,8 @@ struct SelfCollisionBarrier : public Barrier {
   evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
                           const Eigen::VectorXd& q) const override;
 
-  /// @brief Number of closest collision pairs to constrain.
-  const int n_collision_pairs;
+  /// @brief Number of closest collision pairs constrained.
+  int n_collision_pairs;
 
   /// @brief Minimum allowed distance between any pair of bodies.
   const double d_min;

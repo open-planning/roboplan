@@ -280,8 +280,15 @@ class PositionBarrier(Barrier):
 class SelfCollisionBarrierOptions:
     """Parameters for SelfCollisionBarrier."""
 
-    def __init__(self, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0, d_max: float | None = 0.5) -> None:
+    def __init__(self, n_collision_pairs: int = 1, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0, d_max: float | None = 0.5) -> None:
         """Constructor with custom parameters."""
+
+    @property
+    def n_collision_pairs(self) -> int:
+        """Maximum number of closest collision pairs to constrain."""
+
+    @n_collision_pairs.setter
+    def n_collision_pairs(self, arg: int, /) -> None: ...
 
     @property
     def gain(self) -> float:
@@ -328,12 +335,14 @@ class SelfCollisionBarrier(Barrier):
     least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.
     """
 
-    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, n_collision_pairs: int, dt: float, options: SelfCollisionBarrierOptions = ...) -> None:
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, dt: float, options: SelfCollisionBarrierOptions = ...) -> None:
         """Create a self-collision barrier."""
 
     @property
     def n_collision_pairs(self) -> int:
-        """Number of closest collision pairs to constrain."""
+        """
+        Number of closest collision pairs constrained (clipped to the scene's pair count).
+        """
 
     @property
     def d_min(self) -> float:

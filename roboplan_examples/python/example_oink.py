@@ -145,9 +145,9 @@ def main(
         self_collision_barrier = SelfCollisionBarrier(
             oink,
             scene,
-            n_collision_pairs=self_collision_num_pairs,
             dt=dt,
             options=SelfCollisionBarrierOptions(
+                n_collision_pairs=self_collision_num_pairs,
                 gain=self_collision_gain,
                 safe_displacement_gain=0.01,
                 d_min=self_collision_d_min,
