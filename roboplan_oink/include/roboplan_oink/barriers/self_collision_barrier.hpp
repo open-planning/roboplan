@@ -1,13 +1,48 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <optional>
 #include <vector>
 
 #include <pinocchio/multibody/geometry.hpp>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 
 namespace roboplan {
+
+/// @brief Parameters for SelfCollisionBarrier configuration.
+struct SelfCollisionBarrierOptions {
+  /// @brief Maximum number of closest collision pairs to constrain. Must be > 0. Only the closest
+  /// `n_collision_pairs` pairs at the current configuration are constrained. Values larger than the
+  /// number of collision pairs in the scene are clipped to that count.
+  int n_collision_pairs = 1;
+
+  /// @brief Barrier gain (gamma), controls convergence to safe set (default: 1.0).
+  double gain = 1.0;
+
+  /// @brief Gain for safe displacement regularization (default: 1.0).
+  double safe_displacement_gain = 1.0;
+
+  /// @brief Minimum allowed distance between any pair of bodies. Must be non-negative
+  /// (default: 0.02).
+  double d_min = 0.02;
+
+  /// @brief Conservative margin for hard constraint guarantee (default: 0.0).
+  double safety_margin = 0.0;
+
+  /// @brief Maximum distance (meters) at which a collision pair is tracked.
+  /// @details Pairs whose bounding boxes are farther apart than this skip exact narrow-phase
+  /// distance computation (the dominant per-solve cost on dense / mesh-heavy models) and
+  /// therefore exert no influence on the barrier.
+  ///
+  /// This is a visibility / performance bound, NOT a separation limit: it does not constrain how
+  /// far apart bodies may be. When set comfortably larger than the distances at which the barrier
+  /// actively pushes (a few times d_min), it does not change the solution at all — only a too-small
+  /// value silently drops mid-range pairs. Default 0.5. Set to std::nullopt to disable culling.
+  /// Paired with d_min, it defines the band [d_min, d_max] of separations in the barrier.
+  std::optional<double> d_max = 0.5;
+};
 
 /// @brief Self-collision avoidance barrier based on collision pair distances.
 ///
@@ -32,20 +67,11 @@ struct SelfCollisionBarrier : public Barrier {
   /// @brief Constructs a self-collision barrier.
   /// @param oink The Oink solver this barrier will be used with.
   /// @param scene The scene whose collision model defines the collision pairs to monitor.
-  /// @param n_collision_pairs Number of closest collision pairs to consider. Must be > 0 and
-  ///        no greater than the number of collision pairs in the scene's collision model.
-  ///        If fewer pairs than the total are requested, only the closest ones are constrained.
-  /// @param dt Timestep matching the control loop period (must match actual control loop).
-  /// @param gain Barrier gain (gamma), controls convergence to safe set. Default 1.0.
-  /// @param safe_displacement_gain Gain for safe displacement regularization. Default 1.0.
-  /// @param d_min Minimum allowed distance between any pair of bodies. Must be non-negative.
-  ///        Default 0.02.
-  /// @param safety_margin Conservative margin for hard constraint guarantee. Default 0.0.
-  /// @throws std::invalid_argument if d_min is negative, n_collision_pairs is non-positive,
-  ///         or n_collision_pairs exceeds the number of collision pairs in the scene.
-  SelfCollisionBarrier(const Oink& oink, const Scene& scene, int n_collision_pairs, double dt,
-                       double gain = 1.0, double safe_displacement_gain = 1.0, double d_min = 0.02,
-                       double safety_margin = 0.0);
+  /// @param dt Timestep matching the control loop period. Must be positive.
+  /// @param options Optional tuning parameters (default: all options set to defaults).
+  /// @throws std::invalid_argument if d_min is negative or n_collision_pairs is non-positive.
+  SelfCollisionBarrier(const Oink& oink, const Scene& scene, double dt,
+                       const SelfCollisionBarrierOptions& options = {});
 
   /// @brief Get the number of active barrier constraints.
   /// @return The number of collision pairs being constrained.
@@ -75,15 +101,16 @@ struct SelfCollisionBarrier : public Barrier {
 
   /// @brief Evaluate the minimum barrier value at a candidate configuration.
   ///
-  /// Refreshes geometry placements on a private GeometryData copy and runs narrow-phase
-  /// distance only on the pairs cached by the most recent computeBarrier() call
+  /// Refreshes geometry placements on this barrier's own CollisionContext scratch and runs
+  /// narrow-phase distance only on the pairs cached by the most recent computeBarrier() call
   /// (`closest_pair_indices`). For small displacements between the configuration used in
   /// computeBarrier() and `q`, those are the active constraints, and skipping narrow phase
   /// on the remaining pairs is the dominant per-solve speedup. computeBarrier() must have
   /// run before this method.
   ///
-  /// @param model Pinocchio model (must be the same as the scene's model).
-  /// @param data Pinocchio data (will be modified by FK / distance computation).
+  /// @param model Unused; kept for the Barrier interface. Distances are evaluated on this
+  ///        barrier's CollisionContext, which owns the model shared with the scene.
+  /// @param data Unused; kept for the Barrier interface.
   /// @param q Candidate joint configuration to evaluate.
   /// @return Expected containing the minimum barrier value (negative if any pair is in
   ///         collision), or an error message on failure.
@@ -91,11 +118,17 @@ struct SelfCollisionBarrier : public Barrier {
   evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
                           const Eigen::VectorXd& q) const override;
 
-  /// @brief Number of closest collision pairs to constrain.
-  const int n_collision_pairs;
+  /// @brief Number of closest collision pairs constrained.
+  int n_collision_pairs;
 
   /// @brief Minimum allowed distance between any pair of bodies.
   const double d_min;
+
+  /// @brief Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding
+  ///        boxes are farther apart than this skip exact narrow-phase distance. Visibility /
+  ///        performance bound, not a separation limit. std::nullopt disables culling.
+  ///        See SelfCollisionBarrierOptions::d_max.
+  const std::optional<double> d_max;
 
   /// @brief Velocity indices of the joint group (for Jacobian column selection).
   Eigen::VectorXi v_indices;
@@ -105,7 +138,7 @@ struct SelfCollisionBarrier : public Barrier {
   std::vector<std::size_t> closest_pair_indices;
 
   /// @brief Workspace buffer holding `min_distance` for every collision pair in the model,
-  ///        repopulated on each computeBarrier() call from the scene's GeometryData.
+  ///        repopulated on each computeBarrier() call from the CollisionContext's GeometryData.
   Eigen::VectorXd all_distances;
 
   /// @brief Pre-allocated workspace for one parent-joint Jacobian (6 x model.nv).
@@ -118,11 +151,11 @@ struct SelfCollisionBarrier : public Barrier {
   ///        velocity DOFs (before selecting the joint-group columns).
   mutable Eigen::RowVectorXd full_row;
 
-  /// @brief Pointer to the scene's collision model (non-owning). Captured at construction.
-  const pinocchio::GeometryModel* collision_model;
-
-  /// @brief Private GeometryData used by evaluateAtConfiguration to avoid mutating scene state.
-  mutable pinocchio::GeometryData eval_geom_data;
+  /// @brief Non-owning pointer to the Oink solver's shared collision scratch (Data + GeometryData),
+  /// captured from `oink.getCollisionContext()` at construction. All distance / joint-Jacobian
+  /// queries run on this context instead of the scene's shared collision data, so the barrier never
+  /// mutates scene state. The referenced Oink must outlive this barrier.
+  const CollisionContext* collision_context;
 };
 
 }  // namespace roboplan

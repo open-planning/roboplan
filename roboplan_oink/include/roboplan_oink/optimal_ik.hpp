@@ -6,6 +6,7 @@
 #include "OsqpEigen/OsqpEigen.h"
 #include <tl/expected.hpp>
 
+#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 
@@ -383,6 +384,13 @@ struct Oink {
                   Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
                   double tolerance = 0.0);
 
+  /// @brief The solver's shared collision scratch (Data + GeometryData + broadphase).
+  /// @details Tasks, constraints, and/or barriers that require collision queries should use this
+  /// context instead of building their own, so a single snapshot of the scene's collision
+  /// geometry is reused across the whole solve. It is snapshotted from the scene at construction;
+  /// if the scene's collision geometry changes, rebuild the solver (context does not auto-sync).
+  const CollisionContext& getCollisionContext() const { return *collision_context_; }
+
 private:
   /// @brief Compute `task`'s Jacobian and error, and add its contribution to the QP Hessian
   /// and gradient (projecting through the current `nullspace_projector` for hierarchical
@@ -459,5 +467,8 @@ public:
   // Allocated once at construction so the per-solve barrier-feasibility check does not
   // create a fresh Data (which is sized for the entire model) on every call.
   pinocchio::Data enforce_barriers_data;
+
+  // Shared collision context, snapshotted from the construction scene.
+  std::unique_ptr<CollisionContext> collision_context_;
 };
 }  // namespace roboplan

@@ -23,6 +23,7 @@ from roboplan.optimal_ik import (
     Oink,
     PositionLimit,
     SelfCollisionBarrier,
+    SelfCollisionBarrierOptions,
     VelocityLimit,
 )
 
@@ -36,6 +37,7 @@ def main(
     reference_filter_tau: float = 0.1,
     self_collision_num_pairs: int = 0,
     self_collision_d_min: float = 0.02,
+    self_collision_d_max: float = 0.25,
     self_collision_gain: float = 1.0,
     limit_acceleration: bool = False,
     host: str = "localhost",
@@ -59,6 +61,9 @@ def main(
             that use high-resolution meshes for collision geometries.
         self_collision_d_min: Minimum distance (meters) the IK solver will try to keep
             between every pair of self-collision bodies declared by the SRDF.
+        self_collision_d_max: Maximum distance (meters) the IK solver will use for a
+            broadphase culling step. This can significantly speed up collision checking
+            by pruning out far-away meshes, especially if they have complex geometries.
         self_collision_gain: Barrier gain (gamma) for the self-collision barrier. Higher
             values produce stronger pushback as bodies approach `self_collision_d_min`.
         limit_acceleration: If true, adds an acceleration limit.
@@ -151,11 +156,14 @@ def main(
         self_collision_barrier = SelfCollisionBarrier(
             oink,
             scene,
-            n_collision_pairs=self_collision_num_pairs,
             dt=dt,
-            gain=self_collision_gain,
-            safe_displacement_gain=0.01,
-            d_min=self_collision_d_min,
+            options=SelfCollisionBarrierOptions(
+                n_collision_pairs=self_collision_num_pairs,
+                gain=self_collision_gain,
+                safe_displacement_gain=0.01,
+                d_min=self_collision_d_min,
+                d_max=self_collision_d_max,
+            ),
         )
         barriers = [self_collision_barrier]
     else:
