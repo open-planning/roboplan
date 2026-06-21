@@ -13,7 +13,7 @@ NB_MODULE(_rrt_ext, m) {
   // references them across the extension boundary.
   nanobind::module_::import_("roboplan.core");
 
-  init_rrt(m);
+  initRrt(m);
 }
 
 }  // namespace roboplan

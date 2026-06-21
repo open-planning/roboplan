@@ -1,0 +1,148 @@
+# RoboPlan clang-tidy configuration
+#
+# This configuration uses a wildcard approach: enable entire check categories,
+# then explicitly exclude noisy or impractical checks.
+#
+# Check categories enabled:
+# - readability-identifier-naming: Enforces naming conventions (PascalCase, camelCase, snake_case, etc.)
+#
+# Checks are excluded when they:
+# - Generate excessive false positives
+# - Conflict with necessary C++ patterns
+# - Are too restrictive for practical development
+#
+# Disabled checks (re-enable by adding back to Checks below):
+# - modernize-*: C++11/14/17/20 features (nullptr, override, auto, etc.)
+#   -modernize-use-trailing-return-type,
+# - performance-*: Efficiency improvements (unnecessary copies, move semantics)
+#   -performance-enum-size,
+# - portability-*: Cross-platform compatibility
+# - readability-*: Code clarity (braces, naming, magic numbers, etc.)
+#   -readability-function-cognitive-complexity,
+#   -readability-identifier-length,
+# - llvm-namespace-comment
+# - bugprone-*: Catches dangerous patterns (use-after-move, dangling references, etc.)
+#   -bugprone-easily-swappable-parameters,
+#   -bugprone-narrowing-conversions,
+# - cert-*: Security checks from CERT Secure Coding Standards (deep analysis)
+#   -cert-err58-cpp,
+# - clang-analyzer-*: Deep path-sensitive static analysis (10-100x slower)
+# - concurrency-*: Thread-unsafe function usage warnings
+# - cppcoreguidelines-*: C++ Core Guidelines best practices
+#   -cppcoreguidelines-avoid-c-arrays,
+#   -cppcoreguidelines-avoid-magic-numbers,
+#   -cppcoreguidelines-avoid-non-const-global-variables,
+#   -cppcoreguidelines-narrowing-conversions,
+#   -cppcoreguidelines-non-private-member-variables-in-classes,
+#   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+#   -cppcoreguidelines-pro-bounds-constant-array-index,
+#   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+#   -cppcoreguidelines-pro-type-const-cast,
+#   -cppcoreguidelines-pro-type-union-access,
+#   -cppcoreguidelines-pro-type-vararg,
+# - misc-*: Miscellaneous useful checks
+#   -misc-include-cleaner,
+#   -misc-no-recursion,
+#   -misc-non-private-member-variables-in-classes,
+#
+---
+Checks: '-*,
+readability-identifier-naming'
+
+HeaderFilterRegex: '(roboplan[^/]*/(?!.*/(tinyxml2|tl|dynotree|roboplan_ext)/).*|external/toppra/cpp/.*)\.(h|hpp)$'
+
+CheckOptions:
+  # Namespace comments
+  - key:             llvm-namespace-comment.ShortNamespaceLines
+    value:           '10'
+  - key:             llvm-namespace-comment.SpacesBeforeComments
+    value:           '2'
+
+  # Unused parameters
+  - key:             misc-unused-parameters.StrictMode
+    value:           '1'
+
+  # Braces around statements
+  - key:             readability-braces-around-statements.ShortStatementLines
+    value:           '2'
+
+  # Allow shared_ptr to be passed by value (ownership transfer pattern)
+  - key:             performance-unnecessary-value-param.AllowedTypes
+    value:           'std::shared_ptr'
+
+  # Type names (classes, structs, enums, unions) use PascalCase
+  - key:             readability-identifier-naming.ClassCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.StructCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.EnumCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.UnionCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.TypedefCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.TypeAliasCase
+    value:           CamelCase
+
+  # Function and method names use camelCase (starting with lowercase)
+  - key:             readability-identifier-naming.FunctionCase
+    value:           camelBack
+  - key:             readability-identifier-naming.MethodCase
+    value:           camelBack
+
+  # Variable names use snake_case
+  - key:             readability-identifier-naming.VariableCase
+    value:           lower_case
+  - key:             readability-identifier-naming.ParameterCase
+    value:           lower_case
+  - key:             readability-identifier-naming.LocalVariableCase
+    value:           lower_case
+
+  # Allow single uppercase letters (with optional index) for standard matrix/vector names:
+  #   H = Hessian, A = constraint matrix, J = Jacobian, W = weight matrix,
+  #   K = gain matrix, G = gravity, Q/R/P = LQR cost/covariance,
+  #   M = mass matrix, T = transformation, I = identity
+  - key:             readability-identifier-naming.VariableIgnoredRegexp
+    value:           '^([a-z0-9_]*_)?[AGHIJKMPQRTW][0-9]*(_[a-z0-9_]*)?$'
+  - key:             readability-identifier-naming.ParameterIgnoredRegexp
+    value:           '^([a-z0-9_]*_)?[AGHIJKMPQRTW][0-9]*(_[a-z0-9_]*)?$'
+  - key:             readability-identifier-naming.LocalVariableIgnoredRegexp
+    value:           '^([a-z0-9_]*_)?[AGHIJKMPQRTW][0-9]*(_[a-z0-9_]*)?$'
+
+  # Private and protected member variables have trailing underscore
+  - key:             readability-identifier-naming.ProtectedMemberSuffix
+    value:           '_'
+  - key:             readability-identifier-naming.PrivateMemberSuffix
+    value:           '_'
+
+  # Public member variables use snake_case (no underscore suffix)
+  - key:             readability-identifier-naming.PublicMemberCase
+    value:           lower_case
+
+  # Enum constants use UPPER_CASE
+  - key:             readability-identifier-naming.EnumConstantCase
+    value:           UPPER_CASE
+
+  # Global and static constants use Google style: k prefix + PascalCase
+  - key:             readability-identifier-naming.GlobalConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.GlobalConstantPrefix
+    value:           'k'
+  - key:             readability-identifier-naming.StaticConstantCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.StaticConstantPrefix
+    value:           'k'
+
+  # Const class members (like const double gain = 1.0) use snake_case
+  - key:             readability-identifier-naming.ConstantMemberCase
+    value:           lower_case
+
+  # Namespace names use snake_case
+  - key:             readability-identifier-naming.NamespaceCase
+    value:           lower_case
+
+  # Magic numbers configuration
+  - key:             readability-magic-numbers.IgnoredIntegerValues
+    value:           '0;1;2;-1'
+  - key:             readability-magic-numbers.IgnoredFloatingPointValues
+    value:           '0.0;1.0;-1.0;0.5'

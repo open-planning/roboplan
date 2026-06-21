@@ -15,10 +15,10 @@
 namespace roboplan {
 
 SelfCollisionBarrier::SelfCollisionBarrier(const Oink& oink, const Scene& scene,
-                                           int n_collision_pairs_, double dt,
+                                           int n_collision_pairs, double dt,
                                            const SelfCollisionBarrierOptions& options)
     : Barrier(options.gain, dt, options.safe_displacement_gain, options.safety_margin),
-      n_collision_pairs(n_collision_pairs_), d_min(options.d_min), d_max(options.d_max),
+      n_collision_pairs(n_collision_pairs), d_min(options.d_min), d_max(options.d_max),
       v_indices(oink.v_indices) {
   if (d_min < 0.0) {
     throw std::invalid_argument("SelfCollisionBarrier: d_min must be non-negative (got " +

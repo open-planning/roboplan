@@ -200,6 +200,13 @@ class JointGroupInfo:
     def joint_indices(self, arg: Sequence[int], /) -> None: ...
 
     @property
+    def link_names(self) -> list[str]:
+        """The link (body) names that make up the group."""
+
+    @link_names.setter
+    def link_names(self, arg: Sequence[str], /) -> None: ...
+
+    @property
     def q_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
         """The position vector indices in the group."""
 
