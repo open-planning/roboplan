@@ -3,6 +3,11 @@ Cartesian Planning
 
 The ``roboplan_cartesian_planning`` package traces a Cartesian path in joint space using the :ref:`OInK <oink-solver>` optimal IK solver.
 
+.. figure:: ../media/cartesian_planning_ur5.gif
+   :width: 600px
+
+   Cartesian path planning with a UR5 arm.
+
 Approach
 --------
 
