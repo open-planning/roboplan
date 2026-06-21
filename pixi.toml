@@ -46,12 +46,11 @@ configure = { cmd = [
   # Disable warnings about unused command line arguments
   "--no-warn-unused-cli",
   "-S",
-  "{{ package_path }}",
+  "{{ package_name }}",
   "-B",
   "build//{{ package_name }}",
 ], args = [
   { arg = "package_name" },
-  { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
 ] }
@@ -62,13 +61,11 @@ build = { cmd = [
 ], depends-on = [
   { task = "configure", args = [
     "{{ package_name }}",
-    "{{ package_path }}",
     "{{ cxx_flags }}",
     "{{ extra_flags }}",
   ] },
 ], args = [
   { arg = "package_name" },
-  { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
 ] }
@@ -79,13 +76,11 @@ install = { cmd = [
 ], depends-on = [
   { task = "build", args = [
     "{{ package_name }}",
-    "{{ package_path }}",
     "{{ cxx_flags }}",
     "{{ extra_flags }}",
   ] },
 ], args = [
   { arg = "package_name" },
-  { arg = "package_path" },
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
 ] }
@@ -95,18 +90,18 @@ install = { cmd = [
 # dependents: they resolve it via find_package(roboplan) and import roboplan.core
 # during stub generation.
 build_all = { depends-on = [
-  { task = "install", args = ["roboplan_example_models", "roboplan_example_models"] },
-  { task = "install", args = ["roboplan", "roboplan"] },
-  { task = "install", args = ["roboplan_simple_ik", "roboplan_simple_ik"] },
-  { task = "install", args = ["roboplan_oink", "roboplan_oink"] },
-  { task = "install", args = ["roboplan_rrt", "roboplan_rrt"] },
-  { task = "install", args = ["roboplan_toppra", "roboplan_toppra"] },
-  { task = "install", args = ["roboplan_cartesian_planning", "roboplan_cartesian_planning"] },
-  { task = "build", args = ["roboplan_examples", "roboplan_examples"] },
+  { task = "install", args = ["roboplan_example_models"] },
+  { task = "install", args = ["roboplan"] },
+  { task = "install", args = ["roboplan_simple_ik"] },
+  { task = "install", args = ["roboplan_oink"] },
+  { task = "install", args = ["roboplan_rrt"] },
+  { task = "install", args = ["roboplan_toppra"] },
+  { task = "install", args = ["roboplan_cartesian_planning"] },
+  { task = "build", args = ["roboplan_examples"] },
 ] }
 install_all = { depends-on = [
   { task = "build_all" },
-  { task = "install", args = ["roboplan_examples", "roboplan_examples"] },
+  { task = "install", args = ["roboplan_examples"] },
 ] }
 
 build_asan = { cmd = [
@@ -117,6 +112,7 @@ build_asan = { cmd = [
   { task = "configure", args = [
     "{{ package_name }}",
     "-fsanitize=address",
+    "-DGENERATE_PYTHON_STUBS=OFF",
   ] },
 ], args = [
   { arg = "package_name" },
@@ -125,62 +121,51 @@ build_asan = { cmd = [
 build_timetrace = { depends-on = [
   { task = "configure", args = [
     "{{ package_name }}",
-    "{{ package_path }}",
     "-ftime-trace",
   ] },
   { task = "build", args = [
     "{{ package_name }}",
-    "{{ package_path }}",
   ] },
 ], args = [
   { arg = "package_name" },
-  { arg = "package_path" },
 ] }
 build_tests = { depends-on = [
   { task = "install", args = [
     "roboplan_example_models",
-    "roboplan_example_models",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
-    "roboplan",
     "roboplan",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
     "roboplan_simple_ik",
-    "roboplan_simple_ik",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
-    "roboplan_oink",
     "roboplan_oink",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
     "roboplan_rrt",
-    "roboplan_rrt",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
     "roboplan_toppra",
-    "roboplan_toppra",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "install", args = [
-    "roboplan_cartesian_planning",
     "roboplan_cartesian_planning",
     "{{ cxx_flags }}",
     "ON",
   ] },
   { task = "build", args = [
-    "roboplan_examples",
     "roboplan_examples",
     "{{ cxx_flags }}",
     "ON",
@@ -200,15 +185,34 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_rrt"] },
   { task = "test", args = ["roboplan_simple_ik"] },
   { task = "test", args = ["roboplan_oink"] },
-  { task = "test", args = ["roboplan_cartesian_planning"] },
   { task = "test", args = ["roboplan_toppra"] },
+  { task = "test", args = ["roboplan_cartesian_planning"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
 test_benchmarks = { cmd = "python3 -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
 
+# Clang-tidy static analysis
+clang-tidy = { cmd = [
+  "bash",
+  "scripts/run_clang_tidy.bash",
+  "{{ package_name }}",
+], args = [
+  { arg = "package_name", default = "" },
+] }
+
+clang-tidy-fix = { cmd = [
+  "bash",
+  "scripts/run_clang_tidy.bash",
+  "{{ package_name }}",
+  "--fix",
+], args = [
+  { arg = "package_name", default = "" },
+] }
+
 [dependencies]
 
 # Build dependencies
+clang-tools = ">=19.1.7,<20"
 cmake       = ">=3.30.5,<4"
 ninja       = ">=1.12.1,<2"
 clangxx     = ">=19.1.7,<20"

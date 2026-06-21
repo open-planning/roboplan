@@ -167,6 +167,11 @@ class ConfigurationTask(Task):
     @joint_weights.setter
     def joint_weights(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
+    def setTargetConfiguration(self, target: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Sets the target joint configuration for this task, for runtime retargeting.
+        """
+
 class Constraints:
     """Abstract base class for IK constraints."""
 
@@ -200,6 +205,49 @@ class VelocityLimit(Constraints):
 
     @v_max.setter
     def v_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+
+class AccelerationLimit(Constraints):
+    """
+    Constraint to enforce joint acceleration limits by bounding the change in velocity
+    between successive IK steps (plus a braking-distance term toward position limits).
+    Inspired by pink.limits.AccelerationLimit.
+    """
+
+    def __init__(self, oink: Oink, dt: float, a_max: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """Create an acceleration limit with per-joint maximum accelerations."""
+
+    def setLastVelocity(self, v_prev: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Record the velocity integrated on the previous step (Delta_q_prev = v_prev * dt,
+        reusing the constraint's dt). Call once per control step before solving so the
+        acceleration bound is centered on the previous velocity.
+        """
+
+    def reset(self) -> None:
+        """
+        Reset the previous-step displacement to zero (e.g. when the robot is at rest).
+        """
+
+    @property
+    def dt(self) -> float:
+        """Time step for acceleration calculation."""
+
+    @dt.setter
+    def dt(self, arg: float, /) -> None: ...
+
+    @property
+    def a_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Maximum joint accelerations."""
+
+    @a_max.setter
+    def a_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+
+    @property
+    def Delta_q_prev(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Displacement applied on the previous step."""
+
+    @Delta_q_prev.setter
+    def Delta_q_prev(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
@@ -277,6 +325,56 @@ class PositionBarrier(Barrier):
     def p_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Maximum position bounds."""
 
+class SelfCollisionBarrierOptions:
+    """Parameters for SelfCollisionBarrier."""
+
+    def __init__(self, n_collision_pairs: int = 1, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0, d_max: float | None = 0.5) -> None:
+        """Constructor with custom parameters."""
+
+    @property
+    def n_collision_pairs(self) -> int:
+        """Maximum number of closest collision pairs to constrain."""
+
+    @n_collision_pairs.setter
+    def n_collision_pairs(self, arg: int, /) -> None: ...
+
+    @property
+    def gain(self) -> float:
+        """Barrier gain (gamma)."""
+
+    @gain.setter
+    def gain(self, arg: float, /) -> None: ...
+
+    @property
+    def safe_displacement_gain(self) -> float:
+        """Gain for safe displacement regularization."""
+
+    @safe_displacement_gain.setter
+    def safe_displacement_gain(self, arg: float, /) -> None: ...
+
+    @property
+    def d_min(self) -> float:
+        """Minimum allowed distance between any pair of bodies."""
+
+    @d_min.setter
+    def d_min(self, arg: float, /) -> None: ...
+
+    @property
+    def safety_margin(self) -> float:
+        """Conservative margin for hard constraint guarantee."""
+
+    @safety_margin.setter
+    def safety_margin(self, arg: float, /) -> None: ...
+
+    @property
+    def d_max(self) -> float | None:
+        """
+        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. Visibility / performance bound, not a separation limit.
+        """
+
+    @d_max.setter
+    def d_max(self, arg: float | None) -> None: ...
+
 class SelfCollisionBarrier(Barrier):
     """
     Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.
@@ -285,16 +383,24 @@ class SelfCollisionBarrier(Barrier):
     least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.
     """
 
-    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, n_collision_pairs: int, dt: float, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0) -> None:
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, dt: float, options: SelfCollisionBarrierOptions = ...) -> None:
         """Create a self-collision barrier."""
 
     @property
     def n_collision_pairs(self) -> int:
-        """Number of closest collision pairs to constrain."""
+        """
+        Number of closest collision pairs constrained (clipped to the scene's pair count).
+        """
 
     @property
     def d_min(self) -> float:
         """Minimum allowed distance between any pair of bodies."""
+
+    @property
+    def d_max(self) -> float | None:
+        """
+        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance.
+        """
 
 class Oink:
     """Optimal Inverse Kinematics solver."""

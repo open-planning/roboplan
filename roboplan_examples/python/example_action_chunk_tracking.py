@@ -2,7 +2,8 @@
 Track mock learned policy action chunks.
 This example demonstrates how a learned policy action chunk can be treated as a
 short-horizon command sequence, interpolated at a smaller control timestep, and
-tracked through OInK for Cartesian actions or directly integrated for joint-space actions.
+tracked through the OInK solver to respect position and velocity limits (and an optional
+acceleration limit).
 
 Supported chunk types:
   1. Cartesian/end-effector targets: sparse absolute SE(3) target poses
@@ -12,8 +13,10 @@ The main idea is:
   sparse policy-like action chunk
       -> sparse target poses/configurations
       -> dense interpolated targets at control_dt
-      -> Cartesian actions: OInK tracking with PositionLimit + VelocityLimit
-      -> joint-space actions: direct interpolated configuration trajectory
+      -> Cartesian actions: OInK FrameTasks tracking with PositionLimit + VelocityLimit
+         (+ optional AccelerationLimit)
+      -> joint-space actions: OInK ConfigurationTask tracking with PositionLimit +
+         VelocityLimit (+ optional AccelerationLimit)
       -> visualization
 
 For multi-arm models such as "dual", Cartesian chunks create one frame task per
@@ -44,6 +47,7 @@ from roboplan.interpolation import (
     interpolateJointTrajectory,
 )
 from roboplan.optimal_ik import (
+    AccelerationLimit,
     ConfigurationTask,
     ConfigurationTaskOptions,
     FrameTask,
@@ -208,7 +212,7 @@ def compute_end_effector_positions(
 
 
 def visualize_ee_traces(
-    viz,
+    viz: ViserVisualizer,
     ee_frame_name: str,
     sparse_pos: np.ndarray,
     dense_pos: np.ndarray,
@@ -271,11 +275,12 @@ def main(
     action_space: ActionSpace = "cartesian",
     chunk_horizon: int = 6,
     action_scale: float = 1.0,
-    segment_time: float = 0.2,
+    segment_time: float = 0.5,
     control_freq: float = 100.0,
     task_gain: float = 1.0,
     lm_damping: float = 0.01,
     regularization: float = 1e-6,
+    limit_acceleration: bool = False,
     sleep: bool = False,
     playback_speed: float = 1.0,
     host: str = "localhost",
@@ -290,9 +295,15 @@ def main(
         action_scale: Scale applied to the mock target chunk to make the motion shorter or longer.
         segment_time: Duration between consecutive sparse action waypoints, in seconds.
         control_freq: Dense interpolation/tracking frequency, in Hz.
-        task_gain: Cartesian OInK task gain.
-        lm_damping: Cartesian frame-task Levenberg-Marquardt damping.
-        regularization: Tikhonov regularization passed to OInK in Cartesian mode.
+        task_gain: OInK task gain (FrameTask in Cartesian mode, ConfigurationTask in joint mode).
+        lm_damping: OInK task Levenberg-Marquardt damping.
+        regularization: Tikhonov regularization passed to OInK.
+        limit_acceleration: If true (and the model defines acceleration limits), add an OInK
+            AccelerationLimit so the executed motion respects joint acceleration limits. Off by
+            default: it bounds how fast velocity can change but does not brake toward the task
+            target, so aggressive chunks will overshoot (the arm saturates velocity and cannot
+            decelerate in time). Use a gentler chunk (smaller action_scale / larger segment_time)
+            when enabling it.
         sleep: If true, sleep between dense tracking steps while initially generating the trajectory.
         playback_speed: Playback speed multiplier for GUI animation.
         host: Viser host.
@@ -370,22 +381,42 @@ def main(
         raise ValueError(f"Model '{model}' has no configured end-effectors.")
     print(f"End-effectors: {ee_frame_names}")
 
-    if action_space == "cartesian":
-        oink = Oink(scene, joint_group)
-        num_variables = len(oink.v_indices)
+    # Both action spaces feed their dense targets through the same OInK solver so the
+    # executed motion respects joint position and velocity limits. The solver and these
+    # limit constraints are shared; each action space only adds its own tracking tasks.
+    oink = Oink(scene, joint_group)
+    num_variables = len(oink.v_indices)
+    print(f"Velocity variables: {num_variables}")
 
-        v_max = np.hstack(
-            [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
+    v_max = np.hstack(
+        [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
+    )
+    constraints = [
+        PositionLimit(oink, gain=1.0),
+        VelocityLimit(oink, dt, v_max),
+    ]
+
+    # Acceleration limit (opt-in): bounds the change in velocity between control steps so the
+    # motion does not snap/jerk. It needs the previous step's velocity, so the rollout loops call
+    # accel_limit.setLastVelocity(...) each iteration. Off by default because it does not brake
+    # toward the task target, so aggressive chunks will overshoot.
+    accel_limit = None
+    if limit_acceleration:
+        a_max = np.hstack(
+            [scene.getJointInfo(name).limits.max_acceleration for name in joint_names]
         )
-        constraints = [
-            PositionLimit(oink, gain=1.0),
-            VelocityLimit(oink, dt, v_max),
-        ]
+        accel_limit = AccelerationLimit(oink, dt, a_max)
+        constraints.append(accel_limit)
+        print(f"Acceleration limit enabled (a_max={a_max}).")
 
-        print(f"Velocity variables: {num_variables}")
-
+    if action_space == "cartesian":
+        # Regularize toward the start configuration at priority 2 so it is projected into
+        # the nullspace of the (priority 1) FrameTasks. This uses only the redundant DOFs
+        # the FrameTasks leave free and never sacrifices end-effector tracking.
         joint_weights = np.full(num_variables, 1e-4)
-        config_options = ConfigurationTaskOptions(task_gain=1e-4, lm_damping=0.0)
+        config_options = ConfigurationTaskOptions(
+            task_gain=1.0, lm_damping=0.0, priority=2
+        )
         config_task = ConfigurationTask(
             oink,
             q_start[oink.q_indices],
@@ -458,6 +489,22 @@ def main(
             scene, dense_targets, ee_frame_names
         )
 
+        # Track the dense joint targets through OInK instead of playing them back
+        # directly. A ConfigurationTask follows the interpolated joint target each
+        # control step, while the shared PositionLimit + VelocityLimit constraints
+        # keep the executed motion within limits.
+        joint_weights = np.ones(num_variables)
+        config_options = ConfigurationTaskOptions(
+            task_gain=task_gain, lm_damping=lm_damping
+        )
+        config_task = ConfigurationTask(
+            oink,
+            q_start[oink.q_indices],
+            joint_weights,
+            config_options,
+        )
+        tasks = [config_task]
+
     print(f"Sparse targets: {len(sparse_target_positions_by_frame[ee_frame_names[0]])}")
     print(f"Dense targets:  {len(dense_target_positions_by_frame[ee_frame_names[0]])}")
 
@@ -485,6 +532,10 @@ def main(
             ):
                 frame_task.setTargetFrameTransform(base_T_world @ frame_tforms[idx])
 
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
+            if accel_limit is not None:
+                accel_limit.setLastVelocity(delta_q / dt)
+
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)
             except RuntimeError as exc:
@@ -502,11 +553,37 @@ def main(
                 time.sleep(max(0.0, dt - elapsed))
 
     else:
-        trajectory = dense_targets
-        if sleep:
-            for q in trajectory:
-                viz.display(q)
-                time.sleep(dt)
+        q_current = q_start.copy()
+        trajectory = [q_current.copy()]
+        delta_q = np.zeros(num_variables, dtype=float)
+        # Non-group indices are always zero; only group indices are written each step.
+        delta_q_full = np.zeros(model_pin.nv, dtype=float)
+
+        for idx in range(len(dense_targets)):
+            loop_start = time.time()
+
+            # Retarget the ConfigurationTask to the current dense joint waypoint.
+            config_task.setTargetConfiguration(dense_targets[idx][oink.q_indices])
+
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
+            if accel_limit is not None:
+                accel_limit.setLastVelocity(delta_q / dt)
+
+            try:
+                oink.solveIk(scene, tasks, constraints, delta_q, regularization)
+            except RuntimeError as exc:
+                print(f"Warning: OInK failed at dense step {idx}: {exc}")
+                delta_q[:] = 0.0
+
+            delta_q_full[oink.v_indices] = delta_q
+            q_current = scene.integrate(q_current, delta_q_full)
+            scene.setJointPositions(q_current)
+            trajectory.append(q_current.copy())
+
+            if sleep:
+                viz.display(q_current)
+                elapsed = time.time() - loop_start
+                time.sleep(max(0.0, dt - elapsed))
 
     print("Finished tracking action chunk.")
     print(f"Generated trajectory with {len(trajectory)} configurations.")
@@ -554,7 +631,7 @@ def main(
     if action_space == "cartesian":
         print("  colored traces: executed OInK-constrained end-effector trajectories")
     else:
-        print("  colored traces: executed joint-space end-effector trajectories")
+        print("  colored traces: executed OInK-constrained joint-space trajectories")
     print("  red spheres: current end-effector positions")
     print("Use the Viser GUI controls to animate, scrub, or reset the trajectory.")
 

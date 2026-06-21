@@ -91,6 +91,8 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("joint_names", &JointGroupInfo::joint_names,
               "The joint names that make up the group.")
       .def_rw("joint_indices", &JointGroupInfo::joint_indices, "The joint indices in the group.")
+      .def_rw("link_names", &JointGroupInfo::link_names,
+              "The link (body) names that make up the group.")
       .def_rw("q_indices", &JointGroupInfo::q_indices, "The position vector indices in the group.")
       .def_rw("v_indices", &JointGroupInfo::v_indices, "The velocity vector indices in the group.")
       .def_rw("has_continuous_dofs", &JointGroupInfo::has_continuous_dofs,

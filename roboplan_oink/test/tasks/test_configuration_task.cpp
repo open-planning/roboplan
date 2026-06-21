@@ -123,6 +123,44 @@ TEST_F(ConfigurationTaskTest, ErrorWithOffset) {
   }
 }
 
+// Test runtime retargeting via setTargetConfiguration
+TEST_F(ConfigurationTaskTest, SetTargetConfiguration) {
+  const Eigen::VectorXd& q = scene_->getCurrentJointPositions();
+  Eigen::VectorXd target_q = q;
+  Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
+
+  ConfigurationTask task(*oink_, target_q, joint_weights);
+
+  // At the original (current) target, the error should be zero.
+  ASSERT_TRUE(task.computeError(*scene_).has_value());
+  EXPECT_NEAR(task.error_container.norm(), 0.0, 1e-10);
+
+  // Retarget at runtime to a new configuration with an offset on the first joint.
+  Eigen::VectorXd new_target = q;
+  new_target(0) += 0.25;
+  task.setTargetConfiguration(new_target);
+
+  EXPECT_TRUE(task.target_q.isApprox(new_target));
+
+  // The error should now reflect the new target.
+  ASSERT_TRUE(task.computeError(*scene_).has_value());
+  EXPECT_NEAR(task.error_container(0), 0.25, 1e-10);
+  for (int i = 1; i < nv_; ++i) {
+    EXPECT_NEAR(task.error_container(i), 0.0, 1e-10);
+  }
+}
+
+// Test that setTargetConfiguration rejects a wrongly-sized target
+TEST_F(ConfigurationTaskTest, SetTargetConfigurationInvalidSize) {
+  Eigen::VectorXd target_q = Eigen::VectorXd::Zero(nq_);
+  Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(nv_);
+
+  ConfigurationTask task(*oink_, target_q, joint_weights);
+
+  Eigen::VectorXd bad_target = Eigen::VectorXd::Zero(nq_ + 1);
+  EXPECT_THROW({ task.setTargetConfiguration(bad_target); }, std::invalid_argument);
+}
+
 // Test Jacobian computation dimensions and identity
 TEST_F(ConfigurationTaskTest, JacobianIsIdentity) {
   Eigen::VectorXd target_q = Eigen::VectorXd::Zero(nq_);

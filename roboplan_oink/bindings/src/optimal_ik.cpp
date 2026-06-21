@@ -2,6 +2,7 @@
 
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
@@ -9,6 +10,7 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan_oink/barriers/position_barrier.hpp>
 #include <roboplan_oink/barriers/self_collision_barrier.hpp>
+#include <roboplan_oink/constraints/acceleration_limit.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -89,7 +91,9 @@ void init_optimal_ik(nanobind::module_& m) {
            "oink"_a, "target_q"_a, "joint_weights"_a, "options"_a = ConfigurationTaskOptions{})
       .def_rw("target_q", &ConfigurationTask::target_q, "Target joint configuration.")
       .def_rw("joint_weights", &ConfigurationTask::joint_weights,
-              "Weights for each joint in the configuration task.");
+              "Weights for each joint in the configuration task.")
+      .def("setTargetConfiguration", &ConfigurationTask::setTargetConfiguration, "target"_a,
+           "Sets the target joint configuration for this task, for runtime retargeting.");
 
   // Bind the abstract Constraints base class
   nanobind::class_<Constraints>(m, "Constraints", "Abstract base class for IK constraints.");
@@ -108,6 +112,25 @@ void init_optimal_ik(nanobind::module_& m) {
            "v_max"_a)
       .def_rw("dt", &VelocityLimit::dt, "Time step for velocity calculation.")
       .def_rw("v_max", &VelocityLimit::v_max, "Maximum joint velocities.");
+
+  // Bind AccelerationLimit constraint
+  nanobind::class_<AccelerationLimit, Constraints>(
+      m, "AccelerationLimit",
+      "Constraint to enforce joint acceleration limits by bounding the change in velocity\n"
+      "between successive IK steps (plus a braking-distance term toward position limits).\n"
+      "Inspired by pink.limits.AccelerationLimit.")
+      .def(nanobind::init<const Oink&, double, const Eigen::VectorXd&>(), "oink"_a, "dt"_a,
+           "a_max"_a, "Create an acceleration limit with per-joint maximum accelerations.")
+      .def("setLastVelocity", &AccelerationLimit::setLastVelocity, "v_prev"_a,
+           "Record the velocity integrated on the previous step (Delta_q_prev = v_prev * dt,\n"
+           "reusing the constraint's dt). Call once per control step before solving so the\n"
+           "acceleration bound is centered on the previous velocity.")
+      .def("reset", &AccelerationLimit::reset,
+           "Reset the previous-step displacement to zero (e.g. when the robot is at rest).")
+      .def_rw("dt", &AccelerationLimit::dt, "Time step for acceleration calculation.")
+      .def_rw("a_max", &AccelerationLimit::a_max, "Maximum joint accelerations.")
+      .def_rw("Delta_q_prev", &AccelerationLimit::Delta_q_prev,
+              "Displacement applied on the previous step.");
 
   // Bind the abstract Barrier base class
   nanobind::class_<Barrier>(m, "Barrier", "Abstract base class for Control Barrier Functions.")
@@ -147,20 +170,45 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("p_min", &PositionBarrier::p_min, "Minimum position bounds.")
       .def_ro("p_max", &PositionBarrier::p_max, "Maximum position bounds.");
 
+  // Bind SelfCollisionBarrierOptions configuration struct
+  nanobind::class_<SelfCollisionBarrierOptions>(m, "SelfCollisionBarrierOptions",
+                                                "Parameters for SelfCollisionBarrier.")
+      .def(nanobind::init<int, double, double, double, double, std::optional<double>>(),
+           "n_collision_pairs"_a = 1, "gain"_a = 1.0, "safe_displacement_gain"_a = 1.0,
+           "d_min"_a = 0.02, "safety_margin"_a = 0.0, "d_max"_a = std::optional<double>(0.5),
+           "Constructor with custom parameters.")
+      .def_rw("n_collision_pairs", &SelfCollisionBarrierOptions::n_collision_pairs,
+              "Maximum number of closest collision pairs to constrain.")
+      .def_rw("gain", &SelfCollisionBarrierOptions::gain, "Barrier gain (gamma).")
+      .def_rw("safe_displacement_gain", &SelfCollisionBarrierOptions::safe_displacement_gain,
+              "Gain for safe displacement regularization.")
+      .def_rw("d_min", &SelfCollisionBarrierOptions::d_min,
+              "Minimum allowed distance between any pair of bodies.")
+      .def_rw("safety_margin", &SelfCollisionBarrierOptions::safety_margin,
+              "Conservative margin for hard constraint guarantee.")
+      .def_rw(
+          "d_max", &SelfCollisionBarrierOptions::d_max,
+          "Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding "
+          "boxes are farther apart than this skip exact narrow-phase distance. Visibility / "
+          "performance bound, not a separation limit.");
+
   // Bind SelfCollisionBarrier
   nanobind::class_<SelfCollisionBarrier, Barrier>(
       m, "SelfCollisionBarrier",
       "Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.\n\n"
       "Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at\n"
       "least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.")
-      .def(nanobind::init<const Oink&, const Scene&, int, double, double, double, double, double>(),
-           "oink"_a, "scene"_a, "n_collision_pairs"_a, "dt"_a, "gain"_a = 1.0,
-           "safe_displacement_gain"_a = 1.0, "d_min"_a = 0.02, "safety_margin"_a = 0.0,
+      .def(nanobind::init<const Oink&, const Scene&, double, const SelfCollisionBarrierOptions&>(),
+           "oink"_a, "scene"_a, "dt"_a, "options"_a = SelfCollisionBarrierOptions{},
            "Create a self-collision barrier.")
       .def_ro("n_collision_pairs", &SelfCollisionBarrier::n_collision_pairs,
-              "Number of closest collision pairs to constrain.")
+              "Number of closest collision pairs constrained (clipped to the scene's pair count).")
       .def_ro("d_min", &SelfCollisionBarrier::d_min,
-              "Minimum allowed distance between any pair of bodies.");
+              "Minimum allowed distance between any pair of bodies.")
+      .def_ro(
+          "d_max", &SelfCollisionBarrier::d_max,
+          "Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding "
+          "boxes are farther apart than this skip exact narrow-phase distance.");
 
   // Bind Oink solver
   nanobind::class_<Oink>(m, "Oink", "Optimal Inverse Kinematics solver.")

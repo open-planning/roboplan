@@ -61,6 +61,18 @@ target_link_libraries(
   roboplan_example_models::roboplan_example_models
 )
 
+# Build AccelerationLimit unit tests
+add_executable(test_acceleration_limit constraints/test_acceleration_limit.cpp)
+set_property(TARGET test_acceleration_limit PROPERTY CXX_STANDARD 20)
+target_link_libraries(
+  test_acceleration_limit
+  roboplan::roboplan
+  roboplan_oink
+  GTest::gmock_main
+  GTest::gtest_main
+  roboplan_example_models::roboplan_example_models
+)
+
 # Build PositionBarrier unit tests
 add_executable(test_position_barrier barriers/test_position_barrier.cpp)
 set_property(TARGET test_position_barrier PROPERTY CXX_STANDARD 20)
@@ -93,6 +105,7 @@ if ( ament_cmake_gtest_FOUND )
     ament_add_gtest_test(test_configuration_task)
     ament_add_gtest_test(test_velocity_limit)
     ament_add_gtest_test(test_position_limit)
+    ament_add_gtest_test(test_acceleration_limit)
     ament_add_gtest_test(test_position_barrier)
     ament_add_gtest_test(test_self_collision_barrier)
 else()
@@ -100,8 +113,9 @@ else()
     gtest_add_tests(TARGET test_oink)
     gtest_add_tests(TARGET test_frame_task)
     gtest_add_tests(TARGET test_configuration_task)
-    gtest_add_tests(TARGET test_velocity_limit)
     gtest_add_tests(TARGET test_position_limit)
+    gtest_add_tests(TARGET test_velocity_limit)
+    gtest_add_tests(TARGET test_acceleration_limit)
     gtest_add_tests(TARGET test_position_barrier)
     gtest_add_tests(TARGET test_self_collision_barrier)
 endif()

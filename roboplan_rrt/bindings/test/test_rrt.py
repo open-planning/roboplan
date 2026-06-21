@@ -22,6 +22,9 @@ def test_scene() -> Scene:
 
 
 def test_plan(test_scene: Scene) -> None:
+    # Ensure determinism in the test.
+    test_scene.setRngSeed(286)
+
     options = RRTOptions()
     options.group_name = "arm"
     options.max_connection_distance = 1.0
@@ -46,6 +49,10 @@ def test_plan(test_scene: Scene) -> None:
 def test_plan_rrt_star(test_scene: Scene) -> None:
     # Plan the same problem with and without RRT*. RRT* keeps rewiring and optimizing,
     # so its path must be equal or shorter than plain RRT.
+
+    # Ensure determinism in the test.
+    test_scene.setRngSeed(286)
+
     start = JointConfiguration()
     start.positions = test_scene.randomCollisionFreePositions()
     assert start.positions is not None
