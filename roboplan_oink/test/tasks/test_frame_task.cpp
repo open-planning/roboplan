@@ -210,8 +210,8 @@ TEST_F(FrameTaskTest, QpObjectiveComputation) {
   }
 
   // H should be symmetric
-  Eigen::MatrixXd h_dense = Eigen::MatrixXd(H);
-  EXPECT_TRUE(h_dense.isApprox(h_dense.transpose(), 1e-10));
+  Eigen::MatrixXd H_dense = Eigen::MatrixXd(H);
+  EXPECT_TRUE(H_dense.isApprox(H_dense.transpose(), 1e-10));
 }
 
 // Test invalid frame name

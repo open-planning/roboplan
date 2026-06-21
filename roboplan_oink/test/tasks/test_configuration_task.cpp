@@ -166,8 +166,8 @@ TEST_F(ConfigurationTaskTest, QpObjectiveComputation) {
   }
 
   // H should be symmetric
-  Eigen::MatrixXd h_dense = Eigen::MatrixXd(H);
-  EXPECT_TRUE(h_dense.isApprox(h_dense.transpose(), 1e-10));
+  Eigen::MatrixXd H_dense = Eigen::MatrixXd(H);
+  EXPECT_TRUE(H_dense.isApprox(H_dense.transpose(), 1e-10));
 }
 
 // Test weight matrix with per-joint weights
@@ -226,7 +226,7 @@ TEST_F(ConfigurationTaskTest, ZeroWeightJointsIgnored) {
 
   // First row/column of H should be effectively just damping
   // The weighted contribution from joint 0 error should be zero
-  Eigen::MatrixXd h_dense = Eigen::MatrixXd(H);
+  Eigen::MatrixXd H_dense = Eigen::MatrixXd(H);
 
   // c[0] should be zero since weight is zero (no gradient contribution)
   EXPECT_NEAR(c(0), 0.0, 1e-10);

@@ -283,7 +283,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   EXPECT_EQ(oink.last_constraint_rows, num_variables_);
 
   // Store matrix data pointers to verify no reallocation
-  const double* a_data_ptr = oink.constraint_workspace_A.data();
+  const double* A_data_ptr = oink.constraint_workspace_A.data();
   const double* lower_data_ptr = oink.constraint_workspace_lower.data();
   const double* upper_data_ptr = oink.constraint_workspace_upper.data();
 
@@ -296,7 +296,7 @@ TEST_F(OinkTest, WorkspaceCaching) {
   ASSERT_TRUE(result2.has_value()) << "Second solve failed: " << result2.error();
 
   // Verify workspace was reused (same pointers)
-  EXPECT_EQ(oink.constraint_workspace_A.data(), a_data_ptr) << "Workspace A was reallocated!";
+  EXPECT_EQ(oink.constraint_workspace_A.data(), A_data_ptr) << "Workspace A was reallocated!";
   EXPECT_EQ(oink.constraint_workspace_lower.data(), lower_data_ptr)
       << "Workspace lower was reallocated!";
   EXPECT_EQ(oink.constraint_workspace_upper.data(), upper_data_ptr)
