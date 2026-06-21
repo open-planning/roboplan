@@ -48,8 +48,8 @@ void CollisionContext::computeDistances(const Eigen::VectorXd& q,
   // Refresh joint + geometry placements on our own scratch, then update each geometry's world AABB.
   pinocchio::updateGeometryPlacements(model_, data_, collision_model_, geom_data_, q);
   for (std::size_t i = 0; i < aabb_objects_.size(); ++i) {
-    const auto& oMg = geom_data_.oMg[i];
-    aabb_objects_[i].setTransform(oMg.rotation(), oMg.translation());
+    const auto& world_T_geom = geom_data_.oMg[i];
+    aabb_objects_[i].setTransform(world_T_geom.rotation(), world_T_geom.translation());
     aabb_objects_[i].computeAABB();
   }
 

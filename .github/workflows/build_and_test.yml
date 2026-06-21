@@ -110,7 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu_version: [22.04, 24.04]
+        ubuntu_version: [22.04, 24.04, 26.04]
 
     runs-on: ubuntu-${{ matrix.ubuntu_version }}
     steps:
@@ -138,10 +138,6 @@ jobs:
           pixi run -e ci install_all
           pixi run -e ci build_tests
           pixi run -e ci test_all
-      - name: Run clang-tidy
-        if: matrix.ubuntu_version == '24.04'
-        run: |
-          pixi run -e ci clang-tidy
       - name: Check bindings stub files
         run: |
           if ! git diff --exit-code --shortstat -- '*.pyi'; then
@@ -151,9 +147,13 @@ jobs:
             exit 1
           fi
           echo "✅ .pyi stub files look good!"
+      - name: Run clang-tidy
+        if: matrix.ubuntu_version == '26.04'
+        run: |
+          pixi run -e ci clang-tidy
       # TODO: Decide on a method for automated benchmark performance testing.
       # TODO: These are currently running in debug mode due to `-e ci`. We should fix this.
       - name: Run benchmarks
-        if: matrix.ubuntu_version != '24.04'  # Just to not share time with clang-tidy
+        if: matrix.ubuntu_version != '26.04'  # Just to not share time with clang-tidy
         run: |
           pixi run -e ci test_benchmarks

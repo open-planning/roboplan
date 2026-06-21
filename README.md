@@ -1,6 +1,6 @@
 # RoboPlan
 
-Modern robot motion planning library based on Pinocchio.
+Modern robot motion planning library based on [Pinocchio](https://github.com/stack-of-tasks/pinocchio).
 
 Refer to the [full documentation](https://roboplan.readthedocs.io) for more information.
 
