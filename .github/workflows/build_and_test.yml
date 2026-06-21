@@ -138,10 +138,6 @@ jobs:
           pixi run -e ci install_all
           pixi run -e ci build_tests
           pixi run -e ci test_all
-      - name: Run clang-tidy
-        if: matrix.ubuntu_version == '24.04'
-        run: |
-          pixi run -e ci clang-tidy
       - name: Check bindings stub files
         run: |
           if ! git diff --exit-code --shortstat -- '*.pyi'; then
@@ -155,3 +151,35 @@ jobs:
       - name: Run benchmarks
         run: |
           pixi run -e ci test_benchmarks
+
+  clang_tidy:
+    timeout-minutes: 30
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    strategy:
+      fail-fast: false
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      # Cache build directories and sccache
+      - name: Cache build directories and sccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ runner.os }}-clang-tidy-sccache-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-clang-tidy-sccache-main
+            ${{ runner.os }}-clang-tidy-sccache
+      - uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          frozen: true
+          manifest-path: pixi.toml
+      - name: Run clang-tidy
+        run: |
+          pixi run -e ci clang-tidy
