@@ -44,7 +44,7 @@ TEST_F(RoboPlanRRTTest, Plan) {
   const auto maybe_path = rrt->plan(start, goal);
   ASSERT_TRUE(maybe_path.has_value());
 
-  // Ensure the path starts and ends at the correct poses.
+  // Ensure the path starts and ends at the correct configurations.
   const auto path = maybe_path.value();
   std::cout << path << "\n";
   ASSERT_EQ(path.positions[0], start.positions);
@@ -71,7 +71,7 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
   const auto maybe_path = rrt->plan(start, goal);
   ASSERT_TRUE(maybe_path.has_value());
 
-  // Ensure the path starts and ends at the correct poses.
+  // Ensure the path starts and ends at the correct configurations.
   const auto path = maybe_path.value();
   std::cout << path << "\n";
   ASSERT_EQ(path.positions[0], start.positions);
@@ -104,7 +104,7 @@ TEST_F(RoboPlanRRTTest, PlanRRTStar) {
   ASSERT_TRUE(maybe_star_path.has_value());
   ASSERT_TRUE(maybe_rrt_path.has_value());
 
-  // Ensure the path starts and ends at the correct poses.
+  // Ensure the path starts and ends at the correct configurations.
   const auto path = maybe_star_path.value();
   std::cout << path << "\n";
   ASSERT_EQ(path.positions[0], start.positions);
@@ -147,7 +147,7 @@ TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
   ASSERT_TRUE(maybe_star_path.has_value());
   ASSERT_TRUE(maybe_connect_path.has_value());
 
-  // Ensure the path starts and ends at the correct poses.
+  // Ensure the path starts and ends at the correct configurations.
   const auto path = maybe_star_path.value();
   std::cout << path << "\n";
   ASSERT_EQ(path.positions[0], start.positions);
@@ -186,21 +186,21 @@ TEST_F(RoboPlanRRTTest, FastReturnUsesFullBudget) {
   EXPECT_LT(plan_and_count(/*fast_return*/ true), plan_and_count(/*fast_return*/ false));
 }
 
-TEST_F(RoboPlanRRTTest, InvalidPoses) {
+TEST_F(RoboPlanRRTTest, InvalidConfigurations) {
   RRTOptions options;
   options.group_name = "arm";
   auto rrt = std::make_unique<RRT>(scene_, options);
   rrt->setRngSeed(1234);
 
-  const auto valid_pose = scene_->randomCollisionFreePositions().value();
-  const Eigen::VectorXd invalid_pose{{-6, -6, -6, -6, -6, -6}};
+  const auto q_valid = scene_->randomCollisionFreePositions().value();
+  const Eigen::VectorXd q_invalid{{-6, -6, -6, -6, -6, -6}};
 
   JointConfiguration start;
-  start.positions = valid_pose;
+  start.positions = q_valid;
   JointConfiguration goal;
-  goal.positions = invalid_pose;
+  goal.positions = q_invalid;
 
-  // Planning will fail as the goal pose is unreachable due to joint limits.
+  // Planning will fail as the goal configuration is unreachable due to joint limits.
   const auto path = rrt->plan(start, goal);
   ASSERT_FALSE(path.has_value());
 }
@@ -240,12 +240,12 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
 
   const CollisionContext collision_context(*scene_);
 
-  // Initialize the search to the start pose.
+  // Initialize the search to the start configuration.
   KdTree tree;
   std::vector<Node> nodes;
   rrt->initializeTree(tree, nodes, q_start);
 
-  // A single EXTEND step adds exactly one node at the expected pose,
+  // A single EXTEND step adds exactly one node at the expected configuration,
   // which is exactly options.max_connection_distance away.
   ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, collision_context, /*greedy*/ false));
   ASSERT_EQ(nodes.size(), 2);
@@ -282,7 +282,7 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
 
   const CollisionContext collision_context(*scene_);
 
-  // Initialize the search to the start pose.
+  // Initialize the search to the start configuration.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
   rrt->initializeTree(start_tree, start_nodes, q_start);
