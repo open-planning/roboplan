@@ -15,6 +15,7 @@ autoapi_dirs = [
     "../../roboplan_rrt/bindings/python",
     "../../roboplan_simple_ik/bindings/python",
     "../../roboplan_toppra/bindings/python",
+    "../../roboplan_cartesian_planning/bindings/python",
 ]
 
 # -- Path setup --------------------------------------------------------------
@@ -81,11 +82,12 @@ breathe_projects_source = {}
 
 for package in [
     "roboplan",
+    "roboplan_example_models",
     "roboplan_rrt",
     "roboplan_simple_ik",
-    "roboplan_toppra",
-    "roboplan_example_models",
     "roboplan_oink",
+    "roboplan_toppra",
+    "roboplan_cartesian_planning",
 ]:
     # Generate Doxygen XML and add it to the breathe projects.
     subprocess.call(f"cd ../../{package}/docs; rm -rf html/ xml/; doxygen", shell=True)

@@ -7,6 +7,12 @@ Core Library
 .. autodoxygenindex::
     :project: roboplan
 
+Example Models
+--------------
+
+.. autodoxygenindex::
+    :project: roboplan_example_models
+
 Simple IK
 ---------
 
@@ -31,8 +37,8 @@ TOPP-RA
 .. autodoxygenindex::
     :project: roboplan_toppra
 
-Example Models
---------------
+Cartesian Planning
+------------------
 
 .. autodoxygenindex::
-    :project: roboplan_example_models
+    :project: roboplan_cartesian_planning
