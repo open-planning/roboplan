@@ -112,7 +112,7 @@ TEST_F(RoboPlanJointTest, JointGroupLinksFromChainAndExplicitLinks) {
   </group>
 </robot>
 )";
-  Scene scene("chain_scene", URDF, srdf);
+  Scene scene("chain_scene", kUrdf, srdf);
 
   // The chain from base_link to link3 covers link1, link2, and link3 (base_link is excluded).
   const auto chain_info = scene.getJointGroupInfo("chain_group").value();

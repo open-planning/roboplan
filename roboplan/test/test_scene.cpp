@@ -164,13 +164,13 @@ TEST_F(RoboPlanSceneTest, TestFrameJacobianSameBaseAndTipIsZero) {
   Eigen::VectorXd q(6);
   q << 0.5, -0.5, 1.0, 0.0, 0.3, 0.0;
 
-  const auto maybe_frame_id = scene_->getFrameId("tool0");
+  const auto maybe_frame_id = scene->getFrameId("tool0");
   ASSERT_TRUE(maybe_frame_id.has_value());
   const pinocchio::FrameIndex frame_id = maybe_frame_id.value();
 
   for (auto rf : {pinocchio::LOCAL, pinocchio::LOCAL_WORLD_ALIGNED, pinocchio::WORLD}) {
-    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, scene_->getModel().nv);
-    scene_->computeRelativeFrameJacobian(q, frame_id, "tool0", rf, J);
+    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, scene->getModel().nv);
+    scene->computeRelativeFrameJacobian(q, frame_id, "tool0", rf, J);
     EXPECT_NEAR(J.norm(), 0.0, kTolerance)
         << "Relative Jacobian should be zero when base frame == tip frame";
   }
@@ -189,22 +189,22 @@ TEST_F(RoboPlanSceneTest, TestFrameJacobianBaseFrameNumerical) {
   //    affect wrist_1_link at all → J_rel[:,4:6] = J_ee_abs[:,4:6].
   Eigen::VectorXd q(6);
   q << 0.5, -0.5, 1.0, 0.2, 0.3, -0.1;
-  const int nv = scene_->getModel().nv;
+  const int nv = scene->getModel().nv;
 
-  const auto maybe_ee_id = scene_->getFrameId("tool0");
-  const auto maybe_base_id = scene_->getFrameId("wrist_1_link");
+  const auto maybe_ee_id = scene->getFrameId("tool0");
+  const auto maybe_base_id = scene->getFrameId("wrist_1_link");
   ASSERT_TRUE(maybe_ee_id.has_value());
   ASSERT_TRUE(maybe_base_id.has_value());
   const pinocchio::FrameIndex ee_id = maybe_ee_id.value();
 
   // Relative Jacobian (tool0 relative to wrist_1_link)
   Eigen::MatrixXd J_rel = Eigen::MatrixXd::Zero(6, nv);
-  scene_->computeRelativeFrameJacobian(q, ee_id, "wrist_1_link", pinocchio::LOCAL_WORLD_ALIGNED,
-                                       J_rel);
+  scene->computeRelativeFrameJacobian(q, ee_id, "wrist_1_link", pinocchio::LOCAL_WORLD_ALIGNED,
+                                      J_rel);
 
   // Absolute EE Jacobian (no base frame)
   Eigen::MatrixXd J_ee = Eigen::MatrixXd::Zero(6, nv);
-  scene_->computeFrameJacobian(q, ee_id, pinocchio::LOCAL_WORLD_ALIGNED, J_ee);
+  scene->computeFrameJacobian(q, ee_id, pinocchio::LOCAL_WORLD_ALIGNED, J_ee);
 
   // Property 1: upstream joints (0-3) → zero relative Jacobian columns.
   EXPECT_NEAR(J_rel.leftCols(4).norm(), 0.0, kTolerance)
@@ -593,7 +593,7 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
            "    max_position: [1.0]\n";
   }
 
-  Scene scene("override_scene", urdf_path_, srdf_path_, package_paths_, tmp_config);
+  Scene scene("override_scene", urdf_path, srdf_path, package_paths, tmp_config);
 
   const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
   ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
@@ -625,7 +625,7 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideInfinityFromYaml) {
            "    max_position: [.inf]\n";
   }
 
-  Scene scene("inf_scene", urdf_path_, srdf_path_, package_paths_, tmp_config);
+  Scene scene("inf_scene", urdf_path, srdf_path, package_paths, tmp_config);
 
   const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
   ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
@@ -649,7 +649,7 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
            "    max_position: [1.0, 2.0]\n";  // joint nv is 1, so this is invalid.
   }
 
-  EXPECT_THROW(Scene("bad_size_scene", urdf_path_, srdf_path_, package_paths_, tmp_config),
+  EXPECT_THROW(Scene("bad_size_scene", urdf_path, srdf_path, package_paths, tmp_config),
                std::runtime_error);
 
   std::filesystem::remove(tmp_config);

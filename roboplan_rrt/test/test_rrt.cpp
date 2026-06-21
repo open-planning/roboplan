@@ -82,8 +82,8 @@ TEST_F(RoboPlanRRTTest, PlanRRTStar) {
   // Plan the same problem with and without RRT*. RRT* keeps rewiring and optimizing until its
   // budget runs out, so its path must be equal or shorter than plain RRT.
   JointConfiguration start, goal;
-  start.positions = scene_->randomCollisionFreePositions().value();
-  goal.positions = scene_->randomCollisionFreePositions().value();
+  start.positions = scene->randomCollisionFreePositions().value();
+  goal.positions = scene->randomCollisionFreePositions().value();
 
   const auto plan_with = [&](bool rrt_star) {
     RRTOptions options;
@@ -94,7 +94,7 @@ TEST_F(RoboPlanRRTTest, PlanRRTStar) {
     // for the same seed, so the comparison is deterministic and independent of machine load.
     options.fast_return = false;
     options.max_nodes = 500;
-    auto rrt = std::make_unique<RRT>(scene_, options);
+    auto rrt = std::make_unique<RRT>(scene, options);
     rrt->setRngSeed(1234);
     return rrt->plan(start, goal);
   };
@@ -111,8 +111,8 @@ TEST_F(RoboPlanRRTTest, PlanRRTStar) {
   ASSERT_EQ(path.positions.back(), goal.positions);
 
   // RRT* must never produce a longer path than plain RRT.
-  const auto star_length = computePathLength(*scene_, "arm", maybe_star_path.value()).value();
-  const auto rrt_length = computePathLength(*scene_, "arm", maybe_rrt_path.value()).value();
+  const auto star_length = computePathLength(*scene, "arm", maybe_star_path.value()).value();
+  const auto rrt_length = computePathLength(*scene, "arm", maybe_rrt_path.value()).value();
   EXPECT_LE(star_length, rrt_length);
 }
 
@@ -124,9 +124,9 @@ TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
 
   // Seeds that failed between 1 - 1000
   // 272, 385, 405, 482, 616, 863
-  // scene_->setRngSeed(385);
-  start.positions = scene_->randomCollisionFreePositions().value();
-  goal.positions = scene_->randomCollisionFreePositions().value();
+  // scene->setRngSeed(385);
+  start.positions = scene->randomCollisionFreePositions().value();
+  goal.positions = scene->randomCollisionFreePositions().value();
 
   const auto plan_with = [&](bool rrt_star) {
     RRTOptions options;
@@ -137,7 +137,7 @@ TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
     // and independent of machine load (see PlanRRTStar for the rationale).
     options.fast_return = false;
     options.max_nodes = 500;
-    auto rrt = std::make_unique<RRT>(scene_, options);
+    auto rrt = std::make_unique<RRT>(scene, options);
     rrt->setRngSeed(1234);
     return rrt->plan(start, goal);
   };
