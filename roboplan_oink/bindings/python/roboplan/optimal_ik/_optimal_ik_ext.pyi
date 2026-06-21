@@ -277,6 +277,49 @@ class PositionBarrier(Barrier):
     def p_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Maximum position bounds."""
 
+class SelfCollisionBarrierOptions:
+    """Parameters for SelfCollisionBarrier."""
+
+    def __init__(self, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0, d_max: float | None = 0.5) -> None:
+        """Constructor with custom parameters."""
+
+    @property
+    def gain(self) -> float:
+        """Barrier gain (gamma)."""
+
+    @gain.setter
+    def gain(self, arg: float, /) -> None: ...
+
+    @property
+    def safe_displacement_gain(self) -> float:
+        """Gain for safe displacement regularization."""
+
+    @safe_displacement_gain.setter
+    def safe_displacement_gain(self, arg: float, /) -> None: ...
+
+    @property
+    def d_min(self) -> float:
+        """Minimum allowed distance between any pair of bodies."""
+
+    @d_min.setter
+    def d_min(self, arg: float, /) -> None: ...
+
+    @property
+    def safety_margin(self) -> float:
+        """Conservative margin for hard constraint guarantee."""
+
+    @safety_margin.setter
+    def safety_margin(self, arg: float, /) -> None: ...
+
+    @property
+    def d_max(self) -> float | None:
+        """
+        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. Visibility / performance bound, not a separation limit.
+        """
+
+    @d_max.setter
+    def d_max(self, arg: float | None) -> None: ...
+
 class SelfCollisionBarrier(Barrier):
     """
     Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.
@@ -285,7 +328,7 @@ class SelfCollisionBarrier(Barrier):
     least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.
     """
 
-    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, n_collision_pairs: int, dt: float, gain: float = 1.0, safe_displacement_gain: float = 1.0, d_min: float = 0.02, safety_margin: float = 0.0) -> None:
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, n_collision_pairs: int, dt: float, options: SelfCollisionBarrierOptions = ...) -> None:
         """Create a self-collision barrier."""
 
     @property
@@ -295,6 +338,12 @@ class SelfCollisionBarrier(Barrier):
     @property
     def d_min(self) -> float:
         """Minimum allowed distance between any pair of bodies."""
+
+    @property
+    def d_max(self) -> float | None:
+        """
+        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance.
+        """
 
 class Oink:
     """Optimal Inverse Kinematics solver."""

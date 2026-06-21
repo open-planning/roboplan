@@ -164,6 +164,8 @@ Oink::Oink(const Scene& scene, const std::string& group_name,
   task_H = Eigen::SparseMatrix<double>(num_variables, num_variables);
   H = Eigen::SparseMatrix<double>(num_variables, num_variables);
   c = Eigen::VectorXd::Zero(num_variables);
+
+  collision_context_ = std::make_unique<CollisionContext>(scene);
 }
 
 Oink::Oink(const Scene& scene, const std::string& group_name)
@@ -181,6 +183,8 @@ Oink::Oink(const Scene& scene, const std::string& group_name)
   task_H = Eigen::SparseMatrix<double>(num_variables, num_variables);
   H = Eigen::SparseMatrix<double>(num_variables, num_variables);
   c = Eigen::VectorXd::Zero(num_variables);
+
+  collision_context_ = std::make_unique<CollisionContext>(scene);
 
   settings.setWarmStart(true);
   settings.setVerbosity(false);

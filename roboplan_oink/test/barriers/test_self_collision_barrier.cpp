@@ -60,11 +60,10 @@ protected:
 TEST_F(SelfCollisionBarrierTest, ConstructionStoresParameters) {
   ASSERT_GT(num_pairs_, 0) << "Test scene must have at least one collision pair";
 
-  auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
-                                                        /*gain=*/2.5,
-                                                        /*safe_displacement_gain=*/0.5,
-                                                        /*d_min=*/0.03,
-                                                        /*safety_margin=*/0.01);
+  auto barrier = std::make_shared<SelfCollisionBarrier>(
+      *oink_, *scene_, num_pairs_, dt_,
+      SelfCollisionBarrierOptions{
+          .gain = 2.5, .safe_displacement_gain = 0.5, .d_min = 0.03, .safety_margin = 0.01});
 
   EXPECT_EQ(barrier->getNumBarriers(*scene_), num_pairs_);
   EXPECT_EQ(barrier->n_collision_pairs, num_pairs_);
@@ -87,8 +86,8 @@ TEST_F(SelfCollisionBarrierTest, ConstructionDefaultsAreReasonable) {
 TEST_F(SelfCollisionBarrierTest, InvalidDmin) {
   EXPECT_THROW(
       {
-        auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_, 1.0,
-                                                              1.0, /*d_min=*/-0.01);
+        auto barrier = std::make_shared<SelfCollisionBarrier>(
+            *oink_, *scene_, num_pairs_, dt_, SelfCollisionBarrierOptions{.d_min = -0.01});
       },
       std::invalid_argument);
 }
@@ -113,8 +112,8 @@ TEST_F(SelfCollisionBarrierTest, InvalidPairCount) {
 TEST_F(SelfCollisionBarrierTest, InvalidGainAndDt) {
   EXPECT_THROW(
       {
-        auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
-                                                              /*gain=*/0.0);
+        auto barrier = std::make_shared<SelfCollisionBarrier>(
+            *oink_, *scene_, num_pairs_, dt_, SelfCollisionBarrierOptions{.gain = 0.0});
       },
       std::invalid_argument);
   EXPECT_THROW(
@@ -129,9 +128,7 @@ TEST_F(SelfCollisionBarrierTest, BarrierValuesPositiveInSafeConfiguration) {
   ASSERT_FALSE(scene_->hasCollisions(q));
 
   auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
-                                                        /*gain=*/1.0,
-                                                        /*safe_displacement_gain=*/1.0,
-                                                        /*d_min=*/0.0);
+                                                        SelfCollisionBarrierOptions{.d_min = 0.0});
   auto result = barrier->computeBarrier(*scene_);
   ASSERT_TRUE(result.has_value()) << result.error();
 
@@ -147,8 +144,8 @@ TEST_F(SelfCollisionBarrierTest, ClosestPairsAreSelectedFirst) {
 
   // Pick a strict subset to force pair selection.
   const int requested = std::min(num_pairs_, std::max(1, num_pairs_ / 2));
-  auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, requested, dt_, 1.0, 1.0,
-                                                        /*d_min=*/0.0);
+  auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, requested, dt_,
+                                                        SelfCollisionBarrierOptions{.d_min = 0.0});
   auto result = barrier->computeBarrier(*scene_);
   ASSERT_TRUE(result.has_value()) << result.error();
 
@@ -178,10 +175,10 @@ TEST_F(SelfCollisionBarrierTest, DminShiftsBarrierValues) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
 
-  auto barrier_no_margin = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
-                                                                  1.0, 1.0, /*d_min=*/0.0);
-  auto barrier_with_margin = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_,
-                                                                    dt_, 1.0, 1.0, /*d_min=*/0.05);
+  auto barrier_no_margin = std::make_shared<SelfCollisionBarrier>(
+      *oink_, *scene_, num_pairs_, dt_, SelfCollisionBarrierOptions{.d_min = 0.0});
+  auto barrier_with_margin = std::make_shared<SelfCollisionBarrier>(
+      *oink_, *scene_, num_pairs_, dt_, SelfCollisionBarrierOptions{.d_min = 0.05});
 
   ASSERT_TRUE(barrier_no_margin->computeBarrier(*scene_).has_value());
   ASSERT_TRUE(barrier_with_margin->computeBarrier(*scene_).has_value());
@@ -212,7 +209,7 @@ TEST_F(SelfCollisionBarrierTest, QpInequalitiesAreFinite) {
   scene_->setJointPositions(q);
 
   auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
-                                                        /*gain=*/5.0);
+                                                        SelfCollisionBarrierOptions{.gain = 5.0});
   const int n = barrier->getNumBarriers(*scene_);
   Eigen::MatrixXd G(n, num_variables_);
   Eigen::VectorXd b(n);
@@ -231,8 +228,8 @@ TEST_F(SelfCollisionBarrierTest, EvaluateAtConfigurationMatchesBarrierMinimum) {
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
 
-  auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_, 1.0, 1.0,
-                                                        /*d_min=*/0.01);
+  auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
+                                                        SelfCollisionBarrierOptions{.d_min = 0.01});
   ASSERT_TRUE(barrier->computeBarrier(*scene_).has_value());
 
   pinocchio::Data temp_data(scene_->getModel());
@@ -264,10 +261,8 @@ TEST_F(SelfCollisionBarrierTest, IkSolvesWithBarrier) {
   Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.0);
   auto vel_limit = std::make_shared<VelocityLimit>(oink, dt_, v_max);
 
-  auto barrier = std::make_shared<SelfCollisionBarrier>(*oink_, *scene_, num_pairs_, dt_,
-                                                        /*gain=*/5.0,
-                                                        /*safe_displacement_gain=*/1.0,
-                                                        /*d_min=*/0.02);
+  auto barrier = std::make_shared<SelfCollisionBarrier>(
+      *oink_, *scene_, num_pairs_, dt_, SelfCollisionBarrierOptions{.gain = 5.0, .d_min = 0.02});
 
   std::vector<std::shared_ptr<Task>> tasks = {frame_task};
   std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
