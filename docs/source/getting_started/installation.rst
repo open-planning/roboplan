@@ -43,7 +43,7 @@ For example, if you cloned the repo to a ``roboplan`` subfolder:
 
     python roboplan/roboplan_examples/python/example_ik.py
 
-For each package in this repository, you can use conda to install either a C++ only library (e.g., `libroboplan-simple-ik`) or a library with Python bindings (e.g., `roboplan-simple-ik-python`).
+For each package in this repository, you can use conda to install either a C++ only library (e.g., ``libroboplan-simple-ik``) or a library with Python bindings (e.g., ``roboplan-simple-ik-python``).
 
 ---
 
