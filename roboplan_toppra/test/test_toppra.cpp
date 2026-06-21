@@ -327,10 +327,12 @@ TEST_F(RoboPlanToppraTest, LinearBlendIsFastAndRespectsLimitsOnSharpCorner) {
   ASSERT_TRUE(cubic.has_value());
 
   // The blend trajectory respects the joint acceleration limit (a small overshoot is the
-  // ConstAccel resampler's known tolerance at the fixed dt).
-  const auto accel_limit = scene->getAccelerationLimitVectors("arm").value().second.cwiseAbs();
-  const auto vel_limit = scene->getVelocityLimitVectors("arm").value().second.cwiseAbs();
-  EXPECT_LT(peakRatio(blend->accelerations, accel_limit), 1.25);
+  // intrinsic curvature*velocity^2 term on the rounded corner, where path acceleration and
+  // centripetal acceleration briefly add).
+  const Eigen::VectorXd accel_limit =
+      scene->getAccelerationLimitVectors("arm").value().second.cwiseAbs();
+  const Eigen::VectorXd vel_limit = scene->getVelocityLimitVectors("arm").value().second.cwiseAbs();
+  EXPECT_LT(peakRatio(blend->accelerations, accel_limit), 1.2);
   EXPECT_LT(peakRatio(blend->velocities, vel_limit), 1.05);
 
   // And it finishes substantially faster than the curvature-sensitive cubic spline.
