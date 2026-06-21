@@ -8,6 +8,7 @@
 #include <nanobind/stl/vector.h>
 
 #include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/pose_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan/core/types.hpp>
@@ -90,6 +91,8 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("joint_names", &JointGroupInfo::joint_names,
               "The joint names that make up the group.")
       .def_rw("joint_indices", &JointGroupInfo::joint_indices, "The joint indices in the group.")
+      .def_rw("link_names", &JointGroupInfo::link_names,
+              "The link (body) names that make up the group.")
       .def_rw("q_indices", &JointGroupInfo::q_indices, "The position vector indices in the group.")
       .def_rw("v_indices", &JointGroupInfo::v_indices, "The velocity vector indices in the group.")
       .def_rw("has_continuous_dofs", &JointGroupInfo::has_continuous_dofs,
@@ -374,6 +377,16 @@ void init_core_path_utils(nanobind::module_& m) {
            &PathShortcutter::getConfigurationFromNormalizedPathScaling,
            "Gets joint configurations from a path with normalized joint scalings.", "path"_a,
            "path_scalings"_a, "value"_a);
+}
+
+void init_core_pose_utils(nanobind::module_& m) {
+  m.def("poseError", &poseError,
+        "Computes the (position error [m], orientation error [rad]) between two SE(3) transforms "
+        "expressed in the same frame.",
+        "a"_a, "b"_a);
+  m.def("interpolatePose", &interpolatePose,
+        "Interpolates between two SE(3) transforms: linear in position, SLERP in orientation.",
+        "start"_a, "end"_a, "fraction"_a);
 }
 
 void init_core_scene_utils(nanobind::module_& m) {

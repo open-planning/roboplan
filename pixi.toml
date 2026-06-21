@@ -100,6 +100,7 @@ build_all = { depends-on = [
   { task = "install", args = ["roboplan_oink"] },
   { task = "install", args = ["roboplan_rrt"] },
   { task = "install", args = ["roboplan_toppra"] },
+  { task = "install", args = ["roboplan_cartesian_planning"] },
   { task = "build", args = ["roboplan_examples"] },
 ] }
 install_all = { depends-on = [
@@ -163,6 +164,11 @@ build_tests = { depends-on = [
     "{{ cxx_flags }}",
     "ON",
   ] },
+  { task = "install", args = [
+    "roboplan_cartesian_planning",
+    "{{ cxx_flags }}",
+    "ON",
+  ] },
   { task = "build", args = [
     "roboplan_examples",
     "{{ cxx_flags }}",
@@ -184,13 +190,33 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_simple_ik"] },
   { task = "test", args = ["roboplan_oink"] },
   { task = "test", args = ["roboplan_toppra"] },
+  { task = "test", args = ["roboplan_cartesian_planning"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
 test_benchmarks = { cmd = "python3 -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
 
+# Clang-tidy static analysis
+clang-tidy = { cmd = [
+  "bash",
+  "scripts/run_clang_tidy.bash",
+  "{{ package_name }}",
+], args = [
+  { arg = "package_name", default = "" },
+] }
+
+clang-tidy-fix = { cmd = [
+  "bash",
+  "scripts/run_clang_tidy.bash",
+  "{{ package_name }}",
+  "--fix",
+], args = [
+  { arg = "package_name", default = "" },
+] }
+
 [dependencies]
 
 # Build dependencies
+clang-tools = ">=19.1.7,<20"
 cmake       = ">=3.30.5,<4"
 ninja       = ">=1.12.1,<2"
 clangxx     = ">=19.1.7,<20"

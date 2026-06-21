@@ -24,6 +24,11 @@ Quick Links:
 
    Rapidly-exploring random tree (RRT) with dual Franka FR3 arms.
 
+.. figure:: media/cartesian_planning_ur5.gif
+   :width: 400px
+
+   Cartesian path planning with a UR5 arm.
+
 
 .. toctree::
    :hidden:

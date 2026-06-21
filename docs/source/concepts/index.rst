@@ -8,3 +8,4 @@ Concepts
    sampling_based_planning
    path_shortcutting
    trajectory_generation
+   cartesian_planning

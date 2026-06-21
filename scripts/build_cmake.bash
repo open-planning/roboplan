@@ -22,6 +22,11 @@ build_project() {
     -DCMAKE_INSTALL_PREFIX="${PWD}/install/${PROJECT_NAME}"
   cmake --build "build/${PROJECT_NAME}" --parallel "$(nproc)"
   cmake --install "build/${PROJECT_NAME}"
+
+  # Make this package's installed libraries discoverable to later packages.
+  # Build steps such as nanobind stub generation import the just-built
+  # extensions, which transitively load shared libraries.
+  export LD_LIBRARY_PATH="${PWD}/install/${PROJECT_NAME}/lib:${LD_LIBRARY_PATH}"
 }
 
 # Build all the packages with CMake
@@ -35,6 +40,7 @@ build_project roboplan_simple_ik
 build_project roboplan_oink
 build_project roboplan_toppra
 build_project roboplan_rrt
+build_project roboplan_cartesian_planning
 build_project roboplan_examples
 
 echo "

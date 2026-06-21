@@ -31,6 +31,15 @@ ConfigurationTask::ConfigurationTask(const Oink& oink, const Eigen::VectorXd& ta
   initializeStorage(nv, nv);
 }
 
+void ConfigurationTask::setTargetConfiguration(const Eigen::VectorXd& target) {
+  if (target.size() != q_indices.size()) {
+    throw std::invalid_argument(
+        "ConfigurationTask::setTargetConfiguration: target size (" + std::to_string(target.size()) +
+        ") does not match group q_indices size (" + std::to_string(q_indices.size()) + ")");
+  }
+  target_q = target;
+}
+
 tl::expected<void, std::string> ConfigurationTask::computeError(const Scene& scene) {
   const auto& model = scene.getModel();
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();

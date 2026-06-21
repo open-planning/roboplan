@@ -115,6 +115,8 @@ jobs:
             cache-key: ubuntu-22.04
           - os: ubuntu-24.04
             cache-key: ubuntu-24.04
+          - os: ubuntu-26.04
+            cache-key: ubuntu-26.04
           - os: macos-14
             cache-key: macos-arm64
 
@@ -152,7 +154,13 @@ jobs:
             exit 1
           fi
           echo "✅ .pyi stub files look good!"
+      - name: Run clang-tidy
+        if: matrix.os == 'ubuntu-26.04'
+        run: |
+          pixi run -e ci clang-tidy
       # TODO: Decide on a method for automated benchmark performance testing.
+      # TODO: These are currently running in debug mode due to `-e ci`. We should fix this.
       - name: Run benchmarks
+        if: matrix.os != 'ubuntu-26.04'  # Just to not share time with clang-tidy
         run: |
           pixi run -e ci test_benchmarks

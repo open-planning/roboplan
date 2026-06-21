@@ -7,7 +7,7 @@
 namespace roboplan::example_models {
 
 namespace anchor {
-extern void example_models_location_anchor();
+extern void exampleModelsLocationAnchor();
 }
 
 std::filesystem::path get_install_prefix() {
@@ -15,7 +15,7 @@ std::filesystem::path get_install_prefix() {
   // dynamic linking to get the filesystem path of the example resources shared
   // object file.
   Dl_info dl_info;
-  dladdr((void*)&anchor::example_models_location_anchor, &dl_info);
+  dladdr((void*)&anchor::exampleModelsLocationAnchor, &dl_info);
   const auto lib_path = std::filesystem::path(dl_info.dli_fname).lexically_normal();
 
   // Then we can just pull the relative path to the share directory

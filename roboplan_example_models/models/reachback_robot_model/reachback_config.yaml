@@ -6,22 +6,22 @@ joint_limits:
     max_acceleration: [1.0, 1.0, 2.0]
     max_jerk: [2.0, 2.0, 2.0]
   arm_joint_1:
-    max_acceleration: [2.0]
+    max_acceleration: [5.0]
     max_jerk: [10.0]
   arm_joint_2:
-    max_acceleration: [2.0]
+    max_acceleration: [5.0]
     max_jerk: [10.0]
   arm_joint_3:
-    max_acceleration: [2.0]
+    max_acceleration: [5.0]
     max_jerk: [10.0]
   arm_joint_4:
-    max_acceleration: [2.0]
+    max_acceleration: [5.0]
     max_jerk: [10.0]
   arm_joint_5:
-    max_acceleration: [2.0]
+    max_acceleration: [5.0]
     max_jerk: [10.0]
   arm_joint_6:
-    max_acceleration: [2.0]
+    max_acceleration: [5.0]
     max_jerk: [10.0]
   arm_finger_b_joint:
     max_acceleration: [1.0]

@@ -8,6 +8,7 @@
 #include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene_utils.hpp>
+#include <roboplan_toppra/linear_blend_path.hpp>
 #include <roboplan_toppra/toppra.hpp>
 
 namespace {
@@ -163,10 +164,8 @@ PathParameterizerTOPPRA::generateCubicHermiteSpline(const toppra::Vectors& path_
   return std::make_shared<toppra::PiecewisePolyPath>(spline);
 }
 
-tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
-    const JointPath& path, const double dt, const SplineFittingMode mode,
-    const double velocity_scale, const double acceleration_scale, const int max_adaptive_iterations,
-    const double max_adaptive_step_size) {
+tl::expected<JointTrajectory, std::string>
+PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& options) {
   if (path.positions.size() < 2) {
     return tl::make_unexpected("Path must have at least 2 points.");
   }
@@ -174,14 +173,14 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
       !std::equal(joint_names_.begin(), joint_names_.end(), path.joint_names.begin())) {
     return tl::make_unexpected("Path joint names do not match the scene joint names.");
   }
-  if (dt <= 0.0) {
+  if (options.dt <= 0.0) {
     return tl::make_unexpected("dt must be strictly positive.");
   }
-  if ((velocity_scale <= 0.0) || (velocity_scale > 1.0)) {
+  if ((options.velocity_scale <= 0.0) || (options.velocity_scale > 1.0)) {
     return tl::make_unexpected(
         "Velocity scale must be greater than 0.0 and less than or equal to 1.0.");
   }
-  if ((acceleration_scale <= 0.0) || (acceleration_scale > 1.0)) {
+  if ((options.acceleration_scale <= 0.0) || (options.acceleration_scale > 1.0)) {
     return tl::make_unexpected(
         "Acceleration scale must be greater than 0.0 and less than or equal to 1.0.");
   }
@@ -189,9 +188,10 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   // Create scaled velocity and acceleration constraints.
   toppra::LinearConstraintPtr vel_constraint, acc_constraint;
   vel_constraint = std::make_shared<toppra::constraint::LinearJointVelocity>(
-      vel_lower_limits_ * velocity_scale, vel_upper_limits_ * velocity_scale);
+      vel_lower_limits_ * options.velocity_scale, vel_upper_limits_ * options.velocity_scale);
   acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(
-      acc_lower_limits_ * acceleration_scale, acc_upper_limits_ * acceleration_scale);
+      acc_lower_limits_ * options.acceleration_scale,
+      acc_upper_limits_ * options.acceleration_scale);
   acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
   toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
@@ -202,21 +202,26 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   }
   auto path_pos_vecs = maybe_path_pos_vecs.value();
 
-  // Parse the spline fitting mode and set the options accordingly.
+  // Parse the spline fitting mode and set the collision-check options accordingly.
   // The basic rules are:
   // - If Hermite mode is enabled, we don't need to iterate or check collisions.
-  // - If cubic mode is enabled, we just do one iteration with collision checking.
-  // - If adaptive mode is enabled, we do need to iterate by checking collisisions.
+  // - If cubic or linear blend mode is enabled, we just do one iteration with collision checking.
+  // - If adaptive mode is enabled, we do need to iterate by checking collisions.
   int max_collision_iterations = 0;
-  switch (mode) {
+  bool using_blend_path = false;
+  switch (options.mode) {
   case SplineFittingMode::Hermite:
     max_collision_iterations = 0;
     break;
   case SplineFittingMode::Cubic:
     max_collision_iterations = 1;
     break;
+  case SplineFittingMode::LinearBlend:
+    max_collision_iterations = 1;
+    using_blend_path = true;
+    break;
   case SplineFittingMode::Adaptive:
-    max_collision_iterations = max_adaptive_iterations;
+    max_collision_iterations = options.max_adaptive_iterations;
     break;
   }
 
@@ -224,19 +229,24 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   // below, so it uses its own scratch rather than the Scene's shared collision data.
   const CollisionContext collision_context(*scene_);
 
+  toppra::GeometricPathPtr geom_path;
   bool found_collision_free_path = false;
-  std::shared_ptr<toppra::PiecewisePolyPath> geom_path;
   for (int idx = 0; idx < max_collision_iterations; ++idx) {
-    // Create the cubic spline.
-    geom_path = generateCubicSpline(path_pos_vecs);
+    // Create the geometric path for this iteration.
+    if (using_blend_path) {
+      geom_path = std::make_shared<LinearBlendPath>(path_pos_vecs, options.max_blend_deviation);
+    } else {
+      geom_path = generateCubicSpline(path_pos_vecs);
+    }
 
-    // Collision check the spline.
-    // This assumes the initial path has time indices for each point at exactly increments of 1.0
-    // (which is the case). These time values will later be modified by the final TOPP-RA algorithm.
+    // Collision check the geometric path.
+    // This assumes the initial path has time indices for each point at exactly increments of
+    // 1.0 (which is the case). These time values will later be modified by the final TOPP-RA
+    // algorithm.
     int last_collision_index = -1;
     size_t points_added = 0;
     const auto time_points = geom_path->proposeGridpoints(
-        /* max_segment_error */ 1.0e-4, /* max_iteration */ 100, max_adaptive_step_size);
+        /* max_segment_error */ 1.0e-4, /* max_iteration */ 100, options.max_adaptive_step_size);
     for (const auto t : time_points) {
       // If the current point has already been added, can skip to the next time point.
       const auto t_idx = static_cast<int>(t);
@@ -272,15 +282,31 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
     }
   }
 
-  // If necessary, fall back to a Hermite cubic spline using the original path.
-  // This happens with Hermite mode or if we didn't find a collision-free path with other modes.
+  // If necessary, fall back to a Hermite cubic spline using the original path. This happens with
+  // Hermite mode or if we didn't find a collision-free path with the other modes. Clear the blend
+  // path flag so the gridpoint seeding below does not reuse a colliding linear blend path.
   if (!found_collision_free_path) {
     geom_path = generateCubicHermiteSpline(getPathPositionVectors(path).value());
+    using_blend_path = false;
   }
 
   // Solve TOPP-RA problem.
   toppra::PathParametrizationAlgorithmPtr algo =
       std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
+
+  // The LinearBlend path has discontinuous curvature at the line<->arc junctions. The
+  // algorithm's default uniform grid would miss those junctions and under-sample the arcs,
+  // letting the acceleration constraint be violated between gridpoints. Seed a
+  // curvature-adaptive grid that lands on every segment boundary so the centripetal
+  // acceleration at each blend is enforced.
+  if (using_blend_path) {
+    const auto blend_path = std::static_pointer_cast<LinearBlendPath>(geom_path);
+    const auto gridpoints = blend_path->proposeGridpoints(
+        /* max_segment_error */ 1.0e-5, /* max_iteration */ 100, /* max_segment_length */ 0.02,
+        /* min_num_points */ 100, /* initial_gridpoints */ blend_path->segmentBoundaries());
+    algo->setGridpoints(gridpoints);
+  }
+
   const auto rc = algo->computePathParametrization();
   if (rc != toppra::ReturnCode::OK) {
     return tl::make_unexpected("TOPPRA failed with return code " +
@@ -296,13 +322,13 @@ tl::expected<JointTrajectory, std::string> PathParameterizerTOPPRA::generate(
   traj.joint_names = path.joint_names;
 
   const auto t_final = const_acc->pathInterval()[1];
-  const auto num_traj_pts = static_cast<size_t>(std::ceil(t_final / dt)) + 1;
+  const auto num_traj_pts = static_cast<size_t>(std::ceil(t_final / options.dt)) + 1;
   traj.times.reserve(num_traj_pts);
   traj.positions.reserve(num_traj_pts);
   traj.velocities.reserve(num_traj_pts);
   traj.accelerations.reserve(num_traj_pts);
   for (size_t i = 0; i < num_traj_pts; ++i) {
-    const auto t = std::min(static_cast<double>(i) * dt, t_final);
+    const auto t = std::min(static_cast<double>(i) * options.dt, t_final);
     traj.times.push_back(t);
   }
   Eigen::Map<Eigen::VectorXd> times_vec(traj.times.data(), traj.times.size());

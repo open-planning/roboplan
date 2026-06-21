@@ -6,7 +6,13 @@ import numpy as np
 import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
 
-from roboplan.core import Scene, computeFramePath, JointPath, JointTrajectory
+from roboplan.core import (
+    Scene,
+    computeFramePath,
+    collapseContinuousJointPositions,
+    JointPath,
+    JointTrajectory,
+)
 
 
 # TODO: Remove this function when this OcTree visualization support in Viser is added into pinocchio.
@@ -189,35 +195,78 @@ def visualizeJointTrajectory(
 
 
 def plotJointTrajectory(
-    trajectory: JointTrajectory, scene: Scene, plot_title: str = "Joint Trajectory"
+    trajectory: JointTrajectory,
+    scene: Scene,
+    group_name: str = "",
+    title: str = "Joint Trajectory",
+    positions: bool = True,
+    velocities: bool = False,
+    accelerations: bool = False,
 ) -> Figure:
     """
-    Plot a joint trajectory of positions over time.
+    Plot a joint trajectory over time.
+
+    By default only positions are plotted. Enabling velocities and/or
+    accelerations adds them as additional stacked subplots sharing a common
+    time axis.
+
+    Positions are plotted in collapsed (velocity-DOF) coordinates so they line up
+    with the velocity and acceleration curves: each continuous joint's (cos, sin)
+    position pair is collapsed back to a single angle.
 
     Args:
         trajectory: The trajectory object to visualize.
         scene: The Scene object used to get joint information.
-        plot_title: The title of the plot.
+        group_name: The joint group the trajectory belongs to, used to collapse the
+            continuous-joint positions. Empty means the full robot.
+        title: The title of the plot.
+        positions: Whether to add a subplot of joint positions.
+        velocities: Whether to add a subplot of joint velocities.
+        accelerations: Whether to add a subplot of joint accelerations.
 
     Returns:
         The matplotlib figure object. Use ``matplotlib.pyplot.show()`` to display it.
     """
-    plt.plot(trajectory.times, trajectory.positions)
-    plt.xlabel("Time")
-    plt.ylabel("Joint positions")
-    plt.title(plot_title)
-
     dof_names = []
     for name in trajectory.joint_names:
-        nq = scene.getJointInfo(name).num_position_dofs
-        if nq == 1:
+        nv = scene.getJointInfo(name).num_velocity_dofs
+        if nv == 1:
             dof_names.append(name)
         else:
-            dof_names.extend(f"{name}:{idx}" for idx in range(nq))
+            dof_names.extend(f"{name}:{idx}" for idx in range(nv))
 
-    plt.legend(dof_names)
+    subplots = []
+    if positions:
+        # Trajectory positions are stored expanded (continuous joints as cos/sin pairs);
+        # collapse them to velocity-DOF coordinates so they match the velocity/acceleration
+        # curves and the dof_names above.
+        collapsed_positions = [
+            collapseContinuousJointPositions(scene, group_name, q)
+            for q in trajectory.positions
+        ]
+        subplots.append(("Joint positions", collapsed_positions))
+    if velocities:
+        subplots.append(("Joint velocities", trajectory.velocities))
+    if accelerations:
+        subplots.append(("Joint accelerations", trajectory.accelerations))
+    if not subplots:
+        raise ValueError(
+            "At least one of positions, velocities, or accelerations must be True."
+        )
 
-    return plt.gcf()
+    fig = plt.gcf()
+    fig.clear()
+    axes = fig.subplots(len(subplots), 1, sharex=True, squeeze=False)[:, 0]
+
+    for ax, (ylabel, values) in zip(axes, subplots):
+        ax.plot(trajectory.times, values)
+        ax.set_ylabel(ylabel)
+        ax.legend(dof_names)
+
+    axes[-1].set_xlabel("Time")
+    fig.suptitle(title)
+
+    return fig
 
 
 def addPositionPolyline(

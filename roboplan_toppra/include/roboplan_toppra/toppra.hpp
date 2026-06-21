@@ -12,11 +12,58 @@
 namespace roboplan {
 
 /// @brief Enumeration for TOPP-RA spline fitting mode.
-/// @details Refer to the PathParameterizerTOPPRA options for more information.
+/// @details Refer to the TOPPRAOptions::mode documentation for more information.
 enum class SplineFittingMode {
   Hermite,
   Cubic,
   Adaptive,
+  LinearBlend,
+};
+
+/// @brief Options controlling TOPP-RA time parameterization.
+struct TOPPRAOptions {
+  /// @brief The sample time of the output trajectory, in seconds. Must be strictly positive.
+  double dt = 0.01;
+
+  /// @brief The mode to use for spline fitting the path. Options include:
+  ///
+  ///   - `SplineFittingMode::Hermite`: Fits a cubic Hermite spline with zero velocity at all
+  ///   waypoints. This can cause slow execution, but guarantees perfect adherence to the path.
+  ///   - `SplineFittingMode::Cubic`: Fits a cubic spline with zero velocity only at the endpoints.
+  ///     This is smoother, but can cause deviations from the desired path that could lead to
+  ///     collision.
+  ///   - `SplineFittingMode::Adaptive`: Uses the cubic mode but iteratively collision checks
+  ///     and adds intermediate points if it finds collisions, up to a maximum number of iterations.
+  ///     If the path is not collision-free after the maximum iterations, falls back to Hermite
+  ///     mode. Refer to Section 3.5 of https://groups.csail.mit.edu/rrg/papers/Richter_ISRR13.pdf
+  ///     for more details on this approach.
+  ///   - `SplineFittingMode::LinearBlend`: Represents the path as straight-line segments joined
+  ///     by circular corner blends (the geometry used by time-optimal trajectory generation,
+  ///     Kunz & Stilman 2012, https://www.roboticsproceedings.org/rss08/p27.pdf).
+  ///     Unlike the spline modes, straight segments have exactly zero curvature, so densely
+  ///     sampled or slightly noisy waypoints do not inflate the acceleration constraint and slow
+  ///     the trajectory. Corners are rounded within `max_blend_deviation`, and the blended path is
+  ///     collision checked, falling back to Hermite mode if a collision is found.
+  SplineFittingMode mode = SplineFittingMode::Hermite;
+
+  /// @brief A scaling factor (between 0 and 1) for velocity limits.
+  double velocity_scale = 1.0;
+
+  /// @brief A scaling factor (between 0 and 1) for acceleration limits.
+  double acceleration_scale = 1.0;
+
+  /// @brief Maximum number of adaptive iterations, if adaptive mode is enabled.
+  int max_adaptive_iterations = 10;
+
+  /// @brief If adaptive mode is enabled, this is the maximum joint configuration step size to
+  /// sample generated splines for collision checking.
+  double max_adaptive_step_size = 0.05;
+
+  /// @brief Maximum distance a corner blend may deviate from the sharp corner, in the joint
+  /// configuration's units. Only used by `SplineFittingMode::LinearBlend`. Larger values round
+  /// corners more (faster, but the path strays further from the waypoints); values <= 0 disable
+  /// blending (a pure polyline that stops at each corner).
+  double max_blend_deviation = 0.01;
 };
 
 /// @brief Trajectory time parameterizer using the TOPP-RA algorithm.
@@ -30,32 +77,10 @@ public:
 
   /// @brief Time-parameterizes a joint-space path using TOPP-RA.
   /// @param path The path to time parameterize.
-  /// @param dt The sample time of the output trajectory, in seconds.
-  /// @param mode The mode to use for spline fitting the path. Options include:
-  ///
-  ///   - `SplineFittingMode::Hermite`: Fits a cubic Hermite spline with zero velocity at all
-  ///   waypoints. This can cause slow execution, but guarantees perfect adherence to the path.
-  ///   - `SplineFittingMode::Cubic`: Fits a cubic spline with zero velocity only at the endpoints.
-  ///     This is smoother, but can cause deviations from the desired path that could lead to
-  ///     collision.
-  ///   - `SplineFittingMode::Adaptive`: Uses the cubic mode but iteratively collision checks
-  ///     and adds intermediate points if it finds collisions, up to a maximum number of iterations.
-  ///     If the path is not collision-free after the maximum iterations, falls back to Hermite
-  ///     mode. Refer to Section 3.5 of https://groups.csail.mit.edu/rrg/papers/Richter_ISRR13.pdf
-  ///     for more details on this approach.
-  /// @param velocity_scale A scaling factor (between 0 and 1) for velocity limits.
-  /// @param acceleration_scale A scaling factor (between 0 and 1) for acceleration limits.
-  /// @param max_adaptive_iterations Maximum number of adaptive iterations, if adaptive mode is
-  /// enabled.
-  /// @param max_adaptive_step_size If adaptive mode is enabled, this is the maximum joint
-  /// configuration
-  ///   step size to sample generated splines for collision checking.
+  /// @param options Options controlling the time parameterization. Refer to TOPPRAOptions.
   /// @return A time-parameterized joint trajectory.
-  tl::expected<JointTrajectory, std::string>
-  generate(const JointPath& path, const double dt,
-           const SplineFittingMode mode = SplineFittingMode::Hermite,
-           const double velocity_scale = 1.0, const double acceleration_scale = 1.0,
-           const int max_adaptive_iterations = 10, const double max_adaptive_step_size = 0.05);
+  tl::expected<JointTrajectory, std::string> generate(const JointPath& path,
+                                                      const TOPPRAOptions& options = {});
 
 private:
   /// @brief Helper function to convert the raw joint path to TOPP-RA compatible position vectors.
