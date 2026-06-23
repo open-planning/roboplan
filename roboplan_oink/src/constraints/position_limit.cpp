@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <roboplan_oink/constraints/position_limit.hpp>
 
 #include <OsqpEigen/OsqpEigen.h>
@@ -59,14 +60,14 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
     const int vi = v_indices(i);
     // Compute distance to upper limit
     if (std::isfinite(q_max(vi))) {
-      delta_q_max(i) = q_max(vi) - q_collapsed(vi);
+      delta_q_max(i) = std::max(0.0, q_max(vi) - q_collapsed(vi));
     } else {
       delta_q_max(i) = std::numeric_limits<double>::infinity();
     }
 
     // Compute distance to lower limit
     if (std::isfinite(q_min(vi))) {
-      delta_q_min(i) = q_collapsed(vi) - q_min(vi);
+      delta_q_min(i) = std::max(0.0, q_collapsed(vi) - q_min(vi));
     } else {
       delta_q_min(i) = std::numeric_limits<double>::infinity();
     }

@@ -30,7 +30,7 @@ def main(
     model: str = "ur5",
     task_gain: float = 1.0,
     lm_damping: float = 0.01,
-    regularization: float = 1e-6,
+    regularization: float = 1e-3,
     control_freq: float = 400.0,
     barrier_gain: float = 10.0,
     barrier_size: float = 0.5,
@@ -245,8 +245,14 @@ def main(
     def control_loop():
         delta_q = np.zeros(num_variables)
         delta_q_full = np.zeros(model_pin.nv)
+        # Visualization is throttled and runs outside the scene lock so the Viser push to
+        # the browser cannot stretch the control period. The solver assumes a fixed dt, so
+        # keeping the control loop at a steady rate prevents jitter.
+        display_period = max(dt, 1.0 / 30.0)
+        last_display = 0.0
         while running:
             loop_start = time.time()
+            q_to_display = None
 
             # Thread-safe scene access for IK solving
             if not paused:
@@ -295,7 +301,24 @@ def main(
                         if isinstance(task, FrameTask):
                             scene.forwardKinematics(q_current, task.frame_name)
 
-                    viz.display(q_current)
+                    # q_current is a fresh array from integrate(); snapshot it for a
+                    # throttled display outside the lock (below).
+                    q_to_display = q_current
+            else:
+                # While paused (including just after a reset), hold the velocity state at
+                # rest so resuming starts from zero velocity rather than replaying a stale
+                # displacement.
+                delta_q[:] = 0.0
+                delta_q_full[:] = 0.0
+
+            # Throttled visualization, outside the scene lock, so a slow browser push does
+            # not perturb the control-loop timing.
+            if (
+                q_to_display is not None
+                and (loop_start - last_display) >= display_period
+            ):
+                viz.display(q_to_display)
+                last_display = loop_start
 
             # Maintain control loop rate
             elapsed = time.time() - loop_start
