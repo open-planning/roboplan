@@ -5,6 +5,17 @@
 EXIT_CODE=0
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# The RoboPlan packages to test. Add new packages here so both the C++ and
+# Python test runners below pick them up.
+PACKAGES=(
+    roboplan
+    roboplan_rrt
+    roboplan_simple_ik
+    roboplan_oink
+    roboplan_toppra
+    roboplan_cartesian_planning
+)
+
 if command -v ros2 >/dev/null 2>&1;
 then
     echo "
@@ -32,9 +43,10 @@ Running C++ tests...
 =======================
 "
     pushd "${SCRIPT_DIR}/../build" > /dev/null || exit
-    for PACKAGE in */test;
+    for PACKAGE in "${PACKAGES[@]}";
     do
-        pushd ${PACKAGE} > /dev/null || exit
+        [[ -d "${PACKAGE}/test" ]] || continue
+        pushd "${PACKAGE}/test" > /dev/null || exit
         ctest -V || EXIT_CODE=$?
         popd > /dev/null || exit
     done
@@ -45,8 +57,13 @@ Running C++ tests...
 Running Python tests...
 =======================
 "
-    pushd "${SCRIPT_DIR}/.." >> /dev/null || exit
-    python3 -m pytest roboplan/bindings/test roboplan_rrt/bindings/test || EXIT_CODE=$?
+    pushd "${SCRIPT_DIR}/.." > /dev/null || exit
+    PYTEST_DIRS=()
+    for PACKAGE in "${PACKAGES[@]}";
+    do
+        [[ -d "${PACKAGE}/bindings/test" ]] && PYTEST_DIRS+=("${PACKAGE}/bindings/test")
+    done
+    python3 -m pytest "${PYTEST_DIRS[@]}" || EXIT_CODE=$?
     popd > /dev/null || exit
 fi
 

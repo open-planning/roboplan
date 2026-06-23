@@ -133,16 +133,7 @@ endif()
 # Ships the roboplan/<sub>/ packages and the generated .pyi/py.typed stubs.
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")
 
-# Register the Python binding tests (colcon picks these up via ament). They run
-# against the installed package, so the roboplan namespace is importable.
+# Register the Python binding tests, if enabled.
 if(AMENT_BUILD AND BUILD_TESTING)
-  find_package(ament_cmake_pytest REQUIRED)
-  set(BINDINGS_TESTS_PY
-    test_import
-    test_scene
-    test_filters
-  )
-  foreach(test_name ${BINDINGS_TESTS_PY})
-    ament_add_pytest_test(${test_name} test/${test_name}.py TIMEOUT 300)
-  endforeach()
+  add_subdirectory(test)
 endif()

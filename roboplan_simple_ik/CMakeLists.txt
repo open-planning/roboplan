@@ -88,6 +88,13 @@ if(BUILD_PYTHON_BINDINGS)
   add_subdirectory(bindings)
 endif()
 
+# Add the unit tests, if enabled.
+option(BUILD_TESTING "" ON)
+if (BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(test)
+endif()
+
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 if ( ament_cmake_FOUND )
     message(STATUS "ament_cmake found. Exporting for ROS 2.")

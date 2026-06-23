@@ -85,3 +85,8 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")
+
+# Register the Python binding tests, if enabled.
+if(AMENT_BUILD AND BUILD_TESTING)
+  add_subdirectory(test)
+endif()
