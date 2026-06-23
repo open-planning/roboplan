@@ -13,6 +13,10 @@ constexpr auto kGroupName = "arm";
 constexpr auto kBaseFrame = "base";
 constexpr auto kTipFrame = "tool0";
 
+// The solver's default time budget is too tight to reliably converge on a slow
+// or loaded machine (e.g. a debug CI build), so give it generous headroom.
+constexpr double kMaxSolveTime = 1.0;
+
 class RoboPlanSimpleIkTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -46,6 +50,7 @@ TEST_F(RoboPlanSimpleIkTest, SolveIk) {
 
   SimpleIkOptions options;
   options.group_name = kGroupName;
+  options.max_time = kMaxSolveTime;
   auto ik = std::make_unique<SimpleIk>(scene, options);
 
   const auto goal = reachableGoal();
@@ -99,6 +104,7 @@ TEST_F(RoboPlanSimpleIkTest, CollisionChecking) {
   options.group_name = kGroupName;
   options.check_collisions = false;
   options.max_restarts = 0;
+  options.max_time = kMaxSolveTime;
   auto ik = std::make_unique<SimpleIk>(scene, options);
   ASSERT_TRUE(ik->solveIk(goal, start, solution));
 

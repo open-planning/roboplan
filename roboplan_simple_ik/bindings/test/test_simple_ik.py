@@ -13,6 +13,10 @@ GROUP_NAME = "arm"
 BASE_FRAME = "base"
 TIP_FRAME = "tool0"
 
+# The solver's default time budget is too tight to reliably converge on a slo
+# or loaded machine (e.g., a debug CI build), so give it generous headroom.
+MAX_SOLVE_TIME = 1.0
+
 
 @pytest.fixture
 def test_scene() -> Scene:
@@ -37,7 +41,7 @@ def test_solve_ik(test_scene: Scene) -> None:
     # Happy path: solve for a reachable target.
     test_scene.setRngSeed(286)
 
-    options = SimpleIkOptions(group_name=GROUP_NAME)
+    options = SimpleIkOptions(group_name=GROUP_NAME, max_time=MAX_SOLVE_TIME)
     ik = SimpleIk(test_scene, options)
 
     goal = reachable_goal(test_scene)
@@ -86,7 +90,10 @@ def test_collision_checking(test_scene: Scene) -> None:
 
     # Without collision checking, the solver reaches the target.
     options = SimpleIkOptions(
-        group_name=GROUP_NAME, check_collisions=False, max_restarts=0
+        group_name=GROUP_NAME,
+        check_collisions=False,
+        max_restarts=0,
+        max_time=MAX_SOLVE_TIME,
     )
     ik = SimpleIk(test_scene, options)
     assert ik.solveIk(goal, start, solution)
