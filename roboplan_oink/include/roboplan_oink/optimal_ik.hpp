@@ -361,18 +361,23 @@ struct Oink {
   /// @brief Validate delta_q against barriers using forward kinematics.
   ///
   /// This method provides a post-solve safety check by evaluating the actual barrier
-  /// values at the candidate configuration (q + delta_q). If any barrier would be
-  /// violated, delta_q is set to zero to prevent unsafe motion.
+  /// values at the candidate configuration (q + delta_q). It is a backup safety mechanism
+  /// for cases where the linearized CBF constraint in the QP has significant error (e.g.,
+  /// large jumps, near-boundary configurations). The QP constraint uses a first-order
+  /// approximation h(q + δq) ≈ h(q) + J_h · δq, which can have error O(||δq||²) for large
+  /// displacements.
   ///
-  /// This is a backup safety mechanism for cases where the linearized CBF constraint
-  /// in the QP has significant error (e.g., large jumps, near-boundary configurations).
-  /// The QP constraint uses a first-order approximation h(q + δq) ≈ h(q) + J_h · δq,
-  /// which can have significant error O(||δq||²) for large displacements.
+  /// Enforcement is per-barrier rather than global. For each barrier that would be violated
+  /// at the candidate configuration, only the joints that affect that barrier (its nonzero
+  /// Jacobian columns) are zeroed, so an unrelated kinematic chain, e.g, the other arm in a
+  /// dual-arm setup, is not frozen just because one frame left its bound.
+  /// A step that is still violated but strictly reduces the violation is allowed/
+  /// For example, a frame that started outside its bound can recover instead of deadlocking.
   ///
   /// @param scene The scene containing robot model and state
   /// @param barriers Vector of barrier functions to check
-  /// @param delta_q Configuration displacement to validate. Modified in place: set to
-  ///                zero if barrier violation is detected.
+  /// @param delta_q Configuration displacement to validate. Modified in place: the joints of
+  ///                each violated, non-recovering barrier are set to zero.
   /// @param tolerance Tolerance for barrier violation detection. A barrier is considered
   ///                  violated if h(q + delta_q) < -tolerance. Default is 0.0.
   /// @return void on success, error message if barrier evaluation fails

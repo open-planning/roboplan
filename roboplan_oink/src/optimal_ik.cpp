@@ -477,22 +477,41 @@ Oink::enforceBarriers(const Scene& scene, const std::vector<std::shared_ptr<Barr
 
   // Evaluate all barriers at the candidate configuration. enforce_barriers_data is a
   // pre-allocated pinocchio::Data scoped to this method, so we don't mutate scene state.
-  double min_h = OSQP_INFTY;
   for (const auto& barrier : barriers) {
-    auto h_result = barrier->evaluateAtConfiguration(model, enforce_barriers_data, q_candidate);
-    if (!h_result.has_value()) {
-      // Propagate evaluation error
-      return tl::make_unexpected(h_result.error());
+    auto h_candidate_result =
+        barrier->evaluateAtConfiguration(model, enforce_barriers_data, q_candidate);
+    if (!h_candidate_result.has_value()) {
+      return tl::make_unexpected(h_candidate_result.error());
     }
-    // Only consider finite barrier values (infinity means not supported)
-    if (std::isfinite(h_result.value())) {
-      min_h = std::min(min_h, h_result.value());
-    }
-  }
 
-  // If any barrier is violated, stop completely
-  if (min_h < -tolerance) {
-    delta_q.setZero();
+    // Safe (or unsupported, i.e., infinite) barriers do not restrict the step.
+    const double h_candidate = h_candidate_result.value();
+    if (!std::isfinite(h_candidate) || h_candidate >= -tolerance) {
+      continue;
+    }
+
+    // Violated at the candidate: allow the step only if it improves this barrier's value
+    // relative to the current configuration (recovery), otherwise veto its joints.
+    auto h_current_result = barrier->evaluateAtConfiguration(model, enforce_barriers_data, q);
+    if (!h_current_result.has_value()) {
+      return tl::make_unexpected(h_current_result.error());
+    }
+    if (h_candidate > h_current_result.value()) {
+      continue;
+    }
+
+    // Recompute the barrier Jacobian at the current configuration. Zero only the joints with a
+    // nonzero column, mapping the group velocity indices to the full-model indices of delta_q.
+    auto jacobian_result = barrier->computeJacobian(scene);
+    if (!jacobian_result.has_value()) {
+      return tl::make_unexpected(jacobian_result.error());
+    }
+    const Eigen::MatrixXd& barrier_jacobian = barrier->jacobian_container;
+    for (int j = 0; j < num_variables; ++j) {
+      if (barrier_jacobian.col(j).cwiseAbs().maxCoeff() > 0.0) {
+        delta_q(v_indices(j)) = 0.0;
+      }
+    }
   }
 
   return {};
