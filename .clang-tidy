@@ -3,19 +3,12 @@
 # This configuration uses a wildcard approach: enable entire check categories,
 # then explicitly exclude noisy or impractical checks.
 #
-# Check categories enabled:
-# - readability-identifier-naming: Enforces naming conventions (PascalCase, camelCase, snake_case, etc.)
-#
 # Checks are excluded when they:
 # - Generate excessive false positives
 # - Conflict with necessary C++ patterns
 # - Are too restrictive for practical development
 #
 # Disabled checks (re-enable by adding back to Checks below):
-# - modernize-*: C++11/14/17/20 features (nullptr, override, auto, etc.)
-#   -modernize-use-trailing-return-type,
-# - performance-*: Efficiency improvements (unnecessary copies, move semantics)
-#   -performance-enum-size,
 # - portability-*: Cross-platform compatibility
 # - readability-*: Code clarity (braces, naming, magic numbers, etc.)
 #   -readability-function-cognitive-complexity,
@@ -47,7 +40,11 @@
 #
 ---
 Checks: '-*,
-readability-identifier-naming'
+readability-identifier-naming,
+modernize-*,
+-modernize-use-trailing-return-type,
+performance-*,
+-performance-enum-size'
 
 HeaderFilterRegex: '(roboplan[^/]*/(?!.*/(tinyxml2|tl|dynotree|roboplan_ext)/).*|external/toppra/cpp/.*)\.(h|hpp)$'
 
