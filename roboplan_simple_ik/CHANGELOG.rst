@@ -2,8 +2,8 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.5.0 (2026-07-07)
+------------------
 * Add unit tests for roboplan_simple_ik package (`#257 <https://github.com/open-planning/roboplan/issues/257>`_)
 * Store list of link names in group info (`#253 <https://github.com/open-planning/roboplan/issues/253>`_)
 * Speed up collision checking and RRT (`#232 <https://github.com/open-planning/roboplan/issues/232>`_)
