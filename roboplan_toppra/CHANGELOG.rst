@@ -2,6 +2,14 @@
 Changelog for package roboplan_toppra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add pixi Support for osx-arm64 and missing docs pages (`#248 <https://github.com/open-planning/roboplan/issues/248>`_)
+* Cartesian path planner (`#240 <https://github.com/open-planning/roboplan/issues/240>`_)
+* Add clang-tidy (`#182 <https://github.com/open-planning/roboplan/issues/182>`_)
+* Speed up collision checking and RRT (`#232 <https://github.com/open-planning/roboplan/issues/232>`_)
+* Contributors: Erik Holum, Sebastian Castro, Sebastian Jahr
+
 0.4.0 (2026-06-02)
 ------------------
 * Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)

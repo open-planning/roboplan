@@ -2,6 +2,15 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add pixi Support for osx-arm64 and missing docs pages (`#248 <https://github.com/open-planning/roboplan/issues/248>`_)
+* Make `ConfigurationTask` runtime tunable and add `AccelerationLimit` (`#250 <https://github.com/open-planning/roboplan/issues/250>`_)
+* Add clang-tidy (`#182 <https://github.com/open-planning/roboplan/issues/182>`_)
+* Store list of link names in group info (`#253 <https://github.com/open-planning/roboplan/issues/253>`_)
+* Add Reachback mobile manipulator model (`#227 <https://github.com/open-planning/roboplan/issues/227>`_)
+* Contributors: Erik Holum, Sebastian Castro, Sebastian Jahr, Stephanie Eng
+
 0.4.0 (2026-06-02)
 ------------------
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)

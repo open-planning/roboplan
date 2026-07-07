@@ -2,6 +2,24 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add unit tests for roboplan_simple_ik package (`#257 <https://github.com/open-planning/roboplan/issues/257>`_)
+* Cartesian path planner (`#240 <https://github.com/open-planning/roboplan/issues/240>`_)
+* Make `ConfigurationTask` runtime tunable and add `AccelerationLimit` (`#250 <https://github.com/open-planning/roboplan/issues/250>`_)
+* Add broadphase culling to collision checking and self-collision barrier (`#254 <https://github.com/open-planning/roboplan/issues/254>`_)
+* Add clang-tidy (`#182 <https://github.com/open-planning/roboplan/issues/182>`_)
+* Store list of link names in group info (`#253 <https://github.com/open-planning/roboplan/issues/253>`_)
+* Add RRT* and fast-return mode (`#246 <https://github.com/open-planning/roboplan/issues/246>`_)
+* add base frame support to Jacobian (`#238 <https://github.com/open-planning/roboplan/issues/238>`_)
+* Allow overriding joint position limits in YAML config (`#242 <https://github.com/open-planning/roboplan/issues/242>`_)
+* support accel + jerk limits in urdf>=1.2  (`#235 <https://github.com/open-planning/roboplan/issues/235>`_)
+* Speed up path shortcutting (`#236 <https://github.com/open-planning/roboplan/issues/236>`_)
+* Speed up collision checking and RRT (`#232 <https://github.com/open-planning/roboplan/issues/232>`_)
+* Minor improvements to SimpleIK and forward kinematics (`#231 <https://github.com/open-planning/roboplan/issues/231>`_)
+* Scene parsing and joint configuration clamping improvements (`#228 <https://github.com/open-planning/roboplan/issues/228>`_)
+* Contributors: Erik Holum, Muslim Alaran, Sebastian Castro, Sebastian Jahr
+
 0.4.0 (2026-06-02)
 ------------------
 * Add Ubuntu 26.04 and ROS 2 Lyrical to CI (`#215 <https://github.com/open-planning/roboplan/issues/215>`_)

@@ -2,6 +2,18 @@
 Changelog for package roboplan_rrt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add unit tests for roboplan_simple_ik package (`#257 <https://github.com/open-planning/roboplan/issues/257>`_)
+* Cartesian path planner (`#240 <https://github.com/open-planning/roboplan/issues/240>`_)
+* Add clang-tidy (`#182 <https://github.com/open-planning/roboplan/issues/182>`_)
+* Store list of link names in group info (`#253 <https://github.com/open-planning/roboplan/issues/253>`_)
+* Fix RRT connect tree joining for RRT* (`#252 <https://github.com/open-planning/roboplan/issues/252>`_)
+* Add RRT* and fast-return mode (`#246 <https://github.com/open-planning/roboplan/issues/246>`_)
+* Speed up collision checking and RRT (`#232 <https://github.com/open-planning/roboplan/issues/232>`_)
+* Scene parsing and joint configuration clamping improvements (`#228 <https://github.com/open-planning/roboplan/issues/228>`_)
+* Contributors: Erik Holum, Sebastian Castro, Sebastian Jahr
+
 0.4.0 (2026-06-02)
 ------------------
 * Add missing gtest and gmock deps in package.xmls (`#223 <https://github.com/open-planning/roboplan/issues/223>`_)

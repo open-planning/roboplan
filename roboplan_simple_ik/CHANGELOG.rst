@@ -2,6 +2,15 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add unit tests for roboplan_simple_ik package (`#257 <https://github.com/open-planning/roboplan/issues/257>`_)
+* Store list of link names in group info (`#253 <https://github.com/open-planning/roboplan/issues/253>`_)
+* Speed up collision checking and RRT (`#232 <https://github.com/open-planning/roboplan/issues/232>`_)
+* Fix the example IK python script (`#233 <https://github.com/open-planning/roboplan/issues/233>`_)
+* Minor improvements to SimpleIK and forward kinematics (`#231 <https://github.com/open-planning/roboplan/issues/231>`_)
+* Contributors: Erik Holum, Sebastian Castro
+
 0.4.0 (2026-06-02)
 ------------------
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)

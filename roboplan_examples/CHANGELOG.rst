@@ -2,6 +2,19 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix OInK instability with failures to converge (`#256 <https://github.com/open-planning/roboplan/issues/256>`_)
+* Cartesian path planner (`#240 <https://github.com/open-planning/roboplan/issues/240>`_)
+* Make `ConfigurationTask` runtime tunable and add `AccelerationLimit` (`#250 <https://github.com/open-planning/roboplan/issues/250>`_)
+* Add broadphase culling to collision checking and self-collision barrier (`#254 <https://github.com/open-planning/roboplan/issues/254>`_)
+* Add RRT* and fast-return mode (`#246 <https://github.com/open-planning/roboplan/issues/246>`_)
+* add base frame support to Jacobian (`#238 <https://github.com/open-planning/roboplan/issues/238>`_)
+* Speed up path shortcutting (`#236 <https://github.com/open-planning/roboplan/issues/236>`_)
+* Fix the example IK python script (`#233 <https://github.com/open-planning/roboplan/issues/233>`_)
+* Add Reachback mobile manipulator model (`#227 <https://github.com/open-planning/roboplan/issues/227>`_)
+* Contributors: Erik Holum, Muslim Alaran, Sebastian Castro, Stephanie Eng
+
 0.4.0 (2026-06-02)
 ------------------
 * Modularize Python bindings (`#221 <https://github.com/open-planning/roboplan/issues/221>`_)

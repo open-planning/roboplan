@@ -2,6 +2,16 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix OInK instability with failures to converge (`#256 <https://github.com/open-planning/roboplan/issues/256>`_)
+* Cartesian path planner (`#240 <https://github.com/open-planning/roboplan/issues/240>`_)
+* Make `ConfigurationTask` runtime tunable and add `AccelerationLimit` (`#250 <https://github.com/open-planning/roboplan/issues/250>`_)
+* Add broadphase culling to collision checking and self-collision barrier (`#254 <https://github.com/open-planning/roboplan/issues/254>`_)
+* Add clang-tidy (`#182 <https://github.com/open-planning/roboplan/issues/182>`_)
+* add base frame support to Jacobian (`#238 <https://github.com/open-planning/roboplan/issues/238>`_)
+* Contributors: Muslim Alaran, Sebastian Castro, Sebastian Jahr
+
 0.4.0 (2026-06-02)
 ------------------
 * Fix failing OInK test due to dimension mismatch (`#225 <https://github.com/open-planning/roboplan/issues/225>`_)
