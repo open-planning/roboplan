@@ -7,22 +7,20 @@ You should feel free to propose projects directly under the following ideas, but
 
 ---
 
-Releasing RoboPlan to PyPi and/or conda-forge
----------------------------------------------
+Build and Packaging Improvements
+--------------------------------
 
 **Mentors:** Sebastian Castro
 
 **Description:**
 
-Recently, RoboPlan was added to `conda-forge <https://conda-forge.org/>`_ to make installation easy.
+RoboPlan is available on `PyPi <https://pypi.org/>`_ and `conda-forge <https://conda-forge.org/>`_ to make installation easy.
 Right now this only supports Linux and MacOS, so a contributor could also consider expanding support to Windows as part of this effort.
 
-However, a next step for ease of use is to be able to ``pip install roboplan``.
-
 With libraries like RoboPlan, however, which rely on several upstream libraries, distribution to PyPi can be challenging.
-Wheels have to be assembled using tools such as `cibuildwheel <https://cibuildwheel.pypa.io/en/stable/>`_, for which there are several reference open-source projects.
+Wheels are currently assembled using tools such as `cibuildwheel <https://cibuildwheel.pypa.io/en/stable/>`_ and `cmeel <https://github.com/cmake-wheel/cmeel>`_.
 
-This project involves exploring the feasibility of building wheels from the RoboPlan stack in CI, testing on various platforms, and automating/documenting the release generation process.
+This project involves improving the process of building wheels from the RoboPlan stack in CI, testing on various platforms, and automating/documenting the release generation process.
 
 
 ROS Interface and Examples
