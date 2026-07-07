@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "roboplan-core"
-version = "0.4.0"
+version = "0.5.0"
 description = "Core types, scene representation, and utilities for RoboPlan."
 readme = "README.md"
 requires-python = ">=3.10"
