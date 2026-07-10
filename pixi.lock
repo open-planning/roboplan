@@ -33,7 +33,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/clangxx_impl_linux-64-19.1.7-default_hbd963a2_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cli11-2.6.2-h54a6638_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cmake-3.31.8-hc85cc9f_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/coal-python-3.0.3-py311h9144952_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/coal-python-3.0.4-py311h9144952_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/compiler-rt-19.1.7-hb700be7_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/console_bridge-1.0.2-h924138e_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.3.3-py311h724c32c_4.conda
@@ -82,7 +82,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.11.0-8_h0358290_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang-cpp19.1-19.1.7-default_h99862b1_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang13-22.1.8-default_h746c552_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libcoal-3.0.3-h7645e68_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libcoal-3.0.4-h7645e68_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcups-2.3.3-h7a8fb5f_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.20.0-hcf29cc6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libdeflate-1.25-h17f619e_0.conda
@@ -129,7 +129,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopengl-1.7.0-ha4b6fd6_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libosqp-1.0.0-np2py312h1a77e3e_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpciaccess-0.19-hb03c661_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libpinocchio-4.0.0-hbd86b04_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libpinocchio-4.1.0-hbd86b04_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.58-h421ea60_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-18.4-hd5a49e9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libqdldl-0.1.8-h3f2d84a_1.conda
@@ -183,8 +183,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/p11-kit-0.26.2-h3435931_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-haa7fec5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pillow-12.2.0-py311hf88fc01_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.0.0-h6d6aed4_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.0.0-py311hb4e273d_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.1.0-h6d6aed4_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-py311hb4e273d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-hb9d3cd8_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py311h38be061_0.conda
@@ -335,7 +335,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/clangxx_impl_linux-aarch64-19.1.7-default_h78643bd_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cli11-2.6.2-h7ac5ae9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cmake-3.31.8-hc9d863e_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/coal-python-3.0.3-py311h8becd30_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/coal-python-3.0.4-py311h8becd30_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/compiler-rt-19.1.7-hfefdfc9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/console_bridge-1.0.2-hdd96247_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/contourpy-1.3.3-py311h04741b4_4.conda
@@ -384,7 +384,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcblas-3.11.0-8_hd72aa62_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libclang-cpp19.1-19.1.7-default_he95a3c9_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libclang13-22.1.8-default_h3185f35_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcoal-3.0.3-h4bb004e_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcoal-3.0.4-h4bb004e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcups-2.3.3-h4f2b762_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcurl-8.20.0-hc57f145_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libdeflate-1.25-h1af38f5_0.conda
@@ -431,7 +431,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libopengl-1.7.0-hd24410f_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libosqp-1.0.0-np2py313ha2de5d4_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpciaccess-0.19-he30d5cf_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpinocchio-4.0.0-h430dd19_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpinocchio-4.1.0-h430dd19_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpng-1.6.58-h1abf092_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpq-18.4-hccacd55_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libqdldl-0.1.8-h5ad3122_1.conda
@@ -485,8 +485,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/p11-kit-0.26.2-h376a255_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pcre2-10.47-hf841c20_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pillow-12.2.0-py311h8e17b9e_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.0.0-h5476d96_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.0.0-py311h3eeecd8_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.1.0-h5476d96_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-py311h3eeecd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h86ecc28_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py311hec3470c_0.conda
@@ -701,7 +701,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/clangxx_impl_osx-arm64-19.1.7-default_hc11f16d_9.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cli11-2.6.2-h784d473_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cmake-3.31.8-h54ad630_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/coal-python-3.0.3-py311h17dd7e4_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/coal-python-3.0.4-py311h17dd7e4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/compiler-rt-19.1.7-h855ad52_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/console_bridge-1.0.2-h3e96240_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/contourpy-1.3.3-py311h7d85929_4.conda
@@ -743,7 +743,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcblas-3.11.0-8_hb0561ab_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libclang-cpp19.1-19.1.7-default_hf3020a7_9.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libclang13-22.1.8-default_h6dd9417_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcoal-3.0.3-h49f3d01_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcoal-3.0.4-h49f3d01_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcurl-8.20.0-hd5a2499_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-22.1.8-h55c6f16_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-devel-19.1.7-h6dc3340_2.conda
@@ -776,7 +776,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libnghttp2-1.68.1-h8f3e76b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libopenblas-0.3.33-openmp_he657e61_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libosqp-1.0.0-np2py313hd6693e2_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpinocchio-4.0.0-h7091ee2_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpinocchio-4.1.0-h7091ee2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpng-1.6.58-h132b30e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libqdldl-0.1.8-ha1acc90_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libraqm-0.10.5-h29bd36a_0.conda
@@ -812,8 +812,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/osqp-eigen-0.11.0-hb91c655_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pcre2-10.47-h30297fc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pillow-12.2.0-py311hd37aea2_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.0.0-h542eb5f_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.0.0-py311h19ef1fb_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.1.0-h542eb5f_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-py311h19ef1fb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h81086ad_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hd74edd7_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py311h267d04e_0.conda
@@ -878,7 +878,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/clangxx_impl_linux-64-19.1.7-default_hbd963a2_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cli11-2.6.2-h54a6638_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cmake-3.31.8-hc85cc9f_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/coal-python-3.0.3-py311h9144952_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/coal-python-3.0.4-py311h9144952_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/compiler-rt-19.1.7-hb700be7_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/console_bridge-1.0.2-h924138e_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.3.3-py311h724c32c_4.conda
@@ -927,7 +927,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.11.0-8_h0358290_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang-cpp19.1-19.1.7-default_h99862b1_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libclang13-22.1.8-default_h746c552_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libcoal-3.0.3-h7645e68_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libcoal-3.0.4-h7645e68_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcups-2.3.3-h7a8fb5f_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.20.0-hcf29cc6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libdeflate-1.25-h17f619e_0.conda
@@ -974,7 +974,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopengl-1.7.0-ha4b6fd6_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libosqp-1.0.0-np2py312h1a77e3e_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpciaccess-0.19-hb03c661_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libpinocchio-4.0.0-hbd86b04_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libpinocchio-4.1.0-hbd86b04_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.58-h421ea60_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-18.4-hd5a49e9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libqdldl-0.1.8-h3f2d84a_1.conda
@@ -1028,8 +1028,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/p11-kit-0.26.2-h3435931_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-haa7fec5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pillow-12.2.0-py311hf88fc01_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.0.0-h6d6aed4_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.0.0-py311hb4e273d_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.1.0-h6d6aed4_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-py311hb4e273d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-hb9d3cd8_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py311h38be061_0.conda
@@ -1180,7 +1180,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/clangxx_impl_linux-aarch64-19.1.7-default_h78643bd_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cli11-2.6.2-h7ac5ae9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cmake-3.31.8-hc9d863e_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/coal-python-3.0.3-py311h8becd30_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/coal-python-3.0.4-py311h8becd30_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/compiler-rt-19.1.7-hfefdfc9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/console_bridge-1.0.2-hdd96247_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/contourpy-1.3.3-py311h04741b4_4.conda
@@ -1229,7 +1229,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcblas-3.11.0-8_hd72aa62_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libclang-cpp19.1-19.1.7-default_he95a3c9_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libclang13-22.1.8-default_h3185f35_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcoal-3.0.3-h4bb004e_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcoal-3.0.4-h4bb004e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcups-2.3.3-h4f2b762_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcurl-8.20.0-hc57f145_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libdeflate-1.25-h1af38f5_0.conda
@@ -1276,7 +1276,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libopengl-1.7.0-hd24410f_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libosqp-1.0.0-np2py313ha2de5d4_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpciaccess-0.19-he30d5cf_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpinocchio-4.0.0-h430dd19_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpinocchio-4.1.0-h430dd19_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpng-1.6.58-h1abf092_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpq-18.4-hccacd55_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libqdldl-0.1.8-h5ad3122_1.conda
@@ -1330,8 +1330,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/p11-kit-0.26.2-h376a255_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pcre2-10.47-hf841c20_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pillow-12.2.0-py311h8e17b9e_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.0.0-h5476d96_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.0.0-py311h3eeecd8_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.1.0-h5476d96_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-py311h3eeecd8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h86ecc28_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py311hec3470c_0.conda
@@ -1546,7 +1546,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/clangxx_impl_osx-arm64-19.1.7-default_hc11f16d_9.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cli11-2.6.2-h784d473_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cmake-3.31.8-h54ad630_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/coal-python-3.0.3-py311h17dd7e4_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/coal-python-3.0.4-py311h17dd7e4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/compiler-rt-19.1.7-h855ad52_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/console_bridge-1.0.2-h3e96240_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/contourpy-1.3.3-py311h7d85929_4.conda
@@ -1588,7 +1588,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcblas-3.11.0-8_hb0561ab_openblas.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libclang-cpp19.1-19.1.7-default_hf3020a7_9.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libclang13-22.1.8-default_h6dd9417_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcoal-3.0.3-h49f3d01_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcoal-3.0.4-h49f3d01_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcurl-8.20.0-hd5a2499_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-22.1.8-h55c6f16_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-devel-19.1.7-h6dc3340_2.conda
@@ -1621,7 +1621,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libnghttp2-1.68.1-h8f3e76b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libopenblas-0.3.33-openmp_he657e61_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libosqp-1.0.0-np2py313hd6693e2_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpinocchio-4.0.0-h7091ee2_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpinocchio-4.1.0-h7091ee2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpng-1.6.58-h132b30e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libqdldl-0.1.8-ha1acc90_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libraqm-0.10.5-h29bd36a_0.conda
@@ -1657,8 +1657,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/osqp-eigen-0.11.0-hb91c655_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pcre2-10.47-h30297fc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pillow-12.2.0-py311hd37aea2_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.0.0-h542eb5f_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.0.0-py311h19ef1fb_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.1.0-h542eb5f_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-py311h19ef1fb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h81086ad_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hd74edd7_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py311h267d04e_0.conda
@@ -2211,9 +2211,9 @@ packages:
   run_exports: {}
   size: 20991288
   timestamp: 1757877168657
-- conda: https://conda.anaconda.org/conda-forge/linux-64/coal-python-3.0.3-py311h9144952_3.conda
-  sha256: 0fe7a074639c710b9623f39c60e8c782e39b06b759f0d4d743499ec942549f55
-  md5: a53833e1d51a2dbf96515bd6e925b482
+- conda: https://conda.anaconda.org/conda-forge/linux-64/coal-python-3.0.4-py311h9144952_0.conda
+  sha256: 5af52857df58524ff4840b16fc5799ab3b0f3aa70e9060070ca6fcd9aa471caf
+  md5: 27207dc4c4c24bf3376aa0dd4b53fc8c
   depends:
   - __glibc >=2.17,<3.0.a0
   - assimp >=6.0.5,<7.0a0
@@ -2221,7 +2221,7 @@ packages:
   - eigenpy >=3.13.0,<3.13.1.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-python >=1.90.0,<1.91.0a0
-  - libcoal 3.0.3 h7645e68_3
+  - libcoal 3.0.4 h7645e68_0
   - libgcc >=14
   - libstdcxx >=14
   - numpy >=1.23,<3
@@ -2232,8 +2232,8 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   run_exports: {}
-  size: 1400175
-  timestamp: 1780567658966
+  size: 1406174
+  timestamp: 1782808022636
 - conda: https://conda.anaconda.org/conda-forge/linux-64/compiler-rt-19.1.7-hb700be7_1.conda
   sha256: 1f3839f485cbdd4c9f5577094380547c3327009ada9522b7de3757724333645e
   md5: c88428a4cdec24439445266941b67507
@@ -2958,9 +2958,9 @@ packages:
     - libclang13 >=22.1.8
   size: 12865595
   timestamp: 1781852955604
-- conda: https://conda.anaconda.org/conda-forge/linux-64/libcoal-3.0.3-h7645e68_3.conda
-  sha256: 97517945f026ac075c02617207d419fd9fd301816ac32e7b9ca53b84e009360f
-  md5: d379056456c0de6bb376443b843b9645
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libcoal-3.0.4-h7645e68_0.conda
+  sha256: 065bfc2f1b689f0db9894a2886c0df0070309527068ec2d9d20f47372787762d
+  md5: 26155892351c63fb6667d5ef9f830e20
   depends:
   - __glibc >=2.17,<3.0.a0
   - assimp >=6.0.5,<7.0a0
@@ -2976,9 +2976,9 @@ packages:
   license_family: BSD
   run_exports:
     weak:
-    - libcoal >=3.0.3,<3.0.4.0a0
-  size: 1478200
-  timestamp: 1780567544149
+    - libcoal >=3.0.4,<3.0.5.0a0
+  size: 1475442
+  timestamp: 1782807882458
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libcups-2.3.3-h7a8fb5f_6.conda
   sha256: 205c4f19550f3647832ec44e35e6d93c8c206782bdd620c1d7cf66237580ff9c
   md5: 49c553b47ff679a6a1e9fc80b9c5a2d4
@@ -3632,9 +3632,9 @@ packages:
     - libpciaccess >=0.19,<0.20.0a0
   size: 29147
   timestamp: 1773533027610
-- conda: https://conda.anaconda.org/conda-forge/linux-64/libpinocchio-4.0.0-hbd86b04_3.conda
-  sha256: ef4a8377fc8d43b186e8c83d7cabd8e80e78e85a7c11f718f8b6b982a9c22da1
-  md5: a3240d39ed885503342e2f02778fb8da
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libpinocchio-4.1.0-hbd86b04_0.conda
+  sha256: de7d34da3e3c6829da260d437544b21f146e54c44aaa87e2f45329a8cc59034b
+  md5: 9964cec50659eeca02c748157476dd8e
   depends:
   - __glibc >=2.17,<3.0.a0
   - _openmp_mutex >=4.5
@@ -3643,7 +3643,7 @@ packages:
   - eigen-abi >=5.0.1.80,<5.0.1.81.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-devel
-  - libcoal >=3.0.3,<3.0.4.0a0
+  - libcoal >=3.0.4,<3.0.5.0a0
   - libgcc >=14
   - libgz-math >=9.1.0,<10.0a0
   - libsdformat >=16.0.1,<17.0a0
@@ -3656,9 +3656,9 @@ packages:
   license_family: BSD
   run_exports:
     weak:
-    - libpinocchio >=4.0.0,<4.0.1.0a0
-  size: 5214771
-  timestamp: 1780673035846
+    - libpinocchio >=4.1.0,<4.1.1.0a0
+  size: 5201150
+  timestamp: 1783452678689
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.58-h421ea60_0.conda
   sha256: 377cfe037f3eeb3b1bf3ad333f724a64d32f315ee1958581fc671891d63d3f89
   md5: eba48a68a1a2b9d3c0d9511548db85db
@@ -4486,23 +4486,23 @@ packages:
   run_exports: {}
   size: 1056849
   timestamp: 1775060059882
-- conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.0.0-h6d6aed4_3.conda
-  sha256: a0d1ff905a9fe5b1e2aee9409cd953832cdfc960950e53923144937596e9517a
-  md5: 9d62da3f3096ee99b8ad9ff089bd6b54
+- conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.1.0-h6d6aed4_0.conda
+  sha256: 00ede41bd0a9ff5e4dedc2091479186000bda63b17c291c0900b44eb5a80afa0
+  md5: c27dc023d47a9b1b57c49e13e5bad48f
   depends:
-  - libpinocchio 4.0.0 hbd86b04_3
-  - pinocchio-python 4.0.0 py311hb4e273d_3
+  - libpinocchio 4.1.0 hbd86b04_0
+  - pinocchio-python 4.1.0 py311hb4e273d_0
   - python_abi 3.11.* *_cp311
   license: BSD-2-Clause
   license_family: BSD
   run_exports:
     weak:
-    - libpinocchio >=4.0.0,<4.0.1.0a0
-  size: 11299
-  timestamp: 1780676867513
-- conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.0.0-py311hb4e273d_3.conda
-  sha256: 950cae373ce0010a8d039ffb5dd99a1f2ca1f48a78c38547d6072d447524b8b3
-  md5: 8ec274df56ed887e57eb5f8b8354f887
+    - libpinocchio >=4.1.0,<4.1.1.0a0
+  size: 9439
+  timestamp: 1783456292961
+- conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-py311hb4e273d_0.conda
+  sha256: 124059e0f8c7c12b141846a1fe6ea897873a410715544f48e58cc944293b836a
+  md5: 09cb95542781c682d790c7f4d9ada1c9
   depends:
   - __glibc >=2.17,<3.0.a0
   - casadi >=3.7.2,<3.8.0a0
@@ -4511,9 +4511,9 @@ packages:
   - eigenpy >=3.13.0,<3.13.1.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-python >=1.90.0,<1.91.0a0
-  - libcoal >=3.0.3,<3.0.4.0a0
+  - libcoal >=3.0.4,<3.0.5.0a0
   - libgcc >=14
-  - libpinocchio 4.0.0 hbd86b04_3
+  - libpinocchio 4.1.0 hbd86b04_0
   - libstdcxx >=14
   - numpy >=1.23,<3
   - python >=3.11,<3.12.0a0
@@ -4521,8 +4521,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 12811898
-  timestamp: 1780676762223
+  size: 12644185
+  timestamp: 1783456252095
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_1.conda
   sha256: 43d37bc9ca3b257c5dd7bf76a8426addbdec381f6786ff441dc90b1a49143b6a
   md5: c01af13bdc553d1a8fbfff6e8db075f0
@@ -5852,16 +5852,16 @@ packages:
   run_exports: {}
   size: 20216587
   timestamp: 1757877248575
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/coal-python-3.0.3-py311h8becd30_3.conda
-  sha256: fd3e3c111425d97a82757c3e3f4463485902622936e8dd2ebf34a777401f6738
-  md5: 5c97b6092b48f8b0f361fd474ba380d3
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/coal-python-3.0.4-py311h8becd30_0.conda
+  sha256: 81b5d5cf1b250cde276821bc2a8166163df57acbee79b6b74a92e8134f7c323f
+  md5: 12efa6ff7c58bf195708a264abc92113
   depends:
   - assimp >=6.0.5,<7.0a0
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   - eigenpy >=3.13.0,<3.13.1.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-python >=1.90.0,<1.91.0a0
-  - libcoal 3.0.3 h4bb004e_3
+  - libcoal 3.0.4 h4bb004e_0
   - libgcc >=14
   - libstdcxx >=14
   - numpy >=1.23,<3
@@ -5873,8 +5873,8 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   run_exports: {}
-  size: 1359261
-  timestamp: 1780567677029
+  size: 1359202
+  timestamp: 1782807987587
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/compiler-rt-19.1.7-hfefdfc9_1.conda
   sha256: 972d510a7e72017a7841e02da6933b021889624f94c179aa6cfdc9d9ec3e8e15
   md5: 6d68dca6550dd291ca158546af23142d
@@ -6568,9 +6568,9 @@ packages:
     - libclang13 >=22.1.8
   size: 12687762
   timestamp: 1781851496993
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcoal-3.0.3-h4bb004e_3.conda
-  sha256: 9ebbd8947e0531b46b02643dab8de71236f09cddba1a180b7fdb1f1a4d4dc2a9
-  md5: d5e8eacdaa8526ad2fa279b141fb8707
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcoal-3.0.4-h4bb004e_0.conda
+  sha256: efa34535de6da2ff4475d8966ddd57f625d123d8986e93ae86b9bfbfeef649d1
+  md5: 667458911c90d0dc376065f03ba15066
   depends:
   - assimp >=6.0.5,<7.0a0
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
@@ -6585,9 +6585,9 @@ packages:
   license_family: BSD
   run_exports:
     weak:
-    - libcoal >=3.0.3,<3.0.4.0a0
-  size: 1447207
-  timestamp: 1780567525119
+    - libcoal >=3.0.4,<3.0.5.0a0
+  size: 1444601
+  timestamp: 1782807881027
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libcups-2.3.3-h4f2b762_6.conda
   sha256: 41b04f995c9f63af8c4065a35931e46cbc2fdd6b9bf7e4c19f90d53cbb2bc8e5
   md5: 67828c963b17db7dc989fe5d509ef04a
@@ -7197,9 +7197,9 @@ packages:
     - libpciaccess >=0.19,<0.20.0a0
   size: 30294
   timestamp: 1773533057559
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpinocchio-4.0.0-h430dd19_3.conda
-  sha256: b07172c3e620e8e74989dcc04a4a8961f48fac1748ae6bfff01066187e683e82
-  md5: 8a404949cb7a2bf20066990ed89caaf9
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpinocchio-4.1.0-h430dd19_0.conda
+  sha256: 836a4e392b9a2b9de1999cd522020560b0885ace226eea6ccf7937472f1e2fad
+  md5: 3e17b8fadd7e62bcc5ba53103f74ef49
   depends:
   - _openmp_mutex >=4.5
   - casadi >=3.7.2,<3.8.0a0
@@ -7207,7 +7207,7 @@ packages:
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-devel
-  - libcoal >=3.0.3,<3.0.4.0a0
+  - libcoal >=3.0.4,<3.0.5.0a0
   - libgcc >=14
   - libgz-math >=9.1.0,<10.0a0
   - libsdformat >=16.0.1,<17.0a0
@@ -7220,9 +7220,9 @@ packages:
   license_family: BSD
   run_exports:
     weak:
-    - libpinocchio >=4.0.0,<4.0.1.0a0
-  size: 4800112
-  timestamp: 1780673193482
+    - libpinocchio >=4.1.0,<4.1.1.0a0
+  size: 4841355
+  timestamp: 1783453004863
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libpng-1.6.58-h1abf092_0.conda
   sha256: 483eaa53da40a6a3e558709d9f7b1ca388735364ae21a1ba58cf942514649c92
   md5: f51503ac45a4888bce71af9027a2ecc9
@@ -8007,23 +8007,23 @@ packages:
   run_exports: {}
   size: 1036955
   timestamp: 1775060067775
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.0.0-h5476d96_3.conda
-  sha256: 4be9c56cfd0ffd2be1b3247e073028184a14790261be8376ac5562b4f5543cea
-  md5: 5f183533c510aec71d62d59de9025948
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.1.0-h5476d96_0.conda
+  sha256: 342c4ce01e6aee8ec282d179176ee62e0695ae0ef6b72aa2e9128ca1de2239b8
+  md5: 7b7b3f85f8bb0ba0524e8363019aac27
   depends:
-  - libpinocchio 4.0.0 h430dd19_3
-  - pinocchio-python 4.0.0 py311h3eeecd8_3
+  - libpinocchio 4.1.0 h430dd19_0
+  - pinocchio-python 4.1.0 py311h3eeecd8_0
   - python_abi 3.11.* *_cp311
   license: BSD-2-Clause
   license_family: BSD
   run_exports:
     weak:
-    - libpinocchio >=4.0.0,<4.0.1.0a0
-  size: 11522
-  timestamp: 1780677624378
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.0.0-py311h3eeecd8_3.conda
-  sha256: 6cd3a939a3fb7e0f1335ea8208951490086010aee0edad4dfebe40e6fca5fe58
-  md5: 8913507ae622f17274d73e833b7deaba
+    - libpinocchio >=4.1.0,<4.1.1.0a0
+  size: 9599
+  timestamp: 1783457651895
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-py311h3eeecd8_0.conda
+  sha256: 3d3924a56087f05e6bf0b47c5d374d892012f2c63d71aaf644492735c5b8ace0
+  md5: 73d4889bf0956703e13c4568a7ca4066
   depends:
   - casadi >=3.7.2,<3.8.0a0
   - coal-python
@@ -8031,9 +8031,9 @@ packages:
   - eigenpy >=3.13.0,<3.13.1.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-python >=1.90.0,<1.91.0a0
-  - libcoal >=3.0.3,<3.0.4.0a0
+  - libcoal >=3.0.4,<3.0.5.0a0
   - libgcc >=14
-  - libpinocchio 4.0.0 h430dd19_3
+  - libpinocchio 4.1.0 h430dd19_0
   - libstdcxx >=14
   - numpy >=1.23,<3
   - python >=3.11,<3.12.0a0
@@ -8042,8 +8042,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 13236463
-  timestamp: 1780677511371
+  size: 13077826
+  timestamp: 1783457605141
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_1.conda
   sha256: e6b0846a998f2263629cfeac7bca73565c35af13251969f45d385db537a514e4
   md5: 1587081d537bd4ae77d1c0635d465ba5
@@ -10330,9 +10330,9 @@ packages:
   run_exports: {}
   size: 16632236
   timestamp: 1757877846468
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/coal-python-3.0.3-py311h17dd7e4_3.conda
-  sha256: ac58d80c75b3b2da0df26dee48d784b3045310d2155beb00cd56362b6b949e27
-  md5: 06b2f30c604645a09dc24726e0cc8507
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/coal-python-3.0.4-py311h17dd7e4_0.conda
+  sha256: 47a8b865414e88b7e1255d289bf3e9e488c963954f82118556586569cd0c9c99
+  md5: b4c0cb9e611aca8a3ae36308bb188f1c
   depends:
   - __osx >=11.0
   - assimp >=6.0.5,<7.0a0
@@ -10340,7 +10340,7 @@ packages:
   - eigenpy >=3.13.0,<3.13.1.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-python >=1.90.0,<1.91.0a0
-  - libcoal 3.0.3 h49f3d01_3
+  - libcoal 3.0.4 h49f3d01_0
   - libcxx >=19
   - numpy >=1.23,<3
   - octomap >=1.10.0,<1.11.0a0
@@ -10351,8 +10351,8 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   run_exports: {}
-  size: 1010073
-  timestamp: 1780569458118
+  size: 1009547
+  timestamp: 1782809785908
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/compiler-rt-19.1.7-h855ad52_1.conda
   sha256: b58a481828aee699db7f28bfcbbe72fb133277ac60831dfe70ee2465541bcb93
   md5: 39451684370ae65667fa5c11222e43f7
@@ -10943,9 +10943,9 @@ packages:
     - libclang13 >=22.1.8
   size: 8937771
   timestamp: 1781851334402
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcoal-3.0.3-h49f3d01_3.conda
-  sha256: 6fd404ec1c1e8447be350d398cfeff626065ff1f382d909cb998272537d1b248
-  md5: 88ebb4b41cc8622c96299423350925c0
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcoal-3.0.4-h49f3d01_0.conda
+  sha256: 9935a5de51ef5c46c5fce7c4e648bc79fa1a8a07536d154f06617cdf800610b6
+  md5: 2ce853093057dcd769e9eefd53ed6b1d
   depends:
   - __osx >=11.0
   - assimp >=6.0.5,<7.0a0
@@ -10960,9 +10960,9 @@ packages:
   license_family: BSD
   run_exports:
     weak:
-    - libcoal >=3.0.3,<3.0.4.0a0
-  size: 1030633
-  timestamp: 1780568415909
+    - libcoal >=3.0.4,<3.0.5.0a0
+  size: 1030900
+  timestamp: 1782808381443
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcurl-8.20.0-hd5a2499_0.conda
   sha256: 38c0bc634b61e542776e97cfd15d5d41edd304d4e47c333004d2d622439b2381
   md5: 2f57b7d0c6adda88957586b7afd78438
@@ -11413,9 +11413,9 @@ packages:
     - libosqp >=1.0.0,<1.0.1.0a0
   size: 74143
   timestamp: 1760460382025
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpinocchio-4.0.0-h7091ee2_3.conda
-  sha256: f1407f911860f073cfffaa496cb40fbcfeeafb43ac9e77c164fdd220bdf9d5bd
-  md5: b1940a1c9772130efdba498bb298cf76
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpinocchio-4.1.0-h7091ee2_0.conda
+  sha256: df40c308c9057a2b39ecd56062c761982463c6ce85b5d6f2e74e10829bad08aa
+  md5: 78afb971161a6c0cd485860789650dc1
   depends:
   - __osx >=11.0
   - casadi >=3.7.2,<3.8.0a0
@@ -11423,12 +11423,12 @@ packages:
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-devel
-  - libcoal >=3.0.3,<3.0.4.0a0
+  - libcoal >=3.0.4,<3.0.5.0a0
   - libcxx >=19
   - libgz-math >=9.1.0,<10.0a0
   - libsdformat >=16.0.1,<17.0a0
   - llvm-openmp >=19.1.7
-  - llvm-openmp >=22.1.7
+  - llvm-openmp >=22.1.8
   - qhull >=2020.2,<2020.3.0a0
   - qhull-static
   - urdfdom >=6.0.0,<7.0a0
@@ -11437,9 +11437,9 @@ packages:
   license_family: BSD
   run_exports:
     weak:
-    - libpinocchio >=4.0.0,<4.0.1.0a0
-  size: 3698682
-  timestamp: 1780674022047
+    - libpinocchio >=4.1.0,<4.1.1.0a0
+  size: 3705845
+  timestamp: 1783453567855
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libpng-1.6.58-h132b30e_0.conda
   sha256: 66eae34546df1f098a67064970c92aa14ae7a7505091889e00468294d2882c36
   md5: 2259ae0949dbe20c0665850365109b27
@@ -11971,23 +11971,23 @@ packages:
   run_exports: {}
   size: 979746
   timestamp: 1775060469004
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.0.0-h542eb5f_3.conda
-  sha256: c1574171208ca227f5db1a569fe61cc655ba49035f3d2c1f67edfee8ca1696c0
-  md5: da47c1a07ca47a2da9e7fd29b8daec31
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.1.0-h542eb5f_0.conda
+  sha256: 9e8c6d42803ffffc41126bcfdd3f84effeff70ed8f0ad7f2e8ff9d3de3fc305e
+  md5: da044a5a2f4ac75be27a3c431dfe385a
   depends:
-  - libpinocchio 4.0.0 h7091ee2_3
-  - pinocchio-python 4.0.0 py311h19ef1fb_3
+  - libpinocchio 4.1.0 h7091ee2_0
+  - pinocchio-python 4.1.0 py311h19ef1fb_0
   - python_abi 3.11.* *_cp311
   license: BSD-2-Clause
   license_family: BSD
   run_exports:
     weak:
-    - libpinocchio >=4.0.0,<4.0.1.0a0
-  size: 11340
-  timestamp: 1780681531251
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.0.0-py311h19ef1fb_3.conda
-  sha256: a52013cf65b6a280b4600ec4845369ae708853650b2d7f936c8dfc7b9acc173f
-  md5: 472bfb218036bc81b3dcbdfbfacde956
+    - libpinocchio >=4.1.0,<4.1.1.0a0
+  size: 9468
+  timestamp: 1783463392630
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-py311h19ef1fb_0.conda
+  sha256: 412f8dd9b7c85b641c04b895576b15c7cb9424fe006dda270c5c35012237ae97
+  md5: 5adb6af3391ff255b566fa29e43d9155
   depends:
   - __osx >=11.0
   - casadi >=3.7.2,<3.8.0a0
@@ -11996,9 +11996,9 @@ packages:
   - eigenpy >=3.13.0,<3.13.1.0a0
   - libboost >=1.90.0,<1.91.0a0
   - libboost-python >=1.90.0,<1.91.0a0
-  - libcoal >=3.0.3,<3.0.4.0a0
+  - libcoal >=3.0.4,<3.0.5.0a0
   - libcxx >=19
-  - libpinocchio 4.0.0 h7091ee2_3
+  - libpinocchio 4.1.0 h7091ee2_0
   - numpy >=1.23,<3
   - python >=3.11,<3.12.0a0
   - python >=3.11,<3.12.0a0 *_cpython
@@ -12006,8 +12006,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 10647389
-  timestamp: 1780681291804
+  size: 10647323
+  timestamp: 1783463278619
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h81086ad_1.conda
   sha256: 29c9b08a9b8b7810f9d4f159aecfd205fce051633169040005c0b7efad4bc718
   md5: 17c3d745db6ea72ae2fce17e7338547f
