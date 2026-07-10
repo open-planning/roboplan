@@ -52,12 +52,12 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     assert "setuptools-scm >=8" in build_requires
     assert "cmeel-eigen[build]" in build_requires
     assert "cmeel-yaml-cpp[build]" in build_requires
-    assert "libpinocchio[build] == 4.0.0" in build_requires
+    assert "libpinocchio[build] == 4.1.0" in build_requires
     assert "patchelf; platform_system == 'Linux'" in build_requires
     dependencies = cast(list[str], project["dependencies"])
     assert "roboplan-core" not in dependencies
     assert "numpy" in dependencies
-    assert "pin" in dependencies
+    assert "pin >=4.1.0, <4.2" in dependencies
     assert "matplotlib" in dependencies
 
     tool = cast(dict[str, object], data["tool"])
