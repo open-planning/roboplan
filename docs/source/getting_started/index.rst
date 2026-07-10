@@ -5,5 +5,6 @@ Getting Started
    :maxdepth: 2
 
    installation
+   comparison
    contributor_guide
    project_ideas

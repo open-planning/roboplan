@@ -1,0 +1,27 @@
+/* Styling for the wide comparison tables in getting_started/comparison.rst. */
+
+/* Let cell text wrap so the tables fit the page instead of forcing a scrollbar. */
+.wy-table-responsive table.comparison-table td,
+.wy-table-responsive table.comparison-table th {
+    white-space: normal;
+}
+
+/* Below this width, fall back to horizontal scrolling to keep cells readable. */
+.rst-content table.comparison-table {
+    min-width: 40em;
+}
+
+/* Keep the first (tool/feature) column visible while scrolling horizontally. */
+.rst-content table.comparison-table th:first-child,
+.rst-content table.comparison-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: #fff;
+    border-right: 2px solid #e1e4e5;
+}
+
+/* Match the theme's striped row background so sticky cells stay opaque. */
+.rst-content table.comparison-table tr:nth-child(2n-1) td:first-child {
+    background-color: #f3f6f6;
+}
