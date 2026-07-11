@@ -1,11 +1,11 @@
 Installation
 ============
 
-First, clone this repo *including submodules*.
+First, clone this repo.
 
 ::
 
-    git clone --recursive https://github.com/open-planning/roboplan.git
+    git clone https://github.com/open-planning/roboplan.git
     cd roboplan
 
 Minimally, this will give you access to the examples so you can run them regardless of how you installed RoboPlan.
@@ -29,7 +29,7 @@ We recommend creating your own environment for isolation, installing all the lib
 
 ::
 
-    conda create -n roboplan -c conda-forge roboplan-python roboplan-rrt-python roboplan-simple-ik-python roboplan-oink-python roboplan-toppra-python
+    conda create -n roboplan -c conda-forge roboplan-all-python
     conda activate roboplan
 
 In your new environment, you can import the ``roboplan`` Python bindings.
@@ -47,6 +47,7 @@ For example, if you cloned the repo to a ``roboplan`` subfolder:
     python roboplan/roboplan_examples/python/example_ik.py
 
 For each package in this repository, you can use conda to install either a C++ only library (e.g., ``libroboplan-simple-ik``) or a library with Python bindings (e.g., ``roboplan-simple-ik-python``).
+We also provide convenient metapackages (``libroboplan-all`` and ``roboplan-all-python``) containing all the libraries.
 
 ---
 
@@ -143,7 +144,7 @@ ROS 2 (colcon)
 
 If you are using `ROS 2 <https://docs.ros.org/>`_, you can build RoboPlan with the ``colcon`` build system.
 
-For this workflow, you should clone the repo (again, *including submodules*) to a valid ROS 2 workspace.
+For this workflow, you should clone the repo to a valid ROS 2 workspace.
 
 ::
 
