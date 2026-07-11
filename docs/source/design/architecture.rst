@@ -106,10 +106,10 @@ The core package
 ----------------
 
 The ``Scene`` is the central object in RoboPlan.
-It owns the Pinocchio robot model and data, the collision geometry model, and a Coal broadphase manager.
+It owns the Pinocchio robot model and data, the collision geometry model, and planning-relevant information such as joint groups, joint limits, and dynamic obstacles.
 On top of these it provides the queries every algorithm needs: forward kinematics, frame Jacobians, joint limits and groups, collision and distance checks, random and collision-free sampling, and interpolation/integration that respects the configuration space topology.
 
-Algorithms do not talk to Pinocchio or Coal directly; they take a ``Scene`` (usually as a ``std::shared_ptr``) and work with the standard data types.
+Algorithms take a ``Scene`` (usually as a ``std::shared_ptr``) and work with the standard data types, though they can also extract the underlying Pinocchio model information directly from the scene as necessary.
 For thread safety, components that check collisions concurrently (such as RRT and OInK) snapshot a private ``CollisionContext`` from the ``Scene`` instead of mutating shared state.
 This provides an additional benefit of taking advantage of Pinocchio's broadphase manager for faster collision checking.
 
