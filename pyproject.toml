@@ -4,7 +4,7 @@ requires = [
     "setuptools-scm >=8",
     "cmeel-eigen[build]",
     "cmeel-yaml-cpp[build]",
-    "libpinocchio[build] == 4.0.0",
+    "libpinocchio[build] == 4.1.0",
     "nanobind >=1.3.2",
     "patchelf; platform_system == 'Linux'",
 ]
@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
     "matplotlib",
     "numpy",
-    "pin",
+    "pin >=4.1.0, <4.2",
 ]
 
 [project.urls]
