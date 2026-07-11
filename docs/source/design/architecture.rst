@@ -122,7 +122,7 @@ Algorithm packages
 Each algorithm package builds on the core package, bringing in its own external solver where needed:
 
 - **SimpleIK** iterates a damped least-squares update using Jacobians from the ``Scene``.
-- **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `OSQP <https://osqp.org/>`_ (through ``osqp-eigen``).
+- **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `OSQP <https://osqp.org/>`_ (through `osqp-eigen <https://github.com/gbionics/osqp-eigen>`_).
 - **RRT** grows search trees in configuration space, using the ``Scene`` for sampling and collision checks and the vendored `dynotree <https://github.com/quimortiz/dynotree>`_ k-d tree for nearest-neighbor lookups.
 - **TOPP-RA** wraps the `toppra <https://github.com/hungpham2511/toppra>`_ library to time-parameterize joint paths subject to the velocity and acceleration limits stored in the ``Scene``.
 - **CartesianPathPlanner** is the main integration point: it tracks a task-space path with an internal OInK solver and times the result either with a trapezoidal velocity profile or with TOPP-RA.
