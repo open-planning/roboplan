@@ -3,7 +3,7 @@ Contributor Guide
 
 Thank you for considering a contribution to RoboPlan!
 
-Please make sure to follow the :doc:`design philosophy </design>` and :doc:`Installation </getting_started/installation>` pages.
+Please make sure to follow the :doc:`design philosophy </design/philosophy>` and :doc:`Installation </getting_started/installation>` pages.
 
 If you're not sure what to work on, take a look at any of the `open issues <https://github.com/open-planning/roboplan/issues>`_ or the :doc:`Project Ideas </getting_started/project_ideas>` pages.
 
@@ -12,7 +12,7 @@ Creating Python Bindings
 ------------------------
 
 We use `nanobind <https://github.com/wjakob/nanobind>`_ to generate Python bindings.
-As described in the :doc:`Design Philosophy </design>` page, you should bias towards implementing functionality in C++ and creating Python bindings.
+As described in the :doc:`Design Philosophy </design/philosophy>` page, you should bias towards implementing functionality in C++ and creating Python bindings.
 There are exceptions; for example, if you're making Python-specific utilities for examples, visualization, etc.
 
 The Python bindings source code can be found in the ``bindings`` subfolder for each package.

@@ -35,7 +35,7 @@ Quick Links:
    :maxdepth: 2
    :caption: Contents:
 
-   design
+   design/index
    getting_started/index
    concepts/index
    api_cpp

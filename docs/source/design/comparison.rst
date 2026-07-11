@@ -4,7 +4,7 @@ Comparison to Other Tools
 There are several excellent open-source tools for robot motion planning, each with its own design philosophy.
 This page compares RoboPlan to the most common alternatives so you can pick the right tool for your application.
 
-As described in the :doc:`Design Philosophy </design>`, RoboPlan differs from most frameworks in three ways:
+As described in the :doc:`Design Philosophy </design/philosophy>`, RoboPlan differs from most frameworks in three ways:
 
 - **Not a monolith**: Concrete, shared data types instead of abstract plugin interfaces. Swapping components means changing code, not YAML.
 - **Middleware is optional**: The core library is standalone; ROS 2 wrappers live in the separate `roboplan-ros <https://github.com/open-planning/roboplan-ros>`_ repository.

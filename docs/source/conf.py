@@ -51,6 +51,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx_rtd_theme",
     "sphinx_copybutton",
+    "sphinxcontrib.mermaid",
     "breathe",
 ]
 
