@@ -39,7 +39,6 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   // iterations check collisions against their own scratch rather than the Scene's shared data.
   const CollisionContext collision_context(*scene_);
 
-  bool result = false;
   const auto& model = scene_->getModel();
 
   const auto& q_indices = joint_group_info_.q_indices;
@@ -85,7 +84,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   double nearest_distance = std::numeric_limits<double>::max();
 
   size_t attempt = 0;
-  while (attempt <= options_.max_restarts) {
+  bool timed_out = false;
+  while (attempt <= options_.max_restarts && !timed_out) {
     if (attempt > 0) {
       const auto maybe_q_random = scene_->randomCollisionFreePositions();
       if (!maybe_q_random) {
@@ -172,9 +172,10 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       q(q_indices) = q(q_indices).cwiseMax(lower_position_limits_).cwiseMin(upper_position_limits_);
       ++iter;
 
-      // Check for timeouts.
+      // On timeout, stop iterating and fall through to return the best solution found so far.
       if (std::chrono::steady_clock::now() - start_time > timeout) {
-        return result;
+        timed_out = true;
+        break;
       }
     }
 
