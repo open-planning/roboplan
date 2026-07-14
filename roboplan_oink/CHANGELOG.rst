@@ -2,6 +2,11 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make nanobind-dev and python3-dev build dependencies in package.xml (`#264 <https://github.com/open-planning/roboplan/issues/264>`_)
+* Contributors: Sebastian Castro
+
 0.5.0 (2026-07-07)
 ------------------
 * Fix OInK instability with failures to converge (`#256 <https://github.com/open-planning/roboplan/issues/256>`_)

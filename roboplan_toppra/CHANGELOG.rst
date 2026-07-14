@@ -2,6 +2,12 @@
 Changelog for package roboplan_toppra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make nanobind-dev and python3-dev build dependencies in package.xml (`#264 <https://github.com/open-planning/roboplan/issues/264>`_)
+* Remove 'toppra' dependency conditions in package.xml (`#263 <https://github.com/open-planning/roboplan/issues/263>`_)
+* Contributors: Sebastian Castro
+
 0.5.0 (2026-07-07)
 ------------------
 * Add pixi Support for osx-arm64 and missing docs pages (`#248 <https://github.com/open-planning/roboplan/issues/248>`_)

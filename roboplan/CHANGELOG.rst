@@ -2,6 +2,12 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make nanobind-dev and python3-dev build dependencies in package.xml (`#264 <https://github.com/open-planning/roboplan/issues/264>`_)
+* Fix version ranges for building wheels since Pinocchio 4.1.0 released (`#262 <https://github.com/open-planning/roboplan/issues/262>`_)
+* Contributors: Sebastian Castro
+
 0.5.0 (2026-07-07)
 ------------------
 * Add unit tests for roboplan_simple_ik package (`#257 <https://github.com/open-planning/roboplan/issues/257>`_)
