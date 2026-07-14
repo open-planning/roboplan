@@ -80,7 +80,7 @@ Expanding Available Algorithms in RoboPlan
 **Description:**
 
 Currently, RoboPlan offers basic algorithms for collision-free motion planning (RRT),
-inverse kinematics (simple IK and incoming optimization-based IK), and trajectory timing (TOPP-RA).
+inverse kinematics (simple IK and optimization-based IK), and trajectory timing (TOPP-RA).
 
 There are many other algorithms in the space of motion planning that could be implemented here.
 If you have any ideas for new algorithms to implement or integrate into RoboPlan, and you find this exciting,

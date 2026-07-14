@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "roboplan-example-models"
-version = "0.5.0"
+version = "0.5.1"
 description = "Robot descriptions for RoboPlan testing and examples."
 readme = "README.md"
 requires-python = ">=3.10"
