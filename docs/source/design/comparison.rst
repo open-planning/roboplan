@@ -155,7 +155,7 @@ Which Tool Should You Use?
      - Pre-1.0 with breaking changes and an intentionally small algorithm surface; no optimization-based planners, perception pipeline, or online execution layer (yet!).
    * - MoveIt 2
      - You are building a ROS 2 system and want a batteries-included stack: GUI setup, perception, execution, and swappable planner/IK plugins without recompiling.
-     - Requires ROS 2. Behavior is spread across many YAML/SRDF/launch files, and the abstract plugin interfaces can make debugging and customization harder. Open-source maintenance has slowed recently as development focus has shifted toward the commercial MoveIt Pro offering.
+     - Requires ROS 2. Behavior is spread across many YAML/SRDF/launch files, and the abstract plugin interfaces can make debugging and customization harder. Open-source features and maintenance have slowed recently.
    * - Tesseract
      - You target industrial Cartesian processes (welding, painting, machining) that need mixed freespace/Cartesian programs, TrajOpt, and continuous collision checking — with Python bindings and optional ROS integration, like RoboPlan.
      - Pre-1.0 with breaking changes. Shares MoveIt's plugin/YAML indirection (by design), and the Python bindings are low-level SWIG wrappers.
