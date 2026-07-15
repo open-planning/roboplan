@@ -6,6 +6,7 @@ The core package defines the :doc:`standard data types </design/philosophy>` (e.
 Each algorithm lives in its own package, consumes the ``Scene`` and the standard types, and can be installed and used independently.
 
 The diagram below shows the major components, the external libraries they build on, and how the Python bindings fit in.
+Colors indicate the implementation language of each component: C++ only, Python only, or C++ with Python bindings.
 
 .. mermaid::
 
@@ -47,10 +48,11 @@ The diagram below shows the major components, the external libraries they build 
 
        CART --> OINK
        CART --> TOPPRA
-       SINK --> SCENE
-       OINK --> SCENE
-       RRT --> SCENE
-       TOPPRA --> SCENE
+       SINK --> CORE
+       OINK --> CORE
+       RRT --> CORE
+       TOPPRA --> CORE
+       CART --> CORE
        SHORT --> SCENE
 
        OINK --> OSQP
@@ -60,6 +62,24 @@ The diagram below shows the major components, the external libraries they build 
        SCENE --> COAL
        VIZ --> VISER
        VIZ --> MPL
+
+       subgraph LEGEND["Legend"]
+           LCPP["C++ only"]
+           LBOTH["C++ with Python bindings"]
+           LPY["Python only"]
+       end
+
+       EXT ~~~ LPY & LBOTH & LCPP
+
+       classDef cpp fill:#6da7ec,stroke:#00599c,color:#111111
+       classDef python fill:#ffd43b,stroke:#8a6d00,color:#111111
+       classDef both fill:#6fce89,stroke:#1b5e20,color:#111111
+       classDef neutral fill:#ffffff,stroke:#666666,color:#111111
+
+       class LCPP,OSQP,TOPPRALIB,DYNO cpp
+       class LPY,VIZ,INTERP,VISER,MPL python
+       class LBOTH,CART,SINK,OINK,RRT,TOPPRA,SCENE,TYPES,SHORT,PIN,COAL both
+       class USER neutral
 
 Note that all components use `Eigen <https://eigen.tuxfamily.org/>`_ for linear algebra; it is omitted from the diagram for clarity.
 
