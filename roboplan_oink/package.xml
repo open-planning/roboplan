@@ -15,8 +15,13 @@
   <build_depend>python3-dev</build_depend>
 
   <depend>roboplan</depend>
-  <!-- TODO: Update as proxsuite gets released on follow-on ROS distro syncs. -->
-  <depend condition="$ROS_DISTRO != kilted and $ROS_DISTRO != lyrical and $ROS_DISTRO != rolling">proxsuite</depend>
+  <!--
+  The QP solver performs best with proxsuite >= 0.7.3; older versions fail the test suite.
+  The ROS binaries currently ship 0.6.5 on humble/jazzy and nothing on kilted or later,
+  so the build rejects them and fetches the pinned version via CMake FetchContent instead.
+  TODO: Restore once ROS binaries >= 0.7.3 have synced.
+  <depend>proxsuite</depend>
+  -->
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>libgmock-dev</test_depend>
