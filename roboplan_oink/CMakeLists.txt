@@ -34,11 +34,15 @@ else()
   set(BUILD_WITH_VECTORIZATION_SUPPORT OFF CACHE INTERNAL "Disable proxsuite vectorization")
   set(BUILD_TESTING OFF)
 
+  set(_proxsuite_fetch_extra "")
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+    list(APPEND _proxsuite_fetch_extra DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+  endif()
   FetchContent_Declare(
     proxsuite
     URL https://github.com/Simple-Robotics/proxsuite/archive/refs/tags/v0.7.3.tar.gz
     URL_HASH SHA256=e634babff534c8812c6dbc6b022b1d01f9a2a4a9a73cf87a6dc299a4de996904
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${_proxsuite_fetch_extra}
   )
   FetchContent_MakeAvailable(proxsuite)
 
@@ -126,8 +130,8 @@ if (BUILD_TESTING_OINK)
     add_subdirectory(test)
 endif()
 
-# Build the Python bindings by default (for the scikit-build wheel, colcon, and
-# pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
+# Build the Python bindings by default (for the scikit-build wheel, colcon, and pixi).
+# Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
 option(BUILD_PYTHON_BINDINGS "Build the roboplan_oink Python bindings" ON)
 if(BUILD_PYTHON_BINDINGS)
   add_subdirectory(bindings)
