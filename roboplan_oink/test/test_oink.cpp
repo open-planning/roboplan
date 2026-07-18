@@ -524,8 +524,13 @@ TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
   const Eigen::Vector3d current_position = current_ee_pose.block<3, 1>(0, 3);
   const Eigen::Matrix3d current_rotation = current_ee_pose.block<3, 3>(0, 0);
 
-  // Target is offset from current position (10cm in X direction)
-  const Eigen::Vector3d target_position = current_position + Eigen::Vector3d(0.1, 0.0, 0.0);
+  // Target is offset 10cm inward (-x) from the current position. From the outstretched
+  // canonical pose the tool is already at the edge of the reachable workspace, so an outward
+  // (+x) target sits on the workspace boundary and the outer IK loop oscillates around
+  // centimeter-scale error — whether it lands inside a tight tolerance at a fixed iteration
+  // count then varies with platform-level floating-point differences. An inward target
+  // converges monotonically to sub-millimeter error on every platform.
+  const Eigen::Vector3d target_position = current_position + Eigen::Vector3d(-0.1, 0.0, 0.0);
   auto target_pose =
       makeCartesianConfig("tool0", target_position, Eigen::Quaterniond(current_rotation));
 

@@ -30,7 +30,7 @@ void init_cartesian_path_planner(nanobind::module_& m) {
                                             "Options for the Cartesian path planner.")
       .def(nanobind::init<std::string, double, CartesianSpeedMode, double, double, double, double,
                           double, double, double, double, double, double, double, double, double,
-                          double, double, double, double, int>(),
+                          double, double, double, double, double, int>(),
            "group_name"_a = "", "dt"_a = 0.01, "speed_mode"_a = CartesianSpeedMode::Bounded,
            "max_linear_speed"_a = 0.1, "max_angular_speed"_a = 0.5,
            "max_linear_acceleration"_a = 0.5, "max_angular_acceleration"_a = 2.5,
@@ -38,8 +38,8 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
            "lm_damping"_a = 0.01, "regularization"_a = 1e-6, "config_task_weight"_a = 0.05,
            "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0, "limit_ratio_tolerance"_a = 1.05,
-           "toppra_blend_deviation"_a = 0.05, "position_limit_gain"_a = 1.0,
-           "max_attempts_per_step"_a = 16)
+           "toppra_blend_deviation"_a = 0.05, "toppra_waypoint_spacing"_a = 0.005,
+           "position_limit_gain"_a = 1.0, "max_attempts_per_step"_a = 16)
       .def_rw("group_name", &CartesianPlannerOptions::group_name, "Joint group name.")
       .def_rw("dt", &CartesianPlannerOptions::dt, "Output trajectory sample period (s).")
       .def_rw("speed_mode", &CartesianPlannerOptions::speed_mode, "Speed/timing strategy.")
@@ -77,6 +77,10 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_rw("toppra_blend_deviation", &CartesianPlannerOptions::toppra_blend_deviation,
               "Corner-rounding tolerance (rad) for the TimeOptimal mode's TOPP-RA line+blend "
               "geometry.")
+      .def_rw("toppra_waypoint_spacing", &CartesianPlannerOptions::toppra_waypoint_spacing,
+              "Spacing (m of tool travel) between the waypoints handed to TOPP-RA in TimeOptimal "
+              "mode; the dense diff-IK trace is resampled to this spacing so servo jitter does "
+              "not dominate the blend corner angles. <= 0 disables the resampling.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
               "Gain for the joint position-limit constraint.")
       .def_rw("max_attempts_per_step", &CartesianPlannerOptions::max_attempts_per_step,

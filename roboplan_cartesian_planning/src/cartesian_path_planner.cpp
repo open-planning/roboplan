@@ -42,10 +42,10 @@ constexpr double kLimitRelTolerance = 1e-2;
 /// than landing exactly on it.
 constexpr double kSlowdownHeadroom = 1.1;
 
-/// @brief Hard cap on the number of waypoints handed to TOPP-RA. Normally the full dense diff-IK
-/// trace is used as-is (the LinearBlend geometry is density-robust, so decimating only discards
-/// path detail); this cap only kicks in for pathologically long paths, decimating to bound the
-/// time-parameterization problem size (and hence planning time).
+/// @brief Hard cap on the number of waypoints handed to TOPP-RA, bounding the
+/// time-parameterization problem size (and hence planning time) for pathologically long paths.
+/// The trace is normally resampled to a coarser tool-travel spacing before this cap applies
+/// (see CartesianPlannerOptions::toppra_waypoint_spacing).
 constexpr size_t kMaxToppraWaypoints = 10000;
 
 /// @brief Fixed additive slack (in control steps) added to the servo loop's step budget, on top of
@@ -836,14 +836,27 @@ CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
     return tl::make_unexpected(tracked.error());
   }
 
-  // Hand the dense diff-IK trace straight to TOPP-RA: the LinearBlend geometry is density-robust
-  // (straight segments have zero curvature), so decimating only throws away path detail.
-  // Decimate solely as a safety cap on the problem size for very long paths.
+  // The LinearBlend geometry treats every waypoint as a potential corner. At the raw trace
+  // spacing (kResolutionLinearSpeed * dt of tool travel per waypoint), even sub-milliradian
+  // servo jitter dominates the direction change between adjacent waypoints, so each one
+  // becomes a tight blend arc whose centripetal acceleration bound throttles the whole
+  // trajectory far below the joint limits. Resample the trace to space tool travel between
+  // waypoints coarse enough that genuine path geometry dominates the blend angles, but is
+  // still fine enough to preserve the corners within the blend deviation.
   const std::vector<Eigen::VectorXd>& trace_positions = tracked->positions;
+  size_t num_target_waypoints = kMaxToppraWaypoints;
+  if (options_.toppra_waypoint_spacing > 0.0) {
+    const double waypoint_stride =
+        std::max(1.0, options_.toppra_waypoint_spacing / (kResolutionLinearSpeed * options_.dt));
+    num_target_waypoints =
+        std::clamp<size_t>(static_cast<size_t>(std::ceil(
+                               static_cast<double>(trace_positions.size()) / waypoint_stride)),
+                           2, kMaxToppraWaypoints);
+  }
   JointPath joint_path;
   joint_path.joint_names = joint_group_info_.joint_names;
-  joint_path.positions = trace_positions.size() > kMaxToppraWaypoints
-                             ? resampleUniform(trace_positions, kMaxToppraWaypoints, *scene_,
+  joint_path.positions = trace_positions.size() > num_target_waypoints
+                             ? resampleUniform(trace_positions, num_target_waypoints, *scene_,
                                                joint_group_info_.q_indices)
                              : trace_positions;
   if (joint_path.positions.size() < 2) {

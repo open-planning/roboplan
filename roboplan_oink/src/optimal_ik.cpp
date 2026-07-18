@@ -369,6 +369,19 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
 
   solver->solve();
 
+  // A warm start carried over from a substantially different problem (e.g. a barrier row
+  // tightening sharply between control steps, or a near-singular configuration changing the
+  // Hessian conditioning) can stall the solver short of convergence. If a warm-started solve
+  // fails, retry once from a cold start before reporting the failure.
+  QPSolverOutput status = solver->results.info.status;
+  if (status != QPSolverOutput::PROXQP_SOLVED &&
+      status != QPSolverOutput::PROXQP_SOLVED_CLOSEST_PRIMAL_FEASIBLE &&
+      solver->settings.initial_guess == InitialGuessStatus::WARM_START_WITH_PREVIOUS_RESULT) {
+    solver->settings.initial_guess = InitialGuessStatus::NO_INITIAL_GUESS;
+    solver->solve();
+    status = solver->results.info.status;
+  }
+
   // Warm start subsequent solves with the previous solution. This must only be enabled
   // after a first solve has populated the results and factorization; enabling it before
   // the first solve makes ProxQP reuse a factorization that was never computed.
@@ -379,7 +392,6 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
   // PROXQP_SOLVED_CLOSEST_PRIMAL_FEASIBLE is returned when the QP was primal-infeasible and
   // settings.primal_infeasibility_solving is enabled: the solution minimizes the constraint
   // violation in the least-squares sense and is the safest displacement available.
-  const QPSolverOutput status = solver->results.info.status;
   if (status != QPSolverOutput::PROXQP_SOLVED &&
       status != QPSolverOutput::PROXQP_SOLVED_CLOSEST_PRIMAL_FEASIBLE) {
     switch (status) {
