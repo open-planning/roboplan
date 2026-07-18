@@ -22,29 +22,31 @@ find_package(roboplan REQUIRED)
 # issues with symlink installs.
 find_package(ament_cmake QUIET)
 
-# OInK uses ProxQP from proxsuite (header-only) as its QP solver. It is always fetched at
-# a pinned version so every platform builds against the same solver version, instead of
-# whatever a system/distro package would provide. proxsuite is kept out of the public
-# headers and the exported link interface, so downstream consumers do not need it.
-# Offline builds can pre-seed the sources via -DFETCHCONTENT_SOURCE_DIR_PROXSUITE=<path>.
-message(STATUS "Fetching proxsuite from GitHub...")
+# OInK uses ProxQP from proxsuite (header-only) as its QP solver.
+find_package(proxsuite QUIET)
 
-# Disable proxsuite vectorization support (would require Simde) and tests.
-set(BUILD_WITH_VECTORIZATION_SUPPORT OFF CACHE INTERNAL "Disable proxsuite vectorization")
-set(BUILD_TESTING OFF)
+if(proxsuite_FOUND)
+  message(STATUS "Found installed proxsuite ${proxsuite_VERSION}.")
+else()
+  message(STATUS "proxsuite not found. Fetching from GitHub...")
 
-FetchContent_Declare(
-  proxsuite
-  URL https://github.com/Simple-Robotics/proxsuite/archive/refs/tags/v0.7.3.tar.gz
-  URL_HASH SHA256=e634babff534c8812c6dbc6b022b1d01f9a2a4a9a73cf87a6dc299a4de996904
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(proxsuite)
+  # Disable proxsuite vectorization support (would require Simde) and tests.
+  set(BUILD_WITH_VECTORIZATION_SUPPORT OFF CACHE INTERNAL "Disable proxsuite vectorization")
+  set(BUILD_TESTING OFF)
 
-# proxsuite creates a non-namespaced target when built via FetchContent.
-# Create a namespaced alias to match the installed package.
-if(TARGET proxsuite AND NOT TARGET proxsuite::proxsuite)
-  add_library(proxsuite::proxsuite ALIAS proxsuite)
+  FetchContent_Declare(
+    proxsuite
+    URL https://github.com/Simple-Robotics/proxsuite/archive/refs/tags/v0.7.3.tar.gz
+    URL_HASH SHA256=e634babff534c8812c6dbc6b022b1d01f9a2a4a9a73cf87a6dc299a4de996904
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(proxsuite)
+
+  # proxsuite creates a non-namespaced target when built via FetchContent.
+  # Create a namespaced alias to match the installed package.
+  if(TARGET proxsuite AND NOT TARGET proxsuite::proxsuite)
+    add_library(proxsuite::proxsuite ALIAS proxsuite)
+  endif()
 endif()
 
 # Add libraries

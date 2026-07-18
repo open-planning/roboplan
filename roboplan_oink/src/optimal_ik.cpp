@@ -397,16 +397,6 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     }
   }
 
-  // If the solver did not converge, even with NoError status, this can return large garbage values.
-  // In this case, return a zero step and reset the warm-start state so the numerical instability
-  // is not carried into the next solve.
-  const OsqpEigen::Status status = solver.getStatus();
-  if (status != OsqpEigen::Status::Solved && status != OsqpEigen::Status::SolvedInaccurate) {
-    delta_q.setZero();
-    solver.clearSolverVariables();
-    return {};
-  }
-
   // Extract the solution and copy into delta_q
   delta_q.noalias() = solver->results.x;
   return {};

@@ -35,7 +35,7 @@ Colors indicate the implementation language of each component: C++ only, Python 
        subgraph EXT["External libraries"]
            PIN["Pinocchio"]
            COAL["Coal"]
-           OSQP["OSQP"]
+           PROXSUITE["ProxSuite"]
            TOPPRALIB["toppra"]
            DYNO["dynotree"]
            VISER["Viser"]
@@ -55,7 +55,7 @@ Colors indicate the implementation language of each component: C++ only, Python 
        CART --> CORE
        SHORT --> SCENE
 
-       OINK --> OSQP
+       OINK --> PROXSUITE
        RRT --> DYNO
        TOPPRA --> TOPPRALIB
        SCENE --> PIN
@@ -76,7 +76,7 @@ Colors indicate the implementation language of each component: C++ only, Python 
        classDef both fill:#6fce89,stroke:#1b5e20,color:#111111
        classDef neutral fill:#ffffff,stroke:#666666,color:#111111
 
-       class LCPP,OSQP,TOPPRALIB,DYNO cpp
+       class LCPP,PROXSUITE,TOPPRALIB,DYNO cpp
        class LPY,VIZ,INTERP,VISER,MPL python
        class LBOTH,CART,SINK,OINK,RRT,TOPPRA,SCENE,TYPES,SHORT,PIN,COAL both
        class USER neutral
@@ -142,7 +142,7 @@ Algorithm packages
 Each algorithm package builds on the core package, bringing in its own external solver where needed:
 
 - **SimpleIK** iterates a damped least-squares update using Jacobians from the ``Scene``.
-- **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `OSQP <https://osqp.org/>`_ (through `osqp-eigen <https://github.com/gbionics/osqp-eigen>`_).
+- **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `ProxSuite <https://github.com/Simple-Robotics/proxsuite>`_.
 - **RRT** grows search trees in configuration space, using the ``Scene`` for sampling and collision checks and the vendored `dynotree <https://github.com/quimortiz/dynotree>`_ k-d tree for nearest-neighbor lookups.
 - **TOPP-RA** wraps the `toppra <https://github.com/hungpham2511/toppra>`_ library to time-parameterize joint paths subject to the velocity and acceleration limits stored in the ``Scene``.
 - **CartesianPathPlanner** is the main integration point: it tracks a task-space path with an internal OInK solver and times the result either with a trapezoidal velocity profile or with TOPP-RA.

@@ -4,7 +4,6 @@
 #include <limits>
 #include <stdexcept>
 
-#include <OsqpEigen/OsqpEigen.h>
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 
@@ -111,12 +110,13 @@ tl::expected<void, std::string> AccelerationLimit::computeQpConstraints(
     double upper = std::min(accel_upper, brake_upper);
     double lower = -std::min(accel_lower, brake_lower);
 
-    // Clamp to OSQP's valid range.
-    if (!std::isfinite(upper) || upper > OsqpEigen::INFTY) {
-      upper = OsqpEigen::INFTY;
+    // Unbounded sides (e.g. an unlimited acceleration or a joint without a position limit)
+    // are passed through as +/- infinity; the QP solver treats those rows as unbounded.
+    if (!std::isfinite(upper)) {
+      upper = kInfinity;
     }
-    if (!std::isfinite(lower) || lower < -OsqpEigen::INFTY) {
-      lower = -OsqpEigen::INFTY;
+    if (!std::isfinite(lower)) {
+      lower = -kInfinity;
     }
 
     upper_bounds(i) = upper;

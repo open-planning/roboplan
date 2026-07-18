@@ -225,11 +225,10 @@ sccache     = ">=0.10.0,<0.11"
 yaml-cpp    = ">=0.8.0,<0.9"
 
 # Core dependencies
-# Note: the OInK QP solver (proxsuite/ProxQP, header-only) is fetched at a pinned version
-# via CMake FetchContent in roboplan_oink, so it is intentionally not listed here.
 eigen      = ">=3.4.0"
 libtoppra  = ">=0.6.4,<0.7"
 pinocchio  = ">=4.1.0,<5"
+proxsuite = ">=0.7.3,<0.8"
 
 # Python bindings dependencies
 python            = ">=3.11,<3.12"

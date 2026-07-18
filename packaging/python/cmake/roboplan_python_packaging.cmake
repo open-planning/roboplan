@@ -126,7 +126,6 @@ function(roboplan_configure_unified_python_wheel)
   endforeach()
 
   foreach(library IN ITEMS
-      OsqpEigen
       boost_atomic
       boost_filesystem
       boost_serialization
@@ -137,11 +136,11 @@ function(roboplan_configure_unified_python_wheel)
       gz-utils
       octomap
       octomath
-      osqp
       pinocchio_collision
       pinocchio_default
       pinocchio_extra
       pinocchio_parsers
+      proxsuite
       qdldl
       qhull_r
       sdformat
