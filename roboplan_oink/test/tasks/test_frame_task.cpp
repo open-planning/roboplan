@@ -198,7 +198,7 @@ TEST_F(FrameTaskTest, QpObjectiveComputation) {
   FrameTask task(*oink_, *scene_, target_pose, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
-  Eigen::SparseMatrix<double> H(num_variables_, num_variables_);
+  Eigen::MatrixXd H(num_variables_, num_variables_);
   Eigen::VectorXd c(num_variables_);
   auto result = task.computeQpObjective(*scene_, H, c);
 
@@ -272,7 +272,7 @@ TEST_F(FrameTaskTest, TaskGainParameter) {
 
   // Gain affects the damping behavior in QP objective
   // Both should compute without error
-  Eigen::SparseMatrix<double> H(num_variables_, num_variables_);
+  Eigen::MatrixXd H(num_variables_, num_variables_);
   Eigen::VectorXd c(num_variables_);
   auto result = task_low_gain.computeQpObjective(*scene_, H, c);
   ASSERT_TRUE(result.has_value());

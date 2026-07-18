@@ -5,7 +5,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Set a new oink specific build testing option since osqp can mess with the original.
+# Set a new oink specific build testing option since the fetched QP solver build
+# can mess with the original.
 option(BUILD_TESTING "" ON)
 option(BUILD_TESTING_OINK "" ${BUILD_TESTING})
 
@@ -21,69 +22,29 @@ find_package(roboplan REQUIRED)
 # issues with symlink installs.
 find_package(ament_cmake QUIET)
 
-# Try to find OsqpEigen
-find_package(OsqpEigen QUIET)
+# OInK uses ProxQP from proxsuite (header-only) as its QP solver. It is always fetched at
+# a pinned version so every platform builds against the same solver version, instead of
+# whatever a system/distro package would provide. proxsuite is kept out of the public
+# headers and the exported link interface, so downstream consumers do not need it.
+# Offline builds can pre-seed the sources via -DFETCHCONTENT_SOURCE_DIR_PROXSUITE=<path>.
+message(STATUS "Fetching proxsuite from GitHub...")
 
-if(NOT OsqpEigen_FOUND)
-  # When building OsqpEigen from source, we need OSQP == 0.6.3 for ROS compatibility.
-  find_package(osqp QUIET)
+# Disable proxsuite vectorization support (would require Simde) and tests.
+set(BUILD_WITH_VECTORIZATION_SUPPORT OFF CACHE INTERNAL "Disable proxsuite vectorization")
+set(BUILD_TESTING OFF)
 
-  # ROS osqp vendor package can set osqp_FOUND without osqp_VERSION.
-  # Disable follow-up osqp package lookup so OsqpEigen uses the vendored OSQP.
-  if(ament_cmake_FOUND AND osqp_FOUND AND NOT DEFINED osqp_VERSION)
-    set(
-      CMAKE_DISABLE_FIND_PACKAGE_osqp
-      ON
-      CACHE BOOL "Disable find_package(osqp) to avoid mixed OSQP/OsqpEigen APIs."
-      FORCE
-    )
-    set(osqp_FOUND FALSE)
-    message(STATUS "Detected osqp package without osqp_VERSION; forcing vendored OSQP + OsqpEigen.")
-  endif()
+FetchContent_Declare(
+  proxsuite
+  URL https://github.com/Simple-Robotics/proxsuite/archive/refs/tags/v0.7.3.tar.gz
+  URL_HASH SHA256=e634babff534c8812c6dbc6b022b1d01f9a2a4a9a73cf87a6dc299a4de996904
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(proxsuite)
 
-  if(NOT osqp_FOUND OR NOT osqp_VERSION VERSION_EQUAL "0.6.3")
-    message(STATUS "OSQP not found or version < 0.6.3. Fetching from GitHub...")
-
-    # Disable OSQP tests and demos
-    set(OSQP_BUILD_DEMO OFF CACHE INTERNAL "Disable OSQP demo")
-    set(OSQP_BUILD_UNITTESTS OFF CACHE INTERNAL "Disable OSQP tests")
-
-    # Fetch OSQP from GitHub
-    FetchContent_Declare(
-      osqp
-      GIT_REPOSITORY https://github.com/osqp/osqp.git
-      GIT_TAG v0.6.3
-      GIT_SHALLOW TRUE
-    )
-    FetchContent_MakeAvailable(osqp)
-
-    # OSQP creates non-namespaced targets when built via FetchContent
-    # Create namespaced aliases so OsqpEigen can find them
-    if(TARGET osqp AND NOT TARGET osqp::osqp)
-      add_library(osqp::osqp ALIAS osqp)
-    endif()
-    if(TARGET osqpstatic AND NOT TARGET osqp::osqpstatic)
-      add_library(osqp::osqpstatic ALIAS osqpstatic)
-    endif()
-
-    # Set OSQP version detection variables to skip OsqpEigen's try_compile tests
-    # (try_compile doesn't work with ALIAS targets from FetchContent)
-    set(OSQP_IS_V1 FALSE CACHE BOOL "OSQP is version 1.0+" FORCE)
-    set(OSQP_IS_V1_FINAL FALSE CACHE BOOL "OSQP is version 1.0.0 final" FORCE)
-  endif()
-
-  message(STATUS "OsqpEigen not found. Fetching from GitHub...")
-
-  set(OSQPEIGEN_COMPILE_tests OFF CACHE INTERNAL "Disable OsqpEigen tests")
-
-  # Fetch osqp-eigen from GitHub (using gbionics fork as per original .gitmodules)
-  FetchContent_Declare(
-    osqp-eigen
-    GIT_REPOSITORY https://github.com/gbionics/osqp-eigen.git
-    GIT_TAG v0.11.0
-    GIT_SHALLOW TRUE
-  )
-  FetchContent_MakeAvailable(osqp-eigen)
+# proxsuite creates a non-namespaced target when built via FetchContent.
+# Create a namespaced alias to match the installed package.
+if(TARGET proxsuite AND NOT TARGET proxsuite::proxsuite)
+  add_library(proxsuite::proxsuite ALIAS proxsuite)
 endif()
 
 # Add libraries
@@ -101,9 +62,11 @@ target_include_directories(roboplan_oink PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+# proxsuite is linked PRIVATE: it is header-only and not part of roboplan_oink's public
+# headers, so it must not leak into the exported link interface.
 target_link_libraries(roboplan_oink
-    roboplan::roboplan
-    OsqpEigen::OsqpEigen
+    PUBLIC roboplan::roboplan
+    PRIVATE proxsuite::proxsuite
 )
 set_property(TARGET roboplan_oink PROPERTY CXX_STANDARD 20)
 

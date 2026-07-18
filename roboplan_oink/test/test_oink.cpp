@@ -5,6 +5,7 @@
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
+#include <roboplan_oink/barriers/position_barrier.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -12,8 +13,8 @@
 #include <roboplan_oink/tasks/frame.hpp>
 
 namespace {
-// Tolerance for OSQP constraint satisfaction
-// OSQP is a numerical solver with finite precision, so we allow small violations (~1e-4)
+// Tolerance for QP constraint satisfaction. ProxQP solves to eps_abs = 1e-6 by default;
+// the looser tolerance here also absorbs linearization error across integration steps.
 constexpr double kTolerance = 1e-3;
 
 // Helper to create CartesianConfiguration from position and orientation
@@ -1030,6 +1031,83 @@ TEST_F(OinkTest, PriorityStackingImprovesFrameTracking) {
       << "Parallel-priority frame tracking error " << err_parallel
       << "m unexpectedly small (<1cm) — the two tasks aren't competing as expected; "
          "tweak the ConfigurationTask weight or target to restore the conflict.";
+}
+
+// An already-violated barrier demands an escape displacement, while a (near-)zero velocity
+// limit forbids any motion: the resulting QP has no feasible point. With the default
+// settings (primal_infeasibility_solving = true), ProxQP solves the closest feasible
+// problem instead of failing, so solveIk() must still return a usable displacement.
+TEST_F(OinkTest, InfeasibleQpSolvesClosestFeasibleProblem) {
+  // Non-singular UR5 ready pose.
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q.head(6) << 0.0, -1.5708, 1.5708, -1.5708, -1.5708, 0.0;
+  scene_->setJointPositions(q);
+
+  Oink oink(*scene_);
+
+  const Eigen::Matrix4d tool_pose = scene_->forwardKinematics(q, "tool0");
+  const Eigen::Vector3d p = tool_pose.block<3, 1>(0, 3);
+
+  // Box whose lower z bound lies 0.2 m ABOVE the current tool position: the z-min barrier
+  // starts out violated (h = -0.2) and demands upward motion.
+  const double dt = 0.1;
+  const Eigen::Vector3d p_min(p.x() - 10.0, p.y() - 10.0, p.z() + 0.2);
+  const Eigen::Vector3d p_max = p + Eigen::Vector3d(10.0, 10.0, 10.0);
+  auto barrier = std::make_shared<PositionBarrier>(oink, *scene_, "tool0", p_min, p_max, dt);
+  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
+
+  // Velocity limit so tight that the demanded escape motion is impossible.
+  const Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1e-6);
+  auto velocity_limit = std::make_shared<VelocityLimit>(oink, dt, v_max);
+  std::vector<std::shared_ptr<Constraints>> constraints = {velocity_limit};
+
+  // Task pulling the tool toward its current pose (any task works; the conflict is between
+  // the barrier and the velocity limit).
+  auto target = makeCartesianConfig("tool0", p, Eigen::Quaterniond(tool_pose.block<3, 3>(0, 0)));
+  auto task = std::make_shared<FrameTask>(oink, *scene_, target);
+  std::vector<std::shared_ptr<Task>> tasks = {task};
+
+  Eigen::VectorXd delta_q(num_variables_);
+  auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
+  ASSERT_TRUE(result.has_value())
+      << "solveIk() must not fail on an infeasible QP when primal_infeasibility_solving is "
+         "enabled: "
+      << result.error();
+  EXPECT_TRUE(delta_q.allFinite());
+}
+
+// The same infeasible QP with primal_infeasibility_solving disabled must surface an error
+// instead of silently returning a meaningless solution.
+TEST_F(OinkTest, InfeasibleQpReportsErrorWhenInfeasibilitySolvingDisabled) {
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q.head(6) << 0.0, -1.5708, 1.5708, -1.5708, -1.5708, 0.0;
+  scene_->setJointPositions(q);
+
+  OinkSettings settings;
+  settings.primal_infeasibility_solving = false;
+  Oink oink(*scene_, settings);
+
+  const Eigen::Matrix4d tool_pose = scene_->forwardKinematics(q, "tool0");
+  const Eigen::Vector3d p = tool_pose.block<3, 1>(0, 3);
+
+  const double dt = 0.1;
+  const Eigen::Vector3d p_min(p.x() - 10.0, p.y() - 10.0, p.z() + 0.2);
+  const Eigen::Vector3d p_max = p + Eigen::Vector3d(10.0, 10.0, 10.0);
+  auto barrier = std::make_shared<PositionBarrier>(oink, *scene_, "tool0", p_min, p_max, dt);
+  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
+
+  const Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1e-6);
+  auto velocity_limit = std::make_shared<VelocityLimit>(oink, dt, v_max);
+  std::vector<std::shared_ptr<Constraints>> constraints = {velocity_limit};
+
+  auto target = makeCartesianConfig("tool0", p, Eigen::Quaterniond(tool_pose.block<3, 3>(0, 0)));
+  auto task = std::make_shared<FrameTask>(oink, *scene_, target);
+  std::vector<std::shared_ptr<Task>> tasks = {task};
+
+  Eigen::VectorXd delta_q(num_variables_);
+  auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
+  EXPECT_FALSE(result.has_value()) << "solveIk() unexpectedly succeeded on an infeasible QP with "
+                                      "primal_infeasibility_solving disabled";
 }
 
 }  // namespace roboplan

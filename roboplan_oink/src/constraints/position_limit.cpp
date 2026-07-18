@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <roboplan_oink/constraints/position_limit.hpp>
 
-#include <OsqpEigen/OsqpEigen.h>
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 
@@ -80,23 +79,10 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
   // Fill constraint matrix: identity matrix (write directly into workspace)
   constraint_matrix.setIdentity();
 
-  // For box constraints l <= G*dq <= u where G = I
-  // Clamp infinite bounds to OSQP's INFTY constant
-  for (int i = 0; i < num_variables; ++i) {
-    double lower = -delta_q_min(i);
-    double upper = delta_q_max(i);
-
-    // Clamp to OSQP's valid range
-    if (!std::isfinite(lower) || lower < -OsqpEigen::INFTY) {
-      lower = -OsqpEigen::INFTY;
-    }
-    if (!std::isfinite(upper) || upper > OsqpEigen::INFTY) {
-      upper = OsqpEigen::INFTY;
-    }
-
-    lower_bounds(i) = lower;
-    upper_bounds(i) = upper;
-  }
+  // For box constraints l <= G*dq <= u where G = I. Unlimited joints (e.g. continuous
+  // joints) keep infinite bounds; the QP solver treats those rows as unbounded.
+  lower_bounds = -delta_q_min;
+  upper_bounds = delta_q_max;
 
   return {};
 }
