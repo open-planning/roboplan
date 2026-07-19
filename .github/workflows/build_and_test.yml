@@ -154,13 +154,61 @@ jobs:
             exit 1
           fi
           echo "✅ .pyi stub files look good!"
+
+  clang_tidy:
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ubuntu-24.04-clang-tidy-sccache-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            ubuntu-24.04-clang-tidy-sccache-main
+            ubuntu-24.04-clang-tidy-sccache
+      - uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          frozen: true
+          manifest-path: pixi.toml
+      - name: Build
+        run: pixi run -e ci install_all
       - name: Run clang-tidy
-        if: matrix.os == 'ubuntu-26.04'
-        run: |
-          pixi run -e ci clang-tidy
-      # TODO: Decide on a method for automated benchmark performance testing.
-      # TODO: These are currently running in debug mode due to `-e ci`. We should fix this.
-      - name: Run benchmarks
-        if: matrix.os != 'ubuntu-26.04'  # Just to not share time with clang-tidy
-        run: |
-          pixi run -e ci test_benchmarks
+        run: pixi run -e ci clang-tidy
+
+  rrt_benchmarks:
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ubuntu-24.04-benchmarks-sccache-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            ubuntu-24.04-benchmarks-sccache-main
+            ubuntu-24.04-benchmarks-sccache
+      - uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          frozen: true
+          manifest-path: pixi.toml
+      - name: Build
+        run: pixi run -e default install_all
+      - name: Run RRT benchmarks
+        run: pixi run -e default test_benchmarks
