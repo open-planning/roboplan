@@ -113,12 +113,16 @@ jobs:
         include:
           - os: ubuntu-22.04
             cache-key: ubuntu-22.04
+            clang_tidy: false
           - os: ubuntu-24.04
             cache-key: ubuntu-24.04
+            clang_tidy: false
           - os: ubuntu-26.04
             cache-key: ubuntu-26.04
+            clang_tidy: true
           - os: macos-14
             cache-key: macos-arm64
+            clang_tidy: false
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -145,6 +149,9 @@ jobs:
           pixi run -e ci install_all
           pixi run -e ci build_tests
           pixi run -e ci test_all
+      - name: Run clang-tidy
+        if: matrix.clang_tidy
+        run: pixi run -e ci clang-tidy
       - name: Check bindings stub files
         run: |
           if ! git diff --exit-code --shortstat -- '*.pyi'; then
@@ -154,35 +161,6 @@ jobs:
             exit 1
           fi
           echo "✅ .pyi stub files look good!"
-
-  clang_tidy:
-    timeout-minutes: 30
-    runs-on: ubuntu-24.04
-    env:
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Cache sccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: ubuntu-24.04-clang-tidy-sccache-${{ github.head_ref || github.ref_name }}
-          restore-keys: |
-            ubuntu-24.04-clang-tidy-sccache-main
-            ubuntu-24.04-clang-tidy-sccache
-      - uses: prefix-dev/setup-pixi@v0.8.14
-        with:
-          cache: true
-          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-          frozen: true
-          manifest-path: pixi.toml
-      - name: Build
-        run: pixi run -e ci install_all
-      - name: Run clang-tidy
-        run: pixi run -e ci clang-tidy
 
   rrt_benchmarks:
     timeout-minutes: 30
