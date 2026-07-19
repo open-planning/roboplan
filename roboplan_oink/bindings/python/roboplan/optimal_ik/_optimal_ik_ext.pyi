@@ -402,6 +402,61 @@ class SelfCollisionBarrier(Barrier):
         Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance.
         """
 
+class OinkSettings:
+    """Solver settings for the Oink QP (ProxQP)."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def eps_abs(self) -> float:
+        """Absolute stopping tolerance on the primal/dual residuals."""
+
+    @eps_abs.setter
+    def eps_abs(self, arg: float, /) -> None: ...
+
+    @property
+    def eps_rel(self) -> float:
+        """
+        Relative stopping tolerance on the primal/dual residuals (0 disables it).
+        """
+
+    @eps_rel.setter
+    def eps_rel(self, arg: float, /) -> None: ...
+
+    @property
+    def max_iter(self) -> int:
+        """Maximum number of solver iterations."""
+
+    @max_iter.setter
+    def max_iter(self, arg: int, /) -> None: ...
+
+    @property
+    def verbose(self) -> bool:
+        """Print solver internals to stdout."""
+
+    @verbose.setter
+    def verbose(self, arg: bool, /) -> None: ...
+
+    @property
+    def warm_start(self) -> bool:
+        """
+        Warm start each solve with the previous solution (recommended for control loops).
+        """
+
+    @warm_start.setter
+    def warm_start(self, arg: bool, /) -> None: ...
+
+    @property
+    def primal_infeasibility_solving(self) -> bool:
+        """
+        When the QP is primal-infeasible, solve the closest feasible problem in the
+        least-squares sense instead of failing, so solveIk() always returns a usable
+        displacement.
+        """
+
+    @primal_infeasibility_solving.setter
+    def primal_infeasibility_solving(self, arg: bool, /) -> None: ...
+
 class Oink:
     """Optimal Inverse Kinematics solver."""
 
@@ -412,6 +467,23 @@ class Oink:
     @overload
     def __init__(self, scene: roboplan.core._core_ext.Scene) -> None:
         """Constructor for the full robot (all joints)."""
+
+    @overload
+    def __init__(self, scene: roboplan.core._core_ext.Scene, group_name: str, settings: OinkSettings) -> None:
+        """Constructor for a named joint group with custom solver settings."""
+
+    @overload
+    def __init__(self, scene: roboplan.core._core_ext.Scene, settings: OinkSettings) -> None:
+        """Constructor for the full robot with custom solver settings."""
+
+    @property
+    def settings(self) -> OinkSettings:
+        """
+        QP solver settings. Changes take effect the next time the solver is rebuilt (i.e., when the constraint dimensions change).
+        """
+
+    @settings.setter
+    def settings(self, arg: OinkSettings, /) -> None: ...
 
     @property
     def num_variables(self) -> int:

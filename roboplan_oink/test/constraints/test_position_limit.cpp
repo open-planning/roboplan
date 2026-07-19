@@ -223,8 +223,10 @@ TEST_F(PositionLimitTest, ZeroGain) {
   EXPECT_TRUE(lower_bounds.isApprox(Eigen::VectorXd::Zero(num_variables_)));
 }
 
-// Test infinite joint limits are clamped
-TEST_F(PositionLimitTest, InfiniteJointLimits) {
+// Test that joints with finite model limits produce finite bounds. Joints without
+// position limits (e.g. continuous joints) would pass through as +/- infinity, which the
+// QP solver treats as unbounded rows.
+TEST_F(PositionLimitTest, FiniteJointLimitsProduceFiniteBounds) {
   PositionLimit constraint(*oink_, 1.0);
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
@@ -235,7 +237,7 @@ TEST_F(PositionLimitTest, InfiniteJointLimits) {
       constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
           .has_value());
 
-  // Check that no bounds are infinite (they should be clamped to OSQP_INFTY)
+  // All UR5 joints have finite position limits, so all bounds must be finite.
   for (int i = 0; i < num_variables_; ++i) {
     EXPECT_TRUE(std::isfinite(lower_bounds[i]));
     EXPECT_TRUE(std::isfinite(upper_bounds[i]));

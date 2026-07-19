@@ -210,12 +210,35 @@ void init_optimal_ik(nanobind::module_& m) {
           "Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding "
           "boxes are farther apart than this skip exact narrow-phase distance.");
 
+  // Bind OinkSettings QP solver settings struct
+  nanobind::class_<OinkSettings>(m, "OinkSettings", "Solver settings for the Oink QP (ProxQP).")
+      .def(nanobind::init<>())
+      .def_rw("eps_abs", &OinkSettings::eps_abs,
+              "Absolute stopping tolerance on the primal/dual residuals.")
+      .def_rw("eps_rel", &OinkSettings::eps_rel,
+              "Relative stopping tolerance on the primal/dual residuals (0 disables it).")
+      .def_rw("max_iter", &OinkSettings::max_iter, "Maximum number of solver iterations.")
+      .def_rw("verbose", &OinkSettings::verbose, "Print solver internals to stdout.")
+      .def_rw("warm_start", &OinkSettings::warm_start,
+              "Warm start each solve with the previous solution (recommended for control loops).")
+      .def_rw("primal_infeasibility_solving", &OinkSettings::primal_infeasibility_solving,
+              "When the QP is primal-infeasible, solve the closest feasible problem in the\n"
+              "least-squares sense instead of failing, so solveIk() always returns a usable\n"
+              "displacement.");
   // Bind Oink solver
   nanobind::class_<Oink>(m, "Oink", "Optimal Inverse Kinematics solver.")
       .def(nanobind::init<const Scene&, const std::string&>(), "scene"_a, "group_name"_a,
            "Constructor for a named joint group.")
       .def(nanobind::init<const Scene&>(), "scene"_a,
            "Constructor for the full robot (all joints).")
+      .def(nanobind::init<const Scene&, const std::string&, const OinkSettings&>(), "scene"_a,
+           "group_name"_a, "settings"_a,
+           "Constructor for a named joint group with custom solver settings.")
+      .def(nanobind::init<const Scene&, const OinkSettings&>(), "scene"_a, "settings"_a,
+           "Constructor for the full robot with custom solver settings.")
+      .def_rw("settings", &Oink::settings,
+              "QP solver settings. Changes take effect the next time the solver is rebuilt "
+              "(i.e., when the constraint dimensions change).")
       .def_ro("num_variables", &Oink::num_variables, "Number of optimization variables.")
       .def_ro("q_indices", &Oink::q_indices, "Position indices of the joint group.")
       .def_ro("v_indices", &Oink::v_indices, "Velocity indices of the joint group.")

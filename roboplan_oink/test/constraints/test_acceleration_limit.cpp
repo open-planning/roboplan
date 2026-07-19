@@ -4,7 +4,6 @@
 #include <cmath>
 #include <memory>
 
-#include <OsqpEigen/OsqpEigen.h>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/constraints/acceleration_limit.hpp>
@@ -121,7 +120,8 @@ TEST_F(AccelerationLimitTest, ResetClearsPreviousDisplacement) {
   EXPECT_TRUE(constraint.Delta_q_prev.isApprox(Eigen::VectorXd::Zero(num_variables_)));
 }
 
-// An infinite acceleration limit leaves the joint unconstrained (bounds clamped to OSQP INFTY).
+// An infinite acceleration limit leaves the joint unconstrained (bounds pass through as
+// +/- infinity, which the QP solver treats as unbounded rows).
 TEST_F(AccelerationLimitTest, InfiniteLimitIsUnconstrained) {
   Eigen::VectorXd a_max =
       Eigen::VectorXd::Constant(num_variables_, std::numeric_limits<double>::infinity());
@@ -132,8 +132,8 @@ TEST_F(AccelerationLimitTest, InfiniteLimitIsUnconstrained) {
   ASSERT_TRUE(constraint.computeQpConstraints(*scene_, G, lower, upper).has_value());
 
   for (int i = 0; i < num_variables_; ++i) {
-    EXPECT_GE(upper(i), OsqpEigen::INFTY);
-    EXPECT_LE(lower(i), -OsqpEigen::INFTY);
+    EXPECT_TRUE(std::isinf(upper(i)) && upper(i) > 0.0);
+    EXPECT_TRUE(std::isinf(lower(i)) && lower(i) < 0.0);
   }
 }
 

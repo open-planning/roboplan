@@ -193,7 +193,7 @@ TEST_F(ConfigurationTaskTest, QpObjectiveComputation) {
   ConfigurationTask task(*oink_, target_q, joint_weights, options);
 
   // Compute QP objective matrices (this internally calls computeJacobian and computeError)
-  Eigen::SparseMatrix<double> H(nv_, nv_);
+  Eigen::MatrixXd H(nv_, nv_);
   Eigen::VectorXd c(nv_);
   auto result = task.computeQpObjective(*scene_, H, c);
   ASSERT_TRUE(result.has_value());
@@ -257,7 +257,7 @@ TEST_F(ConfigurationTaskTest, ZeroWeightJointsIgnored) {
   ConfigurationTask task(*oink_, target_q, joint_weights);
 
   // Compute QP objective
-  Eigen::SparseMatrix<double> H(nv_, nv_);
+  Eigen::MatrixXd H(nv_, nv_);
   Eigen::VectorXd c(nv_);
   auto result = task.computeQpObjective(*scene_, H, c);
   ASSERT_TRUE(result.has_value());
@@ -306,7 +306,7 @@ TEST_F(ConfigurationTaskTest, TaskGainParameter) {
   EXPECT_LT(task_low_gain.gain, task_high_gain.gain);
 
   // Both should compute without error
-  Eigen::SparseMatrix<double> H(nv_, nv_);
+  Eigen::MatrixXd H(nv_, nv_);
   Eigen::VectorXd c(nv_);
   auto result = task_low_gain.computeQpObjective(*scene_, H, c);
   ASSERT_TRUE(result.has_value());

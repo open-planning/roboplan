@@ -119,6 +119,16 @@ struct CartesianPlannerOptions {
   /// trajectory stops at every waypoint).
   double toppra_blend_deviation = 0.05;
 
+  /// @brief Spacing, in meters, between the waypoints handed to TOPP-RA in TimeOptimal mode.
+  /// @details The dense diff-IK trace is resampled to this spacing before re-timing.
+  /// A value <= 0 disables the resampling and hands the raw dense trace to TOPP-RA.
+  /// The TimeOptimal mode resolves the Cartesian path with a differential-IK servo at a fine
+  /// fixed resolution. Every waypoint of that trace becomes a potential blend corner in
+  /// the TOPP-RA geometry, and at the raw spacing even sub-milliradian servo jitter dominates
+  /// the direction change between adjacent waypoints; the resulting tight blend arcs cap the
+  /// centripetal acceleration and crawl the whole trajectory far below the joint limits.
+  double toppra_waypoint_spacing = 0.005;
+
   /// @brief Gain (0, 1] for the position-limit constraint that steers each step away
   /// from the joint position limits.
   double position_limit_gain = 1.0;

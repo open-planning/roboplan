@@ -228,7 +228,7 @@ yaml-cpp    = ">=0.8.0,<0.9"
 eigen      = ">=3.4.0"
 libtoppra  = ">=0.6.4,<0.7"
 pinocchio  = ">=4.1.0,<5"
-osqp-eigen = ">=0.11.0,<0.12"
+proxsuite = ">=0.7.3,<0.8"
 
 # Python bindings dependencies
 python            = ">=3.11,<3.12"

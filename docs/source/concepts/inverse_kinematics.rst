@@ -524,12 +524,14 @@ Numerical Properties
 Solver
 """"""
 
-OInK uses `OSQP <https://osqp.org/>`_ with:
+OInK uses `ProxQP <https://github.com/Simple-Robotics/proxsuite>`_ (dense backend) with:
 
-- Dense accumulation of :math:`H` and :math:`c`
-- Sparse conversion for solving
-- Warm-starting between iterations
+- Dense accumulation of :math:`H` and :math:`c` (no sparse conversion needed)
+- Warm-starting between iterations with the previous solution
 - Workspace caching for constraints
+- Closest-feasible solving when the QP is primal-infeasible (see
+  ``OinkSettings.primal_infeasibility_solving``), so a violated barrier conflicting with
+  velocity limits degrades gracefully instead of failing the solve
 
 Usage Example
 ^^^^^^^^^^^^^

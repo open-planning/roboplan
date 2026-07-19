@@ -51,6 +51,28 @@ protected:
     return CartesianPath({kBaseFrame}, {kTipFrame}, {waypoints});
   }
 
+  /// @brief Builds a corner-heavy zigzag CartesianPath (a small boustrophedon sweep in the
+  /// base-frame y-z plane) starting at the current tool pose: `num_passes` passes of
+  /// `pass_length` meters along y, stepping `pass_length / (num_passes - 1)` along z between
+  /// passes, with sharp 90-degree corners.
+  CartesianPath makeZigzagPath(const Eigen::VectorXd& q_start_full, int num_passes,
+                               double pass_length) {
+    const Eigen::Matrix4d start = scene_->forwardKinematics(q_start_full, kTipFrame, kBaseFrame);
+    std::vector<Eigen::Matrix4d> waypoints;
+    for (int i = 0; i < num_passes; ++i) {
+      const double z = num_passes > 1 ? pass_length * i / (num_passes - 1) : 0.0;
+      // Alternate the sweep direction each pass to zigzag instead of retracing.
+      const double y_start = (i % 2 == 0) ? 0.0 : pass_length;
+      for (const double y : {y_start, pass_length - y_start}) {
+        Eigen::Matrix4d pose = start;
+        pose(1, 3) += y;
+        pose(2, 3) += z;
+        waypoints.push_back(pose);
+      }
+    }
+    return CartesianPath({kBaseFrame}, {kTipFrame}, {waypoints});
+  }
+
 public:
   std::shared_ptr<Scene> scene_;
 };
@@ -306,6 +328,50 @@ TEST_F(CartesianPlannerTest, TimeOptimalModeRespectsVelocityAndAccelerationLimit
   EXPECT_LE(peak_velocity_ratio, 1.1);
   EXPECT_LE(peak_acceleration_ratio, 1.1);
   EXPECT_GE(time_optimal_result->positions.size(), 2u);
+}
+
+// TimeOptimal must actually be time-optimal: on a corner-heavy path it should beat the
+// conservative Bounded mode by a wide margin.
+TEST_F(CartesianPlannerTest, TimeOptimalIsFasterThanBoundedOnCornerHeavyPath) {
+  // Non-singular UR5 ready pose: tracking a zigzag from the default all-zeros (outstretched)
+  // configuration fights the elbow singularity and makes both planners pathologically slow.
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  q_start.positions.head(6) << 0.0, -1.5708, 1.5708, -1.5708, -1.5708, 0.0;
+  scene_->setJointPositions(q_start.positions);
+  const CartesianPath path = makeZigzagPath(q_start.positions, 3, 0.08);
+
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.dt = 0.01;
+  options.max_position_error = 0.01;
+  options.max_orientation_error = 0.05;
+
+  options.speed_mode = CartesianSpeedMode::TimeOptimal;
+  CartesianPathPlanner time_optimal_planner(scene_, options);
+  const auto time_optimal_result = time_optimal_planner.plan(path, q_start);
+  ASSERT_TRUE(time_optimal_result.has_value()) << time_optimal_result.error();
+
+  options.speed_mode = CartesianSpeedMode::Bounded;
+  CartesianPathPlanner bounded_planner(scene_, options);
+  const auto bounded_result = bounded_planner.plan(path, q_start);
+  ASSERT_TRUE(bounded_result.has_value()) << bounded_result.error();
+
+  ASSERT_FALSE(time_optimal_result->times.empty());
+  ASSERT_FALSE(bounded_result->times.empty());
+  const double time_optimal_duration = time_optimal_result->times.back();
+  const double bounded_duration = bounded_result->times.back();
+  EXPECT_LT(time_optimal_duration, bounded_duration)
+      << "TimeOptimal (" << time_optimal_duration << " s) should beat Bounded (" << bounded_duration
+      << " s) on a corner-heavy path; a crawling TimeOptimal result "
+      << "indicates the TOPP-RA input trace is poorly conditioned (e.g. jitter at dense "
+      << "waypoint spacing).";
+
+  // The re-timing must still respect the joint limits.
+  const auto [peak_velocity_ratio, peak_acceleration_ratio] =
+      time_optimal_planner.computePeakLimitRatios(*time_optimal_result);
+  EXPECT_LE(peak_velocity_ratio, 1.1);
+  EXPECT_LE(peak_acceleration_ratio, 1.2);
 }
 
 TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) {

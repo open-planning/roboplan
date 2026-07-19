@@ -2,17 +2,5 @@
 
 find_package(roboplan REQUIRED)
 
-# Try to find osqp and OsqpEigen - they may be in the same install prefix as
-# roboplan_oink if they were built via FetchContent. PACKAGE_PREFIX_DIR is set
-# by @PACKAGE_INIT@ and points to the installation prefix of this package.
-find_package(osqp QUIET PATHS "${PACKAGE_PREFIX_DIR}" NO_DEFAULT_PATH)
-if(NOT osqp_FOUND)
-  find_package(osqp QUIET)
-endif()
-
-find_package(OsqpEigen QUIET PATHS "${PACKAGE_PREFIX_DIR}" NO_DEFAULT_PATH)
-if(NOT OsqpEigen_FOUND)
-  find_package(OsqpEigen REQUIRED)
-endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/roboplan_oinkTargets.cmake")
