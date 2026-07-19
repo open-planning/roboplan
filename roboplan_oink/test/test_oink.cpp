@@ -1115,6 +1115,55 @@ TEST_F(OinkTest, InfeasibleQpReportsErrorWhenInfeasibilitySolvingDisabled) {
                                       "primal_infeasibility_solving disabled";
 }
 
+// A failed solve must not corrupt subsequent solves. On a non-converged status the solver's
+// warm-start state is reset, so a follow-up solve can recover to a valid displacement rather than
+// warm starting from the failed solve's garbage solution.
+TEST_F(OinkTest, RecoversAfterFailedSolve) {
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q.head(6) << 0.0, -1.5708, 1.5708, -1.5708, -1.5708, 0.0;
+  scene_->setJointPositions(q);
+
+  // warm_start defaults to true; disable the closest-feasible fallback so the infeasible QP
+  // below surfaces a hard error (the path whose self-healing we are guarding).
+  OinkSettings settings;
+  settings.primal_infeasibility_solving = false;
+  Oink oink(*scene_, settings);
+
+  const Eigen::Matrix4d tool_pose = scene_->forwardKinematics(q, "tool0");
+  const Eigen::Vector3d p = tool_pose.block<3, 1>(0, 3);
+
+  const double dt = 0.1;
+  const Eigen::Vector3d p_min(p.x() - 10.0, p.y() - 10.0, p.z() + 0.2);
+  const Eigen::Vector3d p_max = p + Eigen::Vector3d(10.0, 10.0, 10.0);
+  auto barrier = std::make_shared<PositionBarrier>(oink, *scene_, "tool0", p_min, p_max, dt);
+  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
+
+  auto target = makeCartesianConfig("tool0", p, Eigen::Quaterniond(tool_pose.block<3, 3>(0, 0)));
+  auto task = std::make_shared<FrameTask>(oink, *scene_, target);
+  std::vector<std::shared_ptr<Task>> tasks = {task};
+
+  // First solve: a tight velocity limit makes the QP infeasible, so solveIk() reports an error.
+  const Eigen::VectorXd v_max_tight = Eigen::VectorXd::Constant(num_variables_, 1e-6);
+  auto velocity_limit_tight = std::make_shared<VelocityLimit>(oink, dt, v_max_tight);
+  std::vector<std::shared_ptr<Constraints>> constraints_tight = {velocity_limit_tight};
+
+  Eigen::VectorXd delta_q_fail(num_variables_);
+  auto fail_result = oink.solveIk(*scene_, tasks, constraints_tight, barriers, delta_q_fail);
+  ASSERT_FALSE(fail_result.has_value()) << "expected the tight-velocity QP to be infeasible";
+
+  // Second solve: a generous velocity limit with the SAME row count keeps the solver from
+  // rebuilding, so it goes through the update + warm-start path. It must recover cleanly.
+  const Eigen::VectorXd v_max_loose = Eigen::VectorXd::Constant(num_variables_, 10.0);
+  auto velocity_limit_loose = std::make_shared<VelocityLimit>(oink, dt, v_max_loose);
+  std::vector<std::shared_ptr<Constraints>> constraints_loose = {velocity_limit_loose};
+
+  Eigen::VectorXd delta_q_recover(num_variables_);
+  auto recover_result = oink.solveIk(*scene_, tasks, constraints_loose, barriers, delta_q_recover);
+  ASSERT_TRUE(recover_result.has_value())
+      << "solveIk() must recover after a failed solve: " << recover_result.error();
+  EXPECT_TRUE(delta_q_recover.allFinite());
+}
+
 }  // namespace roboplan
 
 int main(int argc, char** argv) {

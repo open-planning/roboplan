@@ -369,19 +369,16 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
 
   solver->solve();
 
-  // Warm start subsequent solves with the previous solution. This must only be enabled
-  // after a first solve has populated the results and factorization; enabling it before
-  // the first solve makes ProxQP reuse a factorization that was never computed.
-  if (settings.warm_start) {
-    solver->settings.initial_guess = InitialGuessStatus::WARM_START_WITH_PREVIOUS_RESULT;
-  }
-
   // PROXQP_SOLVED_CLOSEST_PRIMAL_FEASIBLE is returned when the QP was primal-infeasible and
   // settings.primal_infeasibility_solving is enabled: the solution minimizes the constraint
   // violation in the least-squares sense and is the safest displacement available.
   const QPSolverOutput status = solver->results.info.status;
   if (status != QPSolverOutput::PROXQP_SOLVED &&
       status != QPSolverOutput::PROXQP_SOLVED_CLOSEST_PRIMAL_FEASIBLE) {
+    // The solve did not converge, so results.x is not a trustworthy displacement. Reset the
+    // initial guess so a subsequent solveIk() does not warm start from this bad solution (the
+    // equivalent of OsqpEigen::Solver::clearSolverVariables()).
+    solver->settings.initial_guess = InitialGuessStatus::NO_INITIAL_GUESS;
     switch (status) {
     case QPSolverOutput::PROXQP_MAX_ITER_REACHED:
       return tl::make_unexpected("QP solver reached the maximum number of iterations");
@@ -395,6 +392,14 @@ Oink::solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& task
     default:
       return tl::make_unexpected("QP solver failed to find a solution");
     }
+  }
+
+  // Warm start subsequent solves with the previous solution. This must only be enabled
+  // after a successful solve has populated the results and factorization; enabling it before
+  // the first solve (or after a failed one) makes ProxQP reuse a factorization/solution that
+  // was never validly computed.
+  if (settings.warm_start) {
+    solver->settings.initial_guess = InitialGuessStatus::WARM_START_WITH_PREVIOUS_RESULT;
   }
 
   // Extract the solution and copy into delta_q
