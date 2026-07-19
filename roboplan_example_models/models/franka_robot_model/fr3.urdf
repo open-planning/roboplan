@@ -3,7 +3,10 @@
 
   <xacro:include filename="fr3.xacro"/>
 
+  <xacro:arg name="ros2_control_hardware" default="mock"/>
+
   <link name="world"/>
-  <xacro:fr3_robot prefix="" parent_link="world" xyz="0 0 0" rpy="0 0 0"/>
+  <xacro:fr3_robot prefix="" parent_link="world" xyz="0 0 0" rpy="0 0 0"
+                   ros2_control_hardware="$(arg ros2_control_hardware)"/>
 
 </robot>
