@@ -16,7 +16,7 @@
 
   <depend>roboplan</depend>
   <!-- See https://github.com/tier4/osqp_vendor/issues/26 -->
-  <depend condition="$ROS_DISTRO != lyrical">osqp_vendor</depend>
+  <depend condition="$ROS_DISTRO != lyrical and $ROS_DISTRO != rolling">osqp_vendor</depend>
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>libgmock-dev</test_depend>
