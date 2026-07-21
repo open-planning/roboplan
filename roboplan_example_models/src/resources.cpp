@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include <dlfcn.h>
+#include <dlfcn.h>  // Provided by dlfcn-win32 on Windows.
 #include <filesystem>
 
 #include <roboplan_example_models/resources.hpp>

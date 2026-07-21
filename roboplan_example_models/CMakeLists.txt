@@ -5,6 +5,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Windows: auto-export all symbols so DLLs get import libraries, and expose
+# M_PI and friends from <cmath>.
+if(WIN32)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  add_compile_definitions(_USE_MATH_DEFINES)
+endif()
+
 # Find dependencies.
 
 # Ament CMake is not immediately required, but we include it at the top so that
@@ -13,13 +20,25 @@ endif()
 # issues with symlink installs.
 find_package(ament_cmake QUIET)
 
+# dladdr() in src/resources.cpp comes from dlfcn.h, which is POSIX-only.
+# On Windows the dlfcn-win32 library provides a compatible implementation.
+if(WIN32)
+  find_package(dlfcn-win32 REQUIRED)
+  set(ROBOPLAN_DL_LIBS dlfcn-win32::dl)
+else()
+  set(ROBOPLAN_DL_LIBS ${CMAKE_DL_LIBS})
+endif()
+
 # Build and install the library containing the resource paths.
 add_library(roboplan_example_models SHARED
     src/resources.cpp
     src/anchor.cpp
 )
+target_link_libraries(roboplan_example_models PRIVATE ${ROBOPLAN_DL_LIBS})
+# Forward slashes keep the define a valid C string literal on Windows.
+file(TO_CMAKE_PATH "${CMAKE_INSTALL_PREFIX}" roboplan_install_prefix)
 target_compile_definitions(roboplan_example_models PRIVATE
-  ROBOPLAN_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}")
+  ROBOPLAN_INSTALL_PREFIX="${roboplan_install_prefix}")
 target_include_directories(roboplan_example_models PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -32,6 +51,8 @@ install(
   roboplan_example_models
   EXPORT roboplan_example_models-targets
   LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
   INCLUDES DESTINATION include
 )
 
@@ -74,6 +95,8 @@ install(EXPORT roboplan_example_models-targets
 install(TARGETS roboplan_example_models
         EXPORT roboplan_example_models
         LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
         INCLUDES DESTINATION include
         )
 

@@ -63,7 +63,15 @@ install(TARGETS _example_models_ext
 # Generate Python type stubs (.pyi) into the source tree so they are versioned
 # and shipped by the python install below. Older nanobind versions (from rosdep
 # on some distros) do not provide nanobind_add_stub.
-option(GENERATE_PYTHON_STUBS "Generate .pyi stubs for the Python bindings" ON)
+# Default OFF on Windows: stub generation imports the extension from the build
+# tree, where the DLLs it depends on are not yet on the loader search path.
+# The committed stubs are generated on Unix.
+if(WIN32)
+  set(generate_stubs_default OFF)
+else()
+  set(generate_stubs_default ON)
+endif()
+option(GENERATE_PYTHON_STUBS "Generate .pyi stubs for the Python bindings" ${generate_stubs_default})
 if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
   message(WARNING
     "Skipping Python stub generation: the installed nanobind version does not "

@@ -2,7 +2,7 @@
 authors   = ["Sebastian Castro <sebas.a.castro@gmail.com>", "JafarAbdi <jafar.uruc@gmail.com>"]
 channels  = ["conda-forge"]
 name      = "roboplan"
-platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64", "win-64"]
 version   = "0.5.1"
 
 [activation.env]
@@ -22,6 +22,24 @@ CMAKE_BUILD_TYPE     = "RelWithDebInfo"
 [feature.ci.activation.env]
 CMAKE_INSTALL_MODE   = "COPY"
 CMAKE_BUILD_TYPE     = "Debug"
+
+# Debug builds on Windows link the debug MSVC runtime, which is ABI
+# incompatible with the release runtime used by the conda-forge binaries.
+[feature.ci.target.win.activation.env]
+CMAKE_BUILD_TYPE = "RelWithDebInfo"
+
+# Windows activation scripts expand %VAR% instead of $VAR.
+[target.win.activation.env]
+CMAKE_INSTALL_PREFIX = "%CONDA_PREFIX%"
+# The roboplan DLLs install into %CONDA_PREFIX%\bin, which must be on PATH so
+# that executables and the Python extension modules can load them.
+PATH                 = "%CONDA_PREFIX%\\bin;%PATH%"
+# mold is not available on Windows, so use lld there.
+ROBOPLAN_LINKER_FLAG = "-fuse-ld=lld"
+
+# Symlink creation in Windows requires developer mode or admin privileges.
+[feature.local.target.win.activation.env]
+CMAKE_INSTALL_MODE = "COPY"
 
 [tasks]
 configure = { cmd = [
@@ -183,7 +201,7 @@ test = { cmd = "ctest -V --test-dir build/{{ package_name }}", args = [
   { arg = "package_name" },
 ], env = { GTEST_COLOR = "YES" } }
 
-test_py  = { cmd = "python3 -m pytest --capture=no */bindings/test" }
+test_py  = { cmd = "python -m pytest --capture=no */bindings/test" }
 test_cpp = { depends-on = [
   { task = "test", args = ["roboplan"] },
   { task = "test", args = ["roboplan_rrt"] },
@@ -193,7 +211,7 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_cartesian_planning"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }
-test_benchmarks = { cmd = "python3 -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
+test_benchmarks = { cmd = "python -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
 
 # Clang-tidy static analysis
 clang-tidy = { cmd = [
@@ -266,6 +284,9 @@ gcc         = ">=11,<12"
 libstdcxx   = ">=15.1.0,<16"
 llvm-openmp = ">=19.1.7,<20"
 mold        = ">=2.40.2,<3"
+
+[target.win.dependencies]
+dlfcn-win32 = ">=1.4.2,<2"
 
 [feature.lint.dependencies]
 pre-commit = ">=4.1.0,<5"

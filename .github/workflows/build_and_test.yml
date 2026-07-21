@@ -123,6 +123,9 @@ jobs:
           - os: macos-14
             cache-key: macos-arm64
             clang_tidy: false
+          - os: windows-latest
+            cache-key: windows
+            clang_tidy: false
 
     runs-on: ${{ matrix.os }}
     steps:
