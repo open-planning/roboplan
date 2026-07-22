@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <stdexcept>
 
 namespace roboplan {
@@ -65,7 +66,7 @@ LinearBlendPath::LinearBlendPath(const toppra::Vectors& waypoints, double max_de
 
     // Nearly collinear (no real corner) or a near-reversal (tan(angle/2) blows up and the
     // blend collapses): treat as a sharp corner the trajectory must slow through.
-    if (angle <= kEps || angle >= M_PI - kEps) {
+    if (angle <= kEps || angle >= std::numbers::pi - kEps) {
       add_linear(free_end, c2);
       free_end = c2;
       continue;

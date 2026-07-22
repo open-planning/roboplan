@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <memory>
+#include <numbers>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -132,7 +133,7 @@ TEST_F(FrameTaskTest, ErrorWithRotation) {
   pinocchio::SE3 current_pose(current_tform);
 
   // Create target pose with 90 degree rotation around z-axis
-  Eigen::AngleAxisd rotation(M_PI / 2.0, Eigen::Vector3d::UnitZ());
+  Eigen::AngleAxisd rotation(std::numbers::pi / 2.0, Eigen::Vector3d::UnitZ());
   pinocchio::SE3 target_pose = current_pose;
   target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
 
@@ -426,7 +427,7 @@ TEST_F(FrameTaskTest, RotationErrorWithoutSaturation) {
   pinocchio::SE3 current_pose(current_tform);
 
   // Create target pose with large rotation (180 degrees around z)
-  Eigen::AngleAxisd rotation(M_PI, Eigen::Vector3d::UnitZ());
+  Eigen::AngleAxisd rotation(std::numbers::pi, Eigen::Vector3d::UnitZ());
   pinocchio::SE3 target_pose = current_pose;
   target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
 
@@ -443,7 +444,7 @@ TEST_F(FrameTaskTest, RotationErrorWithoutSaturation) {
 
   // Rotation error should be approximately pi (unsaturated)
   Eigen::Vector3d rotation_error = task.error_container.tail<3>();
-  EXPECT_NEAR(rotation_error.norm(), M_PI, 1e-6)
+  EXPECT_NEAR(rotation_error.norm(), std::numbers::pi, 1e-6)
       << "Large rotation errors should not be saturated with infinite limits";
 }
 
@@ -455,7 +456,7 @@ TEST_F(FrameTaskTest, RotationErrorSaturationBounds) {
   pinocchio::SE3 current_pose(current_tform);
 
   // Create target pose with large rotation (180 degrees around z)
-  Eigen::AngleAxisd rotation(M_PI, Eigen::Vector3d::UnitZ());
+  Eigen::AngleAxisd rotation(std::numbers::pi, Eigen::Vector3d::UnitZ());
   pinocchio::SE3 target_pose = current_pose;
   target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
 
@@ -663,7 +664,7 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationError) {
   pinocchio::SE3 current_pose(current_tform);
 
   // Create target pose with large position and rotation offset
-  Eigen::AngleAxisd rotation(M_PI / 2.0, Eigen::Vector3d::UnitZ());
+  Eigen::AngleAxisd rotation(std::numbers::pi / 2.0, Eigen::Vector3d::UnitZ());
   pinocchio::SE3 target_pose = current_pose;
   target_pose.translation() += Eigen::Vector3d(1.0, 0.0, 0.0);
   target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();
@@ -686,7 +687,7 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationError) {
 
   EXPECT_NEAR(position_error.norm(), 1.0, 1e-6)
       << "Position error should be 1.0m without saturation";
-  EXPECT_NEAR(rotation_error.norm(), M_PI / 2.0, 1e-6)
+  EXPECT_NEAR(rotation_error.norm(), std::numbers::pi / 2.0, 1e-6)
       << "Rotation error should be pi/2 without saturation";
 }
 
@@ -698,7 +699,7 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationSaturationBounds) {
   pinocchio::SE3 current_pose(current_tform);
 
   // Create target pose with large position and rotation offset
-  Eigen::AngleAxisd rotation(M_PI / 2.0, Eigen::Vector3d::UnitZ());
+  Eigen::AngleAxisd rotation(std::numbers::pi / 2.0, Eigen::Vector3d::UnitZ());
   pinocchio::SE3 target_pose = current_pose;
   target_pose.translation() += Eigen::Vector3d(1.0, 0.0, 0.0);
   target_pose.rotation() = current_pose.rotation() * rotation.toRotationMatrix();

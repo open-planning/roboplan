@@ -10,7 +10,10 @@ CMAKE_INSTALL_PREFIX = "$CONDA_PREFIX"
 LD_LIBRARY_PATH      = "$CONDA_PREFIX/lib"
 ASAN_OPTIONS         = "symbolize=1:print_stacktrace=1"
 ASAN_SYMBOLIZER_PATH = "$CONDA_PREFIX/bin/llvm-symbolizer"
+ROBOPLAN_C_COMPILER  = "clang"
+ROBOPLAN_CXX_COMPILER = "clang++"
 ROBOPLAN_LINKER_FLAG = " "
+ROBOPLAN_EXTRA_CMAKE_ARGS = " "
 
 [target.linux.activation.env]
 ROBOPLAN_LINKER_FLAG = "-fuse-ld=mold"
@@ -34,8 +37,12 @@ CMAKE_INSTALL_PREFIX = "%CONDA_PREFIX%"
 # The roboplan DLLs install into %CONDA_PREFIX%\bin, which must be on PATH so
 # that executables and the Python extension modules can load them.
 PATH                 = "%CONDA_PREFIX%\\bin;%PATH%"
-# mold is not available on Windows, so use lld there.
-ROBOPLAN_LINKER_FLAG = "-fuse-ld=lld"
+# Use the MSVC-compatible clang driver: conda-forge packages are built with
+# MSVC and export MSVC-style flags that the GNU-style clang++ driver rejects.
+ROBOPLAN_C_COMPILER  = "clang-cl"
+ROBOPLAN_CXX_COMPILER = "clang-cl"
+ROBOPLAN_LINKER_FLAG = " "
+ROBOPLAN_EXTRA_CMAKE_ARGS = "-DCMAKE_LINKER=lld-link"
 
 # Symlink creation in Windows requires developer mode or admin privileges.
 [feature.local.target.win.activation.env]
@@ -49,9 +56,8 @@ configure = { cmd = [
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
   "-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE",
   "-DBUILD_TESTING=ON",
-  # Use clang as the compiler
-  "-DCMAKE_C_COMPILER=clang",
-  "-DCMAKE_CXX_COMPILER=clang++",
+  "-DCMAKE_C_COMPILER=$ROBOPLAN_C_COMPILER",
+  "-DCMAKE_CXX_COMPILER=$ROBOPLAN_CXX_COMPILER",
   # Use mold as the linker, only on linux
   "-DCMAKE_EXE_LINKER_FLAGS=$ROBOPLAN_LINKER_FLAG",
   "-DCMAKE_MODULE_LINKER_FLAGS=$ROBOPLAN_LINKER_FLAG",
@@ -65,6 +71,8 @@ configure = { cmd = [
   "{{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }}",
   "{{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }}",
   "{{ extra_flags }}",
+  # Extra per-platform arguments (expands to nothing by default)
+  "$ROBOPLAN_EXTRA_CMAKE_ARGS",
   # Disable warnings about unused command line arguments
   "--no-warn-unused-cli",
   "-S",

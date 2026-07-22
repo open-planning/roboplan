@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -231,7 +232,8 @@ void Scene::randomizeJointPositions(const std::vector<std::string>& joint_names,
       throw std::runtime_error("Floating joints not yet supported in randomPositions.");
     case JointType::CONTINUOUS: {
       // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
-      const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
+      const auto angle =
+          std::uniform_real_distribution<double>(-std::numbers::pi, std::numbers::pi)(rng_gen_);
       q(q_idx) = std::cos(angle);
       q(q_idx + 1) = std::sin(angle);
       break;
@@ -246,7 +248,8 @@ void Scene::randomizeJointPositions(const std::vector<std::string>& joint_names,
         }
         q(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
-      const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
+      const auto angle =
+          std::uniform_real_distribution<double>(-std::numbers::pi, std::numbers::pi)(rng_gen_);
       q(q_idx + 2) = std::cos(angle);
       q(q_idx + 3) = std::sin(angle);
       break;

@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <memory>
+#include <numbers>
 #include <vector>
 
 #include <roboplan/core/path_utils.hpp>
@@ -72,9 +73,9 @@ TEST_F(RoboPlanSceneTest, SceneProperties) {
   EXPECT_EQ(joint_info.num_position_dofs, 1u);
   EXPECT_EQ(joint_info.num_velocity_dofs, 1u);
   ASSERT_EQ(joint_info.limits.min_position.size(), 1u);
-  EXPECT_NEAR(joint_info.limits.min_position[0], -M_PI, kTolerance);
+  EXPECT_NEAR(joint_info.limits.min_position[0], -std::numbers::pi, kTolerance);
   ASSERT_EQ(joint_info.limits.max_position.size(), 1u);
-  EXPECT_NEAR(joint_info.limits.max_position[0], M_PI, kTolerance);
+  EXPECT_NEAR(joint_info.limits.max_position[0], std::numbers::pi, kTolerance);
   ASSERT_EQ(joint_info.limits.max_velocity.size(), 1u);
   EXPECT_NEAR(joint_info.limits.max_velocity[0], 3.15, kTolerance);
   ASSERT_EQ(joint_info.limits.max_acceleration.size(), 1u);
@@ -606,8 +607,8 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
   // A non-overridden joint should keep its URDF limits.
   const auto maybe_other = scene.getJointInfo("elbow_joint");
   ASSERT_TRUE(maybe_other.has_value()) << maybe_other.error();
-  EXPECT_NEAR(maybe_other.value().limits.min_position[0], -M_PI, kTolerance);
-  EXPECT_NEAR(maybe_other.value().limits.max_position[0], M_PI, kTolerance);
+  EXPECT_NEAR(maybe_other.value().limits.min_position[0], -std::numbers::pi, kTolerance);
+  EXPECT_NEAR(maybe_other.value().limits.max_position[0], std::numbers::pi, kTolerance);
 
   std::filesystem::remove(tmp_config);
 }

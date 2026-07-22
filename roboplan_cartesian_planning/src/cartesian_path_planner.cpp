@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 
@@ -29,7 +30,7 @@ constexpr double kEps = 1e-9;
 constexpr int kMaxIkConvergenceIters = 500;
 
 /// @brief Turns smaller than this (radians) are treated as straight by the corner feedrate cap.
-constexpr double kCornerAngleMin = 1.0 * M_PI / 180.0;
+constexpr double kCornerAngleMin = 1.0 * std::numbers::pi / 180.0;
 
 /// @brief Maximum number of whole-trace slow-down retries in the Bounded speed mode.
 constexpr int kMaxSlowdownIters = 6;

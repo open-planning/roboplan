@@ -1,4 +1,5 @@
 #include <chrono>
+#include <numbers>
 #include <stdexcept>
 
 #include <toppra/constraint/linear_joint_acceleration.hpp>
@@ -116,10 +117,10 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
       const auto& prev_collapsed = path_pos_vecs.at(idx - 1);
       for (auto q_idx : continuous_q_indices_) {
         const auto diff = curr_collapsed(q_idx) - prev_collapsed(q_idx);
-        if (diff > M_PI) {
-          curr_collapsed(q_idx) -= 2.0 * M_PI;
-        } else if (diff < -M_PI) {
-          curr_collapsed(q_idx) += 2.0 * M_PI;
+        if (diff > std::numbers::pi) {
+          curr_collapsed(q_idx) -= 2.0 * std::numbers::pi;
+        } else if (diff < -std::numbers::pi) {
+          curr_collapsed(q_idx) += 2.0 * std::numbers::pi;
         }
       }
     }

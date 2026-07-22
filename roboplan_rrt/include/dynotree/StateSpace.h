@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <numbers>
 #include <variant>
 #include <vector>
 
@@ -234,10 +235,10 @@ template <typename Scalar> struct SO2 {
 
   bool check_bounds(cref_t x) const {
     for (size_t i = 0; i < x.size(); i++) {
-      if (x(i) < -M_PI) {
+      if (x(i) < -std::numbers::pi) {
         return false;
       }
-      if (x(i) > +M_PI) {
+      if (x(i) > +std::numbers::pi) {
         return false;
       }
     }
@@ -252,7 +253,7 @@ template <typename Scalar> struct SO2 {
 
   void sample_uniform(ref_t x) const {
 
-    x(0) = (double(rand()) / (RAND_MAX + 1.)) * 2. * M_PI - M_PI;
+    x(0) = (double(rand()) / (RAND_MAX + 1.)) * 2. * std::numbers::pi - std::numbers::pi;
   }
 
   void set_bounds([[maybe_unused]] cref_t lb_, [[maybe_unused]] cref_t ub_) {
@@ -273,18 +274,18 @@ template <typename Scalar> struct SO2 {
 
     Eigen::Matrix<Scalar, 1, 1> d = to - from;
 
-    if (d(0) > M_PI) {
-      d(0) -= 2 * M_PI;
-    } else if (d(0) < -M_PI) {
-      d(0) += 2 * M_PI;
+    if (d(0) > std::numbers::pi) {
+      d(0) -= 2 * std::numbers::pi;
+    } else if (d(0) < -std::numbers::pi) {
+      d(0) += 2 * std::numbers::pi;
     }
 
     out = from + t * d;
 
-    if (out(0) > M_PI) {
-      out(0) -= 2 * M_PI;
-    } else if (out(0) < -M_PI) {
-      out(0) += 2 * M_PI;
+    if (out(0) > std::numbers::pi) {
+      out(0) -= 2 * std::numbers::pi;
+    } else if (out(0) < -std::numbers::pi) {
+      out(0) += 2 * std::numbers::pi;
     }
   }
 
@@ -294,26 +295,26 @@ template <typename Scalar> struct SO2 {
 
   inline Scalar distance_to_rectangle(cref_t x, cref_t lb, cref_t ub) const {
 
-    assert(x(0) >= -M_PI);
-    assert(x(0) <= M_PI);
+    assert(x(0) >= -std::numbers::pi);
+    assert(x(0) <= std::numbers::pi);
 
-    assert(lb(0) >= -M_PI);
-    assert(lb(0) <= M_PI);
+    assert(lb(0) >= -std::numbers::pi);
+    assert(lb(0) <= std::numbers::pi);
 
-    assert(ub(0) >= -M_PI);
-    assert(ub(0) <= M_PI);
+    assert(ub(0) >= -std::numbers::pi);
+    assert(ub(0) <= std::numbers::pi);
 
     if (x(0) >= lb(0) && x(0) <= ub(0)) {
       return 0;
     } else if (x(0) > ub(0)) {
       Scalar d1 = x(0) - ub(0);
-      Scalar d2 = lb(0) - (x(0) - 2 * M_PI);
+      Scalar d2 = lb(0) - (x(0) - 2 * std::numbers::pi);
       assert(d2 >= 0);
       assert(d1 >= 0);
       return std::min(d1, d2) * (use_weights ? weight : 1.);
     } else if (x(0) < lb(0)) {
       Scalar d1 = lb(0) - x(0);
-      Scalar d2 = (x(0) + 2 * M_PI) - ub(0);
+      Scalar d2 = (x(0) + 2 * std::numbers::pi) - ub(0);
       assert(d2 >= 0);
       assert(d1 >= 0);
       return std::min(d1, d2) * (use_weights ? weight : 1.);
@@ -325,17 +326,17 @@ template <typename Scalar> struct SO2 {
 
   inline Scalar distance(cref_t x, cref_t y) const {
 
-    assert(x(0) >= -M_PI);
-    assert(y(0) >= -M_PI);
+    assert(x(0) >= -std::numbers::pi);
+    assert(y(0) >= -std::numbers::pi);
 
-    assert(x(0) <= M_PI);
-    assert(y(0) <= M_PI);
+    assert(x(0) <= std::numbers::pi);
+    assert(y(0) <= std::numbers::pi);
 
     Scalar dif = x(0) - y(0);
-    if (dif > M_PI) {
-      dif -= 2 * M_PI;
-    } else if (dif < -M_PI) {
-      dif += 2 * M_PI;
+    if (dif > std::numbers::pi) {
+      dif -= 2 * std::numbers::pi;
+    } else if (dif < -std::numbers::pi) {
+      dif += 2 * std::numbers::pi;
     }
     Scalar out = std::abs(dif);
     return out * (use_weights ? weight : 1.);
@@ -356,10 +357,10 @@ template <typename Scalar> struct SO2Squared {
 
   bool check_bounds(cref_t x) const {
     for (size_t i = 0; i < x.size(); i++) {
-      if (x(i) < -M_PI) {
+      if (x(i) < -std::numbers::pi) {
         return false;
       }
-      if (x(i) > +M_PI) {
+      if (x(i) > +std::numbers::pi) {
         return false;
       }
     }
@@ -424,10 +425,10 @@ template <typename Scalar, int Dimensions = -1> struct RnSquared {
     CHECK_PRETTY_DYNOTREE__(ub.size() == x.size());
 
     for (size_t i = 0; i < x.size(); i++) {
-      if (x(i) < -M_PI) {
+      if (x(i) < -std::numbers::pi) {
         return false;
       }
-      if (x(i) > +M_PI) {
+      if (x(i) > +std::numbers::pi) {
         return false;
       }
     }
