@@ -58,7 +58,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
   std::vector<std::string> package_paths_str;
   package_paths_str.reserve(package_paths.size());
   for (const auto& path : package_paths) {
-    package_paths_str.push_back(std::string(path));
+    package_paths_str.push_back(path.string());
   }
 
   // Single model with Pinocchio native mimics
@@ -67,7 +67,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
 
   YAML::Node yaml_config;
   if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
-    yaml_config = YAML::LoadFile(yaml_config_path);
+    yaml_config = YAML::LoadFile(yaml_config_path.string());
   }
 
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix this.

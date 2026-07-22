@@ -56,7 +56,9 @@ if(AMENT_BUILD)
 elseif(SKBUILD)
   set(PYTHON_DESTINATION ".")
 else()
-  set(PYTHON_DESTINATION "${Python_SITEARCH}")
+  # TO_CMAKE_PATH converts Windows backslashes, which would otherwise become
+  # invalid escape sequences in the generated cmake_install.cmake.
+  file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
 endif()
 
 install(TARGETS _simple_ik_ext
