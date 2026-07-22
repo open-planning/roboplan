@@ -23,6 +23,8 @@ RoboPlan is available via `PyPi <https://pypi.org/>`_ and `conda-forge <https://
 Conda (recommended)
 ~~~~~~~~~~~~~~~~~~~
 
+**Supported platforms:** Linux, macOS, Windows
+
 To get started, first `install conda <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_.
 
 We recommend creating your own environment for isolation, installing all the libraries with Python bindings.
@@ -54,6 +56,8 @@ We also provide convenient metapackages (``libroboplan-all`` and ``roboplan-all-
 PyPi (Experimental)
 ~~~~~~~~~~~~~~~~~~~
 
+**Supported platforms:** Linux, macOS
+
 You can also ``pip install roboplan`` to get all the Python bindings as one package.
 
 We recommend creating a Python virtual environment for isolation.
@@ -76,8 +80,10 @@ From Source
 
 There are currently 3 supported ways to build RoboPlan from source.
 
-Pixi
-~~~~
+Pixi (Recommended)
+~~~~~~~~~~~~~~~~~~
+
+**Supported platforms:** Linux, macOS, Windows
 
 Our recommended workflow is to use the `Pixi <https://pixi.sh>`_ package management tool.
 
@@ -142,6 +148,8 @@ Build with compilation time report
 ROS 2 (colcon)
 ~~~~~~~~~~~~~~
 
+**Supported platforms:** `Supported platforms <https://reps.openrobotics.org/rep-2000/#support-tiers>`_ for your ROS distro.
+
 If you are using `ROS 2 <https://docs.ros.org/>`_, you can build RoboPlan with the ``colcon`` build system.
 
 For this workflow, you should clone the repo to a valid ROS 2 workspace.
@@ -188,6 +196,8 @@ To run the unit tests, you can simply use ``colcon``:
 
 Vanilla CMake
 ~~~~~~~~~~~~~
+
+**Supported platforms:** Linux (macOS and Windows possible but requires effort)
 
 One of the design points of this library is that it should be portable, and therefore compiles with "vanilla" CMake.
 
