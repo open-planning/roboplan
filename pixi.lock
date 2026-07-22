@@ -215,7 +215,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-h853b02a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/rhash-1.4.6-hb9d3cd8_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ruby-4.0.5-h95e6935_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/sccache-0.10.0-h159367c_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/sccache-0.16.0-he64ecbb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.17.1-py311hbe70eeb_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/simde-0.8.2-h84d6215_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/spdlog-1.17.0-hab81395_1.conda
@@ -518,7 +518,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/readline-8.3-hb682ff5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/rhash-1.4.6-h86ecc28_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ruby-4.0.5-h706e587_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/sccache-0.10.0-h112f5b8_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/sccache-0.16.0-hb434046_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/scipy-1.17.1-py311had2d2e4_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/simde-0.8.2-h17cf362_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/spdlog-1.17.0-h9f97df7_1.conda
@@ -849,7 +849,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/readline-8.3-h46df422_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/rhash-1.4.6-h5505292_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruby-4.0.5-hbbfbfb4_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sccache-0.10.0-h8dba533_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sccache-0.16.0-h6fdd925_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.17.1-py311h9a58382_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sigtool-codesign-0.1.3-h98dc951_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/simde-0.8.2-h7b3277c_0.conda
@@ -1065,7 +1065,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/qhull-2020.2-hc790b64_5.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/qt6-main-6.11.1-pl5321hfcac499_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/ruby-4.0.6-h0a2bca5_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/sccache-0.10.0-ha073cba_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/sccache-0.16.0-h18a1a76_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.17.1-py311h9c22a71_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/simde-0.8.2-hc790b64_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/spdlog-1.17.0-h9f585f1_1.conda
@@ -1283,7 +1283,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-h853b02a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/rhash-1.4.6-hb9d3cd8_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ruby-4.0.5-h95e6935_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/sccache-0.10.0-h159367c_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/sccache-0.16.0-he64ecbb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.17.1-py311hbe70eeb_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/simde-0.8.2-h84d6215_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/spdlog-1.17.0-hab81395_1.conda
@@ -1586,7 +1586,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/readline-8.3-hb682ff5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/rhash-1.4.6-h86ecc28_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ruby-4.0.5-h706e587_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/sccache-0.10.0-h112f5b8_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/sccache-0.16.0-hb434046_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/scipy-1.17.1-py311had2d2e4_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/simde-0.8.2-h17cf362_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/spdlog-1.17.0-h9f97df7_1.conda
@@ -1917,7 +1917,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/readline-8.3-h46df422_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/rhash-1.4.6-h5505292_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruby-4.0.5-hbbfbfb4_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sccache-0.10.0-h8dba533_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sccache-0.16.0-h6fdd925_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.17.1-py311h9a58382_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sigtool-codesign-0.1.3-h98dc951_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/simde-0.8.2-h7b3277c_0.conda
@@ -2133,7 +2133,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/qhull-2020.2-hc790b64_5.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/qt6-main-6.11.1-pl5321hfcac499_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/ruby-4.0.6-h0a2bca5_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/sccache-0.10.0-ha073cba_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/sccache-0.16.0-h18a1a76_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.17.1-py311h9c22a71_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/simde-0.8.2-hc790b64_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/spdlog-1.17.0-h9f585f1_1.conda
@@ -5332,20 +5332,20 @@ packages:
     - ruby >=4.0.5,<4.1.0a0
   size: 17204486
   timestamp: 1779257270967
-- conda: https://conda.anaconda.org/conda-forge/linux-64/sccache-0.10.0-h159367c_0.conda
-  sha256: b148c5d2233d49ad4db5fc3203a54c0afe55eff68ddec5b6546e6c03dabf8efb
-  md5: ddbd3801b36b1fdff272c8021662a195
+- conda: https://conda.anaconda.org/conda-forge/linux-64/sccache-0.16.0-he64ecbb_0.conda
+  sha256: d8fc5304789c325c12c1a6a21422cd765ad27ebd464864ced34ced44bd78a14a
+  md5: 32a8e18fcb4871e2d3c60254d9fc6614
   depends:
   - __glibc >=2.17,<3.0.a0
-  - libgcc >=13
-  - openssl >=3.4.1,<4.0a0
+  - libgcc >=14
+  - openssl >=3.5.7,<4.0a0
   constrains:
   - __glibc >=2.17
   license: Apache-2.0
   license_family: APACHE
   run_exports: {}
-  size: 6219441
-  timestamp: 1740476867084
+  size: 6148308
+  timestamp: 1781886772746
 - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.17.1-py311hbe70eeb_1.conda
   sha256: 3ae2ff1d1cc5930de2ca6ac03216118bdf13b2af6098e28e827f1ba25bfcbc4e
   md5: 089de2ee37e4e19885c985a4fe4aaf14
@@ -8856,19 +8856,19 @@ packages:
     - ruby >=4.0.5,<4.1.0a0
   size: 17776666
   timestamp: 1779257277421
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/sccache-0.10.0-h112f5b8_0.conda
-  sha256: 28b11144ac6c1afaed80dd9feececcdd98ca82a73797e0c8891f87ec8d6811b0
-  md5: ede5d936eac4a403b149c13994edd29d
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/sccache-0.16.0-hb434046_0.conda
+  sha256: 663062481265bc7433ce3f1586b76b21fa5fffa1f5be4251696e52d467b66bfd
+  md5: e76af0580d9048f8634a6ebbeb7c514a
   depends:
-  - libgcc >=13
-  - openssl >=3.4.1,<4.0a0
+  - libgcc >=14
+  - openssl >=3.5.7,<4.0a0
   constrains:
   - __glibc >=2.17
   license: Apache-2.0
   license_family: APACHE
   run_exports: {}
-  size: 6108266
-  timestamp: 1740477035631
+  size: 6091311
+  timestamp: 1781886784688
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/scipy-1.17.1-py311had2d2e4_1.conda
   sha256: 4a2f014a0542477bb10bd9855e24883de4bed23cde17782da48f5484fa7da41d
   md5: 880b9aa5d72d525370d95c3372d6198e
@@ -13026,9 +13026,9 @@ packages:
     - ruby >=4.0.5,<4.1.0a0
   size: 15403261
   timestamp: 1779257295731
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/sccache-0.10.0-h8dba533_0.conda
-  sha256: cad0b13a40311c3ebae16fb8faa793f047eff8061213701c9cf14a1149da613b
-  md5: 374416411323e5f6cf0a688d9e78ed2a
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/sccache-0.16.0-h6fdd925_0.conda
+  sha256: df206dcef612395b8ba5c485fdec4d76480e29d6c57702976ed6a6ca09b0d01f
+  md5: a2ed805859a359f8c6421159a6ceb8da
   depends:
   - __osx >=11.0
   constrains:
@@ -13036,8 +13036,8 @@ packages:
   license: Apache-2.0
   license_family: APACHE
   run_exports: {}
-  size: 5629726
-  timestamp: 1740476849114
+  size: 5599412
+  timestamp: 1781886879193
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scipy-1.17.1-py311h9a58382_1.conda
   sha256: b45f87414da242a9e40eb934e89513a856e6236d681611c2c9a21d074b03ef5a
   md5: 15f96f91b13cbefddbf998368d06adef
@@ -15514,21 +15514,18 @@ packages:
     - ruby >=4.0.6,<4.1.0a0
   size: 21944050
   timestamp: 1784018179702
-- conda: https://conda.anaconda.org/conda-forge/win-64/sccache-0.10.0-ha073cba_0.conda
-  sha256: dc2da3e6f620ef37f21e2277947236eef3c55d1f8983cb5641146b059d6183b9
-  md5: f9abdf16cf5754e2337e3dee000069b0
+- conda: https://conda.anaconda.org/conda-forge/win-64/sccache-0.16.0-h18a1a76_0.conda
+  sha256: 865d35327451f4d0b3dc154975034d15c1292249d082fffaaf94719a7669b430
+  md5: 209bc2e2d4e61bdf85e4b28833ec9ec8
   depends:
-  - vc >=14.2,<15
-  - vc14_runtime >=14.29.30139
-  - ucrt >=10.0.20348.0
-  - vc >=14.2,<15
-  - vc14_runtime >=14.29.30139
+  - vc >=14.3,<15
+  - vc14_runtime >=14.44.35208
   - ucrt >=10.0.20348.0
   license: Apache-2.0
   license_family: APACHE
   run_exports: {}
-  size: 6700220
-  timestamp: 1740476957893
+  size: 6673999
+  timestamp: 1781886799413
 - conda: https://conda.anaconda.org/conda-forge/win-64/scipy-1.17.1-py311h9c22a71_1.conda
   sha256: 668cfbfb7960df5fff0e2db2677eb00d9e02ee1ce63cc9b1c985d782dacab2fe
   md5: 0635502eadb751abecd2c68af249f50f

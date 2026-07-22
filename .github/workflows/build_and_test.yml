@@ -154,6 +154,11 @@ jobs:
           manifest-path: pixi.toml
       - name: Build and test
         run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # Bounded parallelism: the heavy bindings translation units can
+            # exhaust the memory of the GitHub Windows runners.
+            export CMAKE_BUILD_PARALLEL_LEVEL=2
+          fi
           pixi run -e ci install_all
           pixi run -e ci build_tests
           pixi run -e ci test_all

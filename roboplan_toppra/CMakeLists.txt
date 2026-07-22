@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 project(roboplan_toppra VERSION 0.5.1)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  # clang-cl remaps plain -Wall to MSVC /Wall (clang's -Weverything); use the
+  # /clang: prefix to pass the GNU-style flags through unchanged.
+  add_compile_options(/clang:-Wall /clang:-Wextra /clang:-Wpedantic)
+elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
