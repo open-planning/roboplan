@@ -286,7 +286,15 @@ llvm-openmp = ">=19.1.7,<20"
 mold        = ">=2.40.2,<3"
 
 [target.win.dependencies]
+# Needed to lookup example model resources on non-POSIX platforms.
 dlfcn-win32 = ">=1.4.2,<2"
+# The MSVC STL on current GitHub Windows runners (Visual Studio 2026) requires
+# clang >= 20, so use a newer LLVM toolchain than on the Unix platforms.
+clang-tools = ">=22.1.8,<23"
+clangxx     = ">=22.1.8,<23"
+compiler-rt = ">=22.1.8,<23"
+lld         = ">=22.1.8,<23"
+llvm-tools  = ">=22.1.8,<23"
 
 [feature.lint.dependencies]
 pre-commit = ">=4.1.0,<5"

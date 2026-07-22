@@ -128,6 +128,11 @@ jobs:
             clang_tidy: false
 
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # On Windows, bash stops at the first failing command,
+        # and the stub check step below uses bash syntax.
+        shell: bash
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
