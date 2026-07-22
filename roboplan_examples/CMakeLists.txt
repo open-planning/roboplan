@@ -9,11 +9,6 @@ elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Windows: auto-export all symbols so DLLs get import libraries.
-if(WIN32)
-  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif()
-
 # Find dependencies.
 find_package(roboplan REQUIRED)
 find_package(roboplan_example_models REQUIRED)

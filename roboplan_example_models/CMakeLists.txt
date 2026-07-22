@@ -26,9 +26,6 @@ find_package(ament_cmake QUIET)
 # On Windows the dlfcn-win32 library provides a compatible implementation.
 if(WIN32)
   find_package(dlfcn-win32 REQUIRED)
-  set(ROBOPLAN_DL_LIBS dlfcn-win32::dl)
-else()
-  set(ROBOPLAN_DL_LIBS ${CMAKE_DL_LIBS})
 endif()
 
 # Build and install the library containing the resource paths.
@@ -36,7 +33,9 @@ add_library(roboplan_example_models SHARED
     src/resources.cpp
     src/anchor.cpp
 )
-target_link_libraries(roboplan_example_models PRIVATE ${ROBOPLAN_DL_LIBS})
+if(WIN32)
+  target_link_libraries(roboplan_example_models PRIVATE dlfcn-win32::dl)
+endif()
 # Forward slashes keep the define a valid C string literal on Windows.
 file(TO_CMAKE_PATH "${CMAKE_INSTALL_PREFIX}" roboplan_install_prefix)
 target_compile_definitions(roboplan_example_models PRIVATE

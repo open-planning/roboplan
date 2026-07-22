@@ -34,9 +34,6 @@ CMAKE_BUILD_TYPE = "RelWithDebInfo"
 # Windows activation scripts expand %VAR% instead of $VAR.
 [target.win.activation.env]
 CMAKE_INSTALL_PREFIX = "%CONDA_PREFIX%"
-# The roboplan DLLs install into %CONDA_PREFIX%\bin, which must be on PATH so
-# that executables and the Python extension modules can load them.
-PATH                 = "%CONDA_PREFIX%\\bin;%PATH%"
 # Use the MSVC-compatible clang driver: conda-forge packages are built with
 # MSVC and export MSVC-style flags that the GNU-style clang++ driver rejects.
 ROBOPLAN_C_COMPILER  = "clang-cl"
