@@ -6,7 +6,9 @@ find_package(roboplan REQUIRED)
 # if it was built via FetchContent. PACKAGE_PREFIX_DIR is set by @PACKAGE_INIT@
 # and points to the installation prefix of this package.
 find_package(toppra QUIET PATHS "${PACKAGE_PREFIX_DIR}" NO_DEFAULT_PATH)
-if(NOT toppra_FOUND)
+# Skipped on Windows: the conda-forge win-64 libtoppra package has a broken
+# CMake export (missing import library) that aborts the configure.
+if(NOT toppra_FOUND AND NOT WIN32)
   find_package(toppra QUIET)
 endif()
 
