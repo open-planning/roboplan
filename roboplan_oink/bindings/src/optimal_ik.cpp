@@ -16,6 +16,7 @@
 #include <roboplan_oink/optimal_ik.hpp>
 #include <roboplan_oink/tasks/configuration.hpp>
 #include <roboplan_oink/tasks/frame.hpp>
+#include <roboplan_oink/tasks/look_at.hpp>
 
 #include <modules/optimal_ik.hpp>
 
@@ -70,6 +71,57 @@ void init_optimal_ik(nanobind::module_& m) {
               "Maximum rotation error magnitude (radians).")
       .def("setTargetFrameTransform", &FrameTask::setTargetFrameTransform, "tform"_a,
            "Sets the target transform for this frame task.");
+
+  // Bind LookAtTaskOptions configuration struct
+  nanobind::class_<LookAtTaskOptions>(m, "LookAtTaskOptions", "Parameters for LookAtTask.")
+      .def(nanobind::init<double, double, double, double, double, const Eigen::Vector3d&, int>(),
+           "orientation_cost"_a = 1.0, "distance_cost"_a = 1.0, "task_gain"_a = 1.0,
+           "lm_damping"_a = 0.0, "max_distance_error"_a = std::numeric_limits<double>::infinity(),
+           "look_axis"_a = Eigen::Vector3d(Eigen::Vector3d::UnitZ()), "priority"_a = 1,
+           "Constructor with custom parameters.")
+      .def_rw("orientation_cost", &LookAtTaskOptions::orientation_cost,
+              "Cost weight for the look-at alignment error.")
+      .def_rw("distance_cost", &LookAtTaskOptions::distance_cost,
+              "Cost weight for the standoff distance error.")
+      .def_rw("task_gain", &LookAtTaskOptions::task_gain, "Task gain for low-pass filtering.")
+      .def_rw("lm_damping", &LookAtTaskOptions::lm_damping, "Levenberg-Marquardt damping.")
+      .def_rw("max_distance_error", &LookAtTaskOptions::max_distance_error,
+              "Maximum distance error magnitude (meters). Infinite = no limit.")
+      .def_rw("look_axis", &LookAtTaskOptions::look_axis,
+              "Look axis in the controlled frame's local coordinates (default: +Z).")
+      .def_rw("priority", &LookAtTaskOptions::priority,
+              "Priority level (1 = highest). Tasks at higher priority numbers are projected "
+              "into the nullspace of lower priority numbers.");
+
+  // Bind LookAtTask inheriting from Task
+  nanobind::class_<LookAtTask, Task>(
+      m, "LookAtTask",
+      "Task to point a frame's look axis at a target point while holding a standoff distance.\n\n"
+      "Drives a chosen axis of the controlled frame (e.g. a wrist camera's optical axis)\n"
+      "to face a target point in the world frame, while regulating the distance between\n"
+      "the frame origin and the target point to a desired standoff value. The position on\n"
+      "the standoff sphere and the roll about the look axis remain free for lower-priority\n"
+      "tasks.")
+      .def(nanobind::init<const Oink&, const Scene&, const std::string&, const Eigen::Vector3d&,
+                          double, const LookAtTaskOptions&>(),
+           "oink"_a, "scene"_a, "frame_name"_a, "target_point"_a, "target_distance"_a,
+           "options"_a = LookAtTaskOptions{})
+      .def_ro("frame_name", &LookAtTask::frame_name, "Name of the frame to point.")
+      .def_ro("frame_id", &LookAtTask::frame_id,
+              "Index of the frame in the scene's Pinocchio model.")
+      .def_ro("v_indices", &LookAtTask::v_indices, "Velocity vector indices for the joint group.")
+      .def_ro("target_point", &LookAtTask::target_point,
+              "The point to look at, in world coordinates.")
+      .def_ro("target_distance", &LookAtTask::target_distance,
+              "Desired standoff distance from the target point (meters).")
+      .def_ro("look_axis", &LookAtTask::look_axis,
+              "Unit look axis in the controlled frame's local coordinates.")
+      .def_ro("max_distance_error", &LookAtTask::max_distance_error,
+              "Maximum distance error magnitude (meters).")
+      .def("setTargetPoint", &LookAtTask::setTargetPoint, "point"_a,
+           "Sets the target point to look at (world coordinates), for runtime retargeting.")
+      .def("setTargetDistance", &LookAtTask::setTargetDistance, "distance"_a,
+           "Sets the desired standoff distance in meters, for runtime retargeting.");
 
   // Bind ConfigurationTaskOptions configuration struct
   nanobind::class_<ConfigurationTaskOptions>(m, "ConfigurationTaskOptions",

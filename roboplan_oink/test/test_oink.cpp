@@ -11,6 +11,7 @@
 #include <roboplan_oink/optimal_ik.hpp>
 #include <roboplan_oink/tasks/configuration.hpp>
 #include <roboplan_oink/tasks/frame.hpp>
+#include <roboplan_oink/tasks/look_at.hpp>
 
 namespace {
 // Tolerance for QP constraint satisfaction. ProxQP solves to eps_abs = 1e-6 by default;
@@ -830,6 +831,102 @@ TEST_F(OinkTest, FrameTaskConvergesToTarget) {
   EXPECT_LT(final_error, initial_error * 0.5)
       << "FrameTask did not make significant progress. Initial error: " << initial_error
       << "m, Final error: " << final_error << "m";
+}
+
+// Test that LookAtTask converges to facing the target point at the standoff distance
+TEST_F(OinkTest, LookAtTaskConvergesToTarget) {
+  Oink oink(*scene_);
+
+  // Set initial configuration away from singularities
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q(1) = -M_PI / 2.0;
+  q(2) = M_PI / 2.0;
+  scene_->setJointPositions(q);
+  scene_->forwardKinematics(q, "tool0");
+
+  // Place the target point off to the side of the initial look direction
+  Eigen::Matrix4d initial_pose = scene_->forwardKinematics(q, "tool0");
+  Eigen::Vector3d target_point = initial_pose.block<3, 1>(0, 3) + Eigen::Vector3d(0.2, 0.15, -0.1);
+  constexpr double k_target_distance = 0.25;
+
+  LookAtTaskOptions options{.lm_damping = 1.0};
+  auto task = std::make_shared<LookAtTask>(oink, *scene_, "tool0", target_point, k_target_distance,
+                                           options);
+  std::vector<std::shared_ptr<Task>> tasks = {task};
+  std::vector<std::shared_ptr<Constraints>> constraints;
+
+  // Helper to compute the alignment angle and distance error at a configuration
+  auto compute_errors = [&](const Eigen::VectorXd& q_eval) {
+    Eigen::Matrix4d pose = scene_->forwardKinematics(q_eval, "tool0");
+    const Eigen::Vector3d look_axis_world = pose.block<3, 3>(0, 0) * Eigen::Vector3d::UnitZ();
+    const Eigen::Vector3d to_target = target_point - pose.block<3, 1>(0, 3);
+    const double angle =
+        std::acos(std::clamp(look_axis_world.dot(to_target.normalized()), -1.0, 1.0));
+    const double distance_error = std::abs(to_target.norm() - k_target_distance);
+    return std::make_pair(angle, distance_error);
+  };
+
+  const auto [initial_angle, initial_distance_error] = compute_errors(q);
+
+  // Iterate IK solver
+  Eigen::VectorXd q_current = q;
+  constexpr int k_max_iterations = 200;
+  constexpr double k_angle_tolerance = 0.01;      // ~0.5 degrees
+  constexpr double k_distance_tolerance = 0.005;  // 5mm
+
+  for (int iter = 0; iter < k_max_iterations; ++iter) {
+    scene_->setJointPositions(q_current);
+    scene_->forwardKinematics(q_current, "tool0");
+
+    Eigen::VectorXd delta_q(num_variables_);
+    auto result = oink.solveIk(*scene_, tasks, constraints, delta_q);
+    ASSERT_TRUE(result.has_value()) << "Iteration " << iter << " failed: " << result.error();
+
+    q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
+
+    const auto [angle, distance_error] = compute_errors(q_current);
+    if (angle < k_angle_tolerance && distance_error < k_distance_tolerance) {
+      break;
+    }
+  }
+
+  const auto [final_angle, final_distance_error] = compute_errors(q_current);
+  EXPECT_LT(final_angle, k_angle_tolerance)
+      << "LookAtTask did not align with the target. Initial angle: " << initial_angle
+      << " rad, Final angle: " << final_angle << " rad";
+  EXPECT_LT(final_distance_error, k_distance_tolerance)
+      << "LookAtTask did not reach the standoff distance. Initial error: " << initial_distance_error
+      << "m, Final error: " << final_distance_error << "m";
+}
+
+// Test LookAtTask constructor validation
+TEST_F(OinkTest, LookAtTaskConstructionValidation) {
+  Oink oink(*scene_);
+  const Eigen::Vector3d target_point(0.3, 0.2, 0.5);
+
+  // Unknown frame should throw
+  EXPECT_THROW(LookAtTask(oink, *scene_, "nonexistent_frame", target_point, 0.3),
+               std::runtime_error);
+
+  // Negative standoff distance should throw
+  EXPECT_THROW(LookAtTask(oink, *scene_, "tool0", target_point, -0.1), std::invalid_argument);
+
+  // Zero look axis should throw
+  LookAtTaskOptions bad_axis_options{.look_axis = Eigen::Vector3d::Zero()};
+  EXPECT_THROW(LookAtTask(oink, *scene_, "tool0", target_point, 0.3, bad_axis_options),
+               std::invalid_argument);
+
+  // Valid construction normalizes the look axis
+  LookAtTaskOptions options{.look_axis = Eigen::Vector3d(0.0, 0.0, 2.0)};
+  LookAtTask task(oink, *scene_, "tool0", target_point, 0.3, options);
+  EXPECT_NEAR(task.look_axis.norm(), 1.0, 1e-12);
+  EXPECT_EQ(task.jacobian_container.rows(), 4);
+  EXPECT_EQ(task.error_container.size(), 4);
+
+  // Runtime retargeting validation
+  EXPECT_THROW(task.setTargetDistance(-0.5), std::invalid_argument);
+  task.setTargetDistance(0.5);
+  EXPECT_DOUBLE_EQ(task.target_distance, 0.5);
 }
 
 // Test that ConfigurationTask converges to target configuration

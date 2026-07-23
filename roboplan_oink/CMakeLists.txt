@@ -67,6 +67,7 @@ add_library(roboplan_oink SHARED
     src/optimal_ik.cpp
     src/tasks/frame.cpp
     src/tasks/configuration.cpp
+    src/tasks/look_at.cpp
     src/constraints/position_limit.cpp
     src/constraints/velocity_limit.cpp
     src/constraints/acceleration_limit.cpp

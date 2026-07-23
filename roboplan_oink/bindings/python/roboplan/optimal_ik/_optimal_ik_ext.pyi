@@ -120,6 +120,112 @@ class FrameTask(Task):
     def setTargetFrameTransform(self, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> None:
         """Sets the target transform for this frame task."""
 
+class LookAtTaskOptions:
+    """Parameters for LookAtTask."""
+
+    def __init__(self, orientation_cost: float = 1.0, distance_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0, max_distance_error: float = float('inf'), look_axis: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., priority: int = 1) -> None:
+        """Constructor with custom parameters."""
+
+    @property
+    def orientation_cost(self) -> float:
+        """Cost weight for the look-at alignment error."""
+
+    @orientation_cost.setter
+    def orientation_cost(self, arg: float, /) -> None: ...
+
+    @property
+    def distance_cost(self) -> float:
+        """Cost weight for the standoff distance error."""
+
+    @distance_cost.setter
+    def distance_cost(self, arg: float, /) -> None: ...
+
+    @property
+    def task_gain(self) -> float:
+        """Task gain for low-pass filtering."""
+
+    @task_gain.setter
+    def task_gain(self, arg: float, /) -> None: ...
+
+    @property
+    def lm_damping(self) -> float:
+        """Levenberg-Marquardt damping."""
+
+    @lm_damping.setter
+    def lm_damping(self, arg: float, /) -> None: ...
+
+    @property
+    def max_distance_error(self) -> float:
+        """Maximum distance error magnitude (meters). Infinite = no limit."""
+
+    @max_distance_error.setter
+    def max_distance_error(self, arg: float, /) -> None: ...
+
+    @property
+    def look_axis(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """Look axis in the controlled frame's local coordinates (default: +Z)."""
+
+    @look_axis.setter
+    def look_axis(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
+
+    @property
+    def priority(self) -> int:
+        """
+        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers.
+        """
+
+    @priority.setter
+    def priority(self, arg: int, /) -> None: ...
+
+class LookAtTask(Task):
+    """
+    Task to point a frame's look axis at a target point while holding a standoff distance.
+
+    Drives a chosen axis of the controlled frame (e.g. a wrist camera's optical axis)
+    to face a target point in the world frame, while regulating the distance between
+    the frame origin and the target point to a desired standoff value. The position on
+    the standoff sphere and the roll about the look axis remain free for lower-priority
+    tasks.
+    """
+
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_name: str, target_point: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], target_distance: float, options: LookAtTaskOptions = ...) -> None: ...
+
+    @property
+    def frame_name(self) -> str:
+        """Name of the frame to point."""
+
+    @property
+    def frame_id(self) -> int:
+        """Index of the frame in the scene's Pinocchio model."""
+
+    @property
+    def v_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
+        """Velocity vector indices for the joint group."""
+
+    @property
+    def target_point(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """The point to look at, in world coordinates."""
+
+    @property
+    def target_distance(self) -> float:
+        """Desired standoff distance from the target point (meters)."""
+
+    @property
+    def look_axis(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """Unit look axis in the controlled frame's local coordinates."""
+
+    @property
+    def max_distance_error(self) -> float:
+        """Maximum distance error magnitude (meters)."""
+
+    def setTargetPoint(self, point: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]) -> None:
+        """
+        Sets the target point to look at (world coordinates), for runtime retargeting.
+        """
+
+    def setTargetDistance(self, distance: float) -> None:
+        """Sets the desired standoff distance in meters, for runtime retargeting."""
+
 class ConfigurationTaskOptions:
     """Parameters for ConfigurationTask."""
 
