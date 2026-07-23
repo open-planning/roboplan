@@ -65,6 +65,7 @@ endif()
 # Add libraries
 add_library(roboplan_oink SHARED
     src/optimal_ik.cpp
+    src/qp_backend.cpp
     src/tasks/frame.cpp
     src/tasks/configuration.cpp
     src/constraints/position_limit.cpp
