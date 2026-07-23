@@ -31,5 +31,8 @@ add_subdirectory(python)
 # If ament_cmake is detected, export the package to be visible in ROS 2.
 if ( ament_cmake_FOUND )
     message(STATUS "ament_cmake found. Exporting for ROS 2.")
+    if(BUILD_TESTING)
+        add_subdirectory(test)
+    endif()
     ament_package()
 endif()
