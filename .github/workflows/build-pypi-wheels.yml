@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Ensures that only one workflow runs at a time for this branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check_version:
     name: Check package version
