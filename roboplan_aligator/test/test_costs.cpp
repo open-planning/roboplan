@@ -243,6 +243,7 @@ TEST(CostTest, SetTargetMutatesInProblemResidual) {
   pose.orientation_cost = Eigen::Vector3d::Constant(200.0);
   CostHandle handle = opt.addCost(pose, StageWindow::terminal(), 1.0);
 
+  opt.build();
   const auto res_a = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(res_a.has_value()) << res_a.error();
   const Eigen::Matrix4d reached_a = framePose(model, res_a->xs.back().head(nq), fid);
@@ -280,6 +281,7 @@ TEST(CostTest, SetTargetMutatesVectorCostResidual) {
   config.weights = Eigen::VectorXd::Constant(nq, 100.0);
   CostHandle handle = opt.addCost(config, StageWindow::terminal(), 1.0);
 
+  opt.build();
   const auto res_a = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(res_a.has_value()) << res_a.error();
   const Eigen::VectorXd q_reached_a = res_a->xs.back().head(nq);
@@ -318,6 +320,7 @@ TEST(CostTest, TerminalFramePoseReachConverges) {
   pose.orientation_cost = Eigen::Vector3d::Constant(500.0);
   opt.addCost(pose, StageWindow::terminal(), 1.0);
 
+  opt.build();
   const auto result = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(result.has_value()) << result.error();
 
@@ -337,7 +340,7 @@ TEST(CostTest, TerminalFramePoseReachConverges) {
 
 // --- Lifecycle + handle guards ----------------------------------------------------------------
 
-TEST(CostTest, AddCostAfterSolveThrowsThenResetAllows) {
+TEST(CostTest, AddCostAfterBuildThrowsThenResetAllows) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
 
@@ -345,11 +348,12 @@ TEST(CostTest, AddCostAfterSolveThrowsThenResetAllows) {
   cost.weights = Eigen::VectorXd::Ones(opt.nv());
   EXPECT_NO_THROW(opt.addCost(cost));
 
-  ASSERT_TRUE(opt.solve(TrajOptSeed{}).has_value());
-  EXPECT_THROW(opt.addCost(cost), std::logic_error);  // locked after first solve
+  opt.build();
+  EXPECT_THROW(opt.addCost(cost), std::logic_error);  // locked after build()
+  EXPECT_TRUE(opt.solve(TrajOptSeed{}).has_value());  // solving does not un/re-lock
 
   opt.resetProblem();
-  EXPECT_NO_THROW(opt.addCost(cost));  // legal again
+  EXPECT_NO_THROW(opt.addCost(cost));  // legal again (a fresh build() is required to solve)
 }
 
 TEST(CostTest, CostHandleRejectsWrongTargetKind) {

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <Eigen/Dense>
 #include <tl/expected.hpp>
@@ -22,10 +23,17 @@ class Scene;
 /// free-space multibody dynamics (design §4.2).
 /// @details The constructor snapshots the planning group into a reduced model (§3.1) and assembles
 /// an N-stage problem (identical stages carrying the default control regularization, an
-/// initial-condition constraint, and an empty terminal-cost placeholder). `addCost` (§4.3) and
-/// `addConstraint` (§4.4) attach soft costs and hard constraints over stage windows; `resetProblem`
-/// rebuilds the empty shell. `solve` runs SolverProxDDP on a warm-start seed and returns a
-/// TrajOptResult. Warm-start helpers (`interpolatePath`, `shift`) arrive in later prompts.
+/// initial-condition constraint, and an empty terminal-cost placeholder).
+///
+/// Lifecycle (§3.4): `addCost` (§4.3) and `addConstraint` (§4.4) attach soft costs and hard
+/// constraints over stage windows and are legal only before `build()` (or after `resetProblem()`);
+/// `build()` allocates the solver workspace and freezes the problem structure; `solve()` then runs
+/// SolverProxDDP on a warm-start seed and returns a TrajOptResult, and errors if called before
+/// `build()`. Between solves, `setInitialState`, `CostHandle::setTarget`, and the option fields
+/// (`max_iters`, `tol`) are hot-path (no rebuild). Warm-start helpers: `interpolatePath` (a
+/// straight-line seed through waypoints) and `shift` (receding-horizon advance); `solve` also
+/// accepts a previous TrajOptResult directly. Receding-horizon MPC is a per-tick `setInitialState`
+/// + `CostHandle::setTarget` + `solve(shift(prev))` loop over the fixed-horizon problem (§3.6).
 ///
 /// All aligator and pinocchio state lives behind a PIMPL, so this public header stays free of
 /// third-party types. The class is move-only (it owns a solver + assembled problem).
@@ -137,21 +145,59 @@ public:
   void addConstraint(const CollisionConstraint& constraint,
                      const StageWindow& window = StageWindow::all());
 
+  /// @brief Finalizes the problem: allocates the solver workspace and freezes the structure so it
+  /// can be solved (design §3.4, §4.2).
+  /// @details Must be called after all `addCost`/`addConstraint` calls and before the first
+  /// `solve()` (solve does not auto-build; maintainer decision, Prompt 9). After this,
+  /// `addCost`/`addConstraint` throw until `resetProblem()`. Idempotent: calling `build()` again
+  /// while already built is a no-op.
+  void build();
+
   /// @brief Rebuilds the problem to its empty shell (default control regularization only),
-  /// re-enabling `addCost` (design §3.4).
-  /// @details Discards all user costs added so far. Any CostHandle returned by a prior `addCost`
-  /// dangles after this call and must not be used.
+  /// re-enabling `addCost`/`addConstraint` and requiring a fresh `build()` (design §3.4).
+  /// @details Discards all user costs and constraints added so far. Any CostHandle returned by a
+  /// prior `addCost` dangles after this call and must not be used.
   void resetProblem();
 
+  /// @brief Straight-line warm-start seed through reduced-group waypoints onto the horizon grid
+  /// (§3.6).
+  /// @details Interpolates the waypoints (Lie-group-aware, on the reduced model) into `horizon()+1`
+  /// states with zero velocities, plus `horizon()` zero controls. A single waypoint yields a
+  /// constant seed; multiple waypoints form a piecewise-linear path evenly parameterized over the
+  /// horizon.
+  /// @param waypoints One or more reduced-group configurations (each size nq()).
+  /// @throws std::invalid_argument if `waypoints` is empty or a waypoint has the wrong size.
+  TrajOptSeed interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const;
+
+  /// @brief Receding-horizon shift of a solved result into a warm-start seed for the next tick
+  /// (§3.6).
+  /// @details Drops the first `n_steps` knots and repeats the final state/control to refill the
+  /// tail (the "hold" convention; maintainer decision, Prompt 9).
+  /// @param result A result previously returned by this optimizer (xs size horizon()+1, us
+  /// horizon()).
+  /// @param n_steps How many steps to advance the horizon (default 1; must be >= 0).
+  /// @throws std::invalid_argument if `n_steps < 0` or `result`'s dimensions do not match the
+  /// horizon.
+  TrajOptSeed shift(const TrajOptResult& result, int n_steps = 1) const;
+
   /// @brief Runs the ProxDDP solver from a warm-start seed and returns the result (design §4.2).
-  /// @details Options (`tol`, `max_iters`, `verbose`, `mu_init`) are applied to the solver on each
-  /// call, so edits to `TrajOptOptions` between solves take effect without a rebuild (§3.4).
+  /// @details Requires a prior `build()` (returns an error otherwise). Options (`tol`, `max_iters`,
+  /// `verbose`, `mu_init`) are applied to the solver on each call, so edits to `TrajOptOptions`
+  /// between solves take effect without a rebuild (§3.4).
   /// @param seed Warm-start states/controls in reduced-group layout (§3.6). Empty vectors let
   ///   aligator default-initialize; a non-empty `xs` must have horizon()+1 entries of size nx(),
   ///   and a non-empty `us` must have horizon() entries of size nv().
   /// @return The populated TrajOptResult on success, or an error string on a recoverable failure
-  ///   (a seed whose dimensions do not match the problem, or a solver exception).
+  ///   (problem not built, a seed whose dimensions do not match the problem, or a solver
+  ///   exception).
   tl::expected<TrajOptResult, std::string> solve(const TrajOptSeed& seed);
+
+  /// @brief Solves warm-started from a previous result (design §3.6, `solve(seed | previous
+  /// result)`).
+  /// @details Dispatches to `solve(const TrajOptSeed&)` using `previous`'s states/controls as the
+  /// seed (they already share the seed layout). Requires a prior `build()`.
+  /// @param previous A result previously returned by this optimizer.
+  tl::expected<TrajOptResult, std::string> solve(const TrajOptResult& previous);
 
 private:
   struct Impl;

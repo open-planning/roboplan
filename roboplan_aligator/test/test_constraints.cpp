@@ -278,6 +278,7 @@ TEST(ConstraintTest, AllWindowKindsAttachThroughPublicApiAndSolve) {
   reach.tol_rot = 0.20;
   EXPECT_NO_THROW(opt.addConstraint(reach, StageWindow::terminal()));
 
+  opt.build();
   const auto result = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(result.has_value()) << result.error();
   EXPECT_GT(result->iterations, 0);
@@ -317,6 +318,7 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
   const double tau = 0.08;
 
   auto opt_unc = make_reach_opt();
+  opt_unc.build();
   const auto res_unc = opt_unc.solve(TrajOptSeed{});
   ASSERT_TRUE(res_unc.has_value()) << res_unc.error();
   const double peak_unc = peakTorque(res_unc->us);
@@ -327,6 +329,7 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
   TorqueLimit limit;
   limit.tau_max = Eigen::VectorXd::Constant(opt_c.nv(), tau);
   opt_c.addConstraint(limit);  // all stages
+  opt_c.build();
   const auto res_c = opt_c.solve(TrajOptSeed{});
   ASSERT_TRUE(res_c.has_value()) << res_c.error();
 
@@ -347,6 +350,7 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
   TorqueLimit limit2;
   limit2.tau_max = Eigen::VectorXd::Constant(opt_c2.nv(), tau);
   opt_c2.addConstraint(limit2);
+  opt_c2.build();
   const auto res_c2 = opt_c2.solve(TrajOptSeed{});
   ASSERT_TRUE(res_c2.has_value()) << res_c2.error();
   ASSERT_EQ(res_c->us.size(), res_c2->us.size());
@@ -558,6 +562,7 @@ TEST(ConstraintTest, SelfCollisionConstraintAttachesAndSolves) {
   // Terminal is legal too (collision residual is a UnaryFunction of x only).
   EXPECT_NO_THROW(opt.addConstraint(self, StageWindow::terminal()));
 
+  opt.build();
   const auto result = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(result.has_value()) << result.error();
   EXPECT_TRUE(std::isfinite(result->max_constraint_violation));
@@ -581,14 +586,15 @@ TEST(ConstraintTest, WrongSizeBoundThrows) {
   EXPECT_THROW(opt.addConstraint(limit), std::invalid_argument);
 }
 
-TEST(ConstraintTest, AddConstraintAfterSolveThrowsThenResetAllows) {
+TEST(ConstraintTest, AddConstraintAfterBuildThrowsThenResetAllows) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
 
   VelocityLimit limit;
   EXPECT_NO_THROW(opt.addConstraint(limit));
+  opt.build();
+  EXPECT_THROW(opt.addConstraint(limit), std::logic_error);  // locked after build()
   ASSERT_TRUE(opt.solve(TrajOptSeed{}).has_value());
-  EXPECT_THROW(opt.addConstraint(limit), std::logic_error);  // locked after first solve
 
   opt.resetProblem();
   EXPECT_NO_THROW(opt.addConstraint(limit));  // legal again

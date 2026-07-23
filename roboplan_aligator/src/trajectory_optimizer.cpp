@@ -7,8 +7,11 @@
 #include <utility>
 #include <vector>
 
+#include <algorithm>  // std::min
+
 #include <aligator/fwd.hpp>                             // VerboseLevel
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>  // SolverProxDDPTpl
+#include <pinocchio/algorithm/joint-configuration.hpp>  // pinocchio::interpolate
 
 #include <roboplan/core/scene.hpp>
 
@@ -46,9 +49,10 @@ struct TrajectoryOptimizer::Impl {
   std::unique_ptr<aligator_detail::Problem> problem;  // assembled N-stage shell
   aligator::SolverProxDDPTpl<double> solver;
 
-  // True once the first solve() has run solver.setup() on the assembled problem. addCost /
-  // resetProblem are illegal while locked (lifecycle §3.4); setup is deferred to the first solve
-  // so that costs added via addCost are part of the problem structure it allocates for.
+  // True once build() has run solver.setup() on the assembled problem. addCost / addConstraint /
+  // resetProblem are illegal while locked (lifecycle §3.4); solve() requires it. setup is deferred
+  // to build() (not the ctor) so that costs/constraints added via addCost/addConstraint are part of
+  // the problem structure the workspace is allocated for.
   bool locked = false;
 
   Impl(std::shared_ptr<Scene> s, std::string g, int h, double d, TrajOptOptions o)
@@ -82,13 +86,13 @@ resolveTargetStacks(aligator_detail::Problem& problem, const StageWindow& window
   return stacks;
 }
 
-// Lifecycle guard: costs and constraints may only be added before the first solve() (or after
+// Lifecycle guard: costs and constraints may only be added before build() (or after
 // resetProblem()).
 void requireUnlocked(bool locked) {
   if (locked) {
     throw std::logic_error(
-        "TrajectoryOptimizer: costs and constraints may only be added before the first solve(); "
-        "call resetProblem() to add more.");
+        "TrajectoryOptimizer: costs and constraints may only be added before build(); call "
+        "resetProblem() to rebuild the shell and add more.");
   }
 }
 
@@ -296,10 +300,22 @@ void TrajectoryOptimizer::addConstraint(const CollisionConstraint& constraint,
   }
 }
 
+void TrajectoryOptimizer::build() {
+  Impl& im = *impl_;
+  if (im.locked) {
+    return;  // idempotent: already built (setup() run, problem structure frozen).
+  }
+  // Allocate the solver workspace for the assembled problem and freeze it: no more addCost /
+  // addConstraint / resetProblem until resetProblem() unlocks (lifecycle §3.4). Deferred to here
+  // (not the ctor) so every cost/constraint added is part of the structure setup() allocates for.
+  im.solver.setup(*im.problem);
+  im.locked = true;
+}
+
 void TrajectoryOptimizer::resetProblem() {
   Impl& im = *impl_;
   // Rebuild the empty shell (default control regularization only). Any outstanding CostHandle now
-  // dangles (its residual pointers referenced the discarded problem).
+  // dangles (its residual pointers referenced the discarded problem). build() is required again.
   im.problem = aligator_detail::buildProblemShell(im.space, im.x0, im.horizon, im.dt, im.options);
   im.locked = false;
 }
@@ -311,6 +327,14 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   const auto num_stages = static_cast<std::size_t>(im.horizon);
   const int nx = im.rgm.nq() + im.rgm.nv();
   const int nu = im.rgm.nv();
+
+  // The problem must be finalized (build()) before it can be solved (maintainer decision, Prompt 9:
+  // solve does not auto-build). A missing build() is a recoverable per-call misuse, not a throw.
+  if (!im.locked) {
+    return tl::make_unexpected(
+        "TrajectoryOptimizer::solve: the problem has not been built; call build() first (add all "
+        "costs/constraints, then build(), then solve()).");
+  }
 
   // Validate a provided seed (empty vectors are left for aligator to default-initialize). A
   // dimension mismatch is a recoverable per-call failure (numerics rule), not a throw.
@@ -353,14 +377,6 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   im.solver.verbose_ =
       im.options.verbose ? aligator::VerboseLevel::VERBOSE : aligator::VerboseLevel::QUIET;
 
-  // Lazily allocate solver workspace for the assembled problem on the first solve, then lock the
-  // problem structure (no more addCost / resetProblem, §3.4). Deferring setup lets addCost mutate
-  // the cost stacks before the workspace is allocated for them.
-  if (!im.locked) {
-    im.solver.setup(*im.problem);
-    im.locked = true;
-  }
-
   bool converged = false;
   try {
     converged = im.solver.run(*im.problem, seed.xs, seed.us);
@@ -394,6 +410,94 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   }
 
   return out;
+}
+
+tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOptResult& previous) {
+  // Warm-start from a previous solution: its states/controls are already in the seed layout
+  // (xs size N+1, us size N). Dispatch to the seed overload (§3.6).
+  return solve(TrajOptSeed{.xs = previous.xs, .us = previous.us});
+}
+
+// --- Warm-start helpers (design §3.6) --------------------------------------------------------
+
+TrajOptSeed
+TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const {
+  const Impl& im = *impl_;
+  const int nq = im.rgm.nq();
+  const int nv = im.rgm.nv();
+  if (waypoints.empty()) {
+    throw std::invalid_argument(
+        "TrajectoryOptimizer::interpolatePath: need at least one waypoint.");
+  }
+  for (std::size_t i = 0; i < waypoints.size(); ++i) {
+    if (waypoints[i].size() != nq) {
+      throw std::invalid_argument("TrajectoryOptimizer::interpolatePath: waypoint " +
+                                  std::to_string(i) + " has size " +
+                                  std::to_string(waypoints[i].size()) +
+                                  ", expected reduced nq = " + std::to_string(nq) + ".");
+    }
+  }
+
+  // Straight-line joint interpolation onto the N+1 grid, Lie-group-aware on the REDUCED model
+  // (pinocchio::interpolate; Scene::interpolate is bound to the full model, so it cannot target the
+  // reduced sub-model — API_NOTES §3.6). Multiple waypoints form a piecewise-linear path evenly
+  // parameterized over [0, 1]; velocities and controls are zero (design §3.6).
+  const pinocchio::Model& model = im.rgm.reducedModel();
+  const int num_segments = static_cast<int>(waypoints.size()) - 1;
+
+  TrajOptSeed seed;
+  seed.xs.reserve(static_cast<std::size_t>(im.horizon) + 1);
+  for (int k = 0; k <= im.horizon; ++k) {
+    Eigen::VectorXd q(nq);
+    if (num_segments == 0) {
+      q = waypoints.front();  // single waypoint: a constant seed at that configuration.
+    } else {
+      const double t = static_cast<double>(k) / static_cast<double>(im.horizon);  // global [0, 1]
+      const double scaled = t * num_segments;
+      int segment = std::min(static_cast<int>(scaled), num_segments - 1);  // clamp the t == 1 end
+      const double alpha = scaled - segment;
+      q = pinocchio::interpolate(model, waypoints[static_cast<std::size_t>(segment)],
+                                 waypoints[static_cast<std::size_t>(segment) + 1], alpha);
+    }
+    Eigen::VectorXd x(nq + nv);
+    x << q, Eigen::VectorXd::Zero(nv);
+    seed.xs.push_back(std::move(x));
+  }
+  seed.us.assign(static_cast<std::size_t>(im.horizon), Eigen::VectorXd::Zero(nv));
+  return seed;
+}
+
+TrajOptSeed TrajectoryOptimizer::shift(const TrajOptResult& result, int n_steps) const {
+  const Impl& im = *impl_;
+  const auto num_stages = static_cast<std::size_t>(im.horizon);
+  if (n_steps < 0) {
+    throw std::invalid_argument("TrajectoryOptimizer::shift: n_steps must be >= 0, got " +
+                                std::to_string(n_steps) + ".");
+  }
+  if (result.xs.size() != num_stages + 1 || result.us.size() != num_stages) {
+    throw std::invalid_argument("TrajectoryOptimizer::shift: result has " +
+                                std::to_string(result.xs.size()) + " states / " +
+                                std::to_string(result.us.size()) + " controls, expected " +
+                                std::to_string(num_stages + 1) + " / " +
+                                std::to_string(num_stages) + " for this optimizer's horizon.");
+  }
+
+  // Advance the horizon by n_steps: drop the first n_steps knots and repeat the last state/control
+  // to refill the tail (the receding-horizon "hold" convention; maintainer decision, Prompt 9 —
+  // matches aligator's own cycleAppend, which duplicates the final knot). n_steps is clamped per
+  // index.
+  TrajOptSeed seed;
+  seed.xs.reserve(num_stages + 1);
+  for (std::size_t k = 0; k <= num_stages; ++k) {
+    const std::size_t src = std::min(k + static_cast<std::size_t>(n_steps), num_stages);
+    seed.xs.push_back(result.xs[src]);
+  }
+  seed.us.reserve(num_stages);
+  for (std::size_t k = 0; k < num_stages; ++k) {
+    const std::size_t src = std::min(k + static_cast<std::size_t>(n_steps), num_stages - 1);
+    seed.us.push_back(result.us[src]);
+  }
+  return seed;
 }
 
 }  // namespace roboplan
