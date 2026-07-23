@@ -138,7 +138,7 @@ jobs:
           CIBW_TEST_COMMAND: >-
             python -c "import roboplan; import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;
-            import roboplan.toppra; import roboplan.cartesian_planning; print('roboplan imports ok')"
+            import roboplan.toppra; import roboplan.aligator; import roboplan.cartesian_planning; print('roboplan imports ok')"
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:

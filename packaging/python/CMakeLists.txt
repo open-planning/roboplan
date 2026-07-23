@@ -22,6 +22,7 @@ add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_simple_ik" "roboplan_simp
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_oink" "roboplan_oink")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_rrt" "roboplan_rrt")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_toppra" "roboplan_toppra")
+add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_aligator" "roboplan_aligator")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_cartesian_planning" "roboplan_cartesian_planning")
 
 if(SKBUILD)
