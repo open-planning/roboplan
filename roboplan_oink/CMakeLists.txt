@@ -57,6 +57,7 @@ endif()
 add_library(roboplan_oink SHARED
     src/optimal_ik.cpp
     src/tasks/frame.cpp
+    src/tasks/look_at.cpp
     src/tasks/configuration.cpp
     src/constraints/position_limit.cpp
     src/constraints/velocity_limit.cpp
