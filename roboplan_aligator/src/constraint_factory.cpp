@@ -41,7 +41,7 @@ using BoxConstraint = aligator::BoxConstraintTpl<double>;
 // stays a UnaryFunction — valid at the terminal node, which has no control).
 using StateSlice = aligator::FunctionSliceXprTpl<double, aligator::UnaryFunctionTpl<double>>;
 
-constexpr double kInf = std::numeric_limits<double>::infinity();
+constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
 // Resolves a frame name against the reduced model, throwing a setup-time invariant violation if the
 // frame is absent (a constraint referencing a nonexistent frame is a misconfiguration).
@@ -176,10 +176,10 @@ ConstraintPair buildTorqueLimit(const PhaseSpace& space, const ReducedGroupModel
   // (±inf), never a zero-torque clamp (decision P7).
   for (int i = 0; i < nv; ++i) {
     if (!std::isfinite(upper[i]) || upper[i] == 0.0) {
-      upper[i] = kInf;
+      upper[i] = kInfinity;
     }
     if (!std::isfinite(lower[i]) || lower[i] == 0.0) {
-      lower[i] = -kInf;
+      lower[i] = -kInfinity;
     }
   }
 
@@ -283,7 +283,7 @@ std::vector<ConstraintPair> buildCollision(const PhaseSpace& space, const Reduce
 
   // Box: signed distance >= d_min, i.e. the 1-D residual value lies in [d_min, +inf).
   const Eigen::VectorXd lower = Eigen::VectorXd::Constant(1, d_min);
-  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(1, kInf);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(1, kInfinity);
 
   std::vector<ConstraintPair> out;
   out.reserve(take);

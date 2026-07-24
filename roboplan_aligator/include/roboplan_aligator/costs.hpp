@@ -18,7 +18,8 @@ namespace roboplan {
 
 /// @brief Penalize the SE3 placement error of a frame from a target pose (design §4.3).
 /// @details Maps to aligator FramePlacementResidual -> QuadraticResidualCost. The 6-D placement
-/// error (3 translation, 3 rotation-log) is weighted per-axis by `position_cost` / `orientation_cost`.
+/// error (3 translation, 3 rotation-log) is weighted per-axis by `position_cost` /
+/// `orientation_cost`.
 struct FramePoseCost {
   /// @brief Name of the frame whose pose is penalized (resolved against the reduced model).
   std::string frame;
@@ -85,11 +86,13 @@ struct VelocityCost {
 /// @brief Mutable handle to an attached cost, for hot-path target updates (design §3.5).
 /// @details Returned by `TrajectoryOptimizer::addCost`. aligator deep-copies the cost you pass into
 /// each in-range stage of the assembled problem, so this handle retains references to the residuals
-/// living INSIDE the problem; `setTarget` rewrites those in place (legal between solves, no rebuild).
-/// Move-only; becomes dangling if the owning optimizer is destroyed or `resetProblem()` is called.
+/// living INSIDE the problem; `setTarget` rewrites those in place (legal between solves, no
+/// rebuild). Move-only; becomes dangling if the owning optimizer is destroyed or `resetProblem()`
+/// is called.
 class CostHandle {
 public:
-  /// @brief Constructs an empty handle (references nothing). Provided for default-construction only.
+  /// @brief Constructs an empty handle (references nothing). Provided for default-construction
+  /// only.
   CostHandle();
   ~CostHandle();
 
@@ -102,8 +105,8 @@ public:
   /// @throws std::logic_error if this handle was not returned for a FramePoseCost.
   void setTarget(const Eigen::Matrix4d& target_pose);
 
-  /// @brief Sets a new target vector for a ConfigurationCost (q), ControlCost (u), VelocityCost (v),
-  /// or FrameAxisCost (world axis, size 3) handle.
+  /// @brief Sets a new target vector for a ConfigurationCost (q), ControlCost (u), VelocityCost
+  /// (v), or FrameAxisCost (world axis, size 3) handle.
   /// @throws std::logic_error if this handle is a FramePoseCost handle (use the Matrix4d overload).
   /// @throws std::invalid_argument if `target` has the wrong size for the cost.
   void setTarget(const Eigen::VectorXd& target);

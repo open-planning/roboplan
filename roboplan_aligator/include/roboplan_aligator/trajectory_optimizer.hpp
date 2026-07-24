@@ -181,9 +181,10 @@ public:
   TrajOptSeed shift(const TrajOptResult& result, int n_steps = 1) const;
 
   /// @brief Runs the ProxDDP solver from a warm-start seed and returns the result (design §4.2).
-  /// @details Requires a prior `build()` (returns an error otherwise). Options (`tol`, `max_iters`,
-  /// `verbose`, `mu_init`) are applied to the solver on each call, so edits to `TrajOptOptions`
-  /// between solves take effect without a rebuild (§3.4).
+  /// @details Requires a prior `build()` (returns an error otherwise). The `TrajOptOptions` passed
+  /// at construction (`tol`, `max_iters`, `verbose`, `mu_init`) are re-applied to the solver on
+  /// each call, but they are fixed at construction — there is no public accessor to mutate them, so
+  /// they cannot be changed between solves.
   /// @param seed Warm-start states/controls in reduced-group layout (§3.6). Empty vectors let
   ///   aligator default-initialize; a non-empty `xs` must have horizon()+1 entries of size nx(),
   ///   and a non-empty `us` must have horizon() entries of size nv().

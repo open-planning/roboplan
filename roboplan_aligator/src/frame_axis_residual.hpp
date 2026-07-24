@@ -95,7 +95,8 @@ inline void FrameAxisResidual::evaluate(const ConstVectorRef& x, BaseData& data)
   pinocchio::forwardKinematics(pin_model_, d.pin_data_, q);
   pinocchio::updateFramePlacement(pin_model_, d.pin_data_, frame_id_);
   d.frame_rotation_ = d.pin_data_.oMf[frame_id_].rotation();
-  d.value_ = d.frame_rotation_ * axis_local_ - axis_world_target_;
+  d.value_.noalias() = d.frame_rotation_ * axis_local_;
+  d.value_ -= axis_world_target_;
 }
 
 inline void FrameAxisResidual::computeJacobians(const ConstVectorRef& /*x*/, BaseData& data) const {

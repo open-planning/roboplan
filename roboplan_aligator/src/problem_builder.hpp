@@ -17,9 +17,9 @@
 
 #include <Eigen/Core>
 
-#include <aligator/core/explicit-dynamics.hpp>    // ExplicitDynamicsModelTpl
-#include <aligator/core/traj-opt-problem.hpp>      // TrajOptProblemTpl
-#include <aligator/modelling/spaces/multibody.hpp>  // MultibodyPhaseSpace, pinocchio::ModelTpl
+#include <aligator/core/explicit-dynamics.hpp>       // ExplicitDynamicsModelTpl
+#include <aligator/core/traj-opt-problem.hpp>        // TrajOptProblemTpl
+#include <aligator/modelling/spaces/multibody.hpp>   // MultibodyPhaseSpace, pinocchio::ModelTpl
 #include <aligator/third-party/polymorphic_cxx14.h>  // xyz::polymorphic
 
 #include <roboplan_aligator/types.hpp>  // IntegratorType, TrajOptOptions
