@@ -68,6 +68,18 @@ else()
   file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
 endif()
 
+# Ensure the extension can find workspace dylibs via @rpath on macOS, as it seems that
+# SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will break stub generation.
+if(APPLE)
+  file(RELATIVE_PATH _ext_to_lib
+    "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/optimal_ik"
+    "${CMAKE_INSTALL_PREFIX}/lib"
+  )
+  set_target_properties(_optimal_ik_ext PROPERTIES
+    INSTALL_RPATH "@loader_path/${_ext_to_lib}"
+  )
+endif()
+
 install(TARGETS _optimal_ik_ext
   LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/optimal_ik")
 

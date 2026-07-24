@@ -105,6 +105,25 @@ target_link_libraries(_filters_ext PRIVATE
   filters
 )
 
+# Ensure the extension can find workspace dylibs via @rpath on macOS, as it seems that
+# SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will break stub generation.
+if(APPLE)
+  file(RELATIVE_PATH _ext_to_lib_core
+    "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/core"
+    "${CMAKE_INSTALL_PREFIX}/lib"
+  )
+  set_target_properties(_core_ext PROPERTIES
+    INSTALL_RPATH "@loader_path/${_ext_to_lib_core}"
+  )
+  file(RELATIVE_PATH _ext_to_lib_filters
+    "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/filters"
+    "${CMAKE_INSTALL_PREFIX}/lib"
+  )
+  set_target_properties(_filters_ext PROPERTIES
+    INSTALL_RPATH "@loader_path/${_ext_to_lib_filters}"
+  )
+endif()
+
 install(TARGETS _core_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/core")
 install(TARGETS _filters_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/filters")
 

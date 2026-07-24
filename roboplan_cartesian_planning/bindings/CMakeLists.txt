@@ -71,6 +71,18 @@ else()
   file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
 endif()
 
+# Ensure the extension can find workspace dylibs via @rpath on macOS, as it seems that
+# SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will break stub generation.
+if(APPLE)
+  file(RELATIVE_PATH _ext_to_lib
+    "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/cartesian_planning"
+    "${CMAKE_INSTALL_PREFIX}/lib"
+  )
+  set_target_properties(_cartesian_ext PROPERTIES
+    INSTALL_RPATH "@loader_path/${_ext_to_lib}"
+  )
+endif()
+
 install(TARGETS _cartesian_ext
   LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/cartesian_planning")
 
