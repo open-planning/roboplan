@@ -20,7 +20,7 @@ class CartesianSpeedMode(enum.Enum):
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, limit_ratio_tolerance: float = 1.05, toppra_blend_deviation: float = 0.05, toppra_waypoint_spacing: float = 0.005, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -137,38 +137,20 @@ class CartesianPlannerOptions:
     @property
     def acceleration_scale(self) -> float:
         """
-        Scaling factor for joint acceleration limits (TimeOptimal re-timing and Bounded joint-acceleration throttle).
+        Scaling factor for joint acceleration limits, applied by the TOPP-RA re-timing.
         """
 
     @acceleration_scale.setter
     def acceleration_scale(self, arg: float, /) -> None: ...
 
     @property
-    def limit_ratio_tolerance(self) -> float:
-        """
-        Acceptance tolerance (>= 1.0) for the Bounded mode's slow-down retry; the peak velocity/acceleration ratios may exceed the (scaled) limits by up to this factor.
-        """
-
-    @limit_ratio_tolerance.setter
-    def limit_ratio_tolerance(self, arg: float, /) -> None: ...
-
-    @property
     def toppra_blend_deviation(self) -> float:
         """
-        Corner-rounding tolerance (rad) for the TimeOptimal mode's TOPP-RA line+blend geometry.
+        Corner-rounding tolerance (rad) for the TOPP-RA line+blend geometry; also sets how far the resolved path may be decimated before re-timing.
         """
 
     @toppra_blend_deviation.setter
     def toppra_blend_deviation(self, arg: float, /) -> None: ...
-
-    @property
-    def toppra_waypoint_spacing(self) -> float:
-        """
-        Spacing (m of tool travel) between the waypoints handed to TOPP-RA in TimeOptimal mode; the dense diff-IK trace is resampled to this spacing so servo jitter does not dominate the blend corner angles. <= 0 disables the resampling.
-        """
-
-    @toppra_waypoint_spacing.setter
-    def toppra_waypoint_spacing(self, arg: float, /) -> None: ...
 
     @property
     def position_limit_gain(self) -> float:
@@ -176,13 +158,6 @@ class CartesianPlannerOptions:
 
     @position_limit_gain.setter
     def position_limit_gain(self, arg: float, /) -> None: ...
-
-    @property
-    def max_attempts_per_step(self) -> int:
-        """Maximum feedrate-throttling attempts per control step."""
-
-    @max_attempts_per_step.setter
-    def max_attempts_per_step(self, arg: int, /) -> None: ...
 
 class CartesianPlannerComponents:
     """

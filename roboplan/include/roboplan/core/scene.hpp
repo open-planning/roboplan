@@ -170,6 +170,12 @@ public:
   /// @return The resulting joint configuration after integration.
   Eigen::VectorXd integrate(const Eigen::VectorXd& q, const Eigen::VectorXd& v) const;
 
+  /// @brief Computes the difference between two configurations, using Lie group operations.
+  /// @param q_start The starting joint configuration (size model.nq).
+  /// @param q_end The ending joint configuration (size model.nq).
+  /// @return The displacement from `q_start` to `q_end` (size model.nv).
+  Eigen::VectorXd difference(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end) const;
+
   /// @brief Calculates forward kinematics for a specific frame.
   /// @param q The joint configuration.
   /// @param frame_name The name of the frame for which to perform forward kinematics.
