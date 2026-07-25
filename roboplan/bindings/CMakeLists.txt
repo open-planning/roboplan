@@ -63,16 +63,22 @@ target_link_libraries(_core_ext PRIVATE
 
 # PEP 420 namespace package: no roboplan/__init__.py is shipped. Resolve the
 # Python install destination per build context:
-#   - colcon (ament): the site-packages dir (relative to the package's install
-#     prefix) that colcon's PYTHONPATH hook adds. We set this directly rather
-#     than via ament_get_python_install_dir(), which returns
-#     lib/python3/dist-packages on Debian-based ROS -- a path the hook omits.
+#   - colcon (ament): the dir (relative to the package's install prefix) that
+#     colcon's PYTHONPATH hook adds. Use ament_get_python_install_dir() so the
+#     layout matches on Windows (Lib/site-packages), falling back to
+#     site-packages on Debian-based ROS, where ament returns
+#     lib/python3/dist-packages -- a path the hook omits.
 #   - scikit-build wheel: the wheel root (".").
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
-  set(PYTHON_DESTINATION
-      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+  ament_get_python_install_dir(_ament_python_dir)
+  if(_ament_python_dir MATCHES "dist-packages")
+    set(PYTHON_DESTINATION
+        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+  else()
+    set(PYTHON_DESTINATION "${_ament_python_dir}")
+  endif()
 elseif(SKBUILD)
   set(PYTHON_DESTINATION ".")
 else()
@@ -98,6 +104,25 @@ set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_filters_ext PRIVATE
   filters
 )
+
+# Ensure the extension can find workspace dylibs via @rpath on macOS, as it seems that
+# SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will break stub generation.
+if(APPLE)
+  file(RELATIVE_PATH _ext_to_lib_core
+    "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/core"
+    "${CMAKE_INSTALL_PREFIX}/lib"
+  )
+  set_target_properties(_core_ext PROPERTIES
+    INSTALL_RPATH "@loader_path/${_ext_to_lib_core}"
+  )
+  file(RELATIVE_PATH _ext_to_lib_filters
+    "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/filters"
+    "${CMAKE_INSTALL_PREFIX}/lib"
+  )
+  set_target_properties(_filters_ext PROPERTIES
+    INSTALL_RPATH "@loader_path/${_ext_to_lib_filters}"
+  )
+endif()
 
 install(TARGETS _core_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/core")
 install(TARGETS _filters_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/filters")

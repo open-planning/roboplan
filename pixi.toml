@@ -206,7 +206,7 @@ test = { cmd = "ctest -V --test-dir build/{{ package_name }}", args = [
   { arg = "package_name" },
 ], env = { GTEST_COLOR = "YES" } }
 
-test_py  = { cmd = "python -m pytest --capture=no */bindings/test" }
+test_py  = { cmd = "python -m pytest --capture=no */bindings/test roboplan_examples/test" }
 test_cpp = { depends-on = [
   { task = "test", args = ["roboplan"] },
   { task = "test", args = ["roboplan_rrt"] },
