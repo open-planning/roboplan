@@ -54,6 +54,12 @@ constexpr size_t kMaxToppraWaypoints = 10000;
 /// whose estimate is tiny, against tripping the safety cap on benign sub-dt fragments and retries.
 constexpr int kHardCapStepMargin = 1000;
 
+/// @brief Smallest reference advance, relative to the total reference duration, that a throttling
+/// attempt may command.
+/// @details Set to a small value, so that a throttle attempt is considered stalled if it would
+/// re-solve an almost identical problem.
+constexpr double kMinRelativeAdvance = 1e-12;
+
 /// @brief Maximum feedrate (fraction of full speed) the reference may carry through the corner at
 /// `cur` between `prev` and `next`, keeping the Cartesian acceleration within the commanded maxima.
 /// @details The reference is piecewise-linear (linear position interpolation, SLERP orientation),
@@ -226,7 +232,13 @@ void CartesianPathPlanner::buildStaticSolverComponents(
                              "velocity limits: " +
                              maybe_velocity_limits.error());
   }
-  Eigen::VectorXd v_max = maybe_velocity_limits->second.cwiseAbs() * options_.velocity_scale;
+  // The velocity scale belongs to whichever stage owns the final timing:
+  // - Bounded mode emits the traced motion directly, so its steps must respect the scaled limits.
+  // - TimeOptimal mode only resolves path geometry and hands it to TOPP-RA, which applies the scale
+  //   during re-timing.
+  const double resolution_velocity_scale =
+      options_.speed_mode == CartesianSpeedMode::TimeOptimal ? 1.0 : options_.velocity_scale;
+  Eigen::VectorXd v_max = maybe_velocity_limits->second.cwiseAbs() * resolution_velocity_scale;
   if (v_max.size() != num_variables) {
     throw std::runtime_error(
         "Could not initialize Cartesian path planner: velocity limit vector size (" +
@@ -589,8 +601,16 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     bool committed = false;
     double feedrate_eff = feedrate_cmd;
     double committed_s = s;
+    // Halving the feedrate only helps while it still moves the reference. Once an attempt would
+    // advance `s` by less than this, the retry re-solves an unchanged problem (and committing a
+    // step that does not advance `s` at all would spin the loop without progress), so the ladder
+    // stops there and the stall below is declared instead of burning the remaining attempts.
+    const double min_advance = kMinRelativeAdvance * total_time;
     for (int attempt = 0; attempt < options_.max_attempts_per_step; ++attempt) {
       const double s_try = std::min(s + feedrate_eff * options_.dt, total_time);
+      if (s_try < total_time && s_try - s < min_advance) {
+        break;
+      }
       const auto step =
           solveStep(tracks, q, s_try, q_candidate, delta_q, position_error, orientation_error);
       if (!step) {
@@ -618,7 +638,9 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     // real speed (a throttled step naturally slows the profile).
     s = committed_s;
     feedrate = feedrate_eff;
-    q = q_candidate;
+    // Clamp away solver-epsilon overshoot of the position limits, since the QP only satisfiesExpand
+    // commentComment on line R621Resolved its constraints to within the solver tolerance.
+    q = scene_->clampToValidConfiguration(q_candidate);
 
     // The velocity constraint keeps each step within the joint velocity limits inside the QP;
     // verify the committed step actually does, to guard against solver constraint relaxation or
@@ -820,25 +842,49 @@ CartesianPathPlanner::planBounded(const CartesianPath& path, const Eigen::Vector
 tl::expected<JointTrajectory, std::string>
 CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
                                       const Eigen::VectorXd& q_start_full) {
-  // Resolve a dense geometric joint path that hugs the Cartesian path. The resolution
-  // speed only sets sampling density and tracking tightness here (TOPP-RA assigns the
-  // final timing), so use a deliberately low speed that essentially any robot can follow
-  // without lagging: a faster resolution speed makes the robot trail the reference by up
-  // to the tolerance band, and TOPP-RA would then faithfully reproduce that lag.
-  constexpr double kResolutionLinearSpeed = 0.05;   // m/s
-  constexpr double kResolutionAngularSpeed = 0.25;  // rad/s
+  // Resolve a dense geometric joint path that hugs the Cartesian path. The resolution speed sets
+  // only the sampling density and tracking tightness, since TOPP-RA assigns the final timing.
+  //
+  // A control step advances the reference by `dt` and the tracker nulls the pose error over roughly
+  // that long, so the robot trails the reference by about one step of travel. Hold each modality's
+  // step to this fraction of its own tolerance to keep that lag small, since a trailing trace would
+  // be faithfully reproduced by TOPP-RA.
+  constexpr double kLagFraction = 0.125;
+
+  // Each speed is then clamped to a band measured across the example models. Above the band the
+  // tracker stops keeping up unaided and leans on the servo loop's throttle retries; below it the
+  // trace grows dense enough that per-step jitter accumulates, and the resample stride, which is
+  // derived from tool travel, over-decimates a rotation-dominated path.
+  constexpr double kMinLinearSpeed = 0.05;   // m/s
+  constexpr double kMaxLinearSpeed = 0.15;   // m/s
+  constexpr double kMinAngularSpeed = 0.25;  // rad/s
+  constexpr double kMaxAngularSpeed = 1.0;   // rad/s
+
+  // Translation is additionally held to the resample spacing so the trace is never resolved coarser
+  // than the waypoints it feeds. The spacing is tool travel in meters, so rotation has no such
+  // target, and a non-positive spacing disables the resample and leaves only the lag bound.
+  double step_travel = kLagFraction * options_.max_position_error;
+  if (options_.toppra_waypoint_spacing > 0.0) {
+    step_travel = std::min(step_travel, options_.toppra_waypoint_spacing);
+  }
+  const double step_rotation = kLagFraction * options_.max_orientation_error;
+  const double resolution_linear_speed =
+      std::clamp(step_travel / options_.dt, kMinLinearSpeed, kMaxLinearSpeed);
+  const double resolution_angular_speed =
+      std::clamp(step_rotation / options_.dt, kMinAngularSpeed, kMaxAngularSpeed);
 
   // Geometric resolution is velocity-level only; TOPP-RA enforces the acceleration limits in the
   // re-timing stage, so trace at a constant resolution feedrate (no Cartesian acceleration
   // profile).
-  auto tracked = trackReference(path, q_start_full, kResolutionLinearSpeed, kResolutionAngularSpeed,
-                                /*linear_acceleration=*/0.0, /*angular_acceleration=*/0.0);
+  auto tracked =
+      trackReference(path, q_start_full, resolution_linear_speed, resolution_angular_speed,
+                     /*linear_acceleration=*/0.0, /*angular_acceleration=*/0.0);
   if (!tracked) {
     return tl::make_unexpected(tracked.error());
   }
 
   // The LinearBlend geometry treats every waypoint as a potential corner. At the raw trace
-  // spacing (kResolutionLinearSpeed * dt of tool travel per waypoint), even sub-milliradian
+  // spacing (resolution_linear_speed * dt of tool travel per waypoint), even sub-milliradian
   // servo jitter dominates the direction change between adjacent waypoints, so each one
   // becomes a tight blend arc whose centripetal acceleration bound throttles the whole
   // trajectory far below the joint limits. Resample the trace to space tool travel between
@@ -848,7 +894,7 @@ CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
   size_t num_target_waypoints = kMaxToppraWaypoints;
   if (options_.toppra_waypoint_spacing > 0.0) {
     const double waypoint_stride =
-        std::max(1.0, options_.toppra_waypoint_spacing / (kResolutionLinearSpeed * options_.dt));
+        std::max(1.0, options_.toppra_waypoint_spacing / (resolution_linear_speed * options_.dt));
     num_target_waypoints =
         std::clamp<size_t>(static_cast<size_t>(std::ceil(
                                static_cast<double>(trace_positions.size()) / waypoint_stride)),

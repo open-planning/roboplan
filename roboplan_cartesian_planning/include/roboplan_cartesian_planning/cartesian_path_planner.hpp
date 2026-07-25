@@ -92,8 +92,10 @@ struct CartesianPlannerOptions {
   /// joints toward the seed configuration (uses only nullspace freedom).
   double config_task_weight = 0.05;
 
-  /// @brief Scaling factor (0, 1] applied to the joint velocity limits used to bound
-  /// each differential-IK step.
+  /// @brief Scaling factor (0, 1] applied to the joint velocity limits.
+  /// @details In Bounded mode, this is applied to the differential-IK tracker itself.
+  /// In TimeOptimal mode, the tracker only resolves path geometry and TOPP-RA applies the scale
+  /// when re-timing, so the resolution pass deliberately runs against the unscaled limits.
   double velocity_scale = 1.0;
 
   /// @brief Scaling factor (0, 1] applied to the joint acceleration limits.
@@ -134,8 +136,9 @@ struct CartesianPlannerOptions {
   double position_limit_gain = 1.0;
 
   /// @brief Maximum number of feedrate-throttling attempts per control step before stalling.
-  /// @details A stall is declared when the robot cannot stay within tolerance even when nearly
-  /// stationary.
+  /// @details Each attempt halves the commanded feedrate, so the ladder reaches a negligible
+  /// reference advance within a handful of tries and stops there on its own. A stall is
+  /// declared when the robot cannot stay within tolerance even when nearly stationary.
   int max_attempts_per_step = 16;
 
   /// @brief Validates the mode-independent option values (dt, tolerances, scales).
