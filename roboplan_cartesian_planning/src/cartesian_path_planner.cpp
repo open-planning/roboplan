@@ -619,8 +619,7 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     s = committed_s;
     feedrate = feedrate_eff;
     // Clamp away solver-epsilon overshoot of the position limits, since the QP only satisfies
-    // its constraints to within the solver tolerance.
-    q = scene_->clampToValidConfiguration(q_candidate);
+    q = q_candidate;
 
     // The velocity constraint keeps each step within the joint velocity limits inside the QP;
     // verify the committed step actually does, to guard against solver constraint relaxation or
