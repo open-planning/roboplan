@@ -20,7 +20,7 @@ class CartesianSpeedMode(enum.Enum):
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, limit_ratio_tolerance: float = 1.05, toppra_blend_deviation: float = 0.05, toppra_waypoint_spacing: float = 0.005, position_limit_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, limit_ratio_tolerance: float = 1.05, toppra_blend_deviation: float = 0.05, toppra_waypoint_spacing: float = 0.005, position_limit_gain: float = 1.0, joint_limit_barrier_margin: float = 0.0, joint_limit_barrier_gain: float = 1.0, max_attempts_per_step: int = 16) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -176,6 +176,22 @@ class CartesianPlannerOptions:
 
     @position_limit_gain.setter
     def position_limit_gain(self, arg: float, /) -> None: ...
+
+    @property
+    def joint_limit_barrier_margin(self) -> float:
+        """
+        Safety margin for the joint-limit barrier as a fraction of each joint's position span; <= 0 disables the barrier.
+        """
+
+    @joint_limit_barrier_margin.setter
+    def joint_limit_barrier_margin(self, arg: float, /) -> None: ...
+
+    @property
+    def joint_limit_barrier_gain(self) -> float:
+        """Gain (gamma) for the joint-limit barrier's approach shaping."""
+
+    @joint_limit_barrier_gain.setter
+    def joint_limit_barrier_gain(self, arg: float, /) -> None: ...
 
     @property
     def max_attempts_per_step(self) -> int:

@@ -62,6 +62,7 @@ add_library(roboplan_oink SHARED
     src/constraints/velocity_limit.cpp
     src/constraints/acceleration_limit.cpp
     src/barriers/position_barrier.cpp
+    src/barriers/joint_limit_barrier.cpp
     src/barriers/self_collision_barrier.cpp
 )
 target_include_directories(roboplan_oink PUBLIC

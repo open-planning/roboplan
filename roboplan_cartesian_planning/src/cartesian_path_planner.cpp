@@ -10,6 +10,7 @@
 
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/pose_utils.hpp>
+#include <roboplan_oink/barriers/joint_limit_barrier.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -238,6 +239,15 @@ void CartesianPathPlanner::buildStaticSolverComponents(
   //   - PositionLimit restricts each step so the integrated configuration stays within limits.
   constraints_ = {std::make_shared<VelocityLimit>(*oink_, options_.dt, v_max),
                   std::make_shared<PositionLimit>(*oink_, options_.position_limit_gain)};
+
+  // Optionally add a joint-limit barrier so joints decelerate toward a standoff from their
+  // bounds instead of parking exactly on them (PositionLimit stays the hard backstop).
+  if (options_.joint_limit_barrier_margin > 0.0) {
+    barriers_.push_back(std::make_shared<JointLimitBarrier>(
+        *oink_, *scene_, options_.group_name, options_.dt, options_.joint_limit_barrier_margin,
+        options_.joint_limit_barrier_gain));
+  }
+
   verify_v_max_ = std::move(v_max);
   has_velocity_check_ = true;
 }
@@ -617,7 +627,10 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     // real speed (a throttled step naturally slows the profile).
     s = committed_s;
     feedrate = feedrate_eff;
-    q = q_candidate;
+    // Clamp away solver-epsilon overshoot of the position limits (the QP only satisfies its
+    // constraints to within the solver tolerance); the tracking-error check above already
+    // bounds any real deviation from the path.
+    q = scene_->clampToValidConfiguration(q_candidate);
 
     // The velocity constraint keeps each step within the joint velocity limits inside the QP;
     // verify the committed step actually does, to guard against solver constraint relaxation or

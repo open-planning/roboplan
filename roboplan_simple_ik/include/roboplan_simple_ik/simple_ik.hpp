@@ -41,6 +41,14 @@ struct SimpleIkOptions {
   /// @details Otherwise the entire time budget will be consumed to attempt to find
   /// a solution that is closest to the starting configuration.
   bool fast_return = true;
+
+  /// @brief Gain in [0, 1] for a nullspace term that biases each iteration toward the center of
+  /// the joint position limits. Zero disables the term.
+  /// @details The damped-least-squares step clamps configurations onto the position limits, which
+  /// makes limit-boundary solutions attractors (e.g. a lift joint pinned at its bound for low
+  /// targets). The centering term uses the redundant degrees of freedom to pull joints back
+  /// toward mid-range without disturbing the pose error to first order.
+  double limit_centering_gain = 0.0;
 };
 
 /// @brief Simple inverse kinematics (IK) solver based on the Jacobian pseudoinverse.
@@ -88,6 +96,23 @@ private:
 
   /// @brief Upper position limits for the joint group, aligned with `q_indices`.
   Eigen::VectorXd upper_position_limits_;
+
+  /// @brief Per-DOF limit centering mapping, aligned with the group's velocity DOFs.
+  /// @details `centering_q_slot_[i]` is the group position slot centered by group velocity DOF
+  /// i, or -1 for DOFs that do not participate in centering (multi-DOF joints such as
+  /// continuous joints, or joints with non-finite position limits).
+  Eigen::VectorXi centering_q_slot_;
+
+  /// @brief Whether any group DOF participates in limit centering.
+  bool has_centering_dofs_ = false;
+
+  /// @brief Center of the joint position limits per group velocity DOF (valid where
+  /// `centering_q_slot_` >= 0).
+  Eigen::VectorXd centering_center_;
+
+  /// @brief Half the span of the joint position limits per group velocity DOF, used to
+  /// normalize the centering error (valid where `centering_q_slot_` >= 0).
+  Eigen::VectorXd centering_half_span_;
 
   /// @brief The full error vector (for allocating memory once).
   Eigen::VectorXd error_;

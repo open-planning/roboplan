@@ -133,6 +133,18 @@ struct CartesianPlannerOptions {
   /// from the joint position limits.
   double position_limit_gain = 1.0;
 
+  /// @brief Safety margin for the joint-limit barrier, as a fraction of each joint's
+  /// position span. Values <= 0 disable the barrier.
+  /// @details The hard PositionLimit constraint allows joints to park exactly on their
+  /// bounds, where solver epsilon and the loss of that degree of freedom degrade tracking.
+  /// The barrier shapes the approach so joints decelerate toward a standoff of this
+  /// fraction of their span and are pushed back once inside it; PositionLimit remains the
+  /// hard backstop.
+  double joint_limit_barrier_margin = 0.0;
+
+  /// @brief Gain (gamma) for the joint-limit barrier's approach shaping.
+  double joint_limit_barrier_gain = 1.0;
+
   /// @brief Maximum number of feedrate-throttling attempts per control step before stalling.
   /// @details A stall is declared when the robot cannot stay within tolerance even when nearly
   /// stationary.

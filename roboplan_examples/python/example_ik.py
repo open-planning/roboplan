@@ -22,6 +22,7 @@ def main(
     max_linear_error_norm: float = 0.001,
     max_angular_error_norm: float = 0.001,
     check_collisions: bool = True,
+    limit_centering_gain: float = 0.0,
     host: str = "localhost",
     port: str = "8000",
 ):
@@ -36,6 +37,8 @@ def main(
         max_linear_error_norm: The maximum linear error norm for the IK solver.
         max_angular_error_norm: The maximum angular error norm for the IK solver.
         check_collisions: Whether to check for collisions when solving IK.
+        limit_centering_gain: A gain value for joint position centering in the
+            nullspace of the primary task. A value of 0 (default) disables it.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -80,6 +83,7 @@ def main(
         max_linear_error_norm=max_linear_error_norm,
         max_angular_error_norm=max_angular_error_norm,
         check_collisions=check_collisions,
+        limit_centering_gain=limit_centering_gain,
     )
     ik_solver = SimpleIk(scene, options)
 

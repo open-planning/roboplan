@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 
 #include <roboplan/core/collision_context.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
@@ -24,6 +26,40 @@ SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& op
   }
   std::tie(lower_position_limits_, upper_position_limits_) = maybe_position_limits.value();
 
+  // Pre-compute the per-DOF limit centering mapping. Centering maps a position-space error onto
+  // a velocity DOF one-to-one, so only 1-DOF joints with finite position limits participate;
+  // the remaining DOFs (e.g. continuous joints, whose position representation is larger than
+  // their velocity representation) simply contribute zero centering velocity.
+  const Eigen::Index group_nv = joint_group_info_.v_indices.size();
+  centering_q_slot_ = Eigen::VectorXi::Constant(group_nv, -1);
+  centering_center_ = Eigen::VectorXd::Zero(group_nv);
+  centering_half_span_ = Eigen::VectorXd::Ones(group_nv);
+  Eigen::Index q_offset = 0;
+  Eigen::Index v_offset = 0;
+  for (const auto& joint_name : joint_group_info_.joint_names) {
+    const auto maybe_joint_info = scene_->getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      throw std::runtime_error("Could not initialize IK solver: " + maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+    const auto nq = static_cast<Eigen::Index>(joint_info.num_position_dofs);
+    const auto nv = static_cast<Eigen::Index>(joint_info.num_velocity_dofs);
+    if (nq == 1 && nv == 1 && v_offset < group_nv) {
+      const double lower = joint_info.limits.min_position[0];
+      const double upper = joint_info.limits.max_position[0];
+      if (std::isfinite(lower) && std::isfinite(upper)) {
+        centering_q_slot_[v_offset] = static_cast<int>(q_offset);
+        centering_center_[v_offset] = 0.5 * (lower + upper);
+        // Guard against zero spans; huge spans naturally shrink the normalized centering
+        // error toward zero, softening centering for wide-range joints.
+        centering_half_span_[v_offset] = std::max(0.5 * (upper - lower), 1.0e-6);
+        has_centering_dofs_ = true;
+      }
+    }
+    q_offset += nq;
+    v_offset += nv;
+  }
+
   // Initialize matrices and vectors
   const auto& model = scene_->getModel();
   full_jacobian_ = Eigen::MatrixXd(6, model.nv);
@@ -45,6 +81,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   const auto& v_indices = joint_group_info_.v_indices;
 
   solution = start;
+  centering_center_ = start.positions; // TEST
   auto q = scene_->toFullJointPositions(options_.group_name, start.positions);
 
   // Pre-compute the frame IDs and resize relevant matrices.
@@ -163,7 +200,24 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
       jjt_.noalias() = jacobian_ * jacobian_.transpose();
       jjt_.diagonal().array() += options_.damping;
-      vel_(v_indices) = -jacobian_.transpose() * jjt_.ldlt().solve(error_);
+      const auto jjt_ldlt = jjt_.ldlt();
+      vel_(v_indices) = -jacobian_.transpose() * jjt_ldlt.solve(error_);
+      if (has_centering_dofs_ && options_.limit_centering_gain > 0.0) {
+        // Nullspace-projected limit centering: pull the 1-DOF bounded joints toward mid-range
+        // using only the redundant degrees of freedom, so the pose error is unaffected to first
+        // order. DOFs without a valid mapping (e.g. continuous joints) contribute zero
+        // centering velocity but still participate in the nullspace projection.
+        // N = I - J+ J with the damped pseudoinverse J+ = J^T (J J^T + lambda I)^-1.
+        Eigen::VectorXd v_center = Eigen::VectorXd::Zero(centering_q_slot_.size());
+        for (Eigen::Index i = 0; i < centering_q_slot_.size(); ++i) {
+          if (centering_q_slot_[i] >= 0) {
+            const double position = q(q_indices[centering_q_slot_[i]]);
+            v_center[i] = options_.limit_centering_gain * (centering_center_[i] - position) /
+                          centering_half_span_[i];
+          }
+        }
+        vel_(v_indices) += v_center - jacobian_.transpose() * jjt_ldlt.solve(jacobian_ * v_center);
+      }
       if (vel_.hasNaN()) {
         break;
       }
