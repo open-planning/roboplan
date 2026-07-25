@@ -618,7 +618,6 @@ CartesianPathPlanner::runServoLoop(const std::vector<FrameTrack>& tracks,
     // real speed (a throttled step naturally slows the profile).
     s = committed_s;
     feedrate = feedrate_eff;
-    // Clamp away solver-epsilon overshoot of the position limits, since the QP only satisfies
     q = q_candidate;
 
     // The velocity constraint keeps each step within the joint velocity limits inside the QP;
