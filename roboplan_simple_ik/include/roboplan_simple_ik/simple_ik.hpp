@@ -71,6 +71,18 @@ public:
                JointConfiguration& solution);
 
 private:
+  /// @brief Re-solves the current step so joints that would cross their position limits land
+  /// exactly on their bound while the remaining joints take up the task.
+  /// @param q The current full configuration.
+  /// @details Joint position limits are enforced by saturation: joints whose step would cross a
+  /// limit are pinned exactly on the bound and removed from the task Jacobian, then the damped
+  /// least-squares step is re-solved so the remaining joints take up the task. This keeps every
+  /// iterate within the limits while preserving a descent direction for the pose error (a hard
+  /// clamp instead turns limit faces into attractors that stall convergence). Only single-DOF
+  /// joints participate; multi-DOF joints (e.g., planar or continuous joints, whose position
+  /// representation is larger than their velocity representation) are not limit-enforced.
+  void saturateStep(const Eigen::VectorXd& q);
+
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
 
@@ -88,6 +100,25 @@ private:
 
   /// @brief Upper position limits for the joint group, aligned with `q_indices`.
   Eigen::VectorXd upper_position_limits_;
+
+  /// @brief Group position slot enforced by each group velocity DOF, or -1 for DOFs exempt from
+  /// limit handling (multi-DOF joints such as planar or continuous joints).
+  Eigen::VectorXi limit_q_slot_;
+
+  /// @brief The bound each saturated DOF lands on this iteration; NaN when unsaturated (for
+  /// allocating memory once).
+  Eigen::VectorXd saturation_bound_;
+
+  /// @brief The joint group's velocities during saturation re-solves (for allocating memory
+  /// once).
+  Eigen::VectorXd group_vel_;
+
+  /// @brief The group Jacobian with saturated columns zeroed (for allocating memory once).
+  Eigen::MatrixXd task_jacobian_;
+
+  /// @brief The task error including saturated joints' contributions (for allocating memory
+  /// once).
+  Eigen::VectorXd task_error_;
 
   /// @brief The full error vector (for allocating memory once).
   Eigen::VectorXd error_;

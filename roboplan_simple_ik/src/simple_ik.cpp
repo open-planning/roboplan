@@ -1,4 +1,6 @@
 #include <chrono>
+#include <cmath>
+#include <limits>
 
 #include <roboplan/core/collision_context.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
@@ -16,13 +18,37 @@ SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& op
   }
   joint_group_info_ = maybe_joint_group_info.value();
 
-  // Cache the group's position limits so we can clamp with a single cwise expression.
+  // Cache the group's position limits for the saturation step.
   const auto maybe_position_limits =
       scene_->getPositionLimitVectors(options.group_name, /*collapsed*/ false);
   if (!maybe_position_limits) {
     throw std::runtime_error("Could not initialize IK solver: " + maybe_position_limits.error());
   }
   std::tie(lower_position_limits_, upper_position_limits_) = maybe_position_limits.value();
+
+  // Pre-compute the per-DOF limit handling mapping. Saturation maps a position slot onto a
+  // velocity DOF one-to-one, so only 1-DOF joints participate; the remaining DOFs (e.g. planar
+  // or continuous joints, whose position representation is larger than their velocity
+  // representation) are exempt from limit handling.
+  const auto group_nv = static_cast<Eigen::Index>(joint_group_info_.v_indices.size());
+  limit_q_slot_ = Eigen::VectorXi::Constant(group_nv, -1);
+  Eigen::Index q_offset = 0;
+  Eigen::Index v_offset = 0;
+  for (const auto& joint_name : joint_group_info_.joint_names) {
+    const auto maybe_joint_info = scene_->getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      throw std::runtime_error("Could not initialize IK solver: " + maybe_joint_info.error());
+    }
+    const auto nq = static_cast<Eigen::Index>(maybe_joint_info.value().num_position_dofs);
+    const auto nv = static_cast<Eigen::Index>(maybe_joint_info.value().num_velocity_dofs);
+    if (nq == 1 && nv == 1) {
+      limit_q_slot_[v_offset] = static_cast<int>(q_offset);
+    }
+    q_offset += nq;
+    v_offset += nv;
+  }
+  saturation_bound_ = Eigen::VectorXd::Zero(group_nv);
+  group_vel_ = Eigen::VectorXd::Zero(group_nv);
 
   // Initialize matrices and vectors
   const auto& model = scene_->getModel();
@@ -164,12 +190,18 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       jjt_.noalias() = jacobian_ * jacobian_.transpose();
       jjt_.diagonal().array() += options_.damping;
       vel_(v_indices) = -jacobian_.transpose() * jjt_.ldlt().solve(error_);
+      saturateStep(q);
       if (vel_.hasNaN()) {
         break;
       }
 
       q = pinocchio::integrate(model, q, vel_ * options_.step_size);
-      q(q_indices) = q(q_indices).cwiseMax(lower_position_limits_).cwiseMin(upper_position_limits_);
+      // Snap saturated joints exactly onto their bound to kill integration round-off.
+      for (Eigen::Index i = 0; i < saturation_bound_.size(); ++i) {
+        if (!std::isnan(saturation_bound_[i])) {
+          q[q_indices[limit_q_slot_[i]]] = saturation_bound_[i];
+        }
+      }
       ++iter;
 
       // On timeout, stop iterating and fall through to return the best solution found so far.
@@ -188,6 +220,66 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   } else {
     return false;
   }
+}
+
+void SimpleIk::saturateStep(const Eigen::VectorXd& q) {
+  const auto& q_indices = joint_group_info_.q_indices;
+  const auto& v_indices = joint_group_info_.v_indices;
+  const auto group_nv = static_cast<Eigen::Index>(v_indices.size());
+
+  group_vel_ = vel_(v_indices);
+  saturation_bound_.setConstant(std::numeric_limits<double>::quiet_NaN());
+
+  // Each pass either saturates at least one more DOF or exits,
+  // so this terminates in at most group_nv passes.
+  for (Eigen::Index pass = 0; pass < group_nv; ++pass) {
+    bool any_new_saturation = false;
+    for (Eigen::Index i = 0; i < group_nv; ++i) {
+      if (limit_q_slot_[i] < 0 || !std::isnan(saturation_bound_[i])) {
+        continue;
+      }
+      const double position = q[q_indices[limit_q_slot_[i]]];
+      const double candidate = position + group_vel_[i] * options_.step_size;
+      double bound;
+      if (candidate < lower_position_limits_[limit_q_slot_[i]]) {
+        bound = lower_position_limits_[limit_q_slot_[i]];
+      } else if (candidate > upper_position_limits_[limit_q_slot_[i]]) {
+        bound = upper_position_limits_[limit_q_slot_[i]];
+      } else {
+        continue;
+      }
+      // Land exactly on the bound this step and drop the joint from the task.
+      saturation_bound_[i] = bound;
+      group_vel_[i] = (bound - position) / options_.step_size;
+      any_new_saturation = true;
+    }
+    if (!any_new_saturation) {
+      break;
+    }
+
+    // Move the saturated joints' contributions to the error side of the task, then re-solve the
+    // damped least-squares step for the remaining joints. This ensures the motion discarded by
+    // saturation is redistributed instead of lost.
+    task_jacobian_ = jacobian_;
+    task_error_ = error_;
+    for (Eigen::Index i = 0; i < group_nv; ++i) {
+      if (!std::isnan(saturation_bound_[i])) {
+        task_error_ += task_jacobian_.col(i) * group_vel_[i];
+        task_jacobian_.col(i).setZero();
+      }
+    }
+    jjt_.noalias() = task_jacobian_ * task_jacobian_.transpose();
+    jjt_.diagonal().array() += options_.damping;
+    group_vel_ = -task_jacobian_.transpose() * jjt_.ldlt().solve(task_error_);
+    for (Eigen::Index i = 0; i < group_nv; ++i) {
+      if (!std::isnan(saturation_bound_[i])) {
+        group_vel_[i] =
+            (saturation_bound_[i] - q[q_indices[limit_q_slot_[i]]]) / options_.step_size;
+      }
+    }
+  }
+
+  vel_(v_indices) = group_vel_;
 }
 
 }  // namespace roboplan
