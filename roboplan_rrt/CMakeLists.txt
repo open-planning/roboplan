@@ -25,6 +25,7 @@ find_package(ament_cmake QUIET)
 
 # Add libraries
 add_library(roboplan_rrt SHARED
+    src/constraints.cpp
     src/rrt.cpp
 )
 target_include_directories(roboplan_rrt PUBLIC

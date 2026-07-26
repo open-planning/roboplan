@@ -13,6 +13,7 @@
 #include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
+#include <roboplan_rrt/constraints.hpp>
 #include <roboplan_rrt/graph.hpp>
 
 namespace roboplan {
@@ -54,6 +55,12 @@ struct RRTOptions {
   /// does not stop at the first solution: it keeps sampling and rewiring until the node or time
   /// budget is exhausted, then returns the lowest-cost path found. Compatible with `rrt_connect`,
   /// in which case both trees are rewired.
+  /// @note Works well alongside constraints, and is worth enabling there. Rewiring reconnects
+  /// nodes with straight configuration-space segments, and a long one between two configurations
+  /// on a curved constraint set leaves it and gets rejected -- but the constrained extension packs
+  /// nodes only `constraint_step_size` apart, so most candidates are short enough to stay within
+  /// tolerance and be accepted. Those short rewires are enough to collapse the zigzag that walking
+  /// in small projected hops produces.
   bool rrt_star = false;
 
   /// @brief The configuration-space radius used to find neighbors for RRT* rewiring.
@@ -69,6 +76,20 @@ struct RRTOptions {
   /// asymptotically optimal behavior; with plain RRT or RRT-Connect, setting it to false simply
   /// keeps the cheapest path discovered across the whole budget.
   bool fast_return = true;
+
+  /// @brief The configuration-space step size taken between constraint projections.
+  /// @details Only used when `plan` is given constraints. Growing a tree under a constraint walks
+  /// toward the sample in steps of this size, projecting after each one, instead of jumping
+  /// `max_connection_distance` at once: projection is a local operation, so a step that is too
+  /// large lands somewhere it cannot recover from. Smaller values track the constraint more
+  /// faithfully and fail less often, at the cost of more nodes and more projections per unit of
+  /// progress. Since each step becomes a node, consider lowering `max_connection_distance` and
+  /// raising `max_nodes` relative to their unconstrained defaults.
+  double constraint_step_size = 0.1;
+
+  /// @brief Options for the projection that pulls sampled configurations onto the constraints.
+  /// @details Only used when `plan` is given constraints.
+  ConstraintProjectorOptions constraint_projection = ConstraintProjectorOptions();
 };
 
 /// @brief Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.
@@ -80,11 +101,25 @@ public:
   RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options);
 
   /// @brief Plan a path from start to goal.
+  /// @details Passing constraints switches the planner to the constrained extension of CBiRRT2
+  /// ("Manipulation Planning on Constraint Manifolds", Berenson et al., 2009). Samples are still
+  /// drawn from the whole configuration space, but a tree grows toward one in short
+  /// `constraint_step_size` hops, projecting back onto the constraints after each hop and stopping
+  /// as soon as a projection fails, stalls, or wanders. Every configuration on the returned path
+  /// therefore satisfies the constraints, checked at the same resolution as collision checking.
+  ///
+  /// The start and goal must already satisfy the constraints; project them first (see
+  /// ConstraintProjector) rather than expecting the planner to. Note also that shortcutting a
+  /// constrained path with PathShortcutter will pull it back off the constraints, since the
+  /// shortcuts it splices in are straight configuration-space segments.
   /// @param start The starting joint configuration.
   /// @param goal The goal joint configuration.
+  /// @param constraints Constraints that every configuration on the path must satisfy. Empty (the
+  /// default) plans without constraints.
   /// @return A joint-space path, if planning succeeds, otherwise an error message.
-  tl::expected<JointPath, std::string> plan(const JointConfiguration& start,
-                                            const JointConfiguration& goal);
+  tl::expected<JointPath, std::string>
+  plan(const JointConfiguration& start, const JointConfiguration& goal,
+       const std::vector<std::shared_ptr<Constraint>>& constraints = {});
 
   /// @brief Sets the seed for the random number generator (RNG).
   /// @details For reproducibility, this also seeds the underlying scene.
@@ -109,6 +144,8 @@ public:
   /// until it is reached or an obstacle is hit. If false (a single EXTEND step), add at most one
   /// node, one `max_connection_distance` step toward `q_sample`.
   /// @return True if node(s) were added to the tree, false otherwise.
+  /// @note When the in-progress plan has constraints, this defers to the constrained extension
+  /// described on `plan`, which adds a chain of short projected nodes rather than one long jump.
   bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
                 const CollisionContext& collision_context, bool greedy);
 
@@ -148,6 +185,36 @@ private:
   /// @return The extended configuration.
   Eigen::VectorXd extend(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_goal,
                          double max_connection_dist);
+
+  /// @brief Grows a tree toward a sample while keeping every new node on the constraints.
+  /// @details The CBiRRT2 constrained extension (Berenson et al., 2009, Algorithm 2). Starting at
+  /// the nearest node, it repeatedly steps `constraint_step_size` toward `q_sample` and projects
+  /// the result back onto the constraints, adding each projected configuration as a node. It stops
+  /// when the sample is reached, a projection fails, the projected step made no progress toward
+  /// the sample, the projection wandered more than two steps away (so the edge from the previous
+  /// node can no longer be trusted as a short local motion), or the step hits joint limits or an
+  /// obstacle. Configurations that already satisfy the constraints -- the goal, or a node of the
+  /// opposite tree -- are stepped onto exactly rather than projected, so the trees can meet at a
+  /// shared configuration instead of at a near miss that never connects.
+  /// @param tree The tree to grow.
+  /// @param nodes The set of sampled nodes so far.
+  /// @param q_sample The configuration to extend towards (or connect to).
+  /// @param collision_context This plan's private collision context, used for all collision checks.
+  /// @param greedy If true, keep stepping until the sample is reached or something stops the walk.
+  /// If false, stop once `max_connection_distance` of progress has been made.
+  /// @return True if node(s) were added to the tree, false otherwise.
+  bool growTreeConstrained(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
+                           const CollisionContext& collision_context, bool greedy);
+
+  /// @brief Checks whether a straight-line edge stays on the in-progress plan's constraints.
+  /// @details Always true when planning without constraints. Straight edges between two
+  /// constrained configurations generally leave the constraints, so every edge that was not
+  /// produced by the constrained extension -- tree connections, RRT* rewires, the direct
+  /// start-to-goal shortcut -- has to be verified before it can be used.
+  /// @param q_start The starting joint positions.
+  /// @param q_end The ending joint positions.
+  /// @return True if the edge's interior satisfies the constraints.
+  bool edgeSatisfiesConstraints(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end);
 
   /// @brief Finds the IDs of all nodes in a tree within `rewire_distance` (in configuration
   /// distance) of a configuration.
@@ -218,6 +285,11 @@ private:
 
   /// @brief The goal tree nodes.
   std::vector<Node> goal_nodes_;
+
+  /// @brief The projector for the constraints passed to the in-progress `plan` call.
+  /// @details Empty when planning without constraints. Rebuilt at the start of every `plan` call
+  /// and only meaningful for its duration, like the search trees above.
+  std::optional<ConstraintProjector> constraint_projector_;
 };
 
 }  // namespace roboplan
