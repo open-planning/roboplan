@@ -161,6 +161,8 @@ struct CartesianPlannerComponents {
 
 /// @brief Offline Cartesian path planner that traces a CartesianPath in joint space.
 /// @details Uses the Oink optimal IK solver as a differential-IK tracker.
+/// Note that this planner uses the scene passed into it in a way that is not thread-safe; when
+/// using it, the robot must not be moving and no other planning steps must be running concurrently.
 class CartesianPathPlanner {
 public:
   /// @brief Constructor that builds the default differential-IK setup internally.
@@ -304,20 +306,6 @@ private:
   /// poses at the trajectory's sample period.
   CartesianPeaks computeCartesianPeaks(const JointTrajectory& trajectory,
                                        const CartesianPath& path) const;
-
-  /// @brief Generates a trajectory whose tool speed and acceleration stay within the commanded
-  /// Cartesian maxima.
-  /// @details Resolves and time-parameterizes exactly as TimeOptimal does, then slows the whole
-  /// motion uniformly until the Cartesian maxima are met. Uniform slowing is applied by scaling the
-  /// joint limits handed to TOPP-RA (velocity by 1/m, acceleration by 1/m^2), which reproduces the
-  /// time-scaled trajectory exactly, so the result still respects every joint limit.
-  tl::expected<JointTrajectory, std::string> planBounded(const CartesianPath& path,
-                                                         const Eigen::VectorXd& q_start_full);
-
-  /// @brief Resolves the path geometrically, then time-parameterizes it with TOPP-RA so
-  /// the result respects joint velocity and acceleration limits (tool speed varies).
-  tl::expected<JointTrajectory, std::string> planTimeOptimal(const CartesianPath& path,
-                                                             const Eigen::VectorXd& q_start_full);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;

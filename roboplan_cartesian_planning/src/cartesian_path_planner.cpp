@@ -62,9 +62,9 @@ constexpr double kStagnationImprovement = 0.99;
 constexpr int kMaxStagnantIters = 5;
 
 /// @brief Fraction of the pose tolerance the reference advances between IK seeding samples.
-/// @details This walk exists so every IK solve starts from a near neighbour, which keeps the
-/// solution on one branch and reaches convergence in a few iterations. It is not the output
-/// resolution: which of these samples become waypoints is decided afterwards, by tool deviation.
+/// @details This walk exists so every IK solve starts from a near neighbor, which keeps the
+/// solution away from large jumps. It is not the output resolution: which of these samples
+/// become waypoints is decided afterwards, by tool deviation.
 constexpr double kSeedStepFraction = 0.5;
 
 /// @brief Share of the pose tolerance allotted to the gaps between resolved samples.
@@ -248,13 +248,60 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
                                std::to_string(q_start.positions.size()) + ".");
   }
 
-  switch (options_.speed_mode) {
-  case CartesianSpeedMode::Bounded:
-    return planBounded(path, q_start.positions);
-  case CartesianSpeedMode::TimeOptimal:
-    return planTimeOptimal(path, q_start.positions);
+  const bool bounded = options_.speed_mode == CartesianSpeedMode::Bounded;
+  if (bounded) {
+    if (options_.max_linear_speed <= 0.0 || options_.max_angular_speed <= 0.0) {
+      return tl::make_unexpected(
+          "max_linear_speed and max_angular_speed must be strictly positive.");
+    }
+    if (options_.max_linear_acceleration <= 0.0 || options_.max_angular_acceleration <= 0.0) {
+      return tl::make_unexpected(
+          "max_linear_acceleration and max_angular_acceleration must be strictly positive.");
+    }
   }
-  return tl::make_unexpected("Unknown CartesianSpeedMode.");
+
+  const auto resolved = resolvePath(path, q_start.positions);
+  if (!resolved) {
+    return tl::make_unexpected(resolved.error());
+  }
+
+  double velocity_scale = options_.velocity_scale;
+  double acceleration_scale = options_.acceleration_scale;
+  auto trajectory = timeParameterize(*resolved, velocity_scale, acceleration_scale);
+  if (!trajectory) {
+    return tl::make_unexpected(trajectory.error());
+  }
+  if (!bounded) {
+    return trajectory;
+  }
+
+  // Bounded mode: the path is timed against the joint limits above, then the whole motion is
+  // slowed until the tool obeys the commanded Cartesian maxima too. Re-timing in time-scale m
+  // divides speed by m and acceleration by m^2, and handing TOPP-RA joint limits scaled the same
+  // way reproduces exactly that slower trajectory, so the joint limits stay satisfied for free.
+  for (int pass = 0; pass < kMaxBoundedSlowdownPasses; ++pass) {
+    const CartesianPeaks peaks = computeCartesianPeaks(*trajectory, path);
+    double slowdown = 1.0;
+    slowdown = std::max(slowdown, peaks.linear_speed / options_.max_linear_speed);
+    slowdown = std::max(slowdown, peaks.angular_speed / options_.max_angular_speed);
+    slowdown =
+        std::max(slowdown, std::sqrt(peaks.linear_acceleration / options_.max_linear_acceleration));
+    slowdown = std::max(slowdown,
+                        std::sqrt(peaks.angular_acceleration / options_.max_angular_acceleration));
+    if (slowdown <= kBoundedSpeedTolerance) {
+      break;
+    }
+    velocity_scale /= slowdown;
+    acceleration_scale /= slowdown * slowdown;
+    auto slower = timeParameterize(*resolved, velocity_scale, acceleration_scale);
+    if (!slower) {
+      // The faster trajectory is still valid against the joint limits, so keep it rather than
+      // failing outright; it simply exceeds the commanded Cartesian caps.
+      break;
+    }
+    trajectory = std::move(slower);
+  }
+  return trajectory;
 }
 
 tl::expected<std::vector<CartesianPathPlanner::FrameReference>, std::string>
@@ -456,10 +503,8 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
     return tl::make_unexpected(references.error());
   }
 
-  // Walk the path in small steps so every IK solve starts from a near neighbour. The step is a
-  // seeding concern, not an output resolution: a solve that had to cross the whole path at once
-  // would need thousands of iterations and could land on a different IK branch. Which of these
-  // samples survive as waypoints is decided below, on tool deviation.
+  // Walk the path in small steps so every IK solve starts from a near neighbor.
+  // This helps seed IK solutions to see if the path can be followed without large jumps.
   const double seed_linear_step = kSeedStepFraction * options_.max_position_error;
   const double seed_angular_step = kSeedStepFraction * options_.max_orientation_error;
   double steps = 1.0;
@@ -497,9 +542,17 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
 
   // Choose the fewest waypoints that still describe the motion. Every waypoint handed to the time
   // parameterization becomes a corner it must slow through, and its blend radius is capped by the
-  // adjacent segment, so waypoint count sets the achievable speed directly: an unnecessary sample
-  // costs a near-stop and buys nothing. Keep a sample only when dropping it would let the tool
-  // stray, measured the way the trajectory will actually travel.
+  // adjacent segment, so waypoint count sets the achievable speed directly. An unnecessary sample
+  // costs a near-stop and buys nothing, so keep it only when dropping it would let the tool frame
+  // deviate away from the intended path.
+  //
+  // Starting from just the first and last sample, we recursively check whether a straight
+  // joint-space interpolation between two kept samples stays close though to the reference at all
+  // the intermediate samples. If the worst deviation exceeds the budget, that sample must be kept
+  // and we split the span. Otherwise every intermediate sample is redundant and can be removed.
+  //
+  // The budget is `kSubdivisionToleranceFraction` of the user's specified pose tolerance, reserving
+  // the rest for the corner-rounding that TOPP-RA applies during time parameterization.
   const double position_budget = kSubdivisionToleranceFraction * options_.max_position_error;
   const double orientation_budget = kSubdivisionToleranceFraction * options_.max_orientation_error;
   std::vector<bool> keep(walked.size(), false);
@@ -690,77 +743,6 @@ double CartesianPathPlanner::computeAchievedPathLength(const JointTrajectory& tr
     }
   }
   return length;
-}
-
-tl::expected<JointTrajectory, std::string>
-CartesianPathPlanner::planBounded(const CartesianPath& path, const Eigen::VectorXd& q_start_full) {
-  if (options_.max_linear_speed <= 0.0 || options_.max_angular_speed <= 0.0) {
-    return tl::make_unexpected("max_linear_speed and max_angular_speed must be strictly positive.");
-  }
-  if (options_.max_linear_acceleration <= 0.0 || options_.max_angular_acceleration <= 0.0) {
-    return tl::make_unexpected(
-        "max_linear_acceleration and max_angular_acceleration must be strictly positive.");
-  }
-
-  const auto resolved = resolvePath(path, q_start_full);
-  if (!resolved) {
-    return tl::make_unexpected(resolved.error());
-  }
-
-  // Time the path against the joint limits first, then slow the whole motion until the tool obeys
-  // the commanded Cartesian maxima too. Re-timing in time-scale m divides speed by m and
-  // acceleration by m^2, and handing TOPP-RA joint limits scaled the same way reproduces exactly
-  // that slower trajectory, so the joint limits stay satisfied for free.
-  double velocity_scale = options_.velocity_scale;
-  double acceleration_scale = options_.acceleration_scale;
-  auto trajectory = timeParameterize(*resolved, velocity_scale, acceleration_scale);
-  if (!trajectory) {
-    return tl::make_unexpected(trajectory.error());
-  }
-
-  for (int pass = 0; pass < kMaxBoundedSlowdownPasses; ++pass) {
-    const CartesianPeaks peaks = computeCartesianPeaks(*trajectory, path);
-    double slowdown = 1.0;
-    slowdown = std::max(slowdown, peaks.linear_speed / options_.max_linear_speed);
-    slowdown = std::max(slowdown, peaks.angular_speed / options_.max_angular_speed);
-    slowdown =
-        std::max(slowdown, std::sqrt(peaks.linear_acceleration / options_.max_linear_acceleration));
-    slowdown = std::max(slowdown,
-                        std::sqrt(peaks.angular_acceleration / options_.max_angular_acceleration));
-    if (slowdown <= kBoundedSpeedTolerance) {
-      break;
-    }
-    velocity_scale /= slowdown;
-    acceleration_scale /= slowdown * slowdown;
-    auto slower = timeParameterize(*resolved, velocity_scale, acceleration_scale);
-    if (!slower) {
-      // The faster trajectory is still valid against the joint limits, so keep it rather than
-      // failing outright; it simply exceeds the commanded Cartesian caps.
-      break;
-    }
-    trajectory = std::move(slower);
-  }
-  return trajectory;
-}
-
-tl::expected<JointTrajectory, std::string>
-CartesianPathPlanner::planTimeOptimal(const CartesianPath& path,
-                                      const Eigen::VectorXd& q_start_full) {
-  const auto resolved = resolvePath(path, q_start_full);
-  if (!resolved) {
-    return tl::make_unexpected(resolved.error());
-  }
-  return timeParameterize(*resolved, options_.velocity_scale, options_.acceleration_scale);
-}
-
-/// @brief Resolves a joint group, throwing the planner's construction error if it does not exist.
-JointGroupInfo resolveJointGroup(const Scene& scene, const std::string& group_name) {
-  auto maybe_joint_group_info = scene.getJointGroupInfo(group_name);
-  if (!maybe_joint_group_info) {
-    throw std::runtime_error("Could not initialize Cartesian path planner: " +
-                             maybe_joint_group_info.error());
-  }
-  return maybe_joint_group_info.value();
 }
 
 }  // namespace roboplan
