@@ -450,6 +450,11 @@ class Scene:
         Integrates a velocity vector from a configuration using Lie group operations.
         """
 
+    def difference(self, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Computes the velocity vector taking one configuration to another, using Lie group operations. The inverse of integrate().
+        """
+
     def forwardKinematics(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, base_frame: str = '') -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
         """Calculates forward kinematics for a specific frame."""
 
