@@ -178,7 +178,7 @@ def report(label, metrics, tilt_limit, position_slack):
     breach = max((ZONE_MIN - positions).max(), (positions - ZONE_MAX).max(), 0.0)
     print(
         f"  {label:>13}: max tilt {metrics['tilt'].max():6.2f} deg (limit {tilt_limit:.2f}), "
-        f"max zone breach {breach * 1000.0:6.2f} mm (limit {position_slack:.2f})"
+        f"max zone breach {breach * 1000.0:6.2f} mm (limit {position_slack * 1000.0:.2f})"
     )
 
 
@@ -297,9 +297,9 @@ def main(
     projector = ConstraintProjector(scene, group_name, [constraint], projection)
 
     # The limits reported per path add the constraint's tolerance to the bound itself.
-    slack = constraint.getOrientationTolerance()
+    slack = constraint.orientation_tolerance
     tilt_limit = np.degrees(np.arccos(np.cos(tilt_bound + slack) ** 2))
-    position_slack = constraint.getPositionTolerance()
+    position_slack = constraint.position_tolerance
 
     print(f"\n=== Constrained RRT: {model} ===")
     print(f"  safe zone (world) : {ZONE_MIN} to {ZONE_MAX} m")

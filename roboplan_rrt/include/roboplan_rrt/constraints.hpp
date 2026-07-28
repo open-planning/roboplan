@@ -133,20 +133,8 @@ public:
   /// @return The [x, y, z, roll, pitch, yaw] displacement in the region frame.
   TaskSpaceVector computeDisplacement(const Eigen::VectorXd& q);
 
-  /// @brief Gets the name of the constrained frame.
-  const std::string& getFrameName() const { return frame_name_; }
-
-  /// @brief Gets the name of the frame the region transform is expressed in ("" means world).
-  const std::string& getReferenceFrame() const { return reference_frame_; }
-
   /// @brief Gets the pose of the region frame relative to the reference frame.
   Eigen::Matrix4d getTransform() const { return region_tform_.toHomogeneousMatrix(); }
-
-  /// @brief Gets the lower bounds on the frame's task space displacement.
-  const TaskSpaceVector& getLowerBounds() const { return lower_bounds_; }
-
-  /// @brief Gets the upper bounds on the frame's task space displacement.
-  const TaskSpaceVector& getUpperBounds() const { return upper_bounds_; }
 
   /// @brief Gets the position residual norm, in meters, below which the constraint is satisfied.
   double getPositionTolerance() const { return position_tolerance_; }
@@ -154,6 +142,18 @@ public:
   /// @brief Gets the orientation residual norm, in radians, below which the constraint is
   /// satisfied.
   double getOrientationTolerance() const { return orientation_tolerance_; }
+
+  /// @brief Gets the name of the constrained frame.
+  const std::string& getFrameName() const { return frame_name_; }
+
+  /// @brief Gets the name of the frame the region transform is expressed in ("" means world).
+  const std::string& getReferenceFrame() const { return reference_frame_; }
+
+  /// @brief Gets the lower bounds on the frame's task space displacement.
+  const TaskSpaceVector& getLowerBounds() const { return lower_bounds_; }
+
+  /// @brief Gets the upper bounds on the frame's task space displacement.
+  const TaskSpaceVector& getUpperBounds() const { return upper_bounds_; }
 
 private:
   /// @brief Refreshes the constrained frame's displacement, and optionally its Jacobian.

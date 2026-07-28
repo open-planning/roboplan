@@ -39,29 +39,36 @@ class PoseConstraint(Constraint):
         Computes the constrained frame's [x, y, z, roll, pitch, yaw] displacement from the region frame.
         """
 
-    def getFrameName(self) -> str:
-        """Gets the name of the constrained frame."""
+    @property
+    def frame_name(self) -> str:
+        """The name of the constrained frame."""
 
-    def getReferenceFrame(self) -> str:
-        """Gets the name of the frame the region transform is expressed in."""
+    @property
+    def reference_frame(self) -> str:
+        """The name of the frame the region transform is expressed in."""
 
-    def getTransform(self) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
-        """Gets the pose of the region frame relative to the reference frame."""
+    @property
+    def tform(self) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
+        """The pose of the region frame relative to the reference frame."""
 
-    def getLowerBounds(self) -> Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]:
-        """Gets the lower bounds on the frame's task space displacement."""
+    @property
+    def lower_bounds(self) -> Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]:
+        """The lower bounds on the frame's task space displacement."""
 
-    def getUpperBounds(self) -> Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]:
-        """Gets the upper bounds on the frame's task space displacement."""
+    @property
+    def upper_bounds(self) -> Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]:
+        """The upper bounds on the frame's task space displacement."""
 
-    def getPositionTolerance(self) -> float:
+    @property
+    def position_tolerance(self) -> float:
         """
-        Gets the position residual norm, in meters, below which the constraint is satisfied.
+        The position residual norm, in meters, below which the constraint is satisfied.
         """
 
-    def getOrientationTolerance(self) -> float:
+    @property
+    def orientation_tolerance(self) -> float:
         """
-        Gets the orientation residual norm, in radians, below which the constraint is satisfied.
+        The orientation residual norm, in radians, below which the constraint is satisfied.
         """
 
 class ConstraintProjectorOptions:

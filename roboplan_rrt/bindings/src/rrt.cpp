@@ -48,20 +48,22 @@ void initConstraints(nanobind::module_& m) {
            "Computes the constrained frame's [x, y, z, roll, pitch, yaw] displacement from the "
            "region frame.",
            "q"_a)
-      .def("getFrameName", &PoseConstraint::getFrameName, "Gets the name of the constrained frame.")
-      .def("getReferenceFrame", &PoseConstraint::getReferenceFrame,
-           "Gets the name of the frame the region transform is expressed in.")
-      .def("getTransform", &PoseConstraint::getTransform,
-           "Gets the pose of the region frame relative to the reference frame.")
-      .def("getLowerBounds", &PoseConstraint::getLowerBounds,
-           "Gets the lower bounds on the frame's task space displacement.")
-      .def("getUpperBounds", &PoseConstraint::getUpperBounds,
-           "Gets the upper bounds on the frame's task space displacement.")
-      .def("getPositionTolerance", &PoseConstraint::getPositionTolerance,
-           "Gets the position residual norm, in meters, below which the constraint is satisfied.")
-      .def("getOrientationTolerance", &PoseConstraint::getOrientationTolerance,
-           "Gets the orientation residual norm, in radians, below which the constraint is "
-           "satisfied.");
+      .def_prop_ro("frame_name", &PoseConstraint::getFrameName,
+                   "The name of the constrained frame.")
+      .def_prop_ro("reference_frame", &PoseConstraint::getReferenceFrame,
+                   "The name of the frame the region transform is expressed in.")
+      .def_prop_ro("tform", &PoseConstraint::getTransform,
+                   "The pose of the region frame relative to the reference frame.")
+      .def_prop_ro("lower_bounds", &PoseConstraint::getLowerBounds,
+                   "The lower bounds on the frame's task space displacement.")
+      .def_prop_ro("upper_bounds", &PoseConstraint::getUpperBounds,
+                   "The upper bounds on the frame's task space displacement.")
+      .def_prop_ro("position_tolerance", &PoseConstraint::getPositionTolerance,
+                   "The position residual norm, in meters, below which the constraint is "
+                   "satisfied.")
+      .def_prop_ro("orientation_tolerance", &PoseConstraint::getOrientationTolerance,
+                   "The orientation residual norm, in radians, below which the constraint is "
+                   "satisfied.");
 
   nanobind::class_<ConstraintProjectorOptions>(m, "ConstraintProjectorOptions",
                                                "Options struct for constraint projection.")

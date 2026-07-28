@@ -233,8 +233,8 @@ Keeping a gripper upright inside a safe zone is a single ``PoseConstraint``:
    path = RRT(scene, options).plan(start, goal, [constraint])
 
 ``roboplan_examples/python/example_constrained_rrt.py`` is a runnable version of this that plans to
-random goals inside the zone, reports the gripper's tilt and safe zone breach against the limits, and
-contrasts the result with the same problem planned unconstrained.
+random goals inside the zone, plots the gripper's tilt and height against the limits, and contrasts
+the result with the same problem planned unconstrained.
 
 State Spaces and the ``dynotree`` Library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

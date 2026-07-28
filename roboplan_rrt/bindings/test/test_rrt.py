@@ -131,9 +131,7 @@ def test_pose_constraint_displacement(
     recomposed[:3, :3] = pin.rpy.rpyToMatrix(displacement[3:])
     recomposed[:3, 3] = displacement[:3]
     expected = test_scene.forwardKinematics(q, "tool0")
-    assert np.allclose(
-        upright_constraint.getTransform() @ recomposed, expected, atol=1e-9
-    )
+    assert np.allclose(upright_constraint.tform @ recomposed, expected, atol=1e-9)
 
 
 def test_projection_leaves_free_coordinates_free(
