@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import queue
 import sys
 import time
 import tyro
@@ -7,6 +8,7 @@ import xacro
 
 from dataclasses import replace
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
@@ -139,8 +141,8 @@ def measure_path(scene, path, nominal_z, group_name, ee_name, samples=8):
     """Densely resamples a joint path and measures the gripper along it.
 
     Sampling more finely than the resolution the planner checked at is what actually tests its
-    claim, and picks up the small bulges between check points. Returns the gripper's tilt from
-    vertical in degrees, and its position, at every sample.
+    claim, and picks up the small bulges between check points. Returns a dict of arrays: path
+    progress from 0 to 1, the gripper's tilt from vertical in degrees, and its position.
     """
     dense = []
     for idx in range(len(path.positions) - 1):
@@ -149,22 +151,33 @@ def measure_path(scene, path, nominal_z, group_name, ee_name, samples=8):
         dense.extend(scene.interpolate(q_a, q_b, s / samples) for s in range(samples))
     dense.append(scene.toFullJointPositions(group_name, path.positions[-1]))
 
+    # Plot against arc length rather than sample index, so the two paths in a comparison are drawn
+    # on the same footing even when one of them has many more waypoints.
+    arc = np.cumsum(
+        [0.0] + [scene.configurationDistance(*p) for p in zip(dense, dense[1:])]
+    )
+
     # Tilt is the angle between the gripper's approach axis and its nominal direction, which is
     # what "upright" means physically.
     tforms = [scene.forwardKinematics(q, ee_name) for q in dense]
     cosines = [np.clip(np.dot(t[:3, 2], nominal_z), -1.0, 1.0) for t in tforms]
-    return np.degrees(np.arccos(cosines)), np.array([t[:3, 3] for t in tforms])
+    return {
+        "progress": arc / arc[-1],
+        "tilt": np.degrees(np.arccos(cosines)),
+        "positions": np.array([t[:3, 3] for t in tforms]),
+    }
 
 
-def report(label, tilt, positions, tilt_limit, position_slack):
+def report(label, metrics, tilt_limit, position_slack):
     """Prints how far a path strays from the constraint.
 
     Both limits include the constraint's tolerance, which is precisely how far outside its bounds a
     configuration is still allowed to sit.
     """
+    positions = metrics["positions"]
     breach = max((ZONE_MIN - positions).max(), (positions - ZONE_MAX).max(), 0.0)
     print(
-        f"  {label:>13}: max tilt {tilt.max():6.2f} deg (limit {tilt_limit:.2f}), "
+        f"  {label:>13}: max tilt {metrics['tilt'].max():6.2f} deg (limit {tilt_limit:.2f}), "
         f"max zone breach {breach * 1000.0:6.2f} mm (limit {position_slack:.2f})"
     )
 
@@ -351,6 +364,10 @@ def main(
     viz.display(q_start)
     scene.setJointPositions(q_start)
 
+    # Plotting has to happen on the main thread, so the viser callback below hands its results over
+    # through these queues rather than drawing from inside the click handler.
+    traj_queue = queue.Queue()
+    metrics_queue = queue.Queue()
     cur_traj = None
     animate = False
 
@@ -360,7 +377,7 @@ def main(
 
     @plan_button.on_click
     def plan_path(_):
-        nonlocal animate, cur_traj
+        nonlocal animate
         animate = False
         plan_button.disabled = True
         animate_button.disabled = True
@@ -390,37 +407,41 @@ def main(
                 return
             elapsed = time.time() - t_start
             print(f"  Found {len(path.positions)} waypoints in {elapsed:.3f} s")
-            tilt, positions = measure_path(scene, path, nominal_z, group_name, ee_name)
-            report("constrained", tilt, positions, tilt_limit, position_slack)
+            metrics = measure_path(scene, path, nominal_z, group_name, ee_name)
+            report("constrained", metrics, tilt_limit, position_slack)
 
             # Plan the same problem again with no constraints, for comparison.
             print("Planning without constraints...")
+            baseline_metrics = None
             t_start = time.time()
             try:
                 baseline = rrt.plan(start, goal)
                 elapsed = time.time() - t_start
                 print(f"  Found {len(baseline.positions)} waypoints in {elapsed:.3f} s")
-                tilt, positions = measure_path(
+                baseline_metrics = measure_path(
                     scene, baseline, nominal_z, group_name, ee_name
                 )
-                report("unconstrained", tilt, positions, tilt_limit, position_slack)
+                report("unconstrained", baseline_metrics, tilt_limit, position_slack)
                 addPositionPolyline(
                     viz,
                     "/constrained_rrt/unconstrained_path",
-                    positions,
+                    baseline_metrics["positions"],
                     (200, 60, 60),
                     3.0,
                 )
             except RuntimeError as ex:
                 print(f"  Unconstrained planning failed: {ex}")
 
-            cur_traj = toppra.generate(
+            traj = toppra.generate(
                 path, TOPPRAOptions(dt=traj_dt, mode=SplineFittingMode.Adaptive)
             )
             viz.display(q_start)
             visualizeJointTrajectory(
-                viz, scene, cur_traj, [ee_name], (0, 180, 0), "/constrained_rrt/path"
+                viz, scene, traj, [ee_name], (0, 180, 0), "/constrained_rrt/path"
             )
+
+            traj_queue.put(traj)
+            metrics_queue.put((metrics, baseline_metrics))
         finally:
             plan_button.disabled = False
             animate_button.disabled = False
@@ -432,9 +453,54 @@ def main(
         animate_button.disabled = True
         animate = True
 
-    # Main animation loop.
+    def plot_metrics(metrics, baseline_metrics):
+        """Plots gripper tilt and height against path progress, with the limits drawn in."""
+        plt.clf()
+        fig = plt.gcf()
+        fig.set_size_inches(9, 7)
+        axes = fig.subplots(2, 1, sharex=True)
+
+        series = [("constrained", metrics, "tab:green")]
+        if baseline_metrics is not None:
+            series.append(("unconstrained", baseline_metrics, "tab:red"))
+        for label, m, color in series:
+            axes[0].plot(m["progress"], m["tilt"], color=color, label=label)
+            axes[1].plot(m["progress"], m["positions"][:, 2], color=color, label=label)
+
+        axes[0].axhline(
+            tilt_limit,
+            color="k",
+            linestyle="--",
+            linewidth=1,
+            label=f"tilt limit ({tilt_limit:.2f} deg)",
+        )
+        axes[0].set_ylabel("gripper tilt from vertical [deg]")
+        axes[0].set_title("Gripper stays upright and inside the safe zone")
+
+        axes[1].axhline(
+            ZONE_MIN[2], color="k", linestyle="--", linewidth=1, label="safe zone z"
+        )
+        axes[1].axhline(ZONE_MAX[2], color="k", linestyle="--", linewidth=1)
+        axes[1].set_ylabel("end effector height [m]")
+        axes[1].set_xlabel("path progress")
+
+        for ax in axes:
+            ax.legend(loc="upper right", fontsize="small")
+            ax.grid(alpha=0.3)
+        return fig
+
+    # Main display and animation loop.
+    plt.figure()
+    plt.ion()
     while True:
-        if animate and cur_traj is not None:
+        if not metrics_queue.empty():
+            fig = plot_metrics(*metrics_queue.get())
+            cur_traj = traj_queue.get()
+            plt.draw()
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            plt.pause(0.1)
+        elif animate and cur_traj is not None:
             print("\nAnimating trajectory...")
             for q in cur_traj.positions:
                 viz.display(scene.toFullJointPositions(group_name, q))
