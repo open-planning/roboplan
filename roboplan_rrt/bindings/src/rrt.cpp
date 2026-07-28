@@ -65,12 +65,15 @@ void initConstraints(nanobind::module_& m) {
 
   nanobind::class_<ConstraintProjectorOptions>(m, "ConstraintProjectorOptions",
                                                "Options struct for constraint projection.")
-      .def(nanobind::init<size_t, double, double, double>(), "max_iters"_a = 50,
-           "step_size"_a = 1.0, "damping"_a = 1.0e-6, "convergence_ratio"_a = 0.1)
+      .def(nanobind::init<double, size_t, double, double, double>(), "path_step_size"_a = 0.1,
+           "max_iters"_a = 50, "correction_step_size"_a = 1.0, "damping"_a = 1.0e-6,
+           "convergence_ratio"_a = 0.1)
+      .def_rw("path_step_size", &ConstraintProjectorOptions::path_step_size,
+              "The configuration-space step size taken between projections.")
       .def_rw("max_iters", &ConstraintProjectorOptions::max_iters,
               "The maximum number of projection iterations before giving up.")
-      .def_rw("step_size", &ConstraintProjectorOptions::step_size,
-              "The fraction of each computed correction to apply per iteration.")
+      .def_rw("correction_step_size", &ConstraintProjectorOptions::correction_step_size,
+              "The fraction of each computed correction to apply per projection iteration.")
       .def_rw("damping", &ConstraintProjectorOptions::damping,
               "Damping value for the Jacobian pseudoinverse.")
       .def_rw("convergence_ratio", &ConstraintProjectorOptions::convergence_ratio,
@@ -117,13 +120,12 @@ void initRrt(nanobind::module_& m) {
 
   nanobind::class_<RRTOptions>(m, "RRTOptions", "Options struct for RRT planner.")
       .def(nanobind::init<const std::string&, size_t, double, double, bool, double, double, bool,
-                          bool, double, bool, double, const ConstraintProjectorOptions&>(),
+                          bool, double, bool, const ConstraintProjectorOptions&>(),
            "group_name"_a = "", "max_nodes"_a = 1000, "max_connection_distance"_a = 3.0,
-           "collision_check_step_size"_a = 0.05, "collision_check_use_bisection"_a = false,
+           "collision_check_step_size"_a = 0.05, "collision_check_use_bisection"_a = true,
            "goal_biasing_probability"_a = 0.15, "max_planning_time"_a = 0.0,
            "rrt_connect"_a = false, "rrt_star"_a = false, "rewire_distance"_a = 5.0,
-           "fast_return"_a = true, "constraint_step_size"_a = 0.1,
-           "constraint_projection"_a = ConstraintProjectorOptions())
+           "fast_return"_a = true, "constraint_projection"_a = ConstraintProjectorOptions())
       .def_rw("group_name", &RRTOptions::group_name,
               "The joint group name to be used by the planner.")
       .def_rw("max_nodes", &RRTOptions::max_nodes, "The maximum number of nodes to sample.")
@@ -147,12 +149,8 @@ void initRrt(nanobind::module_& m) {
       .def_rw("fast_return", &RRTOptions::fast_return,
               "If true, return on the first path found; if false, plan until the budget is "
               "exhausted and return the lowest-cost path.")
-      .def_rw("constraint_step_size", &RRTOptions::constraint_step_size,
-              "The configuration-space step size taken between constraint projections. Only used "
-              "when `plan` is given constraints.")
       .def_rw("constraint_projection", &RRTOptions::constraint_projection,
-              "Options for the projection that pulls sampled configurations onto the constraints. "
-              "Only used when `plan` is given constraints.");
+              "Options for the projection that pulls sampled configurations onto the constraints.");
 
   nanobind::class_<RRT>(
       m, "RRT", "Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.")

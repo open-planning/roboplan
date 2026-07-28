@@ -67,7 +67,14 @@ class PoseConstraint(Constraint):
 class ConstraintProjectorOptions:
     """Options struct for constraint projection."""
 
-    def __init__(self, max_iters: int = 50, step_size: float = 1.0, damping: float = 1e-06, convergence_ratio: float = 0.1) -> None: ...
+    def __init__(self, path_step_size: float = 0.1, max_iters: int = 50, correction_step_size: float = 1.0, damping: float = 1e-06, convergence_ratio: float = 0.1) -> None: ...
+
+    @property
+    def path_step_size(self) -> float:
+        """The configuration-space step size taken between projections."""
+
+    @path_step_size.setter
+    def path_step_size(self, arg: float, /) -> None: ...
 
     @property
     def max_iters(self) -> int:
@@ -77,11 +84,13 @@ class ConstraintProjectorOptions:
     def max_iters(self, arg: int, /) -> None: ...
 
     @property
-    def step_size(self) -> float:
-        """The fraction of each computed correction to apply per iteration."""
+    def correction_step_size(self) -> float:
+        """
+        The fraction of each computed correction to apply per projection iteration.
+        """
 
-    @step_size.setter
-    def step_size(self, arg: float, /) -> None: ...
+    @correction_step_size.setter
+    def correction_step_size(self, arg: float, /) -> None: ...
 
     @property
     def damping(self) -> float:
@@ -142,7 +151,7 @@ class Node:
 class RRTOptions:
     """Options struct for RRT planner."""
 
-    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, collision_check_use_bisection: bool = False, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False, rrt_star: bool = False, rewire_distance: float = 5.0, fast_return: bool = True, constraint_step_size: float = 0.1, constraint_projection: ConstraintProjectorOptions = ...) -> None: ...
+    def __init__(self, group_name: str = '', max_nodes: int = 1000, max_connection_distance: float = 3.0, collision_check_step_size: float = 0.05, collision_check_use_bisection: bool = True, goal_biasing_probability: float = 0.15, max_planning_time: float = 0.0, rrt_connect: bool = False, rrt_star: bool = False, rewire_distance: float = 5.0, fast_return: bool = True, constraint_projection: ConstraintProjectorOptions = ...) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -228,18 +237,9 @@ class RRTOptions:
     def fast_return(self, arg: bool, /) -> None: ...
 
     @property
-    def constraint_step_size(self) -> float:
-        """
-        The configuration-space step size taken between constraint projections. Only used when `plan` is given constraints.
-        """
-
-    @constraint_step_size.setter
-    def constraint_step_size(self, arg: float, /) -> None: ...
-
-    @property
     def constraint_projection(self) -> ConstraintProjectorOptions:
         """
-        Options for the projection that pulls sampled configurations onto the constraints. Only used when `plan` is given constraints.
+        Options for the projection that pulls sampled configurations onto the constraints.
         """
 
     @constraint_projection.setter

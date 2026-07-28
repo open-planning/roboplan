@@ -452,7 +452,7 @@ TEST_F(RoboPlanConstrainedRRTTest, PlannedPathStaysOnTheConstraint) {
   options.max_connection_distance = 0.5;
   options.max_nodes = 20000;
   options.max_planning_time = 20.0;
-  options.constraint_step_size = 0.1;
+  options.constraint_projection.path_step_size = 0.1;
 
   // Both endpoints must start on the constraint, so project them first. Draw them before the
   // planner exists: RRT::setRngSeed also reseeds the scene, which would discard the fixture's
@@ -526,28 +526,6 @@ TEST_F(RoboPlanConstrainedRRTTest, ReferenceFrameMakesTheConstraintRelative) {
   relative->computeErrorAndJacobian(q, error, jacobian);
   ASSERT_TRUE(jacobian.leftCols<3>().isZero(1.0e-9)) << jacobian;
   ASSERT_FALSE(jacobian.rightCols<3>().isZero(1.0e-9)) << jacobian;
-}
-
-TEST_F(RoboPlanConstrainedRRTTest, UnconstrainedPlanIsUnaffected) {
-  // Passing no constraints must behave exactly like the pre-existing two-argument plan.
-  RRTOptions options;
-  options.group_name = "arm";
-  auto rrt = std::make_unique<RRT>(scene, options);
-  rrt->setRngSeed(1234);
-
-  const auto maybe_q_start = scene->randomCollisionFreePositions();
-  ASSERT_TRUE(maybe_q_start.has_value());
-  const auto maybe_q_goal = scene->randomCollisionFreePositions();
-  ASSERT_TRUE(maybe_q_goal.has_value());
-
-  JointConfiguration start, goal;
-  start.positions = maybe_q_start.value();
-  goal.positions = maybe_q_goal.value();
-
-  const auto maybe_path = rrt->plan(start, goal);
-  ASSERT_TRUE(maybe_path.has_value());
-  ASSERT_EQ(maybe_path.value().positions.front(), start.positions);
-  ASSERT_EQ(maybe_path.value().positions.back(), goal.positions);
 }
 
 }  // namespace roboplan

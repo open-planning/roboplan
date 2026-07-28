@@ -92,28 +92,22 @@ Note that even with ``fast_return = true``, RRT* still rewires the tree as it gr
 Constrained Planning
 ~~~~~~~~~~~~~~~~~~~~
 
-Many manipulation tasks restrict *how* the robot may move, not just where it may end up: carrying a
-full cup upright, keeping a tool on a surface, sliding a drawer along its rail.
-These are constraints on the end effector's pose that must hold at **every** point of the path, which
-a planner cannot express by choosing a goal.
+Many manipulation tasks restrict *how* the robot may move, not just where it may end up:
+For example, carrying a full cup upright, keeping a tool on a surface, or sliding a drawer along its rail.
+These are constraints on the end effector's pose that must hold at every point of the path, which a planner cannot express by choosing a goal.
 
-``RRT::plan`` takes an optional list of constraints, and passing a non-empty list switches the
-planner to the constrained extension of CBiRRT2
+``RRT::plan`` takes an optional list of constraints, and passing a non-empty list switches the planner to the constrained extension of CBiRRT2
 (`Berenson et al. (2009) <https://personalrobotics.cs.washington.edu/publications/berenson2009cbirrt.pdf>`_).
-Samples are still drawn from the whole configuration space, but a tree no longer jumps
-``max_connection_distance`` toward one in a single step.
-Instead it walks there in short ``constraint_step_size`` hops, and after each hop **projects** the
-configuration back onto the constraints before accepting it as a node.
-The walk stops early if a projection fails, if the projected step made no progress toward the
-sample, if the projection wandered more than two steps away, or if the hop hits joint limits or an
-obstacle.
+Samples are still drawn from the whole configuration space, but a tree no longer jumps ``max_connection_distance`` toward one in a single step.
+Instead, it walks there in short ``path_step_size`` hops, and after each hop **projects** the configuration back onto the constraints before accepting it as a node.
+The walk stops early if a projection fails, makes no progress toward the sample, wanders more than two steps away, or hits joint limits or an obstacle.
 
 Task Space Regions
 ^^^^^^^^^^^^^^^^^^
 
 ``PoseConstraint`` implements the paper's *Task Space Region*.
-It measures the pose of a robot frame relative to a **region frame** — placed by ``tform``, relative
-to the world or to a named ``reference_frame`` — and expresses that pose as a six-vector of
+It measures the pose of a robot frame relative to a **region frame** placed by ``tform``,
+relative to the world or to a named ``reference_frame``, and expresses that pose as a six-vector of
 :math:`[x, y, z, \text{roll}, \text{pitch}, \text{yaw}]` displacements.
 Each coordinate gets a lower and an upper bound:
 
@@ -121,58 +115,51 @@ Each coordinate gets a lower and an upper bound:
 - Bounds set equal **pin** that coordinate.
 - Anything in between carves out a volume the frame may move within.
 
-Position and orientation share one constraint because they share one frame Jacobian; splitting them
-would run the same forward kinematics twice on the planner's hot path.
+Position and orientation share one constraint because they share one frame Jacobian.
+Splitting them would run the same forward kinematics twice on the planner's hot path.
 
 The rotation triplet uses Pinocchio's convention :math:`R = R_z(\text{yaw}) R_y(\text{pitch}) R_x(\text{roll})`,
 so the region frame acts as the nominal orientation.
-Leaving one rotation coordinate free while bounding the other two is the usual way to express an
-axis constraint: bounding roll and pitch to :math:`\pm\theta` with yaw free keeps the frame's
+Leaving one rotation coordinate free while bounding the other two is the usual way to express an axis constraint.
+For example, bound roll and pitch to :math:`\pm\theta` with yaw free keeps the frame's
 :math:`z` axis within :math:`\arccos(\cos^2\theta)` of the region frame's :math:`z` axis while
 allowing unrestricted spin about it, so a :math:`\pm 5^\circ` box on roll and pitch admits a total
 tilt of up to :math:`7.07^\circ`.
 
 .. note::
-   The roll-pitch-yaw parameterization is singular at a pitch of :math:`\pm\pi/2` relative to the
-   region frame. Choosing a region frame near the orientations you intend to allow — which any
-   useful bound already implies — keeps the singularity far away.
+   The roll-pitch-yaw parameterization is singular at a pitch of :math:`\pm\pi/2` relative to the region frame.
+   Choosing a region frame near the orientations you intend to allow keeps the singularity far away.
 
 Projection
 ^^^^^^^^^^
 
 ``ConstraintProjector`` moves a configuration onto the intersection of a set of constraints.
-Each iteration stacks the **violated** residual coordinates of every constraint into one task and
-takes a damped least-squares step that cancels them, moving only the planning group's degrees of
-freedom and clamping to joint limits.
+Each iteration stacks the **violated** residual coordinates of every constraint into one task and takes a damped least-squares
+step that cancels them, moving only the planning group's degrees of freedom and clamping to joint limits.
 
 Only the violated coordinates contribute rows.
-This differs from the formulation in the paper, which always solves against all six task-space
-coordinates, and the difference matters whenever a coordinate is unbounded: an all-zero row for an
-unbounded coordinate does not mean "already satisfied", it demands that the coordinate not change at
-all.
-Dropping those rows keeps the free directions free, so an orientation-only constraint still lets the
-end effector translate.
+This differs from the formulation in the paper, which always solves against all six task-space coordinates,
+and the difference matters whenever a coordinate is unbounded.
+An all-zero row for an unbounded coordinate does not mean "already satisfied", it demands that the coordinate not change at all.
+Dropping those rows keeps the free directions free, so an orientation-only constraint still lets the end effector translate.
 
 Projection is a local, Jacobian-based operation.
-It converges quickly for the small violations produced by stepping along a path, but it is not a
-global IK solver and will fail to recover a configuration far outside the constraints.
+It converges quickly for the small violations produced by stepping along a path, but it is not a global IK solver and will fail to recover a configuration far outside the constraints.
 
 Tolerances and step size
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-A constraint's tolerance is how far outside its bounds a configuration may sit and still count as
-satisfying it.
-This has to be read together with ``constraint_step_size``, because two projected configurations are
+A constraint's tolerance is how far outside its bounds a configuration may sit and still count as satisfying it.
+This has to be read together with ``path_step_size``, because two projected configurations are
 joined by a **straight** segment whose interior drifts off the (curved) constraint set.
 That drift grows with the square of the step, so a larger step needs a looser tolerance.
-The projector therefore converges to a fraction of the tolerance
-(``ConstraintProjectorOptions::convergence_ratio``) rather than stopping the moment it first dips
-inside, which is what leaves the headroom the drift consumes.
+The projector therefore converges to a fraction of the tolerance (``ConstraintProjectorOptions::convergence_ratio``)
+rather than stopping the moment it first dips inside, which is what leaves the headroom the drift consumes.
 The defaults for both are chosen to be consistent with each other.
 
-Note that tightening a bound does not tighten the tolerance: the tolerance is an absolute slack, so
-a very small bound left with the default tolerance is a loose constraint in relative terms.
-Scale the tolerance and ``constraint_step_size`` down together when you tighten a bound.
+Note that tightening a bound does not tighten the tolerance: the tolerance is an absolute slack,
+so a very small bound left with the default tolerance is a loose constraint in relative terms.
+Scale the tolerance and ``path_step_size`` down together when you tighten a bound.
 
 Practical notes
 ^^^^^^^^^^^^^^^
@@ -184,7 +171,7 @@ Practical notes
 - **``rrt_star`` is worth enabling.** Walking in small hops leaves a visibly zigzagging path.
   Rewiring reconnects nodes with straight segments, and a long one between two configurations on a
   curved constraint set leaves it and is rejected — but the constrained extension packs nodes only
-  ``constraint_step_size`` apart, so most candidates are short enough to be accepted. Those short
+  ``path_step_size`` apart, so most candidates are short enough to be accepted. Those short
   rewires are enough to collapse the zigzag, and produce roughly a quarter shorter paths on the
   bundled example.
 - **Do not shortcut a constrained path.** :doc:`path_shortcutting` splices in straight
@@ -203,7 +190,13 @@ Keeping a gripper upright inside a safe zone is a single ``PoseConstraint``:
 
    import numpy as np
    import pinocchio as pin
-   from roboplan.rrt import ConstraintProjector, PoseConstraint, RRT, RRTOptions
+   from roboplan.rrt import (
+       ConstraintProjector,
+       ConstraintProjectorOptions,
+       PoseConstraint,
+       RRT,
+       RRTOptions,
+   )
 
    # The region frame is the nominal pose. A half turn about x points the gripper straight down,
    # so a zero displacement means perfectly upright.
@@ -235,13 +228,13 @@ Keeping a gripper upright inside a safe zone is a single ``PoseConstraint``:
        max_connection_distance=0.5,
        max_nodes=40000,
        max_planning_time=2.0,
-       constraint_step_size=0.1,
+       constraint_projection=ConstraintProjectorOptions(path_step_size=0.1),
    )
    path = RRT(scene, options).plan(start, goal, [constraint])
 
 ``roboplan_examples/python/example_constrained_rrt.py`` is a runnable version of this that plans to
-random goals inside the zone, plots the gripper's tilt and height against the limits, and contrasts
-the result with the same problem planned unconstrained.
+random goals inside the zone, reports the gripper's tilt and safe zone breach against the limits, and
+contrasts the result with the same problem planned unconstrained.
 
 State Spaces and the ``dynotree`` Library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -299,20 +292,20 @@ The planner is configured through ``RRTOptions``:
 +-----------------------------------+------------------------------------------------------------+-----------+
 | ``fast_return``                   | Return on first path, or plan until the budget is spent    | true      |
 +-----------------------------------+------------------------------------------------------------+-----------+
-| ``constraint_step_size``          | Step size between constraint projections (constrained only)| 0.1       |
-+-----------------------------------+------------------------------------------------------------+-----------+
 | ``constraint_projection``         | Projection options (constrained only)                      | see below |
 +-----------------------------------+------------------------------------------------------------+-----------+
 
-The last two apply only when ``plan`` is given constraints; see :ref:`constrained-planning`.
+The last one applies only when ``plan`` is given constraints; see :ref:`constrained-planning`.
 ``constraint_projection`` is a ``ConstraintProjectorOptions``:
 
 +-----------------------------------+------------------------------------------------------------+-----------+
 | Parameter                         | Description                                                | Default   |
 +===================================+============================================================+===========+
+| ``path_step_size``                | Configuration-space step size taken between projections    | 0.1       |
++-----------------------------------+------------------------------------------------------------+-----------+
 | ``max_iters``                     | Maximum projection iterations before giving up             | 50        |
 +-----------------------------------+------------------------------------------------------------+-----------+
-| ``step_size``                     | Fraction of each computed correction applied per iteration | 1.0       |
+| ``correction_step_size``          | Fraction of each computed correction applied per iteration | 1.0       |
 +-----------------------------------+------------------------------------------------------------+-----------+
 | ``damping``                       | Damping for the Jacobian pseudoinverse                     | 1e-6      |
 +-----------------------------------+------------------------------------------------------------+-----------+

@@ -10,7 +10,13 @@ import pytest
 
 from roboplan.core import JointConfiguration, Scene, computePathLength
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
-from roboplan.rrt import ConstraintProjector, PoseConstraint, RRTOptions, RRT
+from roboplan.rrt import (
+    ConstraintProjector,
+    ConstraintProjectorOptions,
+    PoseConstraint,
+    RRTOptions,
+    RRT,
+)
 
 
 @pytest.fixture
@@ -177,7 +183,7 @@ def test_plan_with_constraint_stays_on_constraint(
         max_connection_distance=0.5,
         max_nodes=20000,
         max_planning_time=20.0,
-        constraint_step_size=0.1,
+        constraint_projection=ConstraintProjectorOptions(path_step_size=0.1),
     )
     rrt = RRT(test_scene, options)
     rrt.setRngSeed(1234)

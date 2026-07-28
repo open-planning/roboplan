@@ -97,9 +97,6 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
       return tl::make_unexpected(std::string("Could not set up constraint projection: ") +
                                  ex.what());
     }
-    if (options_.constraint_step_size <= 0.0) {
-      return tl::make_unexpected("Constrained planning requires a positive constraint_step_size.");
-    }
   }
 
   // Snapshot the scene's collision geometry into this plan's private context. All collision checks
@@ -258,23 +255,56 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::Ve
 
 bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
                    const CollisionContext& collision_context, bool greedy) {
-  if (constraint_projector_.has_value()) {
-    return growTreeConstrained(kd_tree, nodes, q_sample, collision_context, greedy);
-  }
+  const auto& q_indices = joint_group_info_.q_indices;
+  const bool constrained = constraint_projector_.has_value();
+
+  // Unconstrained, one step covers a whole connection. Under constraints the walk takes short hops
+  // instead, because projection is a local operation: a step that is too large lands somewhere it
+  // cannot recover from. Every tree node already satisfies the constraints, so each hop starts on
+  // them and the projection only has to undo the excursion made by that one step.
+  const double step_size = constrained ? options_.constraint_projection.path_step_size
+                                       : options_.max_connection_distance;
+
+  const auto& nn = kd_tree.search(collapse(q_sample(q_indices)));
+  int parent_id = nn.id;
+  Eigen::VectorXd q_current = nodes.at(nn.id).config;
 
   bool grew_tree = false;
-  const auto& q_indices = joint_group_info_.q_indices;
+  double distance_grown = 0.0;
+  double distance_to_sample = scene_->configurationDistance(q_current, q_sample);
 
-  // Extend from the nearest neighbor to max connection distance.
-  const auto& nn = kd_tree.search(collapse(q_sample(q_indices)));
-  const auto& q_nearest = nodes.at(nn.id).config;
+  while (distance_to_sample > 0.0) {
+    auto q_extend = extend(q_current, q_sample, step_size);
 
-  int parent_id = nn.id;
-  auto q_current = q_nearest;
+    // Pull the hop back onto the constraints. A step that lands on the sample is taken as-is when
+    // it already satisfies them, so that reaching another node yields an exact match.
+    // This lets joinTrees stitch the two trees together without a connecting edge. Anything else
+    // is projected, so it lands well inside the tolerances rather than on their boundary.
+    if (constrained && !(q_extend == q_sample && constraint_projector_->satisfies(q_extend)) &&
+        !constraint_projector_->project(q_extend)) {
+      break;
+    }
 
-  while (true) {
-    // Extend towards the sampled node
-    auto q_extend = extend(q_current, q_sample, options_.max_connection_distance);
+    // Only a projected step needs measuring. Without one the hop ran straight to the sample,
+    // so it covered exactly what was asked for and left exactly that much less to go.
+    // Measuring it again would just pay for two distance computations per node on the hot path.
+    const auto step_distance = constrained ? scene_->configurationDistance(q_current, q_extend)
+                                           : std::min(step_size, distance_to_sample);
+    const auto distance_from_sample = constrained
+                                          ? scene_->configurationDistance(q_extend, q_sample)
+                                          : distance_to_sample - step_distance;
+    if (constrained) {
+      // Projection pulls the step off the straight line to the sample, and nothing guarantees the
+      // result is any closer to it or even near where the step started. Stop on either, otherwise
+      // the walk can stall against a constraint boundary or splice in an edge long enough that its
+      // interior is no longer meaningfully validated by the checks below. Projection also clamps
+      // to joint limits, but renormalizes continuous and planar rotations rather than clamping
+      // them, so confirm the result is a configuration the planner can use at all.
+      if (distance_from_sample >= distance_to_sample || step_distance > 2.0 * step_size ||
+          !scene_->isValidConfiguration(q_extend)) {
+        break;
+      }
+    }
 
     // If the extended node cannot be connected to the tree then throw it away and return. The new
     // endpoint `q_extend` must be validated; `q_current` is always an existing (known collision-
@@ -283,6 +313,15 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
                                options_.collision_check_step_size,
                                options_.collision_check_use_bisection,
                                /*check_endpoints*/ true)) {
+      break;
+    }
+
+    // Both ends of a constrained hop sit on the constraints, but the straight segment between them
+    // cuts a corner off a curved set, so its interior drifts slightly outside. The drift grows with
+    // the square of the step and normally stays well inside the tolerances; checking it anyway
+    // makes the guarantee uniform, so every edge of the returned path is validated the same way
+    // whether the constrained extension built it or a tree connection did.
+    if (!edgeSatisfiesConstraints(q_current, q_extend)) {
       break;
     }
 
@@ -295,105 +334,6 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
       kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
       // Track cost-to-come when the planner will run to budget, so the cheapest path can be picked.
       // With fast_return the first path is returned, so the cost is unused and left at zero.
-      const double cost =
-          options_.fast_return
-              ? 0.0
-              : nodes.at(parent_id).cost + scene_->configurationDistance(q_current, q_extend);
-      nodes.emplace_back(q_extend, parent_id, cost);
-    }
-
-    // A plain EXTEND adds a single node; only the greedy CONNECT step keeps extending.
-    if (!greedy) {
-      break;
-    }
-
-    // If we have reached the end point we're done.
-    if (q_extend == q_sample) {
-      break;
-    }
-
-    // Otherwise update the parent and continue extending.
-    parent_id = new_id;
-    q_current = q_extend;
-  }
-
-  return grew_tree;
-}
-
-bool RRT::growTreeConstrained(KdTree& kd_tree, std::vector<Node>& nodes,
-                              const Eigen::VectorXd& q_sample,
-                              const CollisionContext& collision_context, bool greedy) {
-  auto& projector = constraint_projector_.value();
-  const auto& q_indices = joint_group_info_.q_indices;
-  const auto& step_size = options_.constraint_step_size;
-
-  // Walk from the nearest node toward the sample. Every tree node already satisfies the
-  // constraints, so the walk starts on them and the projection only ever has to undo the small
-  // excursion made by a single step.
-  const auto& nn = kd_tree.search(collapse(q_sample(q_indices)));
-  int parent_id = nn.id;
-  Eigen::VectorXd q_current = nodes.at(nn.id).config;
-
-  bool grew_tree = false;
-  double distance_grown = 0.0;
-  double distance_to_sample = scene_->configurationDistance(q_current, q_sample);
-
-  while (distance_to_sample > 0.0) {
-    Eigen::VectorXd q_extend;
-    if (distance_to_sample <= step_size) {
-      // Close enough to land on the sample itself. Take it verbatim when it already satisfies the
-      // constraints so that reaching a goal or another tree's node yields an exact match, which is
-      // what lets joinTrees stitch the two trees together without a connecting edge.
-      q_extend = q_sample;
-      if (!projector.satisfies(q_extend) && !projector.project(q_extend)) {
-        break;
-      }
-    } else {
-      q_extend = pinocchio::interpolate(scene_->getModel(), q_current, q_sample,
-                                        step_size / distance_to_sample);
-      if (!projector.project(q_extend)) {
-        break;
-      }
-    }
-
-    // Projection pulls the step off the straight line to the sample, and nothing guarantees the
-    // result is any closer to it or even near where the step started. Stop on either, otherwise
-    // the walk can stall against a constraint boundary or splice in an edge long enough that its
-    // interior is no longer meaningfully validated by the checks below.
-    const auto distance_from_sample = scene_->configurationDistance(q_extend, q_sample);
-    const auto step_distance = scene_->configurationDistance(q_current, q_extend);
-    if (distance_from_sample >= distance_to_sample || step_distance > 2.0 * step_size) {
-      break;
-    }
-
-    // The projection clamps to joint limits, but continuous and planar rotations are renormalized
-    // rather than clamped, so confirm the result is a configuration the planner can use.
-    if (!scene_->isValidConfiguration(q_extend)) {
-      break;
-    }
-    if (hasCollisionsAlongPath(*scene_, collision_context, q_current, q_extend,
-                               options_.collision_check_step_size,
-                               options_.collision_check_use_bisection,
-                               /*check_endpoints*/ true)) {
-      break;
-    }
-
-    // Both ends of this hop sit on the constraints, but the straight segment between them cuts a
-    // corner off a curved set, so its interior drifts slightly outside. The drift grows with the
-    // square of the step and normally stays well inside the constraint tolerances; checking it
-    // anyway makes the guarantee uniform, so every edge of the returned path is validated the same
-    // way whether the constrained extension built it or a tree connection did.
-    if (!edgeSatisfiesConstraints(q_current, q_extend)) {
-      break;
-    }
-
-    grew_tree = true;
-    int new_id;
-    if (options_.rrt_star) {
-      new_id = rewire(kd_tree, nodes, q_extend, parent_id, collision_context);
-    } else {
-      new_id = static_cast<int>(nodes.size());
-      kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
       const double cost = options_.fast_return ? 0.0 : nodes.at(parent_id).cost + step_distance;
       nodes.emplace_back(q_extend, parent_id, cost);
     }

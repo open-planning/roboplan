@@ -185,6 +185,11 @@ ConstraintProjector::ConstraintProjector(
   }
   std::tie(lower_position_limits_, upper_position_limits_) = maybe_position_limits.value();
 
+  if (options_.path_step_size <= 0.0) {
+    throw std::runtime_error(
+        "Could not initialize constraint projector: path_step_size must be positive.");
+  }
+
   if (options_.convergence_ratio <= 0.0 || options_.convergence_ratio > 1.0) {
     throw std::runtime_error(
         "Could not initialize constraint projector: convergence_ratio must be in (0, 1].");
@@ -284,7 +289,7 @@ bool ConstraintProjector::project(Eigen::VectorXd& q) {
     }
 
     velocity_.setZero();
-    velocity_(v_indices) = options_.step_size * group_velocity_;
+    velocity_(v_indices) = options_.correction_step_size * group_velocity_;
     q = pinocchio::integrate(model, q, velocity_);
     q(q_indices) = q(q_indices).cwiseMax(lower_position_limits_).cwiseMin(upper_position_limits_);
   }

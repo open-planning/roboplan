@@ -32,7 +32,7 @@ def main(
     model: str = "ur5",
     max_connection_distance: float = 3.0,
     collision_check_step_size: float = 0.05,
-    collision_check_use_bisection: bool = False,
+    collision_check_use_bisection: bool = True,
     goal_biasing_probability: float = 0.15,
     max_nodes: int = 1000,
     max_planning_time: float = 2.0,

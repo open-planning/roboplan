@@ -15,16 +15,13 @@ namespace roboplan {
 
 /// @brief A six-dimensional task space vector, ordered [x, y, z, roll, pitch, yaw].
 /// @details Translations are in meters and rotations in radians. The rotation triplet is the
-/// roll-pitch-yaw decomposition R = Rz(yaw) * Ry(pitch) * Rx(roll), matching Pinocchio's
-/// `pinocchio::rpy` convention.
+/// roll-pitch-yaw decomposition R = Rz(yaw) * Ry(pitch) * Rx(roll), to match Pinocchio.
 using TaskSpaceVector = Eigen::Matrix<double, 6, 1>;
 
 /// @brief Base class for kinematic constraints that planners enforce by projection.
 /// @details A constraint reports a residual that is zero when it is satisfied and otherwise points
 /// along the shortest way back into the allowed set, together with the Jacobian of that residual
-/// with respect to a planning group's velocities. That pair is all a projection operator needs, so
-/// planners can enforce any mix of constraints without knowing what they mean; see
-/// ConstraintProjector.
+/// with respect to a planning group's velocities.
 ///
 /// @note Implementations are expected to own private kinematics scratch so that evaluating a
 /// constraint does not disturb the Scene's shared data. That scratch is written on every
@@ -41,34 +38,27 @@ public:
 
   /// @brief Computes the constraint residual at a configuration.
   /// @details Each coordinate is zero where the constraint is satisfied, and otherwise the signed
-  /// amount by which it overshoots the nearest bound. Driving the residual to zero therefore moves
-  /// a configuration to the closest point of the allowed set, and leaves one that is already
-  /// strictly inside alone rather than pulling it toward some nominal value.
+  /// amount by which it overshoots the nearest bound.
   /// @param q The full (model-sized) joint positions to evaluate.
   /// @return The residual vector, of size `dimension()`.
   virtual Eigen::VectorXd computeError(const Eigen::VectorXd& q) = 0;
 
   /// @brief Computes the constraint residual and its Jacobian at a configuration.
-  /// @details The Jacobian maps the planning group's joint velocities to the rate of change of the
-  /// residual coordinates, so a projection step can solve for the joint motion that cancels a
-  /// violation. Both outputs must be pre-sized by the caller; this signature writes in place to
-  /// keep the projection loop allocation-free.
+  /// @details The Jacobian maps the group joint velocities to the rate of change of the residual
+  /// coordinates, so a projection step can solve for the joint motion that cancels a violation.
   /// @param q The full (model-sized) joint positions to evaluate.
   /// @param error Output residual, pre-sized to `dimension()`.
   /// @param jacobian Output Jacobian, pre-sized to `dimension()` rows by the group's velocity DOFs.
   virtual void computeErrorAndJacobian(const Eigen::VectorXd& q, Eigen::Ref<Eigen::VectorXd> error,
                                        Eigen::Ref<Eigen::MatrixXd> jacobian) = 0;
 
-  /// @brief Judges an already-computed residual against this constraint's tolerances.
-  /// @details Only the constraint knows how its coordinates are scaled -- a pose residual mixes
-  /// meters and radians, which cannot meaningfully share one threshold. Keeping the verdict here
-  /// also lets a projection loop reuse the residual it just computed instead of running forward
-  /// kinematics a second time to ask whether it is done.
+  /// @brief Evaluates an already-computed residual against this constraint's tolerances.
+  /// @details This lets a projection loop reuse the residual it just computed instead of running
+  /// forward kinematics a second time to ask whether it is done.
   /// @param error A residual of size `dimension()`, as produced by `computeError`.
   /// @param tolerance_scale Scales every tolerance before comparing. A projection passes a value
-  /// below one to land well inside the tolerance rather than exactly on its boundary, which is
-  /// what leaves room for the interpolation between two projected configurations to stay inside
-  /// it too.
+  /// below one to land well inside the tolerance rather than exactly on its boundary, which leaves
+  /// room for the interpolation between two projected configurations to stay inside it too.
   /// @return True if the residual is within the scaled tolerances.
   virtual bool satisfiesResidual(const Eigen::Ref<const Eigen::VectorXd>& error,
                                  double tolerance_scale = 1.0) const = 0;
@@ -88,18 +78,12 @@ public:
 /// frame may move within. This is the Task Space Region of "Manipulation Planning on Constraint
 /// Manifolds" (Berenson et al., 2009), sections 4a and 4b.
 ///
-/// Position and orientation live in one constraint because they share a single frame Jacobian:
-/// splitting them would compute the same forward kinematics twice on the planner's hot path.
-///
 /// Leaving one rotation coordinate free while bounding the other two is the usual way to express an
 /// axis constraint. Bounding roll and pitch to +/- theta with yaw free, for instance, keeps the
-/// frame's z axis within acos(cos^2(theta)) of the region frame's z axis while allowing
-/// unrestricted spin about it -- so a +/- 5 degree roll and pitch box admits a tilt of up to 7.07
-/// degrees.
+/// frame's z axis within acos(cos^2(theta)) of the frame's z axis while allowing spin about it.
 ///
 /// @note The roll-pitch-yaw parameterization is singular at a pitch of +/- pi/2 relative to the
-/// region frame. Choose a region frame near the orientations you intend to allow (which any useful
-/// bound already implies) and the singularity stays far away.
+/// region frame. To avoid singularities, choose a region frame near the desired orientation.
 class PoseConstraint : public Constraint {
 public:
   /// @brief Constructor.
@@ -118,8 +102,8 @@ public:
   /// @note The tolerances are how far outside the bounds a configuration may sit and still count
   /// as satisfying the constraint, so they must be loose enough to cover the drift between two
   /// projected configurations a planner connects. That drift grows with the square of the
-  /// planner's step, so the defaults are chosen for RRTOptions::constraint_step_size at its own
-  /// default; tighten them alongside a smaller step, and loosen them for a larger one.
+  /// planner's step, so the defaults are chosen for ConstraintProjectorOptions::path_step_size at
+  /// its own default; tighten them alongside a smaller step, and loosen them for a larger one.
   PoseConstraint(const std::shared_ptr<Scene> scene, const std::string& group_name,
                  const std::string& frame_name,
                  const TaskSpaceVector& lower_bounds =
@@ -239,14 +223,20 @@ private:
 
 /// @brief Options struct for constraint projection.
 struct ConstraintProjectorOptions {
+  /// @brief The configuration-space step size taken between projections.
+  /// @details Projection is a local operation, so a step that is too large lands somewhere it
+  /// cannot recover from. Smaller values track the constraints more faithfully and fail less
+  /// often, at the cost of more projections per unit of progress.
+  double path_step_size = 0.1;
+
   /// @brief The maximum number of projection iterations before giving up.
   size_t max_iters = 50;
 
-  /// @brief The fraction of each computed correction to apply per iteration.
+  /// @brief The fraction of each computed correction to apply per projection iteration.
   /// @details The default takes full Gauss-Newton steps, which converge in a handful of iterations
   /// for the small violations a planner produces. Lower it if a projection oscillates instead of
   /// converging, which can happen when constraints fight each other near a kinematic singularity.
-  double step_size = 1.0;
+  double correction_step_size = 1.0;
 
   /// @brief Damping value for the Jacobian pseudoinverse.
   double damping = 1.0e-6;
@@ -263,16 +253,6 @@ struct ConstraintProjectorOptions {
 /// @details Each iteration stacks the violated residual coordinates of every constraint into one
 /// task and takes a damped least-squares step that cancels them, moving only the planning group's
 /// degrees of freedom and clamping to joint limits.
-///
-/// Only the violated coordinates contribute rows. This differs from the formulation in Berenson et
-/// al., which always solves against all six task space coordinates, and it matters whenever a
-/// coordinate is unbounded: a zero row for an unbounded coordinate does not mean "already
-/// satisfied", it demands that the coordinate not change at all. Dropping those rows keeps the free
-/// directions free, so an orientation-only constraint still lets the end effector translate.
-///
-/// @note Projection is a local, Jacobian-based operation. It converges quickly for the small
-/// violations produced by stepping along a path, but it is not a global IK solver and will fail to
-/// recover a configuration that is far outside the constraints.
 class ConstraintProjector {
 public:
   /// @brief Constructor.
