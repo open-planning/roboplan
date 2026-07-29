@@ -158,6 +158,8 @@ void initRrt(nanobind::module_& m) {
       m, "RRT", "Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>(), "scene"_a,
            "options"_a)
+      .def("setOptions", &RRT::setOptions, "Sets or updates the options for the RRT planner.",
+           "options"_a)
       .def("plan", unwrap_expected(&RRT::plan),
            "Plan a path from start to goal, optionally subject to constraints that every "
            "configuration on the path must satisfy.",

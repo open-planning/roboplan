@@ -40,29 +40,6 @@ ZONE_MAX = np.array([0.75, 0.45, 0.70])
 SUPPORTED_MODELS = ("ur5", "franka", "kinova")
 
 
-def make_scene(model_data, package_paths):
-    """Builds the planning scene and the redundant Pinocchio models used for visualization."""
-    urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
-    srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
-    scene = Scene(
-        "constrained_rrt_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
-        package_paths=package_paths,
-        yaml_config_path=model_data.yaml_config_path,
-    )
-
-    # Create a redundant Pinocchio model just for visualization with mimic joints.
-    model = pin.buildModelFromXML(urdf_xml, mimic=True)
-    collision_model = pin.buildGeomFromUrdfString(
-        model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
-    )
-    visual_model = pin.buildGeomFromUrdfString(
-        model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
-    )
-    return scene, model, collision_model, visual_model
-
-
 def build_obstacles(model_data, inset):
     """Builds the obstacle set: the model's ground plane, and a pillar in the safe zone."""
     ground_plane = next(o for o in model_data.obstacles if o.name == "ground_plane")
@@ -141,8 +118,10 @@ def measure_path(scene, path, nominal_z, group_name, ee_name, samples=8):
     """Densely resamples a joint path and measures the gripper along it.
 
     Sampling more finely than the resolution the planner checked at is what actually tests its
-    claim, and picks up the small bulges between check points. Returns a dict of arrays: path
-    progress from 0 to 1, the gripper's tilt from vertical in degrees, and its position.
+    claim, and picks up the small bulges between check points.
+
+    Returns a dict of arrays:
+    path progress from 0 to 1, the gripper's tilt from vertical in degrees, and its position.
     """
     dense = []
     for idx in range(len(path.positions) - 1):
@@ -168,7 +147,7 @@ def measure_path(scene, path, nominal_z, group_name, ee_name, samples=8):
     }
 
 
-def report(label, metrics, tilt_limit, position_slack):
+def print_metrics(label, metrics, tilt_limit, position_slack):
     """Prints how far a path strays from the constraint.
 
     Both limits include the constraint's tolerance, which is precisely how far outside its bounds a
@@ -182,13 +161,50 @@ def report(label, metrics, tilt_limit, position_slack):
     )
 
 
+def plot_metrics(metrics, baseline_metrics, tilt_limit):
+    """Plots gripper tilt and height against path progress, with the limits drawn in."""
+    plt.clf()
+    fig = plt.gcf()
+    fig.set_size_inches(9, 7)
+    axes = fig.subplots(2, 1, sharex=True)
+
+    series = [("constrained", metrics, "tab:green")]
+    if baseline_metrics is not None:
+        series.append(("unconstrained", baseline_metrics, "tab:red"))
+    for label, m, color in series:
+        axes[0].plot(m["progress"], m["tilt"], color=color, label=label)
+        axes[1].plot(m["progress"], m["positions"][:, 2], color=color, label=label)
+
+    axes[0].axhline(
+        tilt_limit,
+        color="k",
+        linestyle="--",
+        linewidth=1,
+        label=f"tilt limit ({tilt_limit:.2f} deg)",
+    )
+    axes[0].set_ylabel("gripper tilt from vertical [deg]")
+    axes[0].set_title("Gripper stays upright and inside the safe zone")
+
+    axes[1].axhline(
+        ZONE_MIN[2], color="k", linestyle="--", linewidth=1, label="safe zone z"
+    )
+    axes[1].axhline(ZONE_MAX[2], color="k", linestyle="--", linewidth=1)
+    axes[1].set_ylabel("end effector height [m]")
+    axes[1].set_xlabel("path progress")
+
+    for ax in axes:
+        ax.legend(loc="upper right", fontsize="small")
+        ax.grid(alpha=0.3)
+    return fig
+
+
 def main(
     model: str = "ur5",
     max_tilt_degrees: float = 5.0,
     path_step_size: float = 0.1,
     max_connection_distance: float = 0.5,
     max_nodes: int = 40000,
-    max_planning_time: float = 2.0,
+    max_planning_time: float = 1.0,
     collision_check_step_size: float = 0.05,
     rrt_star: bool = True,
     rewire_distance: float = 1.0,
@@ -199,11 +215,10 @@ def main(
     """
     Plans RRT paths that keep the gripper upright and inside a safe zone.
 
-    Each press of "Plan path" draws a random goal inside a box-shaped safe zone and plans to it
-    without ever tipping the gripper over or leaving the box, then plans the same problem
-    unconstrained to show what the constraint buys. Both requirements are one `PoseConstraint`:
-    bounds on the end effector's position, plus bounds on its roll and pitch relative to a
-    straight-down nominal orientation. Yaw is left free.
+    Each plan draws a random goal inside a box-shaped safe zone and plans to it without ever tipping
+    the gripper over or leaving the box, then plans the same problem unconstrained to show what the
+    constraint buys. Both requirements are one `PoseConstraint`: bounds on the end effector's position,
+    plus bounds on roll and pitch relative to a straight-down nominal orientation. Yaw is left free.
 
     Note that bounding roll and pitch to +/- theta admits a total tilt of up to acos(cos^2(theta)),
     because the two rotations compose, so the default 5 degree box allows the gripper to lean at
@@ -231,14 +246,31 @@ def main(
         print(f"Invalid model requested: {model}. Supported: {SUPPORTED_MODELS}")
         sys.exit(1)
 
+    urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
+    srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
+    package_paths = [get_package_share_dir()]
+    scene = Scene(
+        "constrained_rrt_scene",
+        urdf=urdf_xml,
+        srdf=srdf_xml,
+        package_paths=package_paths,
+        yaml_config_path=model_data.yaml_config_path,
+    )
+
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
+    pin_model = pin.buildModelFromXML(urdf_xml, mimic=True)
+    collision_model = pin.buildGeomFromUrdfString(
+        pin_model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
+    )
+    visual_model = pin.buildGeomFromUrdfString(
+        pin_model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
+    )
+
     group_name = model_data.default_joint_group
     ee_name = model_data.ee_names[0]
     zone_size = ZONE_MAX - ZONE_MIN
     inset = 0.12 * zone_size
 
-    scene, pin_model, collision_model, visual_model = make_scene(
-        model_data, [get_package_share_dir()]
-    )
     scene.setRngSeed(rng_seed)
     rng = np.random.default_rng(rng_seed)
     q_indices = scene.getJointGroupInfo(group_name).q_indices
@@ -293,8 +325,8 @@ def main(
         upper_bounds=np.concatenate([region_max, [tilt_bound, tilt_bound, np.pi]]),
         tform=region_tform,
     )
-    projection = ConstraintProjectorOptions(path_step_size=path_step_size)
-    projector = ConstraintProjector(scene, group_name, [constraint], projection)
+    projection_opts = ConstraintProjectorOptions(path_step_size=path_step_size)
+    projector = ConstraintProjector(scene, group_name, [constraint], projection_opts)
 
     # The limits reported per path add the constraint's tolerance to the bound itself.
     slack = constraint.orientation_tolerance
@@ -311,18 +343,10 @@ def main(
         f"  tolerances        : {position_slack * 1000.0:.2f} mm, {np.degrees(slack):.3f} deg"
     )
 
-    # Two IK solvers, differing only in whether they may restart from a random configuration.
     # Reaching the first upright pose from the home configuration usually needs a few restarts.
-    # Goals must not restart: a restart lands in whatever branch of the constrained space it finds,
-    # and two branches are often not connected. Seeding each goal from the start and refusing
-    # restarts means a failure is "resample a different goal", not "plan forever".
     ik = SimpleIk(
-        scene, SimpleIkOptions(group_name=group_name, max_restarts=20, max_time=0.5)
+        scene, SimpleIkOptions(group_name=group_name, max_restarts=10, max_time=0.5)
     )
-    goal_ik = SimpleIk(
-        scene, SimpleIkOptions(group_name=group_name, max_restarts=0, max_time=0.1)
-    )
-
     # Anchor the start in a corner of the zone, so the pillar sits between it and many of the goals.
     q_start = solve_upright_ik(
         ik,
@@ -352,7 +376,7 @@ def main(
         rrt_star=rrt_star,
         rewire_distance=rewire_distance,
         fast_return=False,
-        constraint_projection=projection,
+        constraint_projection=projection_opts,
     )
     rrt = RRT(scene, options)
     rrt.setRngSeed(rng_seed)
@@ -383,7 +407,7 @@ def main(
         animate_button.disabled = True
         try:
             q_goal = sample_goal(
-                rng, goal_ik, projector, scene, model_data, upright, q_start, inset
+                rng, ik, projector, scene, model_data, upright, q_start, inset
             )
             if q_goal is None:
                 print(
@@ -408,7 +432,7 @@ def main(
             elapsed = time.time() - t_start
             print(f"  Found {len(path.positions)} waypoints in {elapsed:.3f} s")
             metrics = measure_path(scene, path, nominal_z, group_name, ee_name)
-            report("constrained", metrics, tilt_limit, position_slack)
+            print_metrics("constrained", metrics, tilt_limit, position_slack)
 
             # Plan the same problem again with no constraints, for comparison.
             print("Planning without constraints...")
@@ -421,7 +445,9 @@ def main(
                 baseline_metrics = measure_path(
                     scene, baseline, nominal_z, group_name, ee_name
                 )
-                report("unconstrained", baseline_metrics, tilt_limit, position_slack)
+                print_metrics(
+                    "unconstrained", baseline_metrics, tilt_limit, position_slack
+                )
                 addPositionPolyline(
                     viz,
                     "/constrained_rrt/unconstrained_path",
@@ -453,48 +479,12 @@ def main(
         animate_button.disabled = True
         animate = True
 
-    def plot_metrics(metrics, baseline_metrics):
-        """Plots gripper tilt and height against path progress, with the limits drawn in."""
-        plt.clf()
-        fig = plt.gcf()
-        fig.set_size_inches(9, 7)
-        axes = fig.subplots(2, 1, sharex=True)
-
-        series = [("constrained", metrics, "tab:green")]
-        if baseline_metrics is not None:
-            series.append(("unconstrained", baseline_metrics, "tab:red"))
-        for label, m, color in series:
-            axes[0].plot(m["progress"], m["tilt"], color=color, label=label)
-            axes[1].plot(m["progress"], m["positions"][:, 2], color=color, label=label)
-
-        axes[0].axhline(
-            tilt_limit,
-            color="k",
-            linestyle="--",
-            linewidth=1,
-            label=f"tilt limit ({tilt_limit:.2f} deg)",
-        )
-        axes[0].set_ylabel("gripper tilt from vertical [deg]")
-        axes[0].set_title("Gripper stays upright and inside the safe zone")
-
-        axes[1].axhline(
-            ZONE_MIN[2], color="k", linestyle="--", linewidth=1, label="safe zone z"
-        )
-        axes[1].axhline(ZONE_MAX[2], color="k", linestyle="--", linewidth=1)
-        axes[1].set_ylabel("end effector height [m]")
-        axes[1].set_xlabel("path progress")
-
-        for ax in axes:
-            ax.legend(loc="upper right", fontsize="small")
-            ax.grid(alpha=0.3)
-        return fig
-
     # Main display and animation loop.
     plt.figure()
     plt.ion()
     while True:
         if not metrics_queue.empty():
-            fig = plot_metrics(*metrics_queue.get())
+            fig = plot_metrics(*metrics_queue.get(), tilt_limit)
             cur_traj = traj_queue.get()
             plt.draw()
             fig.canvas.draw()

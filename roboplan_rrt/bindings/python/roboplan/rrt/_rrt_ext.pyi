@@ -259,6 +259,9 @@ class RRT:
 
     def __init__(self, scene: roboplan.core._core_ext.Scene, options: RRTOptions) -> None: ...
 
+    def setOptions(self, options: RRTOptions) -> None:
+        """Sets or updates the options for the RRT planner."""
+
     def plan(self, start: roboplan.core._core_ext.JointConfiguration, goal: roboplan.core._core_ext.JointConfiguration, constraints: Sequence[Constraint] = []) -> roboplan.core._core_ext.JointPath:
         """
         Plan a path from start to goal, optionally subject to constraints that every configuration on the path must satisfy.

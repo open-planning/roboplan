@@ -10,8 +10,16 @@
 
 namespace roboplan {
 
-RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
-    : scene_{scene}, options_{options} {
+RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options) : scene_{scene} {
+  setOptions(options);
+};
+
+void RRT::setOptions(const RRTOptions& options) {
+  const bool group_unchanged = (options.group_name == options_.group_name);
+  options_ = options;  // Always update the options
+  if (group_unchanged) {
+    return;  // If the group was unchanged, no need to reinitialize.
+  }
 
   // Validate the joint group.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(options.group_name);
@@ -73,7 +81,7 @@ RRT::RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options)
                              std::to_string(maybe_collapsed_pos->size()) + ") for group '" +
                              options_.group_name + "'.");
   }
-};
+}
 
 tl::expected<JointPath, std::string>
 RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,

@@ -87,18 +87,13 @@ public:
   /// @param options A struct containing RRT options.
   RRT(const std::shared_ptr<Scene> scene, const RRTOptions& options);
 
+  /// @brief Sets or updates the options for the RRT planner.
+  /// @details If the group name is different between the previous and incoming sets of
+  /// options, a new dynotree state space will be generated.
+  /// @param options The new options for the planner.
+  void setOptions(const RRTOptions& options);
+
   /// @brief Plan a path from start to goal.
-  /// @details Passing constraints switches the planner to the constrained extension of CBiRRT2
-  /// ("Manipulation Planning on Constraint Manifolds", Berenson et al., 2009). Samples are still
-  /// drawn from the whole configuration space, but a tree grows toward one in short
-  /// `path_step_size` hops, projecting back onto the constraints after each hop and stopping
-  /// as soon as a projection fails, stalls, or wanders. Every configuration on the returned path
-  /// therefore satisfies the constraints, checked at the same resolution as collision checking.
-  ///
-  /// The start and goal must already satisfy the constraints; project them first (see
-  /// ConstraintProjector) rather than expecting the planner to. Note also that shortcutting a
-  /// constrained path with PathShortcutter will pull it back off the constraints, since the
-  /// shortcuts it splices in are straight configuration-space segments.
   /// @param start The starting joint configuration.
   /// @param goal The goal joint configuration.
   /// @param constraints Constraints that every configuration on the path must satisfy via
