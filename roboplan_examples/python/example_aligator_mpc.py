@@ -62,6 +62,18 @@ def _tip_position(reduced: pin.Model, data, tip_id: int, q: np.ndarray) -> np.nd
     return data.oMf[tip_id].translation.copy()
 
 
+def _tip_pose(reduced: pin.Model, data, tip_id: int, q: np.ndarray) -> np.ndarray:
+    """World pose (4x4) of the tip frame at reduced configuration q."""
+    pin.forwardKinematics(reduced, data, q)
+    pin.updateFramePlacement(reduced, data, tip_id)
+    return data.oMf[tip_id].homogeneous.copy()
+
+
+def _rotation_error_deg(r_reached: np.ndarray, r_target: np.ndarray) -> float:
+    """Geodesic angle between two rotation matrices, in degrees."""
+    return float(np.degrees(np.linalg.norm(pin.log3(r_reached.T @ r_target))))
+
+
 def _plant_step(
     reduced: pin.Model, data, q: np.ndarray, v: np.ndarray, u: np.ndarray, dt: float
 ):
@@ -84,8 +96,15 @@ def _make_optimizer(
     pose = al.FramePoseCost()
     pose.frame = tip_frame
     pose.target = np.eye(4)
-    pose.position_cost = np.full(3, 300.0)
-    pose.orientation_cost = np.zeros(3)  # track position only ("chasing the carrot")
+    # position_cost was 300 with orientation tracking disabled (orientation_cost=0, "chasing the
+    # carrot", position only). Now that the carrot also has an orientation, position_cost is raised
+    # to 900 alongside a nonzero orientation_cost=50: the two costs compete for the same limited
+    # control authority each tick (max_iters=15, 1s horizon), and at 300/50 position tracking
+    # regressed (never settled below its own initial gap); re-tuned empirically on the headless
+    # circle+wobble goal to a combination where both position and orientation visibly converge
+    # toward a bounded tracking lag instead of drifting away.
+    pose.position_cost = np.full(3, 900.0)
+    pose.orientation_cost = np.full(3, 50.0)
     handle = opt.addCost(pose, timesteps=opt.horizon())  # int -> terminal
     settle = al.VelocityCost()
     settle.weights = np.full(nv, 5.0)
@@ -145,17 +164,23 @@ def main(
 
     opt, handle = _make_optimizer(scene, group_name, tip_frame, horizon, dt, reduced.nv)
 
-    # Plant state (reduced) and the tip's home position (the goal orbits this).
+    # Plant state (reduced) and the tip's home pose (the goal orbits/wobbles around this).
     q = pin.neutral(reduced)
     v = np.zeros(reduced.nv)
-    home = _tip_position(reduced, data, tip_id, q)
+    home_pose = _tip_pose(reduced, data, tip_id, q)
+    home = home_pose[:3, 3]
+    home_rot = home_pose[:3, :3]
 
     def goal_pose(t: float) -> np.ndarray:
-        """A goal that orbits the tip's home position in a small circle."""
+        """A goal that orbits the tip's home position in a small circle and wobbles its orientation
+        (+/- ~17 deg about a fixed local axis) so the example exercises orientation tracking too, not
+        just position (Issue 3)."""
         pose = np.eye(4)
         pose[:3, 3] = home + np.array(
             [0.06 * np.cos(t), 0.06 * np.sin(t), 0.04 * np.sin(0.5 * t)]
         )
+        angle = 0.3 * np.sin(0.3 * t)
+        pose[:3, :3] = home_rot @ pin.exp3(angle * np.array([0.0, 1.0, 0.0]))
         return pose
 
     # First solve to prime the warm start.
@@ -180,7 +205,7 @@ def main(
         q,
         v,
         dt,
-        home,
+        home_pose,
         urdf_xml,
         package_paths,
         host,
@@ -194,7 +219,7 @@ def _run_headless(
     print(
         f"\n=== Receding-horizon MPC: {ticks} ticks, dt={dt}s, horizon={opt.horizon()} ==="
     )
-    print("  tick   solve[ms]   tracking[mm]")
+    print("  tick   solve[ms]   pos err[mm]   rot err[deg]")
     solve_times = []
     for tick in range(ticks):
         target = goal_pose(tick * dt)
@@ -206,21 +231,26 @@ def _run_headless(
         solve_times.append(solve_ms)
         # Apply controls[0]: step the plant one dt.
         q, v = _plant_step(reduced, data, q, v, np.asarray(solved.controls[0]), dt)
-        err_mm = (
-            np.linalg.norm(_tip_position(reduced, data, tip_id, q) - target[:3, 3])
-            * 1e3
-        )
+        reached = _tip_pose(reduced, data, tip_id, q)
+        err_mm = np.linalg.norm(reached[:3, 3] - target[:3, 3]) * 1e3
+        rot_err_deg = _rotation_error_deg(reached[:3, :3], target[:3, :3])
         if tick % 5 == 0 or tick == ticks - 1:
-            print(f"  {tick:4d}   {solve_ms:8.1f}   {err_mm:10.1f}")
+            print(
+                f"  {tick:4d}   {solve_ms:8.1f}   {err_mm:10.1f}   {rot_err_deg:11.1f}"
+            )
         prev = solved
     print(
         f"\n  mean solve time: {np.mean(solve_times):.1f} ms  (max {np.max(solve_times):.1f} ms)"
     )
-    # The tracker keeps up: the final tracking error is a small fraction of the orbit radius (60 mm).
-    final_err = np.linalg.norm(
-        _tip_position(reduced, data, tip_id, q) - goal_pose(ticks * dt)[:3, 3]
+    # The tracker keeps up: the final tracking error is a small fraction of the orbit radius (60 mm)
+    # and the wobble amplitude (~17 deg).
+    final_target = goal_pose(ticks * dt)
+    final_reached = _tip_pose(reduced, data, tip_id, q)
+    final_err = np.linalg.norm(final_reached[:3, 3] - final_target[:3, 3])
+    final_rot_err_deg = _rotation_error_deg(final_reached[:3, :3], final_target[:3, :3])
+    print(
+        f"  final tracking error: {final_err * 1e3:.1f} mm, {final_rot_err_deg:.1f} deg"
     )
-    print(f"  final tracking error: {final_err * 1e3:.1f} mm")
 
 
 def _run_interactive(
@@ -234,7 +264,7 @@ def _run_interactive(
     q,
     v,
     dt,
-    home,
+    home_pose,
     urdf_xml,
     package_paths,
     host,
@@ -252,17 +282,22 @@ def _run_interactive(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
     viz.display(_expand_reduced_to_full(full, reduced, q_ref_full, q))
 
-    # A draggable marker the optimizer chases (initialized at the tip's home).
-    marker_pose = np.eye(4)
-    marker_pose[:3, 3] = home
+    # A draggable marker the optimizer chases (initialized at the tip's home pose, incl. orientation).
+    home = home_pose[:3, 3]
     controls = viz.viewer.scene.add_transform_controls("/mpc_goal", scale=0.15)
     controls.position = tuple(home)
-    latest = {"pose": marker_pose.copy()}
+    # wxyz is viser's [w, x, y, z] quaternion; pin.Quaternion(matrix).coeffs() returns [x, y, z, w]
+    # (verified pattern: example_oink.py:345, example_ik.py:138).
+    controls.wxyz = pin.Quaternion(home_pose[:3, :3]).coeffs()[[3, 0, 1, 2]]
+    latest = {"pose": home_pose.copy()}
 
     @controls.on_update
     def _on_update(_) -> None:
-        pose = np.eye(4)
-        pose[:3, 3] = np.array(controls.position)
+        # controls.wxyz is viser's [w, x, y, z] quaternion; pin.Quaternion takes [x, y, z, w]
+        # (verified pattern: example_oink.py:241-243, example_ik.py:104).
+        pose = pin.SE3(
+            pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), np.array(controls.position)
+        ).homogeneous
         latest["pose"] = pose
 
     print(

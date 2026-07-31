@@ -52,8 +52,10 @@ def _sample_arm_config(scene: Scene, q_indices: np.ndarray) -> np.ndarray:
     """
     q_full = scene.randomCollisionFreePositions()
     if q_full is None:
-        raise RuntimeError("randomCollisionFreePositions() found no collision-free configuration; "
-                           "try a different --seed")
+        raise RuntimeError(
+            "randomCollisionFreePositions() found no collision-free configuration; "
+            "try a different --seed"
+        )
     return np.asarray(q_full)[q_indices]
 
 
@@ -86,8 +88,13 @@ def main(
     package_paths = [get_package_share_dir()]
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
-    scene = Scene("aligator_pick_scene", urdf=urdf_xml, srdf=srdf_xml, package_paths=package_paths,
-                  yaml_config_path=model_data.yaml_config_path)
+    scene = Scene(
+        "aligator_pick_scene",
+        urdf=urdf_xml,
+        srdf=srdf_xml,
+        package_paths=package_paths,
+        yaml_config_path=model_data.yaml_config_path,
+    )
     for obstacle in model_data.obstacles:
         obstacle.addToScene(scene)
 
@@ -107,7 +114,9 @@ def main(
     # already visits the grasp config and the hard grasp via-point starts near-feasible. A seed that
     # skips the grasp forces the solver to bend the whole trajectory onto an unrelated mid-horizon
     # pose, which does not converge under the torque/velocity limits. ---
-    rrt = RRT(scene, RRTOptions(group_name=GROUP, rrt_connect=True, max_planning_time=5.0))
+    rrt = RRT(
+        scene, RRTOptions(group_name=GROUP, rrt_connect=True, max_planning_time=5.0)
+    )
     rrt.setRngSeed(seed)
 
     def _jc(q: np.ndarray) -> JointConfiguration:
@@ -121,9 +130,11 @@ def main(
     plan_ms = (time.perf_counter() - t0) * 1e3
     # Join the two legs, dropping the duplicated grasp waypoint at the seam.
     waypoints = list(path_to_grasp.positions) + list(path_to_place.positions)[1:]
-    print(f"\nRRT-Connect routed start->grasp->place: {len(path_to_grasp.positions)} + "
-          f"{len(path_to_place.positions)} waypoints ({len(waypoints)} after joining) in "
-          f"{plan_ms:.0f} ms")
+    print(
+        f"\nRRT-Connect routed start->grasp->place: {len(path_to_grasp.positions)} + "
+        f"{len(path_to_place.positions)} waypoints ({len(waypoints)} after joining) in "
+        f"{plan_ms:.0f} ms"
+    )
 
     # interpolatePath spreads the horizon uniformly across waypoint segments (verified:
     # roboplan_aligator/src/trajectory_optimizer.cpp:455-457), so the grasp waypoint at joined index
@@ -134,7 +145,9 @@ def main(
     approach_start = max(0, grasp_stage - 10)
 
     # --- Optimizer: windowed pick-and-place over the RRT seed ---
-    opt = al.TrajectoryOptimizer(scene, GROUP, horizon, dt, al.TrajOptOptions(max_iters=max_iters))
+    opt = al.TrajectoryOptimizer(
+        scene, GROUP, horizon, dt, al.TrajOptOptions(max_iters=max_iters)
+    )
     nv = opt.nv()
     opt.setInitialState(q_start)
 
@@ -144,7 +157,9 @@ def main(
     grasp.target = grasp_pose
     grasp.tol_pos = 0.02
     grasp.tol_rot = 0.30
-    opt.addConstraint(grasp, timesteps=(grasp_stage, grasp_stage + 1))  # a single-stage window
+    opt.addConstraint(
+        grasp, timesteps=(grasp_stage, grasp_stage + 1)
+    )  # a single-stage window
 
     # Approach alignment: over the window before the grasp, point the tool's local z-axis down.
     approach = al.FrameAxisCost()
@@ -158,7 +173,7 @@ def main(
     place = al.FramePoseCost()
     place.frame = TIP
     place.target = place_pose
-    place.position_cost = np.full(3, 500.0)
+    place.position_cost = np.full(3, 20000.0)
     place.orientation_cost = np.full(3, 100.0)
     opt.addCost(place, timesteps=opt.horizon())
     settle = al.VelocityCost()
@@ -175,10 +190,14 @@ def main(
         sc = al.SelfCollisionConstraint()
         sc.n_pairs = 4
         opt.addConstraint(sc)
-        print("  (self-collision constraint enabled — the solve will take noticeably longer)")
+        print(
+            "  (self-collision constraint enabled — the solve will take noticeably longer)"
+        )
 
     opt.build()
-    seed_traj = opt.interpolatePath(waypoints)  # joined RRT group waypoints -> N-grid seed
+    seed_traj = opt.interpolatePath(
+        waypoints
+    )  # joined RRT group waypoints -> N-grid seed
     t0 = time.perf_counter()
     result = opt.solve(seed_traj)
     solve_ms = (time.perf_counter() - t0) * 1e3
@@ -197,34 +216,81 @@ def main(
     print(f"  solve time               : {solve_ms:.1f} ms")
     # grasp_err is the 3-axis Euclidean norm; the hard FramePoseConstraint is a per-axis box, so a
     # satisfied constraint permits up to sqrt(3) * tol_pos here (~35 mm at tol_pos = 20 mm/axis).
-    print(f"  grasp via-point error    : {grasp_err * 1e3:.1f} mm "
-          f"(||pos||; hard box is {grasp.tol_pos * 1e3:.0f} mm/axis)")
+    print(
+        f"  grasp via-point error    : {grasp_err * 1e3:.1f} mm "
+        f"(||pos||; hard box is {grasp.tol_pos * 1e3:.0f} mm/axis)"
+    )
     print(f"  terminal place error     : {place_err * 1e3:.1f} mm (soft terminal cost)")
     print(f"  peak |torque|            : {np.max(np.abs(np.array(result.us))):.3f} Nm")
 
     joint_traj = result.toRoboplan(scene, GROUP)
-    print(f"  toRoboplan -> JointTrajectory with {len(joint_traj.positions)} full-model waypoints")
+    print(
+        f"  toRoboplan -> JointTrajectory with {len(joint_traj.positions)} full-model waypoints"
+    )
 
     if headless:
         # Light sanity checks so a headless run is a real integration check (design §7).
         assert np.isfinite(result.cost), "solve returned a non-finite cost"
-        assert result.max_constraint_violation < 1e-2, "constraints not satisfied within tolerance"
+        assert (
+            result.max_constraint_violation < 1e-2
+        ), "constraints not satisfied within tolerance"
         assert grasp_err < 0.05, f"grasp via-point not met: {grasp_err * 1e3:.1f} mm"
-        _plot(result, scene, q_indices, dt, grasp_stage, grasp_pose, place_pose, headless=True)
+        # New invariant: place.position_cost was raised from 500 -> 20000 (Issue 2b) specifically to
+        # tighten the terminal place error, which regularly measured ~8.4 mm at this weight (down from
+        # ~126.4 mm at 500); 0.03 (30 mm) gives comfortable margin above run-to-run solver noise while
+        # still catching a regression back toward the old under-tuned weight.
+        assert (
+            place_err < 0.03
+        ), f"terminal place error too large: {place_err * 1e3:.1f} mm"
+        _plot(
+            result,
+            scene,
+            q_indices,
+            dt,
+            grasp_stage,
+            grasp_pose,
+            place_pose,
+            headless=True,
+        )
         print("\n  Sanity checks passed.")
         return
 
-    _plot(result, scene, q_indices, dt, grasp_stage, grasp_pose, place_pose, headless=False)
-    _animate(scene, model_data, urdf_xml, package_paths, result, nv, grasp_pose, place_pose,
-             dt, host, port)
+    _plot(
+        result,
+        scene,
+        q_indices,
+        dt,
+        grasp_stage,
+        grasp_pose,
+        place_pose,
+        headless=False,
+    )
+    _animate(
+        scene,
+        model_data,
+        urdf_xml,
+        package_paths,
+        result,
+        nv,
+        grasp_pose,
+        place_pose,
+        dt,
+        host,
+        port,
+        grasp.tol_pos,
+    )
 
 
-def _plot(result, scene, q_indices, dt, grasp_stage, grasp_pose, place_pose, headless) -> None:
+def _plot(
+    result, scene, q_indices, dt, grasp_stage, grasp_pose, place_pose, headless
+) -> None:
     """Torque profile + tip distance to the grasp via-point and the place target over time."""
     times_u = np.arange(len(result.us)) * dt
     controls = np.array(result.us)
     times_x = np.array(result.trajectory.times)
-    tips = np.array([_tip_pose(scene, np.asarray(x)[: len(q_indices)])[:3, 3] for x in result.xs])
+    tips = np.array(
+        [_tip_pose(scene, np.asarray(x)[: len(q_indices)])[:3, 3] for x in result.xs]
+    )
     d_grasp = np.linalg.norm(tips - grasp_pose[:3, 3], axis=1)
     d_place = np.linalg.norm(tips - place_pose[:3, 3], axis=1)
 
@@ -239,7 +305,9 @@ def _plot(result, scene, q_indices, dt, grasp_stage, grasp_pose, place_pose, hea
     axes[1].plot(times_x, d_grasp, label="tip -> grasp via-point")
     axes[1].plot(times_x, d_place, label="tip -> place target")
     axes[1].axvline(grasp_stage * dt, color="k", ls="--", lw=0.8, label="grasp stage")
-    axes[1].set_title("Tip distance to the windowed grasp via-point and the terminal place target")
+    axes[1].set_title(
+        "Tip distance to the windowed grasp via-point and the terminal place target"
+    )
     axes[1].set_xlabel("time [s]")
     axes[1].set_ylabel("distance [m]")
     axes[1].legend(loc="best", fontsize="x-small")
@@ -256,21 +324,44 @@ def _plot(result, scene, q_indices, dt, grasp_stage, grasp_pose, place_pose, hea
         plt.show()
 
 
-def _animate(scene, model_data, urdf_xml, package_paths, result, nv, grasp_pose, place_pose, dt,
-             host, port) -> None:
+def _animate(
+    scene,
+    model_data,
+    urdf_xml,
+    package_paths,
+    result,
+    nv,
+    grasp_pose,
+    place_pose,
+    dt,
+    host,
+    port,
+    grasp_tol_pos,
+) -> None:
     from pinocchio.visualize import ViserVisualizer
 
     full = pin.buildModelFromXML(urdf_xml)
     collision_model = pin.buildGeomFromUrdfString(
-        full, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths)
+        full, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
+    )
     visual_model = pin.buildGeomFromUrdfString(
-        full, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths)
+        full, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
+    )
     viz = ViserVisualizer(full, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
-    viz.viewer.scene.add_icosphere("/pick/grasp", radius=0.03, color=(0, 200, 0),
-                                   position=tuple(grasp_pose[:3, 3]))
-    viz.viewer.scene.add_icosphere("/pick/place", radius=0.03, color=(200, 0, 0),
-                                   position=tuple(place_pose[:3, 3]))
+    # The hard grasp constraint is a per-axis box of half-width tol_pos, so a satisfying solve can
+    # miss the grasp point by up to its circumscribing sphere radius sqrt(3) * tol_pos (~35 mm at
+    # tol_pos = 20 mm/axis) — size the marker to that so a satisfying solve always visibly touches it.
+    grasp_marker_radius = np.sqrt(3.0) * grasp_tol_pos
+    viz.viewer.scene.add_icosphere(
+        "/pick/grasp",
+        radius=grasp_marker_radius,
+        color=(0, 200, 0),
+        position=tuple(grasp_pose[:3, 3]),
+    )
+    viz.viewer.scene.add_icosphere(
+        "/pick/place", radius=0.03, color=(200, 0, 0), position=tuple(place_pose[:3, 3])
+    )
 
     print("  Animating the optimized pick-and-place in viser (Ctrl+C to stop)...")
     try:

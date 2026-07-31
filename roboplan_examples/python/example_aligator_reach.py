@@ -92,6 +92,21 @@ def _expand_reduced_to_full(
     return q_full
 
 
+def _tip_pose(
+    reduced: pin.Model, data: pin.Data, tip_id: int, q: np.ndarray
+) -> np.ndarray:
+    """World pose (4x4) of the tip frame at a reduced-model configuration q.
+
+    Computed locally against the raw ``reduced`` model rather than ``scene.forwardKinematics`` because
+    ``Scene``'s full model prunes mimic joints (e.g. Franka's ``fr3_finger_joint2``), so its expected
+    configuration size can differ from this script's own raw-model reduction (mirrors
+    ``example_aligator_mpc.py``'s ``_tip_position``).
+    """
+    pin.forwardKinematics(reduced, data, q)
+    pin.updateFramePlacement(reduced, data, tip_id)
+    return data.oMf[tip_id].homogeneous.copy()
+
+
 def _min_self_distance(
     reduced: pin.Model, reduced_geom: pin.GeometryModel, q: np.ndarray
 ) -> float:
@@ -253,6 +268,8 @@ def main(
     full, reduced, reduced_geom, q_ref_full, _ = _build_reduced_model(
         urdf_xml, group_joints, package_paths, srdf_xml
     )
+    reduced_data = reduced.createData()
+    tip_id = reduced.getFrameId(tip_frame)
 
     print(f"\n=== Reduced model for group '{group_name}' (model: {model}) ===")
     print(f"  reduced nq={reduced.nq}, nv={reduced.nv}; tip frame '{tip_frame}'")
@@ -286,9 +303,7 @@ def main(
     q_goal = np.clip(
         np.full(reduced.nq, 0.4), reduced.lowerPositionLimit, reduced.upperPositionLimit
     )
-    target_pose = scene.forwardKinematics(
-        _expand_reduced_to_full(full, reduced, q_ref_full, q_goal), tip_frame, ""
-    )
+    target_pose = _tip_pose(reduced, reduced_data, tip_id, q_goal)
 
     opt.setInitialState(q_start)
     pose = al.FramePoseCost()
@@ -332,10 +347,8 @@ def main(
     result = opt.solve(seed)
     solve_time = time.perf_counter() - t0
 
-    reached = scene.forwardKinematics(
-        _expand_reduced_to_full(full, reduced, q_ref_full, result.xs[-1][: reduced.nq]),
-        tip_frame,
-        "",
+    reached = _tip_pose(
+        reduced, reduced_data, tip_id, np.asarray(result.xs[-1])[: reduced.nq]
     )
     pos_err = float(np.linalg.norm(reached[:3, 3] - target_pose[:3, 3]))
 
