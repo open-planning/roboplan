@@ -2,8 +2,8 @@
 Changelog for package roboplan_cartesian_planning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.0 (2026-07-31)
+------------------
 * Improve Cartesian path planner (`#277 <https://github.com/open-planning/roboplan/issues/277>`_)
 * Fix MacOS rpath issues (`#275 <https://github.com/open-planning/roboplan/issues/275>`_)
 * Fix Python bindings installs for ROS + Windows (`#272 <https://github.com/open-planning/roboplan/issues/272>`_)

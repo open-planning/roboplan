@@ -2,8 +2,8 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.0 (2026-07-31)
+------------------
 * Pose constraints in RRT (`#278 <https://github.com/open-planning/roboplan/issues/278>`_)
 * Improve joint limit saturation in SimpleIk (`#276 <https://github.com/open-planning/roboplan/issues/276>`_)
 * Fix MacOS rpath issues (`#275 <https://github.com/open-planning/roboplan/issues/275>`_)

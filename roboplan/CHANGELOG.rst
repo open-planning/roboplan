@@ -2,8 +2,8 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.0 (2026-07-31)
+------------------
 * Pose constraints in RRT (`#278 <https://github.com/open-planning/roboplan/issues/278>`_)
 * Improve Cartesian path planner (`#277 <https://github.com/open-planning/roboplan/issues/277>`_)
 * Fix MacOS rpath issues (`#275 <https://github.com/open-planning/roboplan/issues/275>`_)

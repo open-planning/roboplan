@@ -2,8 +2,8 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.0 (2026-07-31)
+------------------
 * Fix MacOS rpath issues (`#275 <https://github.com/open-planning/roboplan/issues/275>`_)
 * Fix Python bindings installs for ROS + Windows (`#272 <https://github.com/open-planning/roboplan/issues/272>`_)
 * Windows support through Pixi (`#271 <https://github.com/open-planning/roboplan/issues/271>`_)
