@@ -27,7 +27,7 @@ COPY . src/roboplan
 
 # Install dependencies and build RoboPlan.
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
+    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y --skip-keys proxsuite \
     && colcon build --cmake-args -DBUILD_TESTING=ON -DGENERATE_PYTHON_STUBS=${GENERATE_PYTHON_STUBS}
 
 # Set up entrypoint and working folder.
