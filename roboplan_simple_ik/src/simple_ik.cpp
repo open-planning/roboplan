@@ -3,6 +3,7 @@
 #include <limits>
 
 #include <roboplan/core/collision_context.hpp>
+#include <roboplan/core/math_utils.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
@@ -187,11 +188,10 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
         }
       }
 
-      jjt_.noalias() = jacobian_ * jacobian_.transpose();
-      jjt_.diagonal().array() += options_.damping;
-      vel_(v_indices) = -jacobian_.transpose() * jjt_.ldlt().solve(error_);
-      saturateStep(q);
-      if (vel_.hasNaN()) {
+      if (!dampedLeastSquaresStep(jacobian_, error_, options_.damping, jjt_, group_vel_)) {
+        break;
+      }
+      if (!saturateStep(q)) {
         break;
       }
 
@@ -222,12 +222,11 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   }
 }
 
-void SimpleIk::saturateStep(const Eigen::VectorXd& q) {
+bool SimpleIk::saturateStep(const Eigen::VectorXd& q) {
   const auto& q_indices = joint_group_info_.q_indices;
   const auto& v_indices = joint_group_info_.v_indices;
   const auto group_nv = static_cast<Eigen::Index>(v_indices.size());
 
-  group_vel_ = vel_(v_indices);
   saturation_bound_.setConstant(std::numeric_limits<double>::quiet_NaN());
 
   // Each pass either saturates at least one more DOF or exits,
@@ -268,9 +267,9 @@ void SimpleIk::saturateStep(const Eigen::VectorXd& q) {
         task_jacobian_.col(i).setZero();
       }
     }
-    jjt_.noalias() = task_jacobian_ * task_jacobian_.transpose();
-    jjt_.diagonal().array() += options_.damping;
-    group_vel_ = -task_jacobian_.transpose() * jjt_.ldlt().solve(task_error_);
+    if (!dampedLeastSquaresStep(task_jacobian_, task_error_, options_.damping, jjt_, group_vel_)) {
+      return false;
+    }
     for (Eigen::Index i = 0; i < group_nv; ++i) {
       if (!std::isnan(saturation_bound_[i])) {
         group_vel_[i] =
@@ -280,6 +279,7 @@ void SimpleIk::saturateStep(const Eigen::VectorXd& q) {
   }
 
   vel_(v_indices) = group_vel_;
+  return true;
 }
 
 }  // namespace roboplan

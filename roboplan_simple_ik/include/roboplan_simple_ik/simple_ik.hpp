@@ -81,7 +81,8 @@ private:
   /// clamp instead turns limit faces into attractors that stall convergence). Only single-DOF
   /// joints participate; multi-DOF joints (e.g., planar or continuous joints, whose position
   /// representation is larger than their velocity representation) are not limit-enforced.
-  void saturateStep(const Eigen::VectorXd& q);
+  /// @return False if a re-solve produced NaN, leaving `vel_` unusable.
+  bool saturateStep(const Eigen::VectorXd& q);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
@@ -109,8 +110,8 @@ private:
   /// allocating memory once).
   Eigen::VectorXd saturation_bound_;
 
-  /// @brief The joint group's velocities during saturation re-solves (for allocating memory
-  /// once).
+  /// @brief The joint group's velocities for the step being solved, carried from the damped
+  /// least-squares solve through the saturation re-solves (for allocating memory once).
   Eigen::VectorXd group_vel_;
 
   /// @brief The group Jacobian with saturated columns zeroed (for allocating memory once).

@@ -4,6 +4,7 @@
 
 #include <pinocchio/math/rpy.hpp>
 
+#include <roboplan/core/math_utils.hpp>
 #include <roboplan_rrt/constraints.hpp>
 
 namespace roboplan {
@@ -278,13 +279,9 @@ bool ConstraintProjector::project(Eigen::VectorXd& q) {
     }
 
     // Damped least-squares step that cancels the stacked violations.
-    const auto active_jacobian = active_jacobian_.topRows(num_active);
-    auto jjt = jjt_.topLeftCorner(num_active, num_active);
-    jjt.noalias() = active_jacobian * active_jacobian.transpose();
-    jjt.diagonal().array() += options_.damping;
-    group_velocity_.noalias() =
-        -active_jacobian.transpose() * jjt.ldlt().solve(active_error_.head(num_active));
-    if (group_velocity_.hasNaN()) {
+    if (!dampedLeastSquaresStep(active_jacobian_.topRows(num_active),
+                                active_error_.head(num_active), options_.damping,
+                                jjt_.topLeftCorner(num_active, num_active), group_velocity_)) {
       return false;
     }
 

@@ -77,6 +77,7 @@ public:
 /// coordinates whose bounds are equal are pinned, and anything in between carves out a volume the
 /// frame may move within. This is the Task Space Region of "Manipulation Planning on Constraint
 /// Manifolds" (Berenson et al., 2009), sections 4a and 4b.
+/// https://personalrobotics.cs.washington.edu/publications/berenson2009cbirrt.pdf
 ///
 /// Leaving one rotation coordinate free while bounding the other two is the usual way to express an
 /// axis constraint. Bounding roll and pitch to +/- theta with yaw free, for instance, keeps the
