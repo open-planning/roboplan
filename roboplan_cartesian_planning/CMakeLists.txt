@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan_cartesian_planning VERSION 0.5.1)
+project(roboplan_cartesian_planning VERSION 0.6.0)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
   # clang-cl remaps plain -Wall to MSVC /Wall (clang's -Weverything); use the
