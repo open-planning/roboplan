@@ -8,6 +8,10 @@
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 
+  <url type="website">https://roboplan.readthedocs.io</url>
+  <url type="repository">https://github.com/open-planning/roboplan</url>
+  <url type="bugtracker">https://github.com/open-planning/roboplan/issues</url>
+
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
@@ -15,13 +19,7 @@
   <build_depend>python3-dev</build_depend>
 
   <depend>roboplan</depend>
-  <!--
-  The QP solver performs best with proxsuite >= 0.7.3; older versions fail the test suite.
-  The ROS binaries currently ship 0.6.5 on humble/jazzy and nothing on kilted or later,
-  so the build rejects them and fetches the pinned version via CMake FetchContent instead.
-  TODO: Restore once ROS binaries >= 0.7.3 have synced.
   <depend>proxsuite</depend>
-  -->
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>libgmock-dev</test_depend>

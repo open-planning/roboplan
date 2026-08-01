@@ -7,22 +7,6 @@ You should feel free to propose projects directly under the following ideas, but
 
 ---
 
-Build and Packaging Improvements
---------------------------------
-
-**Mentors:** Sebastian Castro
-
-**Description:**
-
-RoboPlan is available on `PyPi <https://pypi.org/>`_ and `conda-forge <https://conda-forge.org/>`_ to make installation easy.
-Right now this only supports Linux and MacOS, so a contributor could also consider expanding support to Windows as part of this effort.
-
-With libraries like RoboPlan, however, which rely on several upstream libraries, distribution to PyPi can be challenging.
-Wheels are currently assembled using tools such as `cibuildwheel <https://cibuildwheel.pypa.io/en/stable/>`_ and `cmeel <https://github.com/cmake-wheel/cmeel>`_.
-
-This project involves improving the process of building wheels from the RoboPlan stack in CI, testing on various platforms, and automating/documenting the release generation process.
-
-
 ROS Interface and Examples
 --------------------------
 

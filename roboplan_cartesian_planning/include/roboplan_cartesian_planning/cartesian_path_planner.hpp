@@ -90,23 +90,20 @@ struct CartesianPlannerOptions {
   /// joints toward the seed configuration (uses only nullspace freedom).
   double config_task_weight = 0.05;
 
-  /// @brief Scaling factor (0, 1] applied to the joint velocity limits.
-  /// @details In Bounded mode, this is applied to the differential-IK tracker itself.
-  /// In TimeOptimal mode, the tracker only resolves path geometry and TOPP-RA applies the scale
-  /// when re-timing, so the resolution pass deliberately runs against the unscaled limits.
+  /// @brief Scaling factor (0, 1] applied to joint velocity limits when timing the path.
+  /// @details This scale is applied by the re-timing step, in both speed modes.
   double velocity_scale = 1.0;
 
-  /// @brief Scaling factor (0, 1] applied to the joint acceleration limits.
-  /// @details Used both by the TimeOptimal re-timing and by the Bounded mode's joint-acceleration
-  /// throttle (which slows the feedrate wherever a step would exceed the scaled limits).
+  /// @brief Scaling factor (0, 1] applied to joint acceleration limits when timing the path.
+  /// @details This scale is applied by the re-timing step, in both speed modes.
   double acceleration_scale = 1.0;
 
   /// @brief Corner-rounding tolerance (joint-space radians) for the TimeOptimal speed
   /// mode, which times the path with TOPP-RA over a straight-segment + circular-blend geometry.
   /// Each corner is rounded by a circular arc that deviates from the sharp corner by at most
-  /// this much. Larger values round corners more aggressively (faster motion, but the joint
-  /// path strays further from the resolved waypoints); a value <= 0 disables blending (the
-  /// trajectory stops at every waypoint).
+  /// this much. Larger values round corners more aggressively, which means smoother motion with
+  /// less stops, but the joint path strays further from the resolved waypoints.
+  /// A value <= 0 disables blending; that is, the trajectory stops at every waypoint.
   double toppra_blend_deviation = 0.05;
 
   /// @brief Gain (0, 1] for the position-limit constraint that steers each step away

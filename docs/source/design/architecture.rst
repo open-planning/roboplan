@@ -145,7 +145,7 @@ Each algorithm package builds on the core package, bringing in its own external 
 - **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `ProxSuite <https://github.com/Simple-Robotics/proxsuite>`_.
 - **RRT** grows search trees in configuration space, using the ``Scene`` for sampling and collision checks and the vendored `dynotree <https://github.com/quimortiz/dynotree>`_ k-d tree for nearest-neighbor lookups.
 - **TOPP-RA** wraps the `toppra <https://github.com/hungpham2511/toppra>`_ library to time-parameterize joint paths subject to the velocity and acceleration limits stored in the ``Scene``.
-- **CartesianPathPlanner** is the main integration point: it tracks a task-space path with an internal OInK solver and times the result either with a trapezoidal velocity profile or with TOPP-RA.
+- **CartesianPathPlanner** is the main integration point: it resolves a task-space path into a joint path with an internal OInK solver, then times that path with TOPP-RA.
 
 See the :doc:`Concepts </concepts/index>` section for a detailed description of each algorithm.
 

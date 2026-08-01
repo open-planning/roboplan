@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "roboplan-cartesian-planning"
-version = "1"
+version = "0.6.0"
 description = "Cartesian path planner for RoboPlan."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,7 +17,7 @@ classifiers = [
 dependencies = ["roboplan-core", "roboplan-oink", "roboplan-toppra"]
 
 [project.urls]
-Homepage = "https://github.com/sea-bass/roboplan"
+Homepage = "https://github.com/open-planning/roboplan"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"

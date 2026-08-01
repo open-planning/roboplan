@@ -4,7 +4,7 @@ Inverse Kinematics
 RoboPlan provides two inverse kinematics solvers: a simple Jacobian-based solver and an optimal solver based on quadratic programming.
 
 SimpleIK: Jacobian-Based Solver
---------------------------------
+-------------------------------
 
 SimpleIK is a lightweight inverse kinematics solver using the damped least squares (DLS) method, also known as the Levenberg-Marquardt algorithm.
 
@@ -15,13 +15,18 @@ At each iteration, SimpleIK computes joint velocities that minimize the Cartesia
 
 .. math::
 
-   \dot{q} = -J^T (J J^T + \lambda I)^{-1} e
+   \dot{q} = -A^T (A A^T + \lambda I)^{-1} e
 
 Where:
 
 - :math:`e = \log_6(T_{\text{goal}}^{-1} T_{\text{current}})` — 6D Cartesian error (position + orientation)
+- :math:`A = \text{Jlog}_6(e) \, J` — the analytic (Gauss-Newton) task Jacobian
 - :math:`J` — Frame Jacobian in ``LOCAL`` reference frame
 - :math:`\lambda` — Damping factor for regularization
+
+Chaining the frame Jacobian through the derivative of :math:`\log_6` makes the step account for the
+SE(3) curvature of the error near the goal, which converges considerably faster than using the
+frame Jacobian alone.
 
 The joint configuration is updated via integration:
 
@@ -101,7 +106,7 @@ Usage Example
 .. _oink-solver:
 
 OInK: Optimal Inverse Kinematics
----------------------------------
+--------------------------------
 
 The OInK solver uses Quadratic Programming (QP) to compute joint displacements that achieve multiple objectives while respecting constraints and safety barriers.
 
@@ -146,7 +151,7 @@ Where:
 +---------------------+----------------------------------------------+--------------+
 | :math:`\alpha_k`    | Task gain (low-pass filter)                  | Tasks        |
 +---------------------+----------------------------------------------+--------------+
-| :math:`N_k`         | Cumulative nullspace projector for          | Tasks        |
+| :math:`N_k`         | Cumulative nullspace projector for           | Tasks        |
 |                     | priority level :math:`k` (:math:`N_1 = I`)   | (priority)   |
 +---------------------+----------------------------------------------+--------------+
 | :math:`\mu_k`       | Levenberg-Marquardt damping,                 | Tasks        |
@@ -506,10 +511,10 @@ This has :math:`O(\|\Delta q\|^2)` error. Near boundaries with large commands, t
 .. code-block:: cpp
 
    // After solving QP
-   oink.solveIk(tasks, constraints, barriers, scene, delta_q);
+   oink.solveIk(scene, tasks, constraints, barriers, delta_q);
 
    // Validate using FK: if h(q + delta_q) < -tolerance, set delta_q = 0
-   oink.enforceBarriers(barriers, scene, delta_q, tolerance);
+   oink.enforceBarriers(scene, barriers, delta_q, tolerance);
 
 Implementation Notes
 ^^^^^^^^^^^^^^^^^^^^

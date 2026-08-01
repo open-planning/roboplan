@@ -93,7 +93,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - Plugins: KDL, OPW, UR, IKFast
      - None
    * - Sampling-based planning
-     - RRT, RRT-Connect, RRT* (with K-D tree neighbor search and support for continuous/planar joint topologies)
+     - RRT, RRT-Connect, RRT*, and constrained planning on pose constraints (CBiRRT2); k-d tree neighbor search with continuous/planar joint topologies
      - Via OMPL plugin
      - Via OMPL wrapper
      - ~60 planners, including asymptotically optimal and constrained (manifold) planning
@@ -103,7 +103,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - TrajOpt, TrajOpt-IFOPT
      - None (sampling-based only)
    * - Cartesian planning
-     - Multi-waypoint, multi-end-effector planner with feedrate throttling near singularities and joint limits
+     - Multi-waypoint, multi-end-effector planner: QP-based IK resolves the task-space path, then TOPP-RA times it under the joint limits
      - Pilz industrial planner (LIN/CIRC), Cartesian interpolation
      - Descartes ladder-graph planner; its command language mixes freespace and Cartesian segments
      - None

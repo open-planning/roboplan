@@ -265,7 +265,7 @@ Because the k-d tree understands this structure, its nearest-neighbor results re
 Configuration
 ~~~~~~~~~~~~~
 
-The planner is configured through ``RRTOptions``:
+The planner is configured through ``RRTOptions``, passed at construction and modifiable afterwards with ``setOptions``:
 
 +-----------------------------------+------------------------------------------------------------+-----------+
 | Parameter                         | Description                                                | Default   |
@@ -278,7 +278,7 @@ The planner is configured through ``RRTOptions``:
 +-----------------------------------+------------------------------------------------------------+-----------+
 | ``collision_check_step_size``     | Configuration-space step size for collision checking edges | 0.05      |
 +-----------------------------------+------------------------------------------------------------+-----------+
-| ``collision_check_use_bisection`` | Use bisection instead of linear edge collision checking    | false     |
+| ``collision_check_use_bisection`` | Use bisection instead of linear edge collision checking    | true      |
 +-----------------------------------+------------------------------------------------------------+-----------+
 | ``goal_biasing_probability``      | Probability of sampling the goal instead of a random node  | 0.15      |
 +-----------------------------------+------------------------------------------------------------+-----------+
@@ -330,7 +330,7 @@ Usage Example
        goal_biasing_probability=0.15,
        max_planning_time=5.0,
        rrt_connect=True,
-       rrt_start=False,
+       rrt_star=False,
        fast_return=True,
    )
    rrt = RRT(scene, options)

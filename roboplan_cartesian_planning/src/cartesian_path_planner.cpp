@@ -157,7 +157,7 @@ void CartesianPathPlanner::buildStaticSolverComponents(
   if (components) {
     // Caller-supplied setup: the solver objectives are fixed, so assemble them once. The tracking
     // tasks are prepended so they are always solved; everything else passes through. Cache the
-    // tracking tasks for per-plan() wiring in buildFrameTracks().
+    // tracking tasks for per-plan() wiring in buildFrameReferences().
     tracking_tasks_ = components->tracking_tasks;
     tasks_.clear();
     tasks_.reserve(tracking_tasks_.size() + components->extra_tasks.size());
