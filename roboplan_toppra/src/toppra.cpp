@@ -141,7 +141,9 @@ PathParameterizerTOPPRA::generateCubicSpline(const toppra::Vectors& path_pos_vec
 
   // Set boundary conditions to zero velocity and acceleration at both endpoints.
   toppra::BoundaryCond bc{2, Eigen::VectorXd::Zero(path_pos_vecs.at(0).size())};
-  toppra::BoundaryCondFull bc_full{bc, bc};
+  // BoundaryCondFull is a std::array, so the inner braces initialize the wrapped C array
+  // explicitly. Relying on brace elision here raises -Wmissing-braces on GCC.
+  toppra::BoundaryCondFull bc_full{{bc, bc}};
 
   const auto spline = toppra::PiecewisePolyPath::CubicSpline(path_pos_vecs, times, bc_full);
   return std::make_shared<toppra::PiecewisePolyPath>(spline);

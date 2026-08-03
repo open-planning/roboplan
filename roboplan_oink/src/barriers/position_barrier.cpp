@@ -12,7 +12,7 @@
 namespace roboplan {
 
 namespace {
-constexpr std::array<std::string_view, 3> kAxisNames = {"x", "y", "z"};
+constexpr std::array<std::string_view, 3> kAxisNames = {{"x", "y", "z"}};
 }  // namespace
 
 PositionBarrier::PositionBarrier(const Oink& oink, const Scene& scene,
@@ -30,7 +30,7 @@ PositionBarrier::PositionBarrier(const Oink& oink, const Scene& scene,
   frame_id = maybe_frame_id.value();
 
   // Validate that p_min < p_max for enabled axes with finite bounds
-  const std::array<bool, 3> axes_enabled = {axis_selection.x, axis_selection.y, axis_selection.z};
+  const std::array<bool, 3> axes_enabled{{axis_selection.x, axis_selection.y, axis_selection.z}};
   for (int i = 0; i < 3; ++i) {
     if (axes_enabled[i] && std::isfinite(p_min[i]) && std::isfinite(p_max[i])) {
       if (p_min[i] >= p_max[i]) {
