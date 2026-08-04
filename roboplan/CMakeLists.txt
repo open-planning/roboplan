@@ -92,6 +92,8 @@ target_link_libraries(filters
     pinocchio::pinocchio
 )
 set_property(TARGET filters PROPERTY CXX_STANDARD 20)
+
+set_target_properties(filters PROPERTIES OUTPUT_NAME roboplan_filters)
 list(APPEND TARGETS_LIST filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})
