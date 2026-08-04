@@ -79,22 +79,20 @@ else()
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 
-add_library(filters SHARED
+add_library(roboplan_filters SHARED
     src/filters/se3_low_pass_filter.cpp
 )
-target_include_directories(filters PUBLIC
+target_include_directories(roboplan_filters PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(filters
+target_link_libraries(roboplan_filters
     PUBLIC
     Eigen3::Eigen
     pinocchio::pinocchio
 )
-set_property(TARGET filters PROPERTY CXX_STANDARD 20)
-
-set_target_properties(filters PROPERTIES OUTPUT_NAME roboplan_filters)
-list(APPEND TARGETS_LIST filters)
+set_property(TARGET roboplan_filters PROPERTY CXX_STANDARD 20)
+list(APPEND TARGETS_LIST roboplan_filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})
 install(

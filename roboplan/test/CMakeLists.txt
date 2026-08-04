@@ -42,7 +42,7 @@ add_executable(test_se3_low_pass_filter test_se3_low_pass_filter.cpp)
 set_property(TARGET test_se3_low_pass_filter PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_se3_low_pass_filter
-  filters
+  roboplan_filters
   GTest::gtest_main
 )
 

@@ -163,7 +163,7 @@ def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
             "function(roboplan_register_build_tree_package package_name)",
             "${package_name}_DIR",
             "roboplan::roboplan=roboplan",
-            "roboplan::filters=filters",
+            "roboplan::roboplan_filters=roboplan_filters",
             "roboplan_example_models::roboplan_example_models=roboplan_example_models",
             "roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning",
         ],

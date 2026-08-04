@@ -44,7 +44,7 @@ function(roboplan_register_build_tree_packages)
   roboplan_register_build_tree_package(roboplan_example_models
     ALIASES roboplan_example_models::roboplan_example_models=roboplan_example_models)
   roboplan_register_build_tree_package(roboplan
-    ALIASES roboplan::roboplan=roboplan roboplan::filters=filters)
+    ALIASES roboplan::roboplan=roboplan roboplan::roboplan_filters=roboplan_filters)
   roboplan_register_build_tree_package(roboplan_simple_ik
     ALIASES roboplan_simple_ik::roboplan_simple_ik=roboplan_simple_ik)
   roboplan_register_build_tree_package(roboplan_oink

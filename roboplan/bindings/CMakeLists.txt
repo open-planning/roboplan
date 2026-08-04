@@ -2,8 +2,8 @@
 #
 # This file is added via `add_subdirectory(bindings)` from the parent
 # roboplan/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the C++
-# targets (roboplan, filters) already exist in this configure and do not need
-# to be found via find_package.
+# targets (roboplan, roboplan_filters) already exist in this configure and
+# do not need to be found via find_package.
 #
 # NOTE: The ament/scikit-build/nanobind detection boilerplate below is
 # duplicated per package for now; it should be factored into a shared CMake
@@ -102,7 +102,7 @@ target_include_directories(_filters_ext PRIVATE
 target_compile_definitions(_filters_ext PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_filters_ext PRIVATE
-  filters
+  roboplan_filters
 )
 
 # Ensure the extension can find workspace dylibs via @rpath on macOS, as it seems that
