@@ -44,12 +44,18 @@ void init_simple_ik(nanobind::module_& m) {
       .def("solveIk",
            nanobind::overload_cast<const CartesianConfiguration&, const JointConfiguration&,
                                    JointConfiguration&>(&SimpleIk::solveIk),
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Solves inverse kinematics (single goal).", "goal"_a, "start"_a, "solution"_a)
       .def("solveIk",
            nanobind::overload_cast<const std::vector<CartesianConfiguration>&,
                                    const JointConfiguration&, JointConfiguration&>(
                &SimpleIk::solveIk),
-           "Solves inverse kinematics (multiple goal).", "goals"_a, "start"_a, "solution"_a);
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Solves inverse kinematics (multiple goal).", "goals"_a, "start"_a, "solution"_a)
+      .def("setRngSeed", &SimpleIk::setRngSeed,
+           "Sets the seed for the solver's random number generator (RNG), used to draw restart "
+           "configurations.",
+           "seed"_a);
 }
 
 }  // namespace roboplan

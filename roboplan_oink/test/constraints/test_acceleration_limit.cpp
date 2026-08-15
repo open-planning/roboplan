@@ -11,6 +11,20 @@
 
 namespace roboplan {
 
+namespace {
+
+/// @brief Poses `oink`'s context at `scene`'s current joint positions and returns it.
+/// @details Oink::solveIk() does this on entry. These tests drive tasks, constraints, and barriers
+/// one method at a time, so they perform the same step a real solve would.
+const SceneContext& posed(Oink& oink, const Scene& scene) {
+  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
+  oink.getContext().setJointPositions(q);
+  oink.getContext().updateFramePlacements(q);
+  return oink.getContext();
+}
+
+}  // namespace
+
 class AccelerationLimitTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -56,7 +70,7 @@ TEST_F(AccelerationLimitTest, Construction) {
 
 TEST_F(AccelerationLimitTest, GetNumConstraints) {
   AccelerationLimit constraint(*oink_, 0.01, Eigen::VectorXd::Ones(num_variables_) * 5.0);
-  EXPECT_EQ(constraint.getNumConstraints(*scene_), num_variables_);
+  EXPECT_EQ(constraint.getNumConstraints(posed(*oink_, *scene_)), num_variables_);
 }
 
 TEST_F(AccelerationLimitTest, ConstraintMatrixIsIdentity) {
@@ -64,7 +78,7 @@ TEST_F(AccelerationLimitTest, ConstraintMatrixIsIdentity) {
 
   Eigen::MatrixXd G(num_variables_, num_variables_);
   Eigen::VectorXd lower(num_variables_), upper(num_variables_);
-  ASSERT_TRUE(constraint.computeQpConstraints(*scene_, G, lower, upper).has_value());
+  ASSERT_TRUE(constraint.computeQpConstraints(posed(*oink_, *scene_), G, lower, upper).has_value());
 
   EXPECT_TRUE(G.isApprox(Eigen::MatrixXd::Identity(num_variables_, num_variables_)));
 }
@@ -78,7 +92,7 @@ TEST_F(AccelerationLimitTest, BoundsFromRest) {
 
   Eigen::MatrixXd G(num_variables_, num_variables_);
   Eigen::VectorXd lower(num_variables_), upper(num_variables_);
-  ASSERT_TRUE(constraint.computeQpConstraints(*scene_, G, lower, upper).has_value());
+  ASSERT_TRUE(constraint.computeQpConstraints(posed(*oink_, *scene_), G, lower, upper).has_value());
 
   for (int i = 0; i < num_variables_; ++i) {
     EXPECT_NEAR(upper(i), a_max(i) * dt * dt, 1e-12);
@@ -100,7 +114,7 @@ TEST_F(AccelerationLimitTest, BoundsCenteredOnPreviousDisplacement) {
 
   Eigen::MatrixXd G(num_variables_, num_variables_);
   Eigen::VectorXd lower(num_variables_), upper(num_variables_);
-  ASSERT_TRUE(constraint.computeQpConstraints(*scene_, G, lower, upper).has_value());
+  ASSERT_TRUE(constraint.computeQpConstraints(posed(*oink_, *scene_), G, lower, upper).has_value());
 
   const double box = a_max(0) * dt * dt;
   const double d = 0.5 * dt;
@@ -129,7 +143,7 @@ TEST_F(AccelerationLimitTest, InfiniteLimitIsUnconstrained) {
 
   Eigen::MatrixXd G(num_variables_, num_variables_);
   Eigen::VectorXd lower(num_variables_), upper(num_variables_);
-  ASSERT_TRUE(constraint.computeQpConstraints(*scene_, G, lower, upper).has_value());
+  ASSERT_TRUE(constraint.computeQpConstraints(posed(*oink_, *scene_), G, lower, upper).has_value());
 
   for (int i = 0; i < num_variables_; ++i) {
     EXPECT_TRUE(std::isinf(upper(i)) && upper(i) > 0.0);
@@ -163,7 +177,7 @@ TEST_F(AccelerationLimitTest, BrakingDistanceLimitsApproachToBound) {
 
   Eigen::MatrixXd G(num_variables_, num_variables_);
   Eigen::VectorXd lower(num_variables_), upper(num_variables_);
-  ASSERT_TRUE(constraint.computeQpConstraints(*scene_, G, lower, upper).has_value());
+  ASSERT_TRUE(constraint.computeQpConstraints(posed(*oink_, *scene_), G, lower, upper).has_value());
 
   const double accel_box = a_max(test_joint) * dt * dt;
   const double brake = dt * std::sqrt(2.0 * a_max(test_joint) * 1e-4);
@@ -201,7 +215,7 @@ TEST_F(AccelerationLimitTest, MismatchedWorkspaceSize) {
 
   Eigen::MatrixXd G(num_variables_ - 1, num_variables_);
   Eigen::VectorXd lower(num_variables_ - 1), upper(num_variables_ - 1);
-  auto result = constraint.computeQpConstraints(*scene_, G, lower, upper);
+  auto result = constraint.computeQpConstraints(posed(*oink_, *scene_), G, lower, upper);
 
   ASSERT_FALSE(result.has_value());
   EXPECT_TRUE(result.error().find("size mismatch") != std::string::npos);

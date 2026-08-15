@@ -48,9 +48,9 @@ FrameTask::FrameTask(const Oink& oink, const Scene& scene,
   full_jacobian = Eigen::MatrixXd::Zero(kSpatialDimension, scene.getModel().nv);
 }
 
-tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
+tl::expected<void, std::string> FrameTask::computeError(const SceneContext& context) {
   // Get data from scene (assumes kinematics are already up-to-date)
-  auto& data = scene.getData();
+  auto& data = context.getData();
 
   // Get current frame pose in world frame
   const pinocchio::SE3& transform_world_to_frame = data.oMf.at(frame_id);
@@ -100,9 +100,9 @@ tl::expected<void, std::string> FrameTask::computeError(const Scene& scene) {
   return {};
 }
 
-tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
+tl::expected<void, std::string> FrameTask::computeJacobian(const SceneContext& context) {
   // Get current joint configuration
-  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
+  const Eigen::VectorXd& q = context.getJointPositions();
 
   // Compute the full-robot frame Jacobian, then select the group's velocity columns.
   // When a base frame is set, use the relative Jacobian (expressed in LOCAL_WORLD_ALIGNED),
@@ -110,12 +110,12 @@ tl::expected<void, std::string> FrameTask::computeJacobian(const Scene& scene) {
   // standard world-rooted Jacobian.
   full_jacobian.setZero();
   if (base_frame_id.has_value()) {
-    scene.computeRelativeFrameJacobian(q, frame_id, target_pose.base_frame,
-                                       pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                       full_jacobian);
+    context.computeRelativeFrameJacobian(q, frame_id, target_pose.base_frame,
+                                         pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                                         full_jacobian);
   } else {
-    scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                               full_jacobian);
+    context.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                                 full_jacobian);
   }
 
   // The negative sign ensures that with the QP formulation (min ||J*dq + gain*e||^2),

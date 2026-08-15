@@ -6,8 +6,8 @@
 #include <toppra/constraint/linear_joint_velocity.hpp>
 #include <toppra/parametrizer/const_accel.hpp>
 
-#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan_toppra/linear_blend_path.hpp>
 #include <roboplan_toppra/toppra.hpp>
@@ -228,7 +228,7 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
 
   // Snapshot the scene geometry into a private collision context for the collision-check loop
   // below, so it uses its own scratch rather than the Scene's shared collision data.
-  const CollisionContext collision_context(*scene_);
+  const SceneContext scene_context(*scene_);
 
   toppra::GeometricPathPtr geom_path;
   bool found_collision_free_path = false;
@@ -265,7 +265,7 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
 
       // If a collision is found, add a waypoint in the middle of the current and next point.
       // Don't add points in the final iteration, as it is not needed.
-      if (collision_context.hasCollisions(q_full)) {
+      if (scene_context.hasCollisions(q_full)) {
         last_collision_index = t_idx;
         if (idx < max_collision_iterations - 1) {
           const auto& q_prev = path_pos_vecs.at(t_idx + points_added);

@@ -73,9 +73,9 @@ struct FrameTask : public Task {
   ///
   /// Results are stored in error_container.
   ///
-  /// @param scene The scene containing the robot model and current state.
+  /// @param context The context supplying the configuration and the frame placements to read.
   /// @return Void if successful, else an error message string.
-  tl::expected<void, std::string> computeError(const Scene& scene) override;
+  tl::expected<void, std::string> computeError(const SceneContext& context) override;
 
   /// @brief Computes the task Jacobian for the frame tracking task.
   ///
@@ -91,9 +91,9 @@ struct FrameTask : public Task {
   ///
   /// Results are stored in jacobian_container.
   ///
-  /// @param scene The scene containing the robot model and current state.
+  /// @param context The context supplying the configuration and the kinematics scratch to write.
   /// @return Void if successful, else an error message string.
-  tl::expected<void, std::string> computeJacobian(const Scene& scene) override;
+  tl::expected<void, std::string> computeJacobian(const SceneContext& context) override;
 
   /// @brief Creates a diagonal weight matrix from scalar cost weights.
   ///

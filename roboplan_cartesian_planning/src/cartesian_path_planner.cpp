@@ -358,7 +358,8 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
                                  "': " + maybe_tip_id.error());
     }
     try {
-      reference.world_T_base = scene_->forwardKinematics(q_start_full, path.base_frames.at(f));
+      reference.world_T_base =
+          oink_->getContext().forwardKinematics(q_start_full, path.base_frames.at(f));
     } catch (const std::exception& e) {
       return tl::make_unexpected(std::string("Could not resolve base frame '") +
                                  path.base_frames.at(f) + "': " + e.what());
@@ -423,15 +424,15 @@ CartesianPathPlanner::solveStep(const std::vector<FrameReference>& references,
                                 double& orientation_error) {
   Oink& oink = *oink_;
 
-  // Refresh the scene state to the committed configuration so the Oink tasks read the correct
-  // current pose, and retarget every tracking task.
-  scene_->setJointPositions(q);
+  // Retarget every tracking task, then solve at the committed configuration. `q` is passed to the
+  // solver directly rather than written into the scene, so the configuration this planner is
+  // solving at is never visible to (or overwritable by) anything else sharing the Scene.
   for (const auto& reference : references) {
     reference.task->setTargetFrameTransform(reference.target(s));
   }
   delta_q.setZero();
   const auto result =
-      oink.solveIk(*scene_, tasks_, constraints_, barriers_, delta_q, options_.regularization);
+      oink.solveIk(q, tasks_, constraints_, barriers_, delta_q, options_.regularization);
   if (!result) {
     return tl::make_unexpected(result.error());
   }
@@ -443,7 +444,8 @@ CartesianPathPlanner::solveStep(const std::vector<FrameReference>& references,
   position_error = 0.0;
   orientation_error = 0.0;
   for (const auto& reference : references) {
-    const Eigen::Matrix4d fk = scene_->forwardKinematics(q_candidate, reference.tip_frame);
+    const Eigen::Matrix4d fk =
+        oink_->getContext().forwardKinematics(q_candidate, reference.tip_frame);
     const auto [frame_position_error, frame_orientation_error] = poseError(fk, reference.target(s));
     position_error = std::max(position_error, frame_position_error);
     orientation_error = std::max(orientation_error, frame_orientation_error);
@@ -571,7 +573,8 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
       const double fraction = static_cast<double>(i - lo) / static_cast<double>(hi - lo);
       const Eigen::VectorXd q_interp = scene_->interpolate(walked.at(lo), walked.at(hi), fraction);
       for (const auto& reference : *references) {
-        const Eigen::Matrix4d fk = scene_->forwardKinematics(q_interp, reference.tip_frame);
+        const Eigen::Matrix4d fk =
+            oink_->getContext().forwardKinematics(q_interp, reference.tip_frame);
         const auto [position_error, orientation_error] =
             poseError(fk, reference.target(parameters.at(i)));
         // Compare both modalities against their own budget so whichever is tighter decides.
@@ -648,7 +651,7 @@ CartesianPathPlanner::computeCartesianPeaks(const JointTrajectory& trajectory,
   // The trajectory stores only the group coordinates; forwardKinematics needs a full model
   // configuration. The non-group joints are held at the scene's current state, a constant rigid
   // offset that cancels in the per-sample differences below.
-  Eigen::VectorXd q_full = scene_->getCurrentJointPositions();
+  Eigen::VectorXd q_full = oink_->getContext().getJointPositions();
   for (const auto& tip_frame : path.tip_frames) {
     std::vector<double> linear_speeds;
     std::vector<double> angular_speeds;
@@ -656,10 +659,10 @@ CartesianPathPlanner::computeCartesianPeaks(const JointTrajectory& trajectory,
     angular_speeds.reserve(trajectory.positions.size());
 
     q_full(joint_group_info_.q_indices) = trajectory.positions.front();
-    Eigen::Matrix4d previous = scene_->forwardKinematics(q_full, tip_frame);
+    Eigen::Matrix4d previous = oink_->getContext().forwardKinematics(q_full, tip_frame);
     for (size_t i = 1; i < trajectory.positions.size(); ++i) {
       q_full(joint_group_info_.q_indices) = trajectory.positions.at(i);
-      const Eigen::Matrix4d current = scene_->forwardKinematics(q_full, tip_frame);
+      const Eigen::Matrix4d current = oink_->getContext().forwardKinematics(q_full, tip_frame);
       const auto [linear_distance, angular_distance] = poseError(previous, current);
       linear_speeds.push_back(linear_distance / options_.dt);
       angular_speeds.push_back(angular_distance / options_.dt);
@@ -728,16 +731,17 @@ double CartesianPathPlanner::computeAchievedPathLength(const JointTrajectory& tr
   // configuration. Reuse one buffer, writing each waypoint into the group slice. The non-group
   // joints are held at the scene's current state: that is a constant rigid offset on every tip
   // pose, which cancels in the per-step differences below.
-  Eigen::VectorXd q_full = scene_->getCurrentJointPositions();
+  Eigen::VectorXd q_full = oink_->getContext().getJointPositions();
 
   double length = 0.0;
   for (const auto& tip_frame : path.tip_frames) {
     q_full(joint_group_info_.q_indices) = trajectory.positions.front();
-    Eigen::Vector3d previous = scene_->forwardKinematics(q_full, tip_frame).block<3, 1>(0, 3);
+    Eigen::Vector3d previous =
+        oink_->getContext().forwardKinematics(q_full, tip_frame).block<3, 1>(0, 3);
     for (size_t i = 1; i < trajectory.positions.size(); ++i) {
       q_full(joint_group_info_.q_indices) = trajectory.positions.at(i);
       const Eigen::Vector3d current =
-          scene_->forwardKinematics(q_full, tip_frame).block<3, 1>(0, 3);
+          oink_->getContext().forwardKinematics(q_full, tip_frame).block<3, 1>(0, 3);
       length += (current - previous).norm();
       previous = current;
     }

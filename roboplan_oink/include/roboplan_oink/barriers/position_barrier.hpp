@@ -55,9 +55,9 @@ struct PositionBarrier : public Barrier {
                   double safety_margin = 0.0);
 
   /// @brief Get the number of active barrier constraints.
-  /// @param scene The scene containing robot model and state.
+  /// @param context The context (unused; the row count is fixed at construction).
   /// @return Number of active barriers (up to 6: 2 per enabled axis).
-  int getNumBarriers(const Scene& scene) const override;
+  int getNumBarriers(const SceneContext& context) const override;
 
   /// @brief Compute barrier function values h(q) for all active constraints.
   ///
@@ -70,9 +70,9 @@ struct PositionBarrier : public Barrier {
   ///
   /// Results are stored in the inherited `barrier_values` and `barrier_rhs` vectors.
   ///
-  /// @param scene The scene containing robot model and current state.
+  /// @param context The context supplying the configuration and the collision scratch to write.
   /// @return Expected void on success, or error message if frame is not found.
-  tl::expected<void, std::string> computeBarrier(const Scene& scene) override;
+  tl::expected<void, std::string> computeBarrier(const SceneContext& context) override;
 
   /// @brief Compute barrier constraint Jacobian matrix.
   ///
@@ -82,9 +82,9 @@ struct PositionBarrier : public Barrier {
   ///
   /// Results are stored in the inherited `barrier_jacobian` matrix (num_barriers x nv).
   ///
-  /// @param scene The scene containing robot model and current state.
+  /// @param context The context supplying the configuration and the kinematics scratch to write.
   /// @return Expected void on success, or error message if frame is not found.
-  tl::expected<void, std::string> computeJacobian(const Scene& scene) override;
+  tl::expected<void, std::string> computeJacobian(const SceneContext& context) override;
 
   /// @brief Evaluate minimum barrier value at a candidate configuration.
   ///
@@ -101,9 +101,9 @@ struct PositionBarrier : public Barrier {
                           const Eigen::VectorXd& q) const override;
 
   /// @brief Get current frame position in world coordinates.
-  /// @param scene The scene containing robot state.
+  /// @param context The context whose frame placements to read.
   /// @return Frame position in world coordinates.
-  Eigen::Vector3d getFramePosition(const Scene& scene) const;
+  Eigen::Vector3d getFramePosition(const SceneContext& context) const;
 
   /// @brief Name of the frame to constrain.
   const std::string frame_name;

@@ -38,6 +38,15 @@ target_link_libraries(
   roboplan_example_models::roboplan_example_models
 )
 
+add_executable(test_scene_context test_scene_context.cpp)
+set_property(TARGET test_scene_context PROPERTY CXX_STANDARD 20)
+target_link_libraries(
+  test_scene_context
+  roboplan
+  GTest::gtest_main
+  roboplan_example_models::roboplan_example_models
+)
+
 add_executable(test_se3_low_pass_filter test_se3_low_pass_filter.cpp)
 set_property(TARGET test_se3_low_pass_filter PROPERTY CXX_STANDARD 20)
 target_link_libraries(
@@ -63,6 +72,7 @@ if ( ament_cmake_gtest_FOUND )
     ament_add_gtest_test(test_scene)
     ament_add_gtest_test(test_joints)
     ament_add_gtest_test(test_path_utils)
+    ament_add_gtest_test(test_scene_context)
     ament_add_gtest_test(test_se3_low_pass_filter)
     ament_add_gtest_test(test_urdf_extended_limits)
 else()
@@ -71,6 +81,7 @@ else()
     gtest_add_tests(TARGET test_scene)
     gtest_add_tests(TARGET test_joints)
     gtest_add_tests(TARGET test_path_utils)
+    gtest_add_tests(TARGET test_scene_context)
     gtest_add_tests(TARGET test_se3_low_pass_filter)
     gtest_add_tests(TARGET test_urdf_extended_limits)
 endif()

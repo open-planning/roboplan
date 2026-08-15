@@ -40,9 +40,9 @@ void ConfigurationTask::setTargetConfiguration(const Eigen::VectorXd& target) {
   target_q = target;
 }
 
-tl::expected<void, std::string> ConfigurationTask::computeError(const Scene& scene) {
-  const auto& model = scene.getModel();
-  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
+tl::expected<void, std::string> ConfigurationTask::computeError(const SceneContext& context) {
+  const auto& model = context.getModel();
+  const Eigen::VectorXd& q = context.getJointPositions();
 
   // Validate target_q size against the group's position indices
   if (target_q.size() != q_indices.size()) {
@@ -63,7 +63,8 @@ tl::expected<void, std::string> ConfigurationTask::computeError(const Scene& sce
   return {};
 }
 
-tl::expected<void, std::string> ConfigurationTask::computeJacobian(const Scene& /*scene*/) {
+tl::expected<void, std::string>
+ConfigurationTask::computeJacobian(const SceneContext& /*context*/) {
   // The Jacobian for configuration error is negative identity (-I) (nv_group × nv_group)
   // The negative sign matches the QP formulation: minimize ||J*dq + alpha*e||^2
   // With e = difference(q, target) pointing toward target and J = -I,

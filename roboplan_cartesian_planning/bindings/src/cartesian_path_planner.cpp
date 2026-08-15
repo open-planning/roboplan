@@ -100,6 +100,7 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "scene"_a, "options"_a, "components"_a,
            "Constructs a planner that uses a caller-supplied OInK solver and objectives.")
       .def("plan", unwrap_expected(&CartesianPathPlanner::plan),
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Plans a joint trajectory that traces the provided Cartesian path.", "path"_a,
            "q_start"_a)
       .def("compute_peak_limit_ratios", &CartesianPathPlanner::computePeakLimitRatios,

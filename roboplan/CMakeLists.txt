@@ -54,7 +54,7 @@ endif()
 
 # Add roboplan libraries.
 add_library(roboplan SHARED
-    src/core/collision_context.cpp
+    src/core/scene_context.cpp
     src/core/path_utils.cpp
     src/core/pose_utils.cpp
     src/core/scene.cpp

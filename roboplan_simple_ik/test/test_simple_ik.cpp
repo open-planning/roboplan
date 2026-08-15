@@ -46,12 +46,11 @@ public:
 
 TEST_F(RoboPlanSimpleIkTest, SolveIk) {
   // Happy path: solve for a reachable target.
-  scene->setRngSeed(286);
-
   SimpleIkOptions options;
   options.group_name = kGroupName;
   options.max_time = kMaxSolveTime;
   auto ik = std::make_unique<SimpleIk>(scene, options);
+  ik->setRngSeed(286);
 
   const auto goal = reachableGoal();
   JointConfiguration start;
@@ -92,7 +91,6 @@ TEST_F(RoboPlanSimpleIkTest, InvalidTipFrame) {
 TEST_F(RoboPlanSimpleIkTest, CollisionChecking) {
   // The same reachable target succeeds when collisions are ignored, but fails
   // once an obstacle makes every candidate configuration collide.
-  scene->setRngSeed(286);
 
   const auto goal = reachableGoal();
   JointConfiguration start;

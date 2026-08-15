@@ -36,6 +36,25 @@ namespace roboplan {
 std::string readFile(const std::filesystem::path& path);
 
 /// @brief Primary scene representation for planning and control.
+///
+/// @par Thread safety
+/// A Scene splits into three kinds of state, and only the first is safe to share:
+///
+/// 1. The robot description (`getModel()`, the collision geometry, the frame / joint / group
+///    lookups) is immutable once the constructor returns. Every query that reads only these --
+///    `configurationDistance`, `interpolate`, `integrate`, `difference`, `isValidConfiguration`,
+///    `clampToValidConfiguration`, `toFullJointPositions`, `getFrameId`, `getJointInfo`,
+///    `getJointGroupInfo`, and the limit getters -- is safe to call concurrently on one Scene.
+///
+/// 2. Per-query scratch (`model_data_`, `collision_model_data_`, `broadphase_manager_`). The
+///    methods that write it are marked `const` for convenience, but they are *not* safe to call
+///    concurrently. Each thread should own a SceneContext, which holds private copies of that
+///    scratch over this Scene's immutable description, and call the equivalent methods there.
+///
+/// 3. Mutable bookkeeping (`setJointPositions`, `setRngSeed`, and the geometry mutators). These
+///    are for single-threaded setup and interactive use. Library code must not write them while
+///    other threads are querying, and must not read `getCurrentJointPositions()` in the middle of
+///    an algorithm -- read it once on entry to seed a SceneContext, then use the context.
 class Scene {
 public:
   /// @brief Basic constructor
@@ -60,6 +79,16 @@ public:
         const std::vector<std::filesystem::path>& package_paths =
             std::vector<std::filesystem::path>(),
         const std::filesystem::path& yaml_config_path = std::filesystem::path());
+
+  // Non-copyable and non-movable. `broadphase_manager_` caches raw pointers to this Scene's
+  // `model_` and `collision_model_data_`, so a defaulted copy or move would silently produce a
+  // Scene whose manager collides against the *original* Scene's data (and dangles once that Scene
+  // dies). Share a Scene with `std::shared_ptr<Scene>` and give each thread its own SceneContext
+  // rather than cloning the Scene.
+  Scene(const Scene&) = delete;
+  Scene& operator=(const Scene&) = delete;
+  Scene(Scene&&) = delete;
+  Scene& operator=(Scene&&) = delete;
 
   /// @brief Gets the scene's name.
   /// @return The scene name.
@@ -87,8 +116,17 @@ public:
   /// active collision pairs at the specified joint configuration.
   /// @details After this call, distances are available via
   /// getCollisionData().distanceResults.
+  /// @note Writes the Scene's shared scratch; not safe to call concurrently. Use
+  /// SceneContext::computeDistances instead.
   /// @param q The joint configuration at which to compute the distances.
   void computeCollisionDistances(const Eigen::VectorXd& q) const;
+
+  /// @brief A counter that changes whenever the collision geometry is modified.
+  /// @details Bumped by addGeometry(), removeGeometry(), updateGeometryPlacement(), and
+  /// setCollisions(). A SceneContext records this at construction and refuses to answer queries
+  /// once it drifts, since the context sizes its own scratch from the geometry it snapshotted.
+  /// @return The current geometry version.
+  uint64_t getGeometryVersion() const { return geometry_version_; };
 
   /// @brief Gets the scene's actuated joint names (non-mimic joints only).
   /// @return A vector of joint names.
@@ -117,6 +155,16 @@ public:
   /// @return The random positions.
   Eigen::VectorXd randomPositions();
 
+  /// @brief Generates random positions using a caller-supplied random number generator.
+  /// @details One of the explicit-scratch overloads: it draws from `rng` rather than the Scene's
+  /// own generator, so it reads nothing mutable and any number of threads may call it at once as
+  /// long as each passes its own. The overload above is exactly this, called with the Scene's
+  /// generator. Prefer SceneContext, which owns an `rng` and calls this for you; the overload
+  /// exists so both paths share one implementation.
+  /// @param rng The random number generator to draw from.
+  /// @return The random positions.
+  Eigen::VectorXd randomPositions(std::mt19937& rng) const;
+
   /// @brief Randomizes the positions of the specified joints in-place within a full configuration.
   /// @details Only the degrees of freedom belonging to `joint_names` are overwritten; all other
   /// entries of `q` are left untouched. This avoids allocating a full configuration and sampling
@@ -124,6 +172,14 @@ public:
   /// @param joint_names The names of the joints to randomize.
   /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
   void randomizeJointPositions(const std::vector<std::string>& joint_names, Eigen::VectorXd& q);
+
+  /// @brief Randomizes the given joints in-place using a caller-supplied random number generator.
+  /// @details The explicit-scratch overload of the above; see randomPositions(std::mt19937&).
+  /// @param rng The random number generator to draw from.
+  /// @param joint_names The names of the joints to randomize.
+  /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
+  void randomizeJointPositions(std::mt19937& rng, const std::vector<std::string>& joint_names,
+                               Eigen::VectorXd& q) const;
 
   /// @brief Generates random collision-free positions for the robot model.
   /// @param max_tries The maximum number of samples to attempt.
@@ -150,12 +206,22 @@ public:
   Eigen::VectorXd clampToValidConfiguration(const Eigen::VectorXd& q) const;
 
   /// @brief Converts partial joint positions to full joint positions.
-  /// @details This includes adding new joints.
+  /// @details This includes adding new joints. The joints outside `group_name` are filled from the
+  /// scene's current state; use the three-argument overload to supply them explicitly instead.
   /// @param group_name The name of the joint group.
   /// @param q The original (partial) joint positions.
   /// @return The full joint positions.
   Eigen::VectorXd toFullJointPositions(const std::string& group_name,
                                        const Eigen::VectorXd& q) const;
+
+  /// @brief Converts partial joint positions to full joint positions against an explicit reference.
+  /// @details Reads no Scene state beyond the immutable model, so it is safe to call concurrently.
+  /// @param group_name The name of the joint group.
+  /// @param q The original (partial) joint positions.
+  /// @param q_reference The full configuration supplying the joints outside the group.
+  /// @return The full joint positions.
+  Eigen::VectorXd toFullJointPositions(const std::string& group_name, const Eigen::VectorXd& q,
+                                       const Eigen::VectorXd& q_reference) const;
 
   /// @brief Interpolates between two joint configurations.
   /// @param q_start The starting joint configuration.
@@ -184,6 +250,21 @@ public:
   Eigen::Matrix4d forwardKinematics(const Eigen::VectorXd& q, const std::string& frame_name,
                                     const std::string& base_frame = "") const;
 
+  /// @brief Calculates forward kinematics into a caller-supplied Pinocchio data.
+  /// @details One of the explicit-scratch overloads: it writes `data` rather than the Scene's
+  /// shared scratch, so it reads nothing mutable and any number of threads may call it at once as
+  /// long as each passes its own. The overload above is exactly this, called with the Scene's
+  /// scratch. Prefer SceneContext, which owns a `data` and calls this for you; the overload exists
+  /// so both paths share one implementation.
+  /// @param data The Pinocchio data to write.
+  /// @param q The joint configuration.
+  /// @param frame_name The name of the frame for which to perform forward kinematics.
+  /// @param base_frame Optional base frame. If empty, returns the world-frame pose.
+  /// @return The 4x4 matrix denoting the transform of the specified frame.
+  Eigen::Matrix4d forwardKinematics(pinocchio::Data& data, const Eigen::VectorXd& q,
+                                    const std::string& frame_name,
+                                    const std::string& base_frame = "") const;
+
   /// @brief Computes the frame Jacobian for a specific frame expressed in world frame.
   /// @note Requires that forward kinematics and frame placements are up-to-date, or that
   /// this is the first kinematics call for the given q (the underlying Pinocchio call runs FK).
@@ -193,6 +274,20 @@ public:
   /// LOCAL_WORLD_ALIGNED).
   /// @param jacobian Output matrix to store the Jacobian (must be pre-allocated to 6 x nv).
   void computeFrameJacobian(const Eigen::VectorXd& q, pinocchio::FrameIndex frame_id,
+                            pinocchio::ReferenceFrame reference_frame,
+                            Eigen::Ref<Eigen::MatrixXd> jacobian) const;
+
+  /// @brief Computes the frame Jacobian into a caller-supplied Pinocchio data.
+  /// @details The explicit-scratch overload of the above; see forwardKinematics(pinocchio::Data&,
+  /// const Eigen::VectorXd&, const std::string&, const std::string&).
+  /// @param data The Pinocchio data to write.
+  /// @param q The joint configuration.
+  /// @param frame_id The Pinocchio frame ID of the frame.
+  /// @param reference_frame The reference frame for the Jacobian output (LOCAL, WORLD, or
+  /// LOCAL_WORLD_ALIGNED).
+  /// @param jacobian Output matrix to store the Jacobian (must be pre-allocated to 6 x nv).
+  void computeFrameJacobian(pinocchio::Data& data, const Eigen::VectorXd& q,
+                            pinocchio::FrameIndex frame_id,
                             pinocchio::ReferenceFrame reference_frame,
                             Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
@@ -212,11 +307,33 @@ public:
                                     pinocchio::ReferenceFrame reference_frame,
                                     Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
+  /// @brief Computes the relative frame Jacobian into a caller-supplied Pinocchio data.
+  /// @details The explicit-scratch overload of the above; see forwardKinematics(pinocchio::Data&,
+  /// const Eigen::VectorXd&, const std::string&, const std::string&).
+  /// @param data The Pinocchio data to write.
+  /// @param q The joint configuration.
+  /// @param frame_id The Pinocchio frame ID of the end-effector frame.
+  /// @param base_frame The name of the base frame (its ID is looked up internally).
+  /// @param reference_frame The reference frame for the Jacobian output. LOCAL is expressed in the
+  /// body frame of T_rel; LOCAL_WORLD_ALIGNED is at the T_rel origin with world orientation.
+  /// @param jacobian Output matrix to store the Jacobian (must be pre-allocated to 6 x nv).
+  void computeRelativeFrameJacobian(pinocchio::Data& data, const Eigen::VectorXd& q,
+                                    pinocchio::FrameIndex frame_id, const std::string& base_frame,
+                                    pinocchio::ReferenceFrame reference_frame,
+                                    Eigen::Ref<Eigen::MatrixXd> jacobian) const;
+
   /// @brief Computes the joint Jacobians for every joint at the given configuration.
   /// @details Populates the internal Pinocchio data so that pinocchio::getJointJacobian
   /// can be called for any joint after this. Also runs forward kinematics.
   /// @param q The joint configuration.
   void computeJointJacobians(const Eigen::VectorXd& q) const;
+
+  /// @brief Computes the joint Jacobians into a caller-supplied Pinocchio data.
+  /// @details The explicit-scratch overload of the above; see forwardKinematics(pinocchio::Data&,
+  /// const Eigen::VectorXd&, const std::string&, const std::string&).
+  /// @param data The Pinocchio data to write.
+  /// @param q The joint configuration.
+  void computeJointJacobians(pinocchio::Data& data, const Eigen::VectorXd& q) const;
 
   /// @brief Get the Pinocchio model ID of a frame by its name.
   /// @param name The name of the frame to look up.
@@ -435,6 +552,10 @@ private:
 
   /// @brief Maps each added collision geometry to its respective Pinocchio geometry ID.
   std::unordered_map<std::string, pinocchio::GeomIndex> collision_geometry_map_;
+
+  /// @brief Incremented on every change to the collision geometry, so that SceneContexts
+  /// snapshotted from an older version can detect that they are stale.
+  uint64_t geometry_version_ = 0;
 };
 
 }  // namespace roboplan

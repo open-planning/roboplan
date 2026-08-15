@@ -10,6 +10,20 @@
 
 namespace roboplan {
 
+namespace {
+
+/// @brief Poses `oink`'s context at `scene`'s current joint positions and returns it.
+/// @details Oink::solveIk() does this on entry. These tests drive tasks, constraints, and barriers
+/// one method at a time, so they perform the same step a real solve would.
+const SceneContext& posed(Oink& oink, const Scene& scene) {
+  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
+  oink.getContext().setJointPositions(q);
+  oink.getContext().updateFramePlacements(q);
+  return oink.getContext();
+}
+
+}  // namespace
+
 class PositionLimitTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -56,7 +70,7 @@ TEST_F(PositionLimitTest, Construction) {
 TEST_F(PositionLimitTest, GetNumConstraints) {
   PositionLimit constraint(*oink_, 1.0);
 
-  int num_constraints = constraint.getNumConstraints(*scene_);
+  int num_constraints = constraint.getNumConstraints(posed(*oink_, *scene_));
   EXPECT_EQ(num_constraints, num_variables_);
 }
 
@@ -68,9 +82,10 @@ TEST_F(PositionLimitTest, ConstraintMatrixDimensions) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   EXPECT_EQ(constraint_matrix.rows(), num_variables_);
   EXPECT_EQ(constraint_matrix.cols(), num_variables_);
@@ -86,9 +101,10 @@ TEST_F(PositionLimitTest, ConstraintMatrixIsIdentity) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // Constraint matrix should be identity for box constraints
   Eigen::MatrixXd expected_identity = Eigen::MatrixXd::Identity(num_variables_, num_variables_);
@@ -109,9 +125,10 @@ TEST_F(PositionLimitTest, BoundsAtCenter) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // At center, distances to upper and lower limits should be equal
   for (int i = 0; i < num_variables_; ++i) {
@@ -136,9 +153,10 @@ TEST_F(PositionLimitTest, BoundsNearUpperLimit) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // Upper bounds should be smaller than lower bounds (less room to move up)
   for (int i = 0; i < num_variables_; ++i) {
@@ -163,9 +181,10 @@ TEST_F(PositionLimitTest, BoundsNearLowerLimit) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // Lower bounds should be smaller (in magnitude) than upper bounds
   for (int i = 0; i < num_variables_; ++i) {
@@ -190,12 +209,14 @@ TEST_F(PositionLimitTest, GainEffect) {
   Eigen::VectorXd lower_bounds2(num_variables_);
   Eigen::VectorXd upper_bounds2(num_variables_);
 
-  ASSERT_TRUE(
-      constraint1.computeQpConstraints(*scene_, constraint_matrix, lower_bounds1, upper_bounds1)
-          .has_value());
-  ASSERT_TRUE(
-      constraint2.computeQpConstraints(*scene_, constraint_matrix, lower_bounds2, upper_bounds2)
-          .has_value());
+  ASSERT_TRUE(constraint1
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds1,
+                                        upper_bounds1)
+                  .has_value());
+  ASSERT_TRUE(constraint2
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds2,
+                                        upper_bounds2)
+                  .has_value());
 
   // Constraint with gain 0.5 should have tighter bounds (50% of full range)
   for (int i = 0; i < num_variables_; ++i) {
@@ -214,9 +235,10 @@ TEST_F(PositionLimitTest, ZeroGain) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // Both bounds should be zero (no motion allowed)
   EXPECT_TRUE(upper_bounds.isApprox(Eigen::VectorXd::Zero(num_variables_)));
@@ -233,9 +255,10 @@ TEST_F(PositionLimitTest, FiniteJointLimitsProduceFiniteBounds) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // All UR5 joints have finite position limits, so all bounds must be finite.
   for (int i = 0; i < num_variables_; ++i) {
@@ -258,9 +281,10 @@ TEST_F(PositionLimitTest, PreventExceedingUpperLimit) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // If we move by the maximum allowed upper bound, we shouldn't exceed joint limits
   Eigen::VectorXd q_new = q + upper_bounds;
@@ -286,9 +310,10 @@ TEST_F(PositionLimitTest, PreventExceedingLowerLimit) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // If we move by the minimum allowed lower bound, we shouldn't go below joint limits
   Eigen::VectorXd q_new = q + lower_bounds;
@@ -309,8 +334,8 @@ TEST_F(PositionLimitTest, MismatchedWorkspaceSize) {
   Eigen::VectorXd lower_bounds(num_variables_ - 1);
   Eigen::VectorXd upper_bounds(num_variables_ - 1);
 
-  auto result =
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds);
+  auto result = constraint.computeQpConstraints(posed(*oink_, *scene_), constraint_matrix,
+                                                lower_bounds, upper_bounds);
 
   ASSERT_FALSE(result.has_value());
   EXPECT_TRUE(result.error().find("size mismatch") != std::string::npos);
@@ -327,9 +352,10 @@ TEST_F(PositionLimitTest, ModifyGain) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // Bounds should reflect new gain
   const auto& model = scene_->getModel();
@@ -357,9 +383,10 @@ TEST_F(PositionLimitTest, AtJointLimit) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   // Upper bounds should be zero or very small (no room to move up)
   for (int i = 0; i < num_variables_; ++i) {
@@ -382,16 +409,18 @@ TEST_F(PositionLimitTest, DifferentConfigurationsDifferentBounds) {
   // Configuration 1
   Eigen::VectorXd q1 = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q1);
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds1, upper_bounds1)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds1,
+                                        upper_bounds1)
+                  .has_value());
 
   // Configuration 2 (different)
   Eigen::VectorXd q2 = Eigen::VectorXd::Ones(num_variables_) * 0.5;
   scene_->setJointPositions(q2);
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds2, upper_bounds2)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds2,
+                                        upper_bounds2)
+                  .has_value());
 
   // Bounds should be different
   EXPECT_FALSE(upper_bounds1.isApprox(upper_bounds2));
@@ -443,9 +472,10 @@ TEST_F(KinovaPositionLimitTest, BoundsAtNeutral) {
   Eigen::VectorXd lower_bounds(num_variables_);
   Eigen::VectorXd upper_bounds(num_variables_);
 
-  ASSERT_TRUE(
-      constraint.computeQpConstraints(*scene_, constraint_matrix, lower_bounds, upper_bounds)
-          .has_value());
+  ASSERT_TRUE(constraint
+                  .computeQpConstraints(posed(*oink_, *scene_), constraint_matrix, lower_bounds,
+                                        upper_bounds)
+                  .has_value());
 
   for (int i = 0; i < num_variables_; ++i) {
     if (i == 0 || i == 2 || i == 4 || i == 6) {

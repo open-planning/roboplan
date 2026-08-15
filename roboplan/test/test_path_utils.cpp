@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan_example_models/resources.hpp>
 
 namespace roboplan {
@@ -63,15 +63,15 @@ TEST_F(RoboPlanPathUtilsTest, testHasCollisionsAlongPath) {
     const auto& q_end = maybe_q_end.value();
 
     const auto max_step_size = 0.05;
-    const CollisionContext collision_context(*scene);
-    const auto result_linear = hasCollisionsAlongPath(*scene, collision_context, q_start, q_end,
+    const SceneContext scene_context(*scene);
+    const auto result_linear = hasCollisionsAlongPath(*scene, scene_context, q_start, q_end,
                                                       max_step_size, /* bisection*/ false);
-    const auto result_bisection = hasCollisionsAlongPath(*scene, collision_context, q_start, q_end,
+    const auto result_bisection = hasCollisionsAlongPath(*scene, scene_context, q_start, q_end,
                                                          max_step_size, /* bisection*/ true);
     ASSERT_EQ(result_linear, result_bisection);
 
     // The Scene-only overload (which uses the Scene's own collision scratch) must agree with the
-    // CollisionContext overload.
+    // SceneContext overload.
     const auto result_scene =
         hasCollisionsAlongPath(*scene, q_start, q_end, max_step_size, /* bisection*/ false);
     ASSERT_EQ(result_linear, result_scene);

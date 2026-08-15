@@ -2,15 +2,16 @@
 #include <cmath>
 #include <limits>
 
-#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/math_utils.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan_simple_ik/simple_ik.hpp>
 
 namespace roboplan {
 
 SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& options)
     : scene_{scene}, options_{options} {
-  data_ = pinocchio::Data(scene_->getModel());
+  std::random_device rd;
+  rng_gen_ = std::mt19937(rd());
 
   // Validate the joint group.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(options.group_name);
@@ -62,17 +63,20 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   const auto start_time = std::chrono::steady_clock::now();
   const std::chrono::duration<double> timeout(options_.max_time);
 
-  // Snapshot the scene geometry into a private collision context for this solve, so the IK
-  // iterations check collisions against their own scratch rather than the Scene's shared data.
-  const CollisionContext collision_context(*scene_);
+  // Snapshot the scene into a private context for this solve, so the IK iterations check
+  // collisions, draw restart configurations, and run kinematics against their own scratch rather
+  // than the Scene's shared data and RNG. Several solves can therefore run at once on one Scene.
+  SceneContext context(*scene_);
+  context.setRngSeed(static_cast<unsigned int>(rng_gen_()));
 
   const auto& model = scene_->getModel();
+  pinocchio::Data& data = context.getData();
 
   const auto& q_indices = joint_group_info_.q_indices;
   const auto& v_indices = joint_group_info_.v_indices;
 
   solution = start;
-  auto q = scene_->toFullJointPositions(options_.group_name, start.positions);
+  auto q = context.toFullJointPositions(options_.group_name, start.positions);
 
   // Pre-compute the frame IDs and resize relevant matrices.
   const auto n_frames = goals.size();
@@ -114,7 +118,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   bool timed_out = false;
   while (attempt <= options_.max_restarts && !timed_out) {
     if (attempt > 0) {
-      const auto maybe_q_random = scene_->randomCollisionFreePositions();
+      const auto maybe_q_random = context.randomCollisionFreePositions();
       if (!maybe_q_random) {
         throw std::runtime_error("Failed to generate random collision free positions for IK.");
       }
@@ -123,7 +127,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
 
     size_t iter = 0;
     while (iter < options_.max_iters) {
-      pinocchio::forwardKinematics(model, data_, q);
+      pinocchio::forwardKinematics(model, data, q);
 
       // Loop through all the frames and accumulate errors and Jacobians.
       for (size_t idx = 0; idx < n_frames; ++idx) {
@@ -131,18 +135,18 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
         const auto goal_tform = pinocchio::SE3(goal.tform);
         const auto& frame_id = frame_ids.at(idx);
 
-        pinocchio::updateFramePlacement(model, data_, frame_id);
+        pinocchio::updateFramePlacement(model, data, frame_id);
 
         // Determine the world goal depending on whether a base_frame was configured for the target.
         pinocchio::SE3 world_goal;
         if (base_frame_ids[idx].has_value()) {
-          pinocchio::updateFramePlacement(model, data_, base_frame_ids[idx].value());
-          world_goal = data_.oMf[base_frame_ids[idx].value()] * goal_tform;
+          pinocchio::updateFramePlacement(model, data, base_frame_ids[idx].value());
+          world_goal = data.oMf[base_frame_ids[idx].value()] * goal_tform;
         } else {
           world_goal = goal_tform;
         }
         // Pose error of the current frame relative to the goal, in the frame's local coordinates.
-        const pinocchio::SE3 frame_error = world_goal.actInv(data_.oMf[frame_id]);
+        const pinocchio::SE3 frame_error = world_goal.actInv(data.oMf[frame_id]);
         error_.segment(idx * 6, 6) = pinocchio::log6(frame_error).toVector();
 
         // Use the analytic (Gauss-Newton) Jacobian: chain the local frame Jacobian through the
@@ -151,7 +155,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
         pinocchio::Jlog6(frame_error, Jlog_);
 
         full_jacobian_.setZero();
-        pinocchio::computeFrameJacobian(model, data_, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
+        pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::ReferenceFrame::LOCAL,
                                         full_jacobian_);
         jacobian_.block(idx * 6, 0, 6, v_indices.size()) =
             Jlog_ * full_jacobian_(Eigen::placeholders::all, v_indices);
@@ -171,7 +175,7 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
       }
 
       if (converged) {
-        if (!options_.check_collisions || !collision_context.hasCollisions(q)) {
+        if (!options_.check_collisions || !context.hasCollisions(q)) {
           // Return immedaiately if requested
           if (options_.fast_return) {
             solution.positions = q(q_indices);
@@ -281,5 +285,7 @@ bool SimpleIk::saturateStep(const Eigen::VectorXd& q) {
   vel_(v_indices) = group_vel_;
   return true;
 }
+
+void SimpleIk::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 }  // namespace roboplan

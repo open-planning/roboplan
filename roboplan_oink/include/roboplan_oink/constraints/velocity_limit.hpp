@@ -19,18 +19,18 @@ struct VelocityLimit : public Constraints {
   VelocityLimit(const Oink& oink, double dt, const Eigen::VectorXd& v_max);
 
   /// @brief Get the number of constraint rows (number_variables)
-  /// @param scene The scene containing robot state and model
+  /// @param context The context (unused; the row count is fixed at construction).
   /// @return Number of constraint rows
-  int getNumConstraints(const Scene& scene) const override;
+  int getNumConstraints(const SceneContext& context) const override;
 
   /// @brief Compute QP constraint matrices for velocity limits
-  /// @param scene The scene containing robot state and model
+  /// @param context The context supplying the configuration and the kinematics scratch.
   /// @param constraint_matrix Output constraint matrix G (number_variables × number_variables)
   /// @param lower_bounds Output lower bounds vector (number_variables)
   /// @param upper_bounds Output upper bounds vector (number_variables)
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
-  computeQpConstraints(const Scene& scene, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
+  computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 

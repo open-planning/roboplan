@@ -2,8 +2,8 @@
 #include <queue>
 #include <utility>
 
-#include <roboplan/core/collision_context.hpp>
 #include <roboplan/core/path_utils.hpp>
+#include <roboplan/core/scene_context.hpp>
 
 namespace roboplan {
 
@@ -101,7 +101,7 @@ namespace {
 /// @brief Shared traversal for the hasCollisionsAlongPath overloads.
 /// @details Visits the same minimal set of configurations along the path and answers each collision
 ///   check via the `has_collisions` callable, so the public overloads only differ in which scratch
-///   (a caller-owned CollisionContext or the Scene's own) backs that check.
+///   (a caller-owned SceneContext or the Scene's own) backs that check.
 template <typename CollisionCheck>
 bool hasCollisionsAlongPathImpl(const Scene& scene, const CollisionCheck& has_collisions,
                                 const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
@@ -161,12 +161,12 @@ bool hasCollisionsAlongPathImpl(const Scene& scene, const CollisionCheck& has_co
 
 }  // namespace
 
-bool hasCollisionsAlongPath(const Scene& scene, const CollisionContext& collision_context,
+bool hasCollisionsAlongPath(const Scene& scene, const SceneContext& scene_context,
                             const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                             const double max_step_size, const bool bisection,
                             const bool check_endpoints) {
   return hasCollisionsAlongPathImpl(
-      scene, [&](const Eigen::VectorXd& q) { return collision_context.hasCollisions(q); }, q_start,
+      scene, [&](const Eigen::VectorXd& q) { return scene_context.hasCollisions(q); }, q_start,
       q_end, max_step_size, bisection, check_endpoints);
 }
 
@@ -222,11 +222,13 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
   std::mt19937 gen(options_.seed < 0 ? rd() : static_cast<unsigned int>(options_.seed));
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
-  // Snapshot the scene geometry into a private collision context for this shortcutting pass, so all
-  // connection checks below use their own scratch instead of the Scene's shared collision data.
-  const CollisionContext collision_context(*scene_);
+  // Snapshot the scene into a private context for this shortcutting pass, so all connection checks
+  // below use their own scratch instead of the Scene's shared collision data. The context captures
+  // the scene's current joint positions on construction; reading them from it, rather than from the
+  // scene again, keeps this pass to a single look at state another thread could write.
+  const SceneContext scene_context(*scene_);
 
-  q_full_ = scene_->getCurrentJointPositions();
+  q_full_ = scene_context.getJointPositions();
   auto q_start = q_full_;
   auto q_end = q_full_;
 
@@ -244,7 +246,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
     // Periodically collapse redundant vertices left behind by corner-cutting shortcuts, so the
     // working path stays compact rather than accumulating unhelpful micro-segments.
     if (i > 0 && i % options_.redundant_removal_iters == 0) {
-      removeRedundantVertices(path_configs, collision_context);
+      removeRedundantVertices(path_configs, scene_context);
       if (path_configs.size() < 3) {
         break;
       }
@@ -301,7 +303,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
     }
 
     // Ensure the new connection is valid. If not, try again.
-    if (hasCollisionsAlongPath(*scene_, collision_context, q_low, q_high, max_step_size)) {
+    if (hasCollisionsAlongPath(*scene_, scene_context, q_low, q_high, max_step_size)) {
       if (max_convergence_iters > 0 && ++empty_iters >= max_convergence_iters) {
         break;
       }
@@ -318,13 +320,13 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
   }
 
   // Final cleanup pass to collapse any redundant vertices remaining at convergence.
-  removeRedundantVertices(path_configs, collision_context);
+  removeRedundantVertices(path_configs, scene_context);
 
   return shortened_path;
 }
 
 size_t PathShortcutter::removeRedundantVertices(std::vector<Eigen::VectorXd>& path_configs,
-                                                const CollisionContext& collision_context) {
+                                                const SceneContext& scene_context) {
   const auto& q_indices = joint_group_info_.q_indices;
   auto q_prev = q_full_;
   auto q_next = q_full_;
@@ -340,8 +342,7 @@ size_t PathShortcutter::removeRedundantVertices(std::vector<Eigen::VectorXd>& pa
       q_prev(q_indices) = path_configs[i - 1];
       q_next(q_indices) = path_configs[i + 1];
       // The neighbors are existing collision-free path nodes, so skip the endpoint checks.
-      if (!hasCollisionsAlongPath(*scene_, collision_context, q_prev, q_next,
-                                  options_.max_step_size,
+      if (!hasCollisionsAlongPath(*scene_, scene_context, q_prev, q_next, options_.max_step_size,
                                   /* bisection */ false, /* check_endpoints */ false)) {
         path_configs.erase(path_configs.begin() + i);
         ++total_removed;

@@ -10,14 +10,16 @@ PositionLimit::PositionLimit(const Oink& oink, double gain)
     : config_limit_gain(gain), num_variables(oink.num_variables), v_indices(oink.v_indices),
       delta_q_max(oink.num_variables), delta_q_min(oink.num_variables) {}
 
-int PositionLimit::getNumConstraints(const Scene& /*scene*/) const { return num_variables; }
+int PositionLimit::getNumConstraints(const SceneContext& /*context*/) const {
+  return num_variables;
+}
 
 tl::expected<void, std::string> PositionLimit::computeQpConstraints(
-    const Scene& scene, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
+    const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
-  const auto& q = scene.getCurrentJointPositions();
+  const auto& q = context.getJointPositions();
 
-  auto maybe_q_collapsed = collapseContinuousJointPositions(scene, "", q);
+  auto maybe_q_collapsed = collapseContinuousJointPositions(context.getScene(), "", q);
   if (!maybe_q_collapsed) {
     return tl::make_unexpected("PositionLimit: " + maybe_q_collapsed.error());
   }
@@ -25,7 +27,8 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
 
   // Get joint limits from the model (only do this once).
   if (q_min.size() == 0u) {
-    const auto maybe_position_limits = scene.getPositionLimitVectors("", /*collapsed*/ true);
+    const auto maybe_position_limits =
+        context.getScene().getPositionLimitVectors("", /*collapsed*/ true);
     if (!maybe_position_limits) {
       return tl::make_unexpected("PositionLimit: " + maybe_position_limits.error());
     }

@@ -20,10 +20,12 @@ VelocityLimit::VelocityLimit(const Oink& oink, double dt, const Eigen::VectorXd&
   }
 }
 
-int VelocityLimit::getNumConstraints(const Scene& /*scene*/) const { return num_variables; }
+int VelocityLimit::getNumConstraints(const SceneContext& /*context*/) const {
+  return num_variables;
+}
 
 tl::expected<void, std::string> VelocityLimit::computeQpConstraints(
-    const Scene& /*scene*/, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
+    const SceneContext& /*context*/, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
   // Validate pre-allocated workspace dimensions
   if (constraint_matrix.rows() != num_variables || constraint_matrix.cols() != num_variables) {

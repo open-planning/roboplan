@@ -50,16 +50,16 @@ struct AccelerationLimit : public Constraints {
   void reset();
 
   /// @brief Get the number of constraint rows (num_variables).
-  int getNumConstraints(const Scene& scene) const override;
+  int getNumConstraints(const SceneContext& context) const override;
 
   /// @brief Compute QP constraint matrices for acceleration limits.
-  /// @param scene The scene containing robot state and model.
+  /// @param context The context supplying the configuration and the kinematics scratch.
   /// @param constraint_matrix Output constraint matrix G (num_variables × num_variables).
   /// @param lower_bounds Output lower bounds vector (num_variables).
   /// @param upper_bounds Output upper bounds vector (num_variables).
   /// @return void on success, error message on failure.
   tl::expected<void, std::string>
-  computeQpConstraints(const Scene& scene, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
+  computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 

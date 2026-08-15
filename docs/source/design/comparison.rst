@@ -83,7 +83,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - Scene graph with native URDF + SRDF parsing
      - None — user-defined state spaces
    * - Collision checking
-     - Coal: discrete checks and distance queries, with per-thread collision contexts for concurrent queries
+     - Coal: discrete checks and distance queries, with per-thread scene contexts for concurrent queries
      - FCL (default) or Bullet plugins
      - Bullet (discrete + continuous swept) or FCL (discrete) plugins
      - None — user-supplied validity checkers

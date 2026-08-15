@@ -29,6 +29,20 @@ roboplan::CartesianConfiguration makeCartesianConfig(const std::string& frame_na
 
 namespace roboplan {
 
+namespace {
+
+/// @brief Poses `oink`'s context at `scene`'s current joint positions and returns it.
+/// @details Oink::solveIk() does this on entry. These tests drive tasks, constraints, and barriers
+/// one method at a time, so they perform the same step a real solve would.
+const SceneContext& posed(Oink& oink, const Scene& scene) {
+  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
+  oink.getContext().setJointPositions(q);
+  oink.getContext().updateFramePlacements(q);
+  return oink.getContext();
+}
+
+}  // namespace
+
 class SelfCollisionBarrierTest : public ::testing::Test {
 protected:
   void SetUp() override {
@@ -68,7 +82,7 @@ TEST_F(SelfCollisionBarrierTest, ConstructionStoresParameters) {
                                   .d_min = 0.03,
                                   .safety_margin = 0.01});
 
-  EXPECT_EQ(barrier->getNumBarriers(*scene_), num_pairs_);
+  EXPECT_EQ(barrier->getNumBarriers(posed(*oink_, *scene_)), num_pairs_);
   EXPECT_EQ(barrier->n_collision_pairs, num_pairs_);
   EXPECT_DOUBLE_EQ(barrier->d_min, 0.03);
   EXPECT_DOUBLE_EQ(barrier->gain, 2.5);
@@ -118,7 +132,7 @@ TEST_F(SelfCollisionBarrierTest, PairCountClippedToSceneCount) {
   auto barrier = std::make_shared<SelfCollisionBarrier>(
       *oink_, *scene_, dt_, SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_ + 5});
   EXPECT_EQ(barrier->n_collision_pairs, num_pairs_);
-  EXPECT_EQ(barrier->getNumBarriers(*scene_), num_pairs_);
+  EXPECT_EQ(barrier->getNumBarriers(posed(*oink_, *scene_)), num_pairs_);
 }
 
 TEST_F(SelfCollisionBarrierTest, InvalidGainAndDt) {
@@ -147,7 +161,7 @@ TEST_F(SelfCollisionBarrierTest, BarrierValuesPositiveInSafeConfiguration) {
   auto barrier = std::make_shared<SelfCollisionBarrier>(
       *oink_, *scene_, dt_,
       SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_, .d_min = 0.0});
-  auto result = barrier->computeBarrier(*scene_);
+  auto result = barrier->computeBarrier(posed(*oink_, *scene_));
   ASSERT_TRUE(result.has_value()) << result.error();
 
   EXPECT_EQ(barrier->barrier_values.size(), num_pairs_);
@@ -165,7 +179,7 @@ TEST_F(SelfCollisionBarrierTest, ClosestPairsAreSelectedFirst) {
   auto barrier = std::make_shared<SelfCollisionBarrier>(
       *oink_, *scene_, dt_,
       SelfCollisionBarrierOptions{.n_collision_pairs = requested, .d_min = 0.0});
-  auto result = barrier->computeBarrier(*scene_);
+  auto result = barrier->computeBarrier(posed(*oink_, *scene_));
   ASSERT_TRUE(result.has_value()) << result.error();
 
   ASSERT_EQ(static_cast<int>(barrier->closest_pair_indices.size()), requested);
@@ -201,8 +215,8 @@ TEST_F(SelfCollisionBarrierTest, DminShiftsBarrierValues) {
       *oink_, *scene_, dt_,
       SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_, .d_min = 0.05});
 
-  ASSERT_TRUE(barrier_no_margin->computeBarrier(*scene_).has_value());
-  ASSERT_TRUE(barrier_with_margin->computeBarrier(*scene_).has_value());
+  ASSERT_TRUE(barrier_no_margin->computeBarrier(posed(*oink_, *scene_)).has_value());
+  ASSERT_TRUE(barrier_with_margin->computeBarrier(posed(*oink_, *scene_)).has_value());
 
   // For the same pairs (assuming deterministic ordering), the margin barrier is exactly
   // 0.05 less than the unshifted barrier — values just compare at the per-pair level.
@@ -218,8 +232,8 @@ TEST_F(SelfCollisionBarrierTest, JacobianHasExpectedDimensions) {
 
   auto barrier = std::make_shared<SelfCollisionBarrier>(
       *oink_, *scene_, dt_, SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_});
-  ASSERT_TRUE(barrier->computeBarrier(*scene_).has_value());
-  ASSERT_TRUE(barrier->computeJacobian(*scene_).has_value());
+  ASSERT_TRUE(barrier->computeBarrier(posed(*oink_, *scene_)).has_value());
+  ASSERT_TRUE(barrier->computeJacobian(posed(*oink_, *scene_)).has_value());
 
   EXPECT_EQ(barrier->jacobian_container.rows(), num_pairs_);
   EXPECT_EQ(barrier->jacobian_container.cols(), num_variables_);
@@ -233,11 +247,11 @@ TEST_F(SelfCollisionBarrierTest, QpInequalitiesAreFinite) {
   auto barrier = std::make_shared<SelfCollisionBarrier>(
       *oink_, *scene_, dt_,
       SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_, .gain = 5.0});
-  const int n = barrier->getNumBarriers(*scene_);
+  const int n = barrier->getNumBarriers(posed(*oink_, *scene_));
   Eigen::MatrixXd G(n, num_variables_);
   Eigen::VectorXd b(n);
 
-  auto result = barrier->computeQpInequalities(*scene_, G, b);
+  auto result = barrier->computeQpInequalities(posed(*oink_, *scene_), G, b);
   ASSERT_TRUE(result.has_value()) << result.error();
 
   EXPECT_EQ(G.rows(), n);
@@ -254,7 +268,7 @@ TEST_F(SelfCollisionBarrierTest, EvaluateAtConfigurationMatchesBarrierMinimum) {
   auto barrier = std::make_shared<SelfCollisionBarrier>(
       *oink_, *scene_, dt_,
       SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_, .d_min = 0.01});
-  ASSERT_TRUE(barrier->computeBarrier(*scene_).has_value());
+  ASSERT_TRUE(barrier->computeBarrier(posed(*oink_, *scene_)).has_value());
 
   pinocchio::Data temp_data(scene_->getModel());
   auto eval_result = barrier->evaluateAtConfiguration(scene_->getModel(), temp_data, q);

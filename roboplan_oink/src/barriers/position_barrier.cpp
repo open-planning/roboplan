@@ -65,11 +65,13 @@ PositionBarrier::PositionBarrier(const Oink& oink, const Scene& scene,
   full_jacobian = Eigen::MatrixXd::Zero(6, scene.getModel().nv);
 }
 
-int PositionBarrier::getNumBarriers(const Scene& /*scene*/) const { return barrier_values.size(); }
+int PositionBarrier::getNumBarriers(const SceneContext& /*context*/) const {
+  return barrier_values.size();
+}
 
-tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& scene) {
+tl::expected<void, std::string> PositionBarrier::computeBarrier(const SceneContext& context) {
   // Get current frame position in world coordinates
-  Eigen::Vector3d p = getFramePosition(scene);
+  Eigen::Vector3d p = getFramePosition(context);
 
   // Compute barrier values for each active constraint
   int idx = 0;
@@ -113,12 +115,12 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& sce
   return {};
 }
 
-tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& scene) {
+tl::expected<void, std::string> PositionBarrier::computeJacobian(const SceneContext& context) {
   // Compute full-robot frame Jacobian (6 x model.nv) in world frame
   // Using WORLD reference frame so no additional rotation is needed
   // since our position bounds are specified in world coordinates
-  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
-  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::WORLD, full_jacobian);
+  const Eigen::VectorXd& q = context.getJointPositions();
+  context.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::WORLD, full_jacobian);
 
   // Pinocchio frame Jacobian layout with WORLD reference frame:
   //   Rows 0-2: linear velocity (dp_world/dq) - this is what we need
@@ -167,8 +169,8 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
   return {};
 }
 
-Eigen::Vector3d PositionBarrier::getFramePosition(const Scene& scene) const {
-  return scene.getData().oMf[frame_id].translation();
+Eigen::Vector3d PositionBarrier::getFramePosition(const SceneContext& context) const {
+  return context.getData().oMf[frame_id].translation();
 }
 
 tl::expected<double, std::string>

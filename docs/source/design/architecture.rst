@@ -130,8 +130,18 @@ It owns the Pinocchio robot model and data, the collision geometry model, and pl
 On top of these it provides the queries every algorithm needs: forward kinematics, frame Jacobians, joint limits and groups, collision and distance checks, random and collision-free sampling, and interpolation/integration that respects the configuration space topology.
 
 Algorithms take a ``Scene`` (usually as a ``std::shared_ptr``) and work with the standard data types, though they can also extract the underlying Pinocchio model information directly from the scene as necessary.
-For thread safety, components that check collisions concurrently (such as RRT and OInK) snapshot a private ``CollisionContext`` from the ``Scene`` instead of mutating shared state.
-This provides an additional benefit of taking advantage of Pinocchio's broadphase manager for faster collision checking.
+The ``Scene`` itself splits into an immutable robot description (the model, the collision geometry, the frame/joint/group lookups) and per-query scratch (Pinocchio data, geometry data, the broadphase AABB tree, the RNG, the current configuration).
+Only the first half is safe to share, so algorithms snapshot a private ``SceneContext`` from the ``Scene`` and run every scratch-writing query -- collision checks, forward kinematics, frame Jacobians, random sampling -- against that instead.
+Give each thread its own ``SceneContext`` and any number of planners can work against one shared ``Scene`` concurrently; the Python bindings release the GIL for the long-running entry points, so this holds from Python too.
+A context also takes advantage of Pinocchio's broadphase manager for faster collision checking.
+
+A ``SceneContext`` carries the configuration an algorithm is working at, which is what keeps that configuration from travelling between subsystems through the shared ``Scene``.
+``Scene::setJointPositions`` and ``Scene::getCurrentJointPositions`` remain for interactive and scripting use; library code reads the current positions at most once, on entry to a call, to seed a context.
+
+A context snapshots the scene's collision geometry when it is built.
+Adding or removing geometry, or changing collision pairs, invalidates every live context: the next query on a stale one reports the mismatch rather than answering against geometry it was not sized for.
+Rebuild the context (and any solver holding one, such as ``Oink``) after such a change.
+Moving an existing geometry with ``updateGeometryPlacement`` does not invalidate anything.
 
 The core package also provides post-processing utilities that operate on paths, such as :doc:`path shortcutting </concepts/path_shortcutting>` and uniform resampling.
 

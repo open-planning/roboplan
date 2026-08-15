@@ -252,7 +252,7 @@ class AccelerationLimit(Constraints):
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
 
-    def get_num_barriers(self, scene: roboplan.core._core_ext.Scene) -> int:
+    def get_num_barriers(self, scene: "roboplan::SceneContext") -> int:
         """Get the number of barrier constraints."""
 
     @property
@@ -306,7 +306,7 @@ class PositionBarrier(Barrier):
     def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], dt: float, axis_selection: ConstraintAxisSelection = ..., gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
         """Create a position barrier with optional axis selection."""
 
-    def get_frame_position(self, scene: roboplan.core._core_ext.Scene) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+    def get_frame_position(self, scene: "roboplan::SceneContext") -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Get the current frame position in world coordinates."""
 
     @property

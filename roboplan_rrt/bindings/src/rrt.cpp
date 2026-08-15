@@ -161,6 +161,7 @@ void initRrt(nanobind::module_& m) {
       .def("setOptions", &RRT::setOptions, "Sets or updates the options for the RRT planner.",
            "options"_a)
       .def("plan", unwrap_expected(&RRT::plan),
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Plan a path from start to goal, optionally subject to constraints that every "
            "configuration on the path must satisfy.",
            "start"_a, "goal"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})

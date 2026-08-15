@@ -1,9 +1,11 @@
+#include <atomic>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <numbers>
+#include <thread>
 #include <vector>
 
 #include <pinocchio/math/rpy.hpp>
@@ -24,6 +26,10 @@ protected:
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
     scene = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
+
+    // Pin the scene RNG so the tests below draw the same start/goal pairs on every run. Tests that
+    // need a specific problem override this with their own setRngSeed.
+    scene->setRngSeed(1234);
   }
 
 public:
@@ -174,7 +180,13 @@ TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
 TEST_F(RoboPlanRRTTest, FastReturnUsesFullBudget) {
   // fast_return is independent of the planner mode: with plain RRT, disabling it should keep
   // planning past the first solution until the node budget is exhausted.
-  const auto plan_and_count = [this](bool fast_return) {
+  // Draw the problem once: the two runs are only comparable if they plan between the same
+  // endpoints, and drawing inside the lambda would advance the scene RNG between them.
+  JointConfiguration start, goal;
+  start.positions = scene->randomCollisionFreePositions().value();
+  goal.positions = scene->randomCollisionFreePositions().value();
+
+  const auto plan_and_count = [&](bool fast_return) {
     RRTOptions options;
     options.group_name = "arm";
     options.max_connection_distance = 0.5;
@@ -183,10 +195,6 @@ TEST_F(RoboPlanRRTTest, FastReturnUsesFullBudget) {
     options.max_planning_time = 1.0;
     auto rrt = std::make_unique<RRT>(scene, options);
     rrt->setRngSeed(1234);
-
-    JointConfiguration start, goal;
-    start.positions = scene->randomCollisionFreePositions().value();
-    goal.positions = scene->randomCollisionFreePositions().value();
 
     const auto maybe_path = rrt->plan(start, goal);
     EXPECT_TRUE(maybe_path.has_value());
@@ -250,7 +258,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   const Eigen::VectorXd q_extend_expected{{0.1, 0, 0, 0, 0, 0}};
   const Eigen::VectorXd q_end{{0.5, 0, 0, 0, 0, 0}};
 
-  const CollisionContext collision_context(*scene);
+  const SceneContext scene_context(*scene);
 
   // Initialize the search to the start configuration.
   KdTree tree;
@@ -259,7 +267,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
 
   // A single EXTEND step adds exactly one node at the expected configuration,
   // which is exactly options.max_connection_distance away.
-  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, collision_context, /*greedy*/ false));
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, scene_context, /*greedy*/ false));
   ASSERT_EQ(nodes.size(), 2);
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
@@ -269,7 +277,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   rrt_connect->initializeTree(tree, nodes, q_start);
 
   // A greedy CONNECT step will add exactly 6 nodes and reach q_end.
-  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, collision_context, /*greedy*/ true));
+  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, scene_context, /*greedy*/ true));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
 }
@@ -292,7 +300,7 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   const std::vector<Eigen::VectorXd> expected_positions = {q_start, q_start_nearest, q_goal_nearest,
                                                            q_goal};
 
-  const CollisionContext collision_context(*scene);
+  const SceneContext scene_context(*scene);
 
   // Initialize the search to the start configuration.
   KdTree start_tree, goal_tree;
@@ -302,24 +310,23 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
 
   // The nodes should both be appended directly to the start and goal nodes.
   ASSERT_TRUE(
-      rrt->growTree(start_tree, start_nodes, q_start_nearest, collision_context, /*greedy*/ false));
+      rrt->growTree(start_tree, start_nodes, q_start_nearest, scene_context, /*greedy*/ false));
   ASSERT_EQ(start_nodes.size(), 2);
   ASSERT_EQ(start_nodes.back().config, q_start_nearest);
 
   ASSERT_TRUE(
-      rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, collision_context, /*greedy*/ false));
+      rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, scene_context, /*greedy*/ false));
   ASSERT_EQ(goal_nodes.size(), 2);
   ASSERT_EQ(goal_nodes.back().config, q_goal_nearest);
 
   // Starting from the start_tree, the trees should be joinable.
-  const auto maybe_path =
-      rrt->joinTrees(start_nodes, goal_tree, goal_nodes, true, collision_context);
+  const auto maybe_path = rrt->joinTrees(start_nodes, goal_tree, goal_nodes, true, scene_context);
   ASSERT_TRUE(maybe_path.has_value());
   ASSERT_EQ(maybe_path.value().first.positions, expected_positions);
 
   // Starting from the goal_tree, the trees should be joinable.
   const auto maybe_path2 =
-      rrt->joinTrees(goal_nodes, start_tree, start_nodes, false, collision_context);
+      rrt->joinTrees(goal_nodes, start_tree, start_nodes, false, scene_context);
   ASSERT_TRUE(maybe_path2.has_value());
   ASSERT_EQ(maybe_path2.value().first.positions, expected_positions);
 }
@@ -328,6 +335,59 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
 /// @details Constrains the UR5 tool frame to hold its z axis near vertical, leaving position and
 /// the rotation about that axis free. The nominal orientation is a half turn about x, so a zero
 /// displacement points the tool straight down.
+TEST_F(RoboPlanRRTTest, ConcurrentSeededPlansMatchTheSerialPlan) {
+  // The determinism check that a data-race detector alone cannot make: several planners running at
+  // once against one shared Scene must each produce exactly the path they produce running alone.
+  // Anything shared between them -- kinematics scratch, the sampling RNG, the current
+  // configuration -- would show up here as a diverging path rather than as a crash.
+  constexpr unsigned int kSeed = 1234;
+  constexpr int kNumThreads = 8;
+
+  scene->setRngSeed(4);
+  JointConfiguration start, goal;
+  start.positions = scene->randomCollisionFreePositions().value();
+  goal.positions = scene->randomCollisionFreePositions().value();
+
+  RRTOptions options;
+  options.group_name = "arm";
+  options.rrt_connect = true;
+  options.max_connection_distance = 0.5;
+  options.max_nodes = 2000;
+
+  const auto plan_once = [&]() {
+    RRT rrt(scene, options);
+    rrt.setRngSeed(kSeed);
+    return rrt.plan(start, goal);
+  };
+
+  const auto serial_result = plan_once();
+  ASSERT_TRUE(serial_result.has_value());
+  const auto& expected = serial_result.value().positions;
+
+  std::atomic<int> mismatches{0};
+  std::vector<std::thread> workers;
+  workers.reserve(kNumThreads);
+  for (int t = 0; t < kNumThreads; ++t) {
+    workers.emplace_back([&]() {
+      const auto result = plan_once();
+      if (!result.has_value() || result.value().positions.size() != expected.size()) {
+        ++mismatches;
+        return;
+      }
+      for (size_t i = 0; i < expected.size(); ++i) {
+        if (!result.value().positions.at(i).isApprox(expected.at(i), 1.0e-12)) {
+          ++mismatches;
+        }
+      }
+    });
+  }
+  for (auto& worker : workers) {
+    worker.join();
+  }
+
+  EXPECT_EQ(mismatches.load(), 0);
+}
+
 class RoboPlanConstrainedRRTTest : public RoboPlanRRTTest {
 protected:
   void SetUp() override {
@@ -420,8 +480,7 @@ TEST_F(RoboPlanConstrainedRRTTest, ProjectionLeavesConfigurationsInsideAlone) {
 }
 
 TEST_F(RoboPlanConstrainedRRTTest, PlanRejectsEndpointsOffTheConstraint) {
-  // Draw before the planner exists: RRT::setRngSeed also reseeds the scene, which would discard
-  // the fixture's pinned seed and with it the guarantee that this draw projects.
+  // Draws from the scene RNG pinned by the fixture, so this configuration is one that projects.
   const auto maybe_q_on = scene->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_on.has_value());
   auto q_on = maybe_q_on.value();
@@ -454,9 +513,8 @@ TEST_F(RoboPlanConstrainedRRTTest, PlannedPathStaysOnTheConstraint) {
   options.max_planning_time = 20.0;
   options.constraint_projection.path_step_size = 0.1;
 
-  // Both endpoints must start on the constraint, so project them first. Draw them before the
-  // planner exists: RRT::setRngSeed also reseeds the scene, which would discard the fixture's
-  // pinned seed and with it the guarantee that these draws project.
+  // Both endpoints must start on the constraint, so project them first. These draw from the scene
+  // RNG pinned by the fixture, so both are configurations that project.
   const auto maybe_q_start = scene->randomCollisionFreePositions();
   ASSERT_TRUE(maybe_q_start.has_value());
   auto q_start = maybe_q_start.value();

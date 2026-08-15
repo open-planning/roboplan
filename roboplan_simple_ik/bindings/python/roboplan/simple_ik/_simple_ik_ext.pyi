@@ -93,3 +93,8 @@ class SimpleIk:
     @overload
     def solveIk(self, goals: Sequence[roboplan.core._core_ext.CartesianConfiguration], start: roboplan.core._core_ext.JointConfiguration, solution: roboplan.core._core_ext.JointConfiguration) -> bool:
         """Solves inverse kinematics (multiple goal)."""
+
+    def setRngSeed(self, seed: int) -> None:
+        """
+        Sets the seed for the solver's random number generator (RNG), used to draw restart configurations.
+        """
