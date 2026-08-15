@@ -94,7 +94,7 @@ Composing with the rest of RoboPlan
   the geometric path is already what you want.
 - **Plan → optimize:** ``roboplan_rrt`` finds a collision-free path that *seeds* a
   ``TrajectoryOptimizer``, which then refines it into a dynamically-feasible motion respecting a
-  torque limit. See ``roboplan_examples/python/example_aligator_comparison.py`` for a worked,
+  torque limit. See ``roboplan_examples/python/example_aligator_trajopt.py`` for a worked,
   side-by-side comparison of the raw RRT path, the RRT + TOPP-RA pipeline, and the RRT + aligator
   pipeline on the same start/goal pair — including a plot of the torque TOPP-RA's trajectory would
   actually require (computed post hoc via inverse dynamics) against the limit aligator enforces
