@@ -95,33 +95,42 @@ TEST(TrajOptResultTest, ToRoboplanExpandsReducedPositionsToFullLayout) {
   Eigen::VectorXd q1 = Eigen::VectorXd::LinSpaced(nq_reduced, -0.2, 0.3);
   result.trajectory.times = {0.0, 0.02};
   result.trajectory.positions = {q0, q1};
-  // Velocities present on the result but deliberately not carried into JointTrajectory.
   result.trajectory.velocities = {Eigen::VectorXd::Ones(nq_reduced),
-                                  Eigen::VectorXd::Ones(nq_reduced)};
+                                  -Eigen::VectorXd::Ones(nq_reduced)};
 
   const JointTrajectory jt = result.toRoboplan(*scene, group_name);
 
-  // Labels and times pass through; positions expand to full-model size.
+  // Labels and times pass through; positions/velocities expand to full-model size.
   EXPECT_EQ(jt.joint_names, scene->getJointNames());
   EXPECT_EQ(jt.times, result.trajectory.times);
   ASSERT_EQ(jt.positions.size(), result.trajectory.positions.size());
+  ASSERT_EQ(jt.velocities.size(), result.trajectory.velocities.size());
 
   const Eigen::VectorXd& full_q0 = scene->getCurrentJointPositions();
   for (std::size_t k = 0; k < jt.positions.size(); ++k) {
-    // Full-model configuration size.
+    // Full-model configuration/velocity size.
     EXPECT_EQ(jt.positions[k].size(), full_q0.size());
+    EXPECT_EQ(jt.velocities[k].size(), scene->getModel().nv);
     // Round-trip: the group's slice of the full vector equals the reduced input we put in.
     const Eigen::VectorXd& q_reduced = result.trajectory.positions[k];
+    const Eigen::VectorXd& v_reduced = result.trajectory.velocities[k];
     for (int i = 0; i < group->q_indices.size(); ++i) {
       EXPECT_DOUBLE_EQ(jt.positions[k](group->q_indices(i)), q_reduced(i));
     }
-    // Non-group DoF keep the scene's current configuration.
-    // (Spot-checked implicitly: toFullJointPositions seeds from cur_state_.)
+    for (int i = 0; i < group->v_indices.size(); ++i) {
+      EXPECT_DOUBLE_EQ(jt.velocities[k](group->v_indices(i)), v_reduced(i));
+    }
+    // Non-group position DoF keep the scene's current configuration (toFullJointPositions seeds
+    // from cur_state_); non-group velocity DoF are exactly zero (toFullJointVelocities).
+    for (int idx = 0; idx < jt.velocities[k].size(); ++idx) {
+      if ((group->v_indices.array() == idx).any()) {
+        continue;
+      }
+      EXPECT_DOUBLE_EQ(jt.velocities[k](idx), 0.0);
+    }
   }
 
-  // Velocities and accelerations are intentionally empty (design §4.5): torque, not
-  // acceleration, is the headline output, and core has no reduced->full velocity mapper.
-  EXPECT_TRUE(jt.velocities.empty());
+  // Accelerations are intentionally empty (design §4.5): not a ProxDDP output.
   EXPECT_TRUE(jt.accelerations.empty());
 }
 

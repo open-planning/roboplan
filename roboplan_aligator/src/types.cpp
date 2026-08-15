@@ -30,9 +30,14 @@ JointTrajectory TrajOptResult::toRoboplan(const Scene& scene, const std::string&
     jt.positions.push_back(scene.toFullJointPositions(group_name, q_reduced));
   }
 
-  // Velocities and accelerations are intentionally left empty. Core exposes no reduced->full
-  // velocity mapper (only toFullJointPositions), so reduced-group velocities remain available
-  // on trajectory.velocities; accelerations are not a ProxDDP output (design §4.5). Torques are
+  jt.velocities.reserve(trajectory.velocities.size());
+  for (const auto& v_reduced : trajectory.velocities) {
+    // Reduced-group velocities -> full-model layout, non-group DoF zero (locked joints have no
+    // meaningful velocity in a group-scoped solve; see Scene::toFullJointVelocities).
+    jt.velocities.push_back(scene.toFullJointVelocities(group_name, v_reduced));
+  }
+
+  // Accelerations are intentionally left empty: not a ProxDDP output (design §4.5). Torques are
   // likewise dropped here — JointTrajectory has no torque field — and stay on TrajOptResult's
   // `controls`.
   return jt;

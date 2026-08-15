@@ -176,10 +176,13 @@ def test_result_trajectory_and_to_roboplan(scene: Scene) -> None:
     assert len(result.trajectory.times) == opt.horizon() + 1
     assert len(result.trajectory.positions) == opt.horizon() + 1
     assert result.trajectory.times[1] == pytest.approx(0.05)
-    # toRoboplan yields a core JointTrajectory in full-model layout.
+    # toRoboplan yields a core JointTrajectory in full-model layout, positions and velocities
+    # both expanded via Scene::toFullJoint{Positions,Velocities}.
     joint_traj = result.toRoboplan(scene, GROUP_NAME)
     assert isinstance(joint_traj, JointTrajectory)
     assert len(joint_traj.positions) == opt.horizon() + 1
+    assert len(joint_traj.velocities) == opt.horizon() + 1
+    assert len(joint_traj.accelerations) == 0
 
 
 def test_constraint_specs_attach(scene: Scene) -> None:

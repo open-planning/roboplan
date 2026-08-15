@@ -102,12 +102,13 @@ struct TrajOptResult {
 
   /// @brief Converts the optimized trajectory to a full-model roboplan::JointTrajectory.
   /// @details Maps each reduced-group position to full-model layout via
-  /// Scene::toFullJointPositions (design §4.5). The resulting JointTrajectory carries
-  /// positions and times only: velocities and accelerations are left empty. Torques are
-  /// dropped entirely — JointTrajectory has no torque field, so use `controls` for those.
+  /// Scene::toFullJointPositions, and each reduced-group velocity to full-model layout via
+  /// Scene::toFullJointVelocities (non-group DoF zero; design §4.5). Accelerations are left
+  /// empty (not a ProxDDP output). Torques are dropped entirely — JointTrajectory has no torque
+  /// field, so use `controls` for those.
   /// @param scene The scene the trajectory was optimized against.
-  /// @param group_name The planning group whose reduced positions are being expanded.
-  /// @return A full-model JointTrajectory (positions + times; velocities/accelerations empty).
+  /// @param group_name The planning group whose reduced positions/velocities are being expanded.
+  /// @return A full-model JointTrajectory (positions + velocities + times; accelerations empty).
   JointTrajectory toRoboplan(const Scene& scene, const std::string& group_name) const;
 };
 
