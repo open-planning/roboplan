@@ -122,7 +122,7 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& sc
 
   // Pinocchio frame Jacobian layout:
   //   Rows 0-2: linear velocity (dp_world/dq) - this is what we need
-  //   Rows 3-5: angular velocity
+  //   Rows 3-5: angular velocity (d_omega_world/dq)
 
   // Build barrier Jacobians from the linear velocity rows, selecting group columns via v_indices
   int idx = 0;
