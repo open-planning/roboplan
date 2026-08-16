@@ -314,12 +314,6 @@ def main(
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     delta_q_full[oink.v_indices] = delta_q
 
-                    # Validate barrier feasibility post-solve and zero delta_q on violation.
-                    if barriers:
-                        oink.enforceBarriers(
-                            scene, barriers, delta_q_full, tolerance=0.0
-                        )
-
                     q_current = scene.integrate(q_current, delta_q_full)
 
                     # Update scene state and forward kinematics after applying velocities

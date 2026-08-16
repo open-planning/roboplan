@@ -114,16 +114,15 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const Scene& sce
 }
 
 tl::expected<void, std::string> PositionBarrier::computeJacobian(const Scene& scene) {
-  // Compute full-robot frame Jacobian (6 x model.nv) in world frame
-  // Using WORLD reference frame so no additional rotation is needed
-  // since our position bounds are specified in world coordinates
+  // The barrier constrains where the frame origin is, so its Jacobian must be d(pworld)/dq.
+  // This is computed in Pinocchio using LOCAL_WORLD_ALIGNED.
   const Eigen::VectorXd& q = scene.getCurrentJointPositions();
-  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::WORLD, full_jacobian);
+  scene.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                             full_jacobian);
 
-  // Pinocchio frame Jacobian layout with WORLD reference frame:
+  // Pinocchio frame Jacobian layout:
   //   Rows 0-2: linear velocity (dp_world/dq) - this is what we need
-  //   Rows 3-5: angular velocity (d_omega_world/dq)
-  // Note: With LOCAL or LOCAL_WORLD_ALIGNED, the ordering may differ
+  //   Rows 3-5: angular velocity
 
   // Build barrier Jacobians from the linear velocity rows, selecting group columns via v_indices
   int idx = 0;

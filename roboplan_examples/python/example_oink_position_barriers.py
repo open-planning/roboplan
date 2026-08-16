@@ -287,10 +287,6 @@ def main(
 
                     delta_q_full[oink.v_indices] = delta_q
 
-                    # CRITICAL: Validate solution with enforceBarriers() using FK
-                    # This catches cases where linearization error causes barrier violation
-                    oink.enforceBarriers(scene, barriers, delta_q_full, tolerance=0.0)
-
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     q_current = scene.integrate(q_current, delta_q_full)
 
