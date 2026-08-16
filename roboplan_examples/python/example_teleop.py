@@ -635,7 +635,7 @@ def main(
 
             # --- Solve OInK and integrate ---
             try:
-                oink.solveIk(scene, tasks, constraints, delta_q, regularization)
+                oink.solveIk(q_current, tasks, constraints, delta_q, regularization)
             except RuntimeError as exc:
                 print(f"Warning: OInK failed: {exc}")
                 delta_q[:] = 0.0

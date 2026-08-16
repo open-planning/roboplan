@@ -52,6 +52,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto maybe_path = rrt.plan(start, goal);
   if (!maybe_path) {
     std::cout << "Failed to plan path: " << maybe_path.error() << std::endl;
+    return 1;
   }
   auto path = maybe_path.value();
   std::cout << "Found a path:\n" << path << std::endl;

@@ -10,6 +10,7 @@
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/pose_utils.hpp>
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/scene_utils.hpp>
 #include <roboplan/core/types.hpp>
 
@@ -323,6 +324,53 @@ void init_core_scene(nanobind::module_& m) {
         ss << scene;
         return ss.str();
       });
+
+  nanobind::class_<SceneContext>(
+      m, "SceneContext",
+      "Per-thread scratch for scene queries: Pinocchio data, geometry data, the broadphase tree, "
+      "a random number generator, and a current configuration.\n\n"
+      "A Scene's query methods write shared scratch, so one Scene cannot answer them from several "
+      "threads at once. Give each thread its own SceneContext over one shared Scene and they do "
+      "not interact. Each method here is the Scene query of the same name, run against this "
+      "context's private scratch.\n\n"
+      "A context snapshots the scene's collision geometry when built. Adding or removing geometry, "
+      "or changing collision pairs, makes it stale: it will report that rather than answer against "
+      "geometry it was not sized for. Build a new one after such a change.")
+      // The context borrows the scene (and its model and geometry model) by reference.
+      .def(nanobind::init<const Scene&>(), nanobind::keep_alive<1, 2>(), "scene"_a,
+           "Snapshots the current collision geometry of `scene`.")
+      .def("hasCollisions", &SceneContext::hasCollisions,
+           "Checks collisions at the given joint positions.", "q"_a)
+      .def("computeDistances", &SceneContext::computeDistances,
+           "Computes the distance for every active collision pair into this context's data.", "q"_a,
+           "broadphase_margin"_a = std::optional<double>())
+      .def("forwardKinematics", &SceneContext::forwardKinematics,
+           "Calculates forward kinematics for a specific frame.", "q"_a, "frame_name"_a,
+           "base_frame"_a = "")
+      .def("updateFramePlacements", &SceneContext::updateFramePlacements,
+           "Runs forward kinematics and refreshes every frame placement.", "q"_a)
+      .def("computeJointJacobians", &SceneContext::computeJointJacobians,
+           "Computes the joint Jacobians for every joint.", "q"_a)
+      .def("setRngSeed", &SceneContext::setRngSeed,
+           "Sets the seed of this context's random number generator.", "seed"_a)
+      .def("randomPositions", &SceneContext::randomPositions,
+           "Generates random positions using this context's RNG.")
+      .def("randomCollisionFreePositions", &SceneContext::randomCollisionFreePositions,
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Generates random collision-free positions using this context's RNG and scratch.",
+           "max_samples"_a = 1000)
+      .def("getJointPositions", &SceneContext::getJointPositions,
+           "This context's current joint positions.")
+      .def("setJointPositions", &SceneContext::setJointPositions,
+           "Sets this context's current joint positions.", "q"_a)
+      .def("toFullJointPositions", &SceneContext::toFullJointPositions,
+           "Converts partial joint positions to full ones, filling non-group joints from this "
+           "context's current configuration.",
+           "group_name"_a, "q"_a)
+      .def("isGeometryCurrent", &SceneContext::isGeometryCurrent,
+           "Whether the scene's collision geometry is still the one snapshotted here.")
+      .def("getScene", &SceneContext::getScene, nanobind::rv_policy::reference_internal,
+           "The Scene this context was snapshotted from.");
 }
 
 void init_core_path_utils(nanobind::module_& m) {

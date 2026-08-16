@@ -175,7 +175,7 @@ void init_optimal_ik(nanobind::module_& m) {
                                                 "Parameters for SelfCollisionBarrier.")
       .def(nanobind::init<int, double, double, double, double, std::optional<double>>(),
            "n_collision_pairs"_a = 1, "gain"_a = 1.0, "safe_displacement_gain"_a = 1.0,
-           "d_min"_a = 0.02, "safety_margin"_a = 0.0, "d_max"_a = std::optional<double>(0.5),
+           "d_min"_a = 0.02, "safety_margin"_a = 0.0, "d_max"_a = std::optional<double>(0.25),
            "Constructor with custom parameters.")
       .def_rw("n_collision_pairs", &SelfCollisionBarrierOptions::n_collision_pairs,
               "Maximum number of closest collision pairs to constrain.")
@@ -199,8 +199,8 @@ void init_optimal_ik(nanobind::module_& m) {
       "Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at\n"
       "least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.")
       .def(nanobind::init<const Oink&, const Scene&, double, const SelfCollisionBarrierOptions&>(),
-           "oink"_a, "scene"_a, "dt"_a, "options"_a = SelfCollisionBarrierOptions{},
-           "Create a self-collision barrier.")
+           nanobind::keep_alive<1, 2>(), "oink"_a, "scene"_a, "dt"_a,
+           "options"_a = SelfCollisionBarrierOptions{}, "Create a self-collision barrier.")
       .def_ro("n_collision_pairs", &SelfCollisionBarrier::n_collision_pairs,
               "Number of closest collision pairs constrained (clipped to the scene's pair count).")
       .def_ro("d_min", &SelfCollisionBarrier::d_min,
@@ -227,15 +227,15 @@ void init_optimal_ik(nanobind::module_& m) {
               "displacement.");
   // Bind Oink solver
   nanobind::class_<Oink>(m, "Oink", "Optimal Inverse Kinematics solver.")
-      .def(nanobind::init<const Scene&, const std::string&>(), "scene"_a, "group_name"_a,
-           "Constructor for a named joint group.")
-      .def(nanobind::init<const Scene&>(), "scene"_a,
+      .def(nanobind::init<const Scene&, const std::string&>(), nanobind::keep_alive<1, 2>(),
+           "scene"_a, "group_name"_a, "Constructor for a named joint group.")
+      .def(nanobind::init<const Scene&>(), nanobind::keep_alive<1, 2>(), "scene"_a,
            "Constructor for the full robot (all joints).")
-      .def(nanobind::init<const Scene&, const std::string&, const OinkSettings&>(), "scene"_a,
-           "group_name"_a, "settings"_a,
+      .def(nanobind::init<const Scene&, const std::string&, const OinkSettings&>(),
+           nanobind::keep_alive<1, 2>(), "scene"_a, "group_name"_a, "settings"_a,
            "Constructor for a named joint group with custom solver settings.")
-      .def(nanobind::init<const Scene&, const OinkSettings&>(), "scene"_a, "settings"_a,
-           "Constructor for the full robot with custom solver settings.")
+      .def(nanobind::init<const Scene&, const OinkSettings&>(), nanobind::keep_alive<1, 2>(),
+           "scene"_a, "settings"_a, "Constructor for the full robot with custom solver settings.")
       .def_rw("settings", &Oink::settings,
               "QP solver settings. Changes take effect the next time the solver is rebuilt "
               "(i.e., when the constraint dimensions change).")
@@ -337,6 +337,76 @@ void init_optimal_ik(nanobind::module_& m) {
           "Example:\n"
           "    delta_q = np.zeros(oink.num_variables)\n"
           "    oink.solveIk(scene, tasks, barriers, delta_q)")
+      .def(
+          "solveIk",
+          [](Oink& self, const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>& tasks,
+             const std::vector<std::shared_ptr<Constraints>>& constraints,
+             const std::vector<std::shared_ptr<Barrier>>& barriers,
+             nanobind::DRef<Eigen::VectorXd> delta_q, double regularization) {
+            auto result = self.solveIk(q, tasks, constraints, barriers, delta_q, regularization);
+            if (!result.has_value()) {
+              throw std::runtime_error("IK solve failed: " + result.error());
+            }
+          },
+          "q"_a, "tasks"_a, "constraints"_a, "barriers"_a, "delta_q"_a, "regularization"_a = 1e-12,
+          "Solve inverse kinematics at an explicitly supplied configuration.\n\n"
+          "This is the primary entry point. The overloads taking a scene are this one, called\n"
+          "with the scene's current joint positions. Prefer this whenever more than one solver\n"
+          "is running: passing q directly means the configuration never travels through the\n"
+          "shared Scene, so two threads cannot overwrite each other's notion of 'current'.\n\n"
+          "Args:\n"
+          "    q: Configuration to solve at (size model.nq).\n"
+          "    tasks: List of weighted tasks to optimize for.\n"
+          "    constraints: List of constraints to satisfy.\n"
+          "    barriers: List of barrier functions for safety constraints.\n"
+          "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
+          "    regularization: Tikhonov regularization weight (default: 1e-12).\n\n"
+          "Raises:\n"
+          "    RuntimeError: If the QP solver fails to find a solution.\n\n"
+          "Example:\n"
+          "    q = np.array(scene.getCurrentJointPositions())\n"
+          "    oink.solveIk(q, tasks, constraints, barriers, delta_q)")
+      .def(
+          "solveIk",
+          [](Oink& self, const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>& tasks,
+             const std::vector<std::shared_ptr<Constraints>>& constraints,
+             nanobind::DRef<Eigen::VectorXd> delta_q, double regularization) {
+            auto result = self.solveIk(q, tasks, constraints, {}, delta_q, regularization);
+            if (!result.has_value()) {
+              throw std::runtime_error("IK solve failed: " + result.error());
+            }
+          },
+          "q"_a, "tasks"_a, "constraints"_a, "delta_q"_a, "regularization"_a = 1e-12,
+          "Solve inverse kinematics at an explicitly supplied configuration, with constraints "
+          "and no barriers.\n\n"
+          "Args:\n"
+          "    q: Configuration to solve at (size model.nq).\n"
+          "    tasks: List of weighted tasks to optimize for.\n"
+          "    constraints: List of constraints to satisfy.\n"
+          "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
+          "    regularization: Tikhonov regularization weight (default: 1e-12).\n\n"
+          "Example:\n"
+          "    q = np.array(scene.getCurrentJointPositions())\n"
+          "    oink.solveIk(q, tasks, constraints, delta_q)")
+      .def(
+          "enforceBarriers",
+          [](Oink& self, const Eigen::VectorXd& q,
+             const std::vector<std::shared_ptr<Barrier>>& barriers,
+             nanobind::DRef<Eigen::VectorXd> delta_q, double tolerance) {
+            auto result = self.enforceBarriers(q, barriers, delta_q, tolerance);
+            if (!result.has_value()) {
+              throw std::runtime_error("Barrier enforcement failed: " + result.error());
+            }
+          },
+          "q"_a, "barriers"_a, "delta_q"_a, "tolerance"_a = 0.0,
+          "Validate delta_q against barriers at an explicitly supplied configuration.\n\n"
+          "As with solveIk, this is the primary entry point and the scene overload forwards to\n"
+          "it with the scene's current joint positions.\n\n"
+          "Args:\n"
+          "    q: Configuration to evaluate at (size model.nq).\n"
+          "    barriers: List of barrier functions to check.\n"
+          "    delta_q: Displacement to validate, modified in place.\n"
+          "    tolerance: Barrier violation tolerance (default: 0.0).")
       .def(
           "enforceBarriers",
           [](Oink& self, const Scene& scene, const std::vector<std::shared_ptr<Barrier>>& barriers,

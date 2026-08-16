@@ -529,6 +529,65 @@ class Scene:
 
     def __repr__(self) -> str: ...
 
+class SceneContext:
+    """
+    Per-thread scratch for scene queries: Pinocchio data, geometry data, the broadphase tree, a random number generator, and a current configuration.
+
+    A Scene's query methods write shared scratch, so one Scene cannot answer them from several threads at once. Give each thread its own SceneContext over one shared Scene and they do not interact. Each method here is the Scene query of the same name, run against this context's private scratch.
+
+    A context snapshots the scene's collision geometry when built. Adding or removing geometry, or changing collision pairs, makes it stale: it will report that rather than answer against geometry it was not sized for. Build a new one after such a change.
+    """
+
+    def __init__(self, scene: Scene) -> None:
+        """Snapshots the current collision geometry of `scene`."""
+
+    def hasCollisions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> bool:
+        """Checks collisions at the given joint positions."""
+
+    def computeDistances(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], broadphase_margin: float | None = None) -> None:
+        """
+        Computes the distance for every active collision pair into this context's data.
+        """
+
+    def forwardKinematics(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, base_frame: str = '') -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
+        """Calculates forward kinematics for a specific frame."""
+
+    def updateFramePlacements(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """Runs forward kinematics and refreshes every frame placement."""
+
+    def computeJointJacobians(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """Computes the joint Jacobians for every joint."""
+
+    def setRngSeed(self, seed: int) -> None:
+        """Sets the seed of this context's random number generator."""
+
+    def randomPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Generates random positions using this context's RNG."""
+
+    def randomCollisionFreePositions(self, max_samples: int = 1000) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None:
+        """
+        Generates random collision-free positions using this context's RNG and scratch.
+        """
+
+    def getJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """This context's current joint positions."""
+
+    def setJointPositions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """Sets this context's current joint positions."""
+
+    def toFullJointPositions(self, group_name: str, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Converts partial joint positions to full ones, filling non-group joints from this context's current configuration.
+        """
+
+    def isGeometryCurrent(self) -> bool:
+        """
+        Whether the scene's collision geometry is still the one snapshotted here.
+        """
+
+    def getScene(self) -> Scene:
+        """The Scene this context was snapshotted from."""
+
 @overload
 def computeFramePath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, max_step_size: float) -> list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]:
     """

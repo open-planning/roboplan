@@ -279,7 +279,12 @@ def main(
                     # Solve IK for one step with constraints and barriers
                     try:
                         oink.solveIk(
-                            scene, tasks, constraints, barriers, delta_q, regularization
+                            q_current,
+                            tasks,
+                            constraints,
+                            barriers,
+                            delta_q,
+                            regularization,
                         )
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
@@ -287,19 +292,13 @@ def main(
 
                     delta_q_full[oink.v_indices] = delta_q
 
-                    # CRITICAL: Validate solution with enforceBarriers() using FK
-                    # This catches cases where linearization error causes barrier violation
-                    oink.enforceBarriers(scene, barriers, delta_q_full, tolerance=0.0)
-
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     q_current = scene.integrate(q_current, delta_q_full)
 
-                    # Update scene state and forward kinematics after applying velocities
-                    # This ensures FK is current for the next iteration's solveIk
+                    # Update the scene state after applying velocities. The solver reads
+                    # its own context, posed from the q passed to solveIk, so there is no
+                    # forward kinematics to prime here for the next iteration.
                     scene.setJointPositions(q_current)
-                    for task in tasks:
-                        if isinstance(task, FrameTask):
-                            scene.forwardKinematics(q_current, task.frame_name)
 
                     # q_current is a fresh array from integrate(); snapshot it for a
                     # throttled display outside the lock (below).

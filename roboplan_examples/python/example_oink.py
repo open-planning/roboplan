@@ -305,7 +305,12 @@ def main(
                     # barrier when the model has collision pairs).
                     try:
                         oink.solveIk(
-                            scene, tasks, constraints, barriers, delta_q, regularization
+                            q_current,
+                            tasks,
+                            constraints,
+                            barriers,
+                            delta_q,
+                            regularization,
                         )
                     except RuntimeError as e:
                         delta_q = np.zeros(num_variables)
@@ -314,20 +319,12 @@ def main(
                     # Integrate: delta_q is a displacement (already limited by VelocityLimit)
                     delta_q_full[oink.v_indices] = delta_q
 
-                    # Validate barrier feasibility post-solve and zero delta_q on violation.
-                    if barriers:
-                        oink.enforceBarriers(
-                            scene, barriers, delta_q_full, tolerance=0.0
-                        )
-
                     q_current = scene.integrate(q_current, delta_q_full)
 
-                    # Update scene state and forward kinematics after applying velocities
-                    # This ensures FK is current for the next iteration's solveIk
+                    # Update the scene state after applying velocities. The solver reads
+                    # its own context, posed from the q passed to solveIk, so there is no
+                    # forward kinematics to prime here for the next iteration.
                     scene.setJointPositions(q_current)
-                    for task in tasks:
-                        if isinstance(task, FrameTask):
-                            scene.forwardKinematics(q_current, task.frame_name)
 
                     q_to_display = q_current
             else:

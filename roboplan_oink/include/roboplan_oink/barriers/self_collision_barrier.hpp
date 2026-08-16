@@ -38,10 +38,9 @@ struct SelfCollisionBarrierOptions {
   ///
   /// This is a visibility / performance bound, NOT a separation limit: it does not constrain how
   /// far apart bodies may be. When set comfortably larger than the distances at which the barrier
-  /// actively pushes (a few times d_min), it does not change the solution at all — only a too-small
-  /// value silently drops mid-range pairs. Default 0.5. Set to std::nullopt to disable culling.
-  /// Paired with d_min, it defines the band [d_min, d_max] of separations in the barrier.
-  std::optional<double> d_max = 0.5;
+  /// actively pushes (a few times d_min), it does not change the solution at all -- only a
+  /// too-small value silently drops mid-range pairs. Set to std::nullopt to disable culling.
+  std::optional<double> d_max = 0.25;
 };
 
 /// @brief Self-collision avoidance barrier based on collision pair distances.
