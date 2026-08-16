@@ -243,8 +243,8 @@ def reset_targets_to_current_ee_poses(
         scene: Scene used for forward kinematics.
         q_current: Current joint configuration.
         ee_frame_names: End-effector frame names to reset.
-        target_poses: Dict of EE frame name to current target SE(3) transform.
-            Updated in place.
+        target_poses: Dict of EE frame name to current target SE(3) transform,
+            in the world frame. Updated in place.
         target_frame_handles: Dict of EE frame name to Viser frame handle.
             Updated in place.
         target_filters: Optional dict of EE frame name to SE3LowPassFilter.
@@ -354,8 +354,9 @@ def main(
     print("  i/k: +roll/-roll   j/l: +pitch/-pitch   u/o: +yaw/-yaw")
     print("  space: pause/resume   r: reset home   t: reset target   x: quit\n")
 
-    # Build Pinocchio model for visualization.
-    model_pin = pin.buildModelFromXML(urdf_xml)
+    # Create a redundant Pinocchio model just for visualization with mimic joints.
+    # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
+    model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin,
         urdf_xml,
@@ -474,6 +475,7 @@ def main(
         gui_reset_target.set()
 
     # One target pose and one Viser frame marker per end effector.
+    # These poses are kept in the world frame and converted into each task's base frame at solve time.
     target_poses: dict[str, np.ndarray] = {
         ee_frame_name: scene.forwardKinematics(q_home, ee_frame_name).copy()
         for ee_frame_name in ee_frame_names
@@ -612,26 +614,30 @@ def main(
                 target_frame_handles[ee_frame_name].position = position
                 target_frame_handles[ee_frame_name].wxyz = wxyz
 
+            # Target poses are tracked in the world frame, since that is what the
+            # Viser markers display and what the world-frame jog deltas act on.
+            # Each FrameTask, however, expects its target expressed in the task's
+            # base frame, so convert using the base frame's current world pose.
+            base_T_world = np.linalg.inv(
+                scene.forwardKinematics(q_current, model_data.base_link)
+            )
+
             # Update all frame task targets before solving. Even when only one
             # EE is being commanded, all tasks must receive their current target
             # so OInK does not try to move uncontrolled EEs back to stale poses.
             for frame_task, ee_frame_name in zip(frame_tasks, ee_frame_names):
+                target_pose = target_poses[ee_frame_name]
                 if filter_tau > 0.0:
                     # Recreate the filter if tau changed via the slider, preserving
                     # the current pose so there is no discontinuity.
                     if target_filters[ee_frame_name].tau != filter_tau:
                         current_pose = target_filters[ee_frame_name].update(
-                            target_poses[ee_frame_name], dt
+                            target_pose, dt
                         )
                         target_filters[ee_frame_name] = SE3LowPassFilter(tau=filter_tau)
                         target_filters[ee_frame_name].reset(current_pose)
-                    filtered_target = target_filters[ee_frame_name].update(
-                        target_poses[ee_frame_name],
-                        dt,
-                    )
-                    frame_task.setTargetFrameTransform(filtered_target)
-                else:
-                    frame_task.setTargetFrameTransform(target_poses[ee_frame_name])
+                    target_pose = target_filters[ee_frame_name].update(target_pose, dt)
+                frame_task.setTargetFrameTransform(base_T_world @ target_pose)
 
             # --- Solve OInK and integrate ---
             try:
