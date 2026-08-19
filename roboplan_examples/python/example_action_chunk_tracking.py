@@ -397,9 +397,9 @@ def main(
     ]
 
     # Acceleration limit (opt-in): bounds the change in velocity between control steps so the
-    # motion does not snap/jerk. It needs the previous step's velocity, so the rollout loops call
-    # accel_limit.setLastVelocity(...) each iteration. Off by default because it does not brake
-    # toward the task target, so aggressive chunks will overshoot.
+    # motion does not snap/jerk. The rollout loops call accel_limit.setLastVelocity(...) and
+    # accel_limit.setTargetDisplacement(...) each iteration, so it also brakes toward the task
+    # target and aggressive chunks decelerate into the goal instead of overshooting it.
     accel_limit = None
     if limit_acceleration:
         a_max = np.hstack(
@@ -515,6 +515,7 @@ def main(
         q_current = q_start.copy()
         trajectory = [q_current.copy()]
         delta_q = np.zeros(num_variables, dtype=float)
+        delta_q_target = np.zeros(num_variables, dtype=float)
         # Non-group indices are always zero; only group indices are written each step.
         delta_q_full = np.zeros(model_pin.nv, dtype=float)
 
@@ -532,9 +533,13 @@ def main(
             ):
                 frame_task.setTargetFrameTransform(base_T_world @ frame_tforms[idx])
 
-            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt),
+            # and feed it the task-only solve so it brakes into the target rather than
+            # arriving at full speed.
             if accel_limit is not None:
                 accel_limit.setLastVelocity(delta_q / dt)
+                oink.solveIk(scene, tasks, delta_q_target, regularization)
+                accel_limit.setTargetDisplacement(delta_q_target)
 
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)
@@ -556,6 +561,7 @@ def main(
         q_current = q_start.copy()
         trajectory = [q_current.copy()]
         delta_q = np.zeros(num_variables, dtype=float)
+        delta_q_target = np.zeros(num_variables, dtype=float)
         # Non-group indices are always zero; only group indices are written each step.
         delta_q_full = np.zeros(model_pin.nv, dtype=float)
 
@@ -565,9 +571,13 @@ def main(
             # Retarget the ConfigurationTask to the current dense joint waypoint.
             config_task.setTargetConfiguration(dense_targets[idx][oink.q_indices])
 
-            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt),
+            # and feed it the task-only solve so it brakes into the target rather than
+            # arriving at full speed.
             if accel_limit is not None:
                 accel_limit.setLastVelocity(delta_q / dt)
+                oink.solveIk(scene, tasks, delta_q_target, regularization)
+                accel_limit.setTargetDisplacement(delta_q_target)
 
             try:
                 oink.solveIk(scene, tasks, constraints, delta_q, regularization)

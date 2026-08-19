@@ -66,8 +66,10 @@ def main(
             by pruning out far-away meshes, especially if they have complex geometries.
         self_collision_gain: Barrier gain (gamma) for the self-collision barrier. Higher
             values produce stronger pushback as bodies approach `self_collision_d_min`.
-        limit_acceleration: If true, adds an acceleration limit.
-            Note that this can cause overshoot with sudden marker motions, though.
+        limit_acceleration: If true, adds an acceleration limit. The control loop also feeds
+            it a target displacement each step, which bounds the step by the braking distance
+            to the task target so the arm decelerates into the marker rather than arriving at
+            full speed, which helps prevent overshooting behavior.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -258,6 +260,7 @@ def main(
 
     def control_loop():
         delta_q = np.zeros(num_variables)
+        delta_q_target = np.zeros(num_variables)
         delta_q_full = np.zeros(model_pin.nv)
         # Visualization is throttled and runs outside the scene lock so the Viser push to
         # the browser cannot stretch the control period. The solver assumes a fixed dt, so
@@ -296,10 +299,16 @@ def main(
                                 base_T_world @ raw_targets[idx]
                             )
 
-                    # Center the acceleration bound on the previous step's velocity
-                    # (delta_q / dt) so the limit couples consecutive control steps.
                     if limit_acceleration:
+                        # Center the acceleration bound on the previous step's velocity
+                        # (delta_q / dt) so the limit couples consecutive control steps.
                         accel_limit.setLastVelocity(delta_q / dt)
+
+                        # Solve the unconstrained task to get the target delta_q for the
+                        # acceleration limit. This enables the it to brake towards the
+                        # target rather than approaching at full speed and overshooting.
+                        oink.solveIk(scene, tasks, delta_q_target, regularization)
+                        accel_limit.setTargetDisplacement(delta_q_target)
 
                     # Solve IK for one step with constraints (and the self-collision
                     # barrier when the model has collision pairs).
