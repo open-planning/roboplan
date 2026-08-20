@@ -2,6 +2,11 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Depend on typing_extensions via rosdep (`#283 <https://github.com/open-planning/roboplan/issues/283>`_)
+* Contributors: Sebastian Castro
+
 0.6.0 (2026-07-31)
 ------------------
 * Pose constraints in RRT (`#278 <https://github.com/open-planning/roboplan/issues/278>`_)
