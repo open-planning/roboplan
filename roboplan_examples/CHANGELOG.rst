@@ -2,8 +2,8 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.1 (2026-08-20)
+------------------
 * Fix OInK position barrier Jacobian (`#288 <https://github.com/open-planning/roboplan/issues/288>`_)
 * Fix keyboard teleop example (`#289 <https://github.com/open-planning/roboplan/issues/289>`_)
 * Contributors: Sebastian Castro

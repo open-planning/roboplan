@@ -2,8 +2,8 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.1 (2026-08-20)
+------------------
 * Depend on typing_extensions via rosdep (`#283 <https://github.com/open-planning/roboplan/issues/283>`_)
 * Contributors: Sebastian Castro
 

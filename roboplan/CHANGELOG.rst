@@ -2,8 +2,8 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.1 (2026-08-20)
+------------------
 * Rename `filters` target to `roboplan_filters` (`#284 <https://github.com/open-planning/roboplan/issues/284>`_)
 * Depend on typing_extensions via rosdep (`#283 <https://github.com/open-planning/roboplan/issues/283>`_)
 * Contributors: Matteo Villani, Sebastian Castro

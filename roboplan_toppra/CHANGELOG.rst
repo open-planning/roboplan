@@ -2,8 +2,8 @@
 Changelog for package roboplan_toppra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.1 (2026-08-20)
+------------------
 * fix missing braces warnings (`#282 <https://github.com/open-planning/roboplan/issues/282>`_)
 * Depend on typing_extensions via rosdep (`#283 <https://github.com/open-planning/roboplan/issues/283>`_)
 * Contributors: Matteo Villani, Sebastian Castro
