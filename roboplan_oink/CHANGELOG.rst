@@ -2,6 +2,14 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.6.1 (2026-08-20)
+------------------
+* Optionally brake to target in OInK acceleration limit (`#290 <https://github.com/open-planning/roboplan/issues/290>`_)
+* Fix OInK position barrier Jacobian (`#288 <https://github.com/open-planning/roboplan/issues/288>`_)
+* fix missing braces warnings (`#282 <https://github.com/open-planning/roboplan/issues/282>`_)
+* Depend on typing_extensions via rosdep (`#283 <https://github.com/open-planning/roboplan/issues/283>`_)
+* Contributors: Matteo Villani, Sebastian Castro
+
 0.6.0 (2026-07-31)
 ------------------
 * Improve OInK build times (`#273 <https://github.com/open-planning/roboplan/issues/273>`_)

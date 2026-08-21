@@ -117,20 +117,31 @@ void init_optimal_ik(nanobind::module_& m) {
   nanobind::class_<AccelerationLimit, Constraints>(
       m, "AccelerationLimit",
       "Constraint to enforce joint acceleration limits by bounding the change in velocity\n"
-      "between successive IK steps (plus a braking-distance term toward position limits).\n"
+      "between successive IK steps (plus a braking-distance term toward position limits, and\n"
+      "optionally one toward the task target).\n"
       "Inspired by pink.limits.AccelerationLimit.")
       .def(nanobind::init<const Oink&, double, const Eigen::VectorXd&>(), "oink"_a, "dt"_a,
            "a_max"_a, "Create an acceleration limit with per-joint maximum accelerations.")
       .def("setLastVelocity", &AccelerationLimit::setLastVelocity, "v_prev"_a,
-           "Record the velocity integrated on the previous step (Delta_q_prev = v_prev * dt,\n"
+           "Record the velocity integrated on the previous step (delta_q_prev = v_prev * dt,\n"
            "reusing the constraint's dt). Call once per control step before solving so the\n"
            "acceleration bound is centered on the previous velocity.")
+      .def("setTargetDisplacement", &AccelerationLimit::setTargetDisplacement, "delta_q_target"_a,
+           "Enable the braking-distance bound toward the task target for the next solve.\n\n"
+           "Pass the remaining joint displacement to the target, i.e., the step that would zero\n"
+           "the task errors outright.\n"
+           "Call once per control step, before solving.")
+      .def("clearTargetDisplacement", &AccelerationLimit::clearTargetDisplacement,
+           "Drop the target displacement, disabling the target braking bound.")
       .def("reset", &AccelerationLimit::reset,
-           "Reset the previous-step displacement to zero (e.g. when the robot is at rest).")
+           "Reset the previous-step displacement to zero and drop the target displacement\n"
+           "(e.g. when the robot is at rest).")
       .def_rw("dt", &AccelerationLimit::dt, "Time step for acceleration calculation.")
       .def_rw("a_max", &AccelerationLimit::a_max, "Maximum joint accelerations.")
-      .def_rw("Delta_q_prev", &AccelerationLimit::Delta_q_prev,
-              "Displacement applied on the previous step.");
+      .def_rw("delta_q_prev", &AccelerationLimit::delta_q_prev,
+              "Displacement applied on the previous step.")
+      .def_rw("delta_q_target", &AccelerationLimit::delta_q_target,
+              "Remaining displacement to the task target, or None to disable target braking.");
 
   // Bind the abstract Barrier base class
   nanobind::class_<Barrier>(m, "Barrier", "Abstract base class for Control Barrier Functions.")

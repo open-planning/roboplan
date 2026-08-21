@@ -209,7 +209,8 @@ class VelocityLimit(Constraints):
 class AccelerationLimit(Constraints):
     """
     Constraint to enforce joint acceleration limits by bounding the change in velocity
-    between successive IK steps (plus a braking-distance term toward position limits).
+    between successive IK steps (plus a braking-distance term toward position limits, and
+    optionally one toward the task target).
     Inspired by pink.limits.AccelerationLimit.
     """
 
@@ -218,14 +219,27 @@ class AccelerationLimit(Constraints):
 
     def setLastVelocity(self, v_prev: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
         """
-        Record the velocity integrated on the previous step (Delta_q_prev = v_prev * dt,
+        Record the velocity integrated on the previous step (delta_q_prev = v_prev * dt,
         reusing the constraint's dt). Call once per control step before solving so the
         acceleration bound is centered on the previous velocity.
         """
 
+    def setTargetDisplacement(self, delta_q_target: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Enable the braking-distance bound toward the task target for the next solve.
+
+        Pass the remaining joint displacement to the target, i.e., the step that would zero
+        the task errors outright.
+        Call once per control step, before solving.
+        """
+
+    def clearTargetDisplacement(self) -> None:
+        """Drop the target displacement, disabling the target braking bound."""
+
     def reset(self) -> None:
         """
-        Reset the previous-step displacement to zero (e.g. when the robot is at rest).
+        Reset the previous-step displacement to zero and drop the target displacement
+        (e.g. when the robot is at rest).
         """
 
     @property
@@ -243,11 +257,20 @@ class AccelerationLimit(Constraints):
     def a_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
     @property
-    def Delta_q_prev(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+    def delta_q_prev(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Displacement applied on the previous step."""
 
-    @Delta_q_prev.setter
-    def Delta_q_prev(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+    @delta_q_prev.setter
+    def delta_q_prev(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+
+    @property
+    def delta_q_target(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None:
+        """
+        Remaining displacement to the task target, or None to disable target braking.
+        """
+
+    @delta_q_target.setter
+    def delta_q_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None) -> None: ...
 
 class Barrier:
     """Abstract base class for Control Barrier Functions."""

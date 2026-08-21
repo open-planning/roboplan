@@ -1,5 +1,6 @@
 #include <roboplan_oink/constraints/acceleration_limit.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -9,8 +10,21 @@
 
 namespace roboplan {
 
+namespace {
+
+/// dt * sqrt(2 * a * d), the displacement that can still be braked to zero over distance d.
+/// Guards the 0 * infinity case, which would otherwise produce a NaN bound.
+double brakingDisplacement(double dt, double a, double d) {
+  if (std::isinf(a) || std::isinf(d)) {
+    return std::numeric_limits<double>::infinity();
+  }
+  return dt * std::sqrt(2.0 * a * d);
+}
+
+}  // namespace
+
 AccelerationLimit::AccelerationLimit(const Oink& oink, double dt, const Eigen::VectorXd& a_max)
-    : dt(dt), a_max(a_max), Delta_q_prev(Eigen::VectorXd::Zero(oink.num_variables)),
+    : dt(dt), a_max(a_max), delta_q_prev(Eigen::VectorXd::Zero(oink.num_variables)),
       num_variables(oink.num_variables), v_indices(oink.v_indices), delta_q_max(oink.num_variables),
       delta_q_min(oink.num_variables) {
   if (dt <= 0.0) {
@@ -36,10 +50,24 @@ void AccelerationLimit::setLastVelocity(const Eigen::VectorXd& v_prev) {
                                 ") does not match num_variables (" + std::to_string(num_variables) +
                                 ")");
   }
-  Delta_q_prev = v_prev * dt;
+  delta_q_prev = v_prev * dt;
 }
 
-void AccelerationLimit::reset() { Delta_q_prev.setZero(); }
+void AccelerationLimit::setTargetDisplacement(const Eigen::VectorXd& delta_q_target_in) {
+  if (delta_q_target_in.size() != static_cast<Eigen::Index>(num_variables)) {
+    throw std::invalid_argument(
+        "AccelerationLimit: delta_q_target size (" + std::to_string(delta_q_target_in.size()) +
+        ") does not match num_variables (" + std::to_string(num_variables) + ")");
+  }
+  delta_q_target = delta_q_target_in;
+}
+
+void AccelerationLimit::clearTargetDisplacement() { delta_q_target.reset(); }
+
+void AccelerationLimit::reset() {
+  delta_q_prev.setZero();
+  delta_q_target.reset();
+}
 
 int AccelerationLimit::getNumConstraints(const SceneContext& /*context*/) const {
   return num_variables;
@@ -100,18 +128,44 @@ tl::expected<void, std::string> AccelerationLimit::computeQpConstraints(
 
   const double dt_sq = dt * dt;
   for (int i = 0; i < num_variables; ++i) {
-    // Acceleration finite-difference bound, centered on the previous displacement.
-    const double accel_upper = a_max(i) * dt_sq + Delta_q_prev(i);
-    const double accel_lower = a_max(i) * dt_sq - Delta_q_prev(i);
+    // A joint that cannot accelerate cannot move. Pin it instead of emitting a box that the
+    // acceleration bound below would make empty as soon as delta_q_prev is nonzero.
+    if (a_max(i) <= 0.0) {
+      lower_bounds(i) = 0.0;
+      upper_bounds(i) = 0.0;
+      continue;
+    }
+
+    // Acceleration finite-difference bound, centered on the previous displacement. This box
+    // is always non-empty: it is delta_q_prev +/- a_max*dt².
+    const double accel_lo = delta_q_prev(i) - a_max(i) * dt_sq;
+    const double accel_hi = delta_q_prev(i) + a_max(i) * dt_sq;
 
     // Braking-distance bound toward each position limit.
-    const double brake_upper = dt * std::sqrt(2.0 * a_max(i) * delta_q_max(i));
-    const double brake_lower = dt * std::sqrt(2.0 * a_max(i) * delta_q_min(i));
+    double brake_hi = brakingDisplacement(dt, a_max(i), delta_q_max(i));
+    double brake_lo = -brakingDisplacement(dt, a_max(i), delta_q_min(i));
 
-    // Take the tighter of the two per side. The lower side mirrors Pink's stacked
-    // -P*dq <= h form: dq >= -min(accel_lower, brake_lower).
-    double upper = std::min(accel_upper, brake_upper);
-    double lower = -std::min(accel_lower, brake_lower);
+    // Braking-distance bound toward the task target, on the side facing it. Absent unless the
+    // caller supplied a target this step. Bounding the trailing side too would, right after an
+    // overshoot, demand a deceleration larger than a_max and fight the acceleration bound for
+    // no benefit.
+    if (delta_q_target) {
+      const double d = (*delta_q_target)(i);
+      if (d > 0.0) {
+        brake_hi = std::min(brake_hi, brakingDisplacement(dt, a_max(i), d));
+      } else if (d < 0.0) {
+        brake_lo = std::max(brake_lo, -brakingDisplacement(dt, a_max(i), -d));
+      }
+    }
+
+    // A braking bound may not ask for more deceleration than a_max can deliver in one step.
+    // Clamping it into the acceleration box guarantees the two always overlap, so the row
+    // cannot come out infeasible (which a QP solver would otherwise resolve arbitrarily).
+    brake_hi = std::max(brake_hi, accel_lo);
+    brake_lo = std::min(brake_lo, accel_hi);
+
+    double upper = std::min(accel_hi, brake_hi);
+    double lower = std::max(accel_lo, brake_lo);
 
     // Unbounded sides (e.g. an unlimited acceleration or a joint without a position limit)
     // are passed through as +/- infinity; the QP solver treats those rows as unbounded.
