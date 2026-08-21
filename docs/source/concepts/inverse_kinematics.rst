@@ -375,11 +375,32 @@ It combines two box bounds on :math:`\Delta q` and takes the tighter per joint:
 
    -\Delta t \sqrt{2 a_{\max} (q - q_{\min})} \leq \Delta q \leq \Delta t \sqrt{2 a_{\max} (q_{\max} - q)}
 
-The previous displacement is :math:`\Delta q_{\text{prev}} = v_{\text{prev}} \cdot \Delta t`; call ``setLastVelocity(v_prev)`` once per control step (before solving) with the velocity that was just integrated, so the bound is centered on the latest velocity. An infinite ``a_max`` entry leaves that joint unconstrained.
+**3. "Braking distance" toward the task target** (optional), which is the same law applied to the remaining displacement :math:`\Delta q_{\text{target}}` rather than to a position limit:
+
+.. math::
+
+   |\Delta q| \leq \Delta t \sqrt{2 a_{\max} |\Delta q_{\text{target}}|}
+   \qquad \text{(on the side facing the target)}
+
+This bound is active only while a target displacement has been supplied via ``setTargetDisplacement()``.
+A task-only solve gives the right value — it is the QP objective's unconstrained minimizer :math:`-H^{-1} c`, i.e., the step that would zero the task errors outright:
+
+.. code-block:: python
+
+   oink.solveIk(scene, tasks, delta_q_target)          # no constraints, no barriers
+   accel_limit.setTargetDisplacement(delta_q_target)
+   oink.solveIk(scene, tasks, constraints, barriers, delta_q)
+
+Call it once per control step, before solving.
+``clearTargetDisplacement()`` or ``reset()`` turns the bound back off.
+
+The previous displacement is :math:`\Delta q_{\text{prev}} = v_{\text{prev}} \cdot \Delta t`.
+Call ``setLastVelocity(v_prev)`` once per control step (before solving) with the velocity that was just integrated, so the bound is centered on the latest velocity.
 
 .. note::
 
-   This limit brakes toward joint **position limits**, not toward the **task target**. Because the IK is a reactive controller, a task that commands a velocity which cannot be decelerated within the remaining distance to its target will **overshoot**. Keep the commanded motion acceleration-feasible (e.g. smaller task gains, gentler references) when this matters.
+   The braking bounds are never allowed to tighten past what :math:`a_{\max}` can actually achieve in one step, so a row can never come out infeasible.
+   Without that clamp, a joint approaching a limit (or one that has just overshot its target) could be asked for a deceleration it cannot deliver, and the QP would resolve the contradiction arbitrarily.
 
 Barrier Details
 ^^^^^^^^^^^^^^^

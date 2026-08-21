@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <Eigen/Dense>
 #include <roboplan_oink/optimal_ik.hpp>
 
@@ -11,9 +13,9 @@ namespace roboplan {
 /// executed motion does not "jump" in velocity (i.e. unbounded acceleration). Inspired by
 /// pink.limits.AccelerationLimit.
 ///
-/// The limit combines two inequalities, both expressed as box bounds on the configuration
-/// displacement Δq (the QP variable). With dt the control timestep, a_max the per-joint
-/// acceleration limit, and Δq_prev the displacement applied on the previous step:
+/// The limit combines up to three inequalities, all expressed as box bounds on the
+/// configuration displacement Δq (the QP variable). With dt the control timestep, a_max the
+/// per-joint acceleration limit, and Δq_prev the displacement applied on the previous step:
 ///
 ///  1. Finite-difference acceleration bound:
 ///         -a_max <= ((Δq/dt) - (Δq_prev/dt)) / dt <= a_max
@@ -23,7 +25,12 @@ namespace roboplan {
 ///     brought to zero before hitting a limit (see [Flacco2015], [DelPrete2018]):
 ///         -dt*sqrt(2*a_max*(q - q_min)) <= Δq <= dt*sqrt(2*a_max*(q_max - q))
 ///
-/// The tighter of the two is taken per joint, yielding box bounds l <= G*Δq <= u with
+///  3. Optionally, the same braking-distance law applied to the *task target* rather than to
+///     a position limit, active only while a target displacement has been supplied via
+///     setTargetDisplacement():
+///         |Δq| <= dt*sqrt(2*a_max*|Δq_target|)     (applied on the side facing the target)
+///
+/// The tightest of these is taken per joint, yielding box bounds l <= G*Δq <= u with
 /// G = identity (one constraint row per group velocity DOF).
 struct AccelerationLimit : public Constraints {
   /// @brief Constructor with dimension validation.
@@ -46,7 +53,28 @@ struct AccelerationLimit : public Constraints {
   /// @throws std::invalid_argument if v_prev size mismatches.
   void setLastVelocity(const Eigen::VectorXd& v_prev);
 
-  /// @brief Reset the previous-step displacement to zero (e.g. when the robot is at rest).
+  /// @brief Enable the braking-distance bound toward the task target for the next solve.
+  ///
+  /// Pass the remaining joint displacement to the target: the step that would zero the task
+  /// errors outright. The natural source is a task-only solve, which is the QP objective's
+  /// unconstrained minimizer:
+  ///
+  ///     oink.solveIk(scene, tasks, delta_q_target);          // no constraints, no barriers
+  ///     accel_limit.setTargetDisplacement(delta_q_target);
+  ///     oink.solveIk(scene, tasks, constraints, barriers, delta_q);
+  ///
+  /// Call it once per control step, before solving. While no target is set, the bound is
+  /// simply absent. Use clearTargetDisplacement() or reset() to turn it back off.
+  ///
+  /// @param delta_q_target Remaining displacement to the task target (size oink.num_variables).
+  /// @throws std::invalid_argument if delta_q_target size mismatches.
+  void setTargetDisplacement(const Eigen::VectorXd& delta_q_target);
+
+  /// @brief Drop the target displacement, disabling the target braking bound.
+  void clearTargetDisplacement();
+
+  /// @brief Reset the previous-step displacement to zero (e.g., when the robot is at rest),
+  /// and clear the target displacement, if any.
   void reset();
 
   /// @brief Get the number of constraint rows (num_variables).
@@ -63,9 +91,13 @@ struct AccelerationLimit : public Constraints {
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 
-  double dt;                            /// Control timestep (seconds).
-  Eigen::VectorXd a_max;                /// Maximum acceleration per group joint.
-  Eigen::VectorXd Delta_q_prev;         /// Displacement applied on the previous step.
+  double dt;                     /// Control timestep (seconds).
+  Eigen::VectorXd a_max;         /// Maximum acceleration per group joint.
+  Eigen::VectorXd delta_q_prev;  /// Displacement applied on the previous step.
+
+  /// Remaining displacement to the task target. If not set, target braking is disabled.
+  std::optional<Eigen::VectorXd> delta_q_target;
+
   int num_variables;                    /// Number of group velocity DOFs.
   Eigen::VectorXi v_indices;            /// Velocity indices of the joint group.
   mutable Eigen::VectorXd q_max;        /// Pre-allocated maximum joint position limits.
