@@ -148,8 +148,8 @@ def main(
     max_angular_speed: float = 0.5,
     max_linear_acceleration: float = 0.5,
     max_angular_acceleration: float = 2.5,
-    max_position_error: float = 0.01,
-    max_orientation_error: float = 0.1,
+    max_position_error: float = 0.005,
+    max_orientation_error: float = 0.05,
     velocity_scale: float = 1.0,
     acceleration_scale: float = 1.0,
     dt: float = 0.01,
@@ -178,7 +178,7 @@ def main(
         max_position_error: Maximum position deviation from the path (m).
         max_orientation_error: Maximum orientation deviation from the path (rad).
         velocity_scale: Scaling (0, 1] applied to joint velocity limits.
-        acceleration_scale: Scaling (0, 1] applied to joint acceleration limits (TimeOptimal mode).
+        acceleration_scale: Scaling (0, 1] applied to joint acceleration limits.
         dt: Output trajectory sample period (s).
         path_size: Side length of the square region the lawnmower covers (m).
         path_num_passes: Number of zigzag passes across the square.
@@ -186,7 +186,7 @@ def main(
             round the corners more, letting the tool carry speed through them (0 = sharp corners,
             clamped per corner so adjacent arcs do not overlap).
         path_corner_arc_step_deg: Angular step (deg) used to discretize each rounded corner arc into
-            chords. Coarse values (e.g. 15) facet the arc into a few straight segments whose kinks
+            chords. Coarse values (e.g., 15) facet the arc into a few straight segments whose kinks
             show up as a jagged velocity profile; use a small value (~1-2) so the arc is smooth and
             the tool carries speed cleanly through the corner. Ignored when path_corner_radius=0.
         host: The host for the ViserVisualizer.
@@ -263,9 +263,7 @@ def main(
     elapsed = time.time() - t0
 
     traj = result
-    peak_velocity_ratio, peak_acceleration_ratio = planner.compute_peak_limit_ratios(
-        traj
-    )
+    peak_vel_ratio, peak_accel_ratio = planner.compute_peak_limit_ratios(traj)
     print(f"  Planned in {elapsed * 1e3:.1f} ms")
     print(f"  Trajectory samples: {len(traj.times)}")
     print(f"  Trajectory duration: {traj.times[-1]:.3f} s")
@@ -273,8 +271,8 @@ def main(
         f"  Achieved Cartesian path length: "
         f"{planner.compute_achieved_path_length(traj, path):.4f} m"
     )
-    print(f"  Peak velocity / limit:     {peak_velocity_ratio:.2f}")
-    print(f"  Peak acceleration / limit: {peak_acceleration_ratio:.2f}")
+    print(f"  Peak velocity / limit:     {peak_vel_ratio:.2f}")
+    print(f"  Peak acceleration / limit: {peak_accel_ratio:.2f}")
 
     # Plot the planned joint trajectory over time.
     fig = plotJointTrajectory(
@@ -284,6 +282,7 @@ def main(
         title="Cartesian Path Joint Trajectory",
         positions=True,
         velocities=True,
+        accelerations=True,
     )
 
     # Visualize: build a redundant Pinocchio model for rendering with mimic joints.

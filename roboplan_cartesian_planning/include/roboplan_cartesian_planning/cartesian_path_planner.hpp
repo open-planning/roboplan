@@ -23,8 +23,6 @@ enum class CartesianSpeedMode {
   /// @brief Trace the path under bounded Cartesian velocity and acceleration.
   /// @details Resolves and times the path exactly as TimeOptimal does, then slows the whole motion
   /// uniformly until the tool speed and acceleration are within the commanded Cartesian maxima.
-  /// The commanded values therefore act as maxima the motion is held under, not fixed values: a
-  /// motion the joint limits already keep slower than the caps is left alone.
   Bounded,
 
   /// @brief Time-optimal re-timing respecting joint velocity/acceleration limits.
@@ -98,13 +96,14 @@ struct CartesianPlannerOptions {
   /// @details This scale is applied by the re-timing step, in both speed modes.
   double acceleration_scale = 1.0;
 
-  /// @brief Corner-rounding tolerance (joint-space radians) for the TimeOptimal speed
-  /// mode, which times the path with TOPP-RA over a straight-segment + circular-blend geometry.
-  /// Each corner is rounded by a circular arc that deviates from the sharp corner by at most
-  /// this much. Larger values round corners more aggressively, which means smoother motion with
-  /// less stops, but the joint path strays further from the resolved waypoints.
-  /// A value <= 0 disables blending; that is, the trajectory stops at every waypoint.
-  double toppra_blend_deviation = 0.05;
+  /// @brief Corner-rounding tolerance, in joint-space units, for the straight-segment +
+  /// circular-blend geometry TOPP-RA times the path over.
+  /// @details Each corner is replaced by a circular arc that strays from it by at most this much.
+  /// Larger values round corners more aggressively, which means smoother motion with less stops,
+  /// but the joint path strays further from the resolved waypoints. The tolerance is a joint-space
+  /// bound, so the tool deviation it produces varies with the arm and is not checked against
+  /// max_position_error. A value <= 0 disables blending, so the trajectory stops at every waypoint.
+  double toppra_blend_deviation = 0.0025;
 
   /// @brief Gain (0, 1] for the position-limit constraint that steers each step away
   /// from the joint position limits.
@@ -118,18 +117,12 @@ struct CartesianPlannerOptions {
 };
 
 /// @brief User-supplied OInK solver and objectives for the Cartesian path planner.
-/// @details Lets callers fully customize the differential-IK problem the planner solves at
-/// each control step instead of relying on the planner's built-in setup (one FrameTask per
-/// end-effector plus a nullspace ConfigurationTask, bounded by VelocityLimit and PositionLimit
-/// constraints). Pass an instance to the corresponding CartesianPathPlanner constructor to
-/// inject your own solver, tasks, constraints, and barriers.
-///
+/// @details Lets callers fully customize the differential-IK problem the planner solves
+/// instead of relying on the planner's built-in setup (one FrameTask per end effector plus
+/// a nullspace ConfigurationTask, bounded by VelocityLimit and PositionLimit constraints).
 /// The planner drives the motion by repeatedly updating each tracking FrameTask's target pose,
-/// so one tracking task must be provided per end-effector in the CartesianPath. All other
-/// tasks/constraints/barriers are passed to the solver unchanged on every step. The same
-/// objects are reused across all plan() calls; the planner never rebuilds or mutates them
-/// (other than the tracking tasks' targets), so any q_start-dependent setup (e.g. seeding a
-/// ConfigurationTask) is the caller's responsibility.
+/// so one tracking task must be provided per end-effector in the CartesianPath.
+/// All other tasks/constraints/barriers are passed to the solver unchanged on every step.
 struct CartesianPlannerComponents {
   /// @brief The OInK solver to use.
   /// @details Must be constructed for the same scene and joint group as the planner.
@@ -174,7 +167,6 @@ public:
   /// @brief Constructor that uses a caller-supplied OInK solver and IK objectives.
   /// @details The planner traces the path by updating each `components.tracking_tasks` target
   /// every control step and solving with the provided solver, tasks, constraints, and barriers.
-  /// The
   /// Oink-related fields of `options` (costs, gains, limits, etc.) are ignored in this mode
   /// since the caller owns the objectives; timing/tolerance fields (dt, speeds, max errors,
   /// speed_mode, scales) still apply.
@@ -192,25 +184,18 @@ public:
   /// @param path The Cartesian waypoint path to trace.
   /// @param q_start The seed/start configuration, as a full model configuration
   /// (size model.nq). The robot should already be at (or near) the first waypoint.
-  /// @return The time-parameterized joint trajectory on success, else a string describing the
-  /// error. Quality metrics (peak limit ratios, achieved path length) are not bundled in; compute
-  /// them on demand from the returned trajectory with computePeakLimitRatios() /
-  /// computeAchievedPathLength().
+  /// @return The timed joint trajectory on success, else a string describing the error.
   tl::expected<JointTrajectory, std::string> plan(const CartesianPath& path,
                                                   const JointConfiguration& q_start);
 
   /// @brief Computes the peak |velocity|/limit and |acceleration|/limit ratios across the
   /// trajectory, so callers can see how close the result is to the joint limits.
-  /// @param trajectory The joint trajectory to evaluate (e.g. the output of plan()).
+  /// @param trajectory The joint trajectory to evaluate (e.g., the output of plan()).
   /// @return A pair of {peak velocity ratio, peak acceleration ratio}.
   /// Values <= 1.0 mean the respective joint limits are respected.
   std::pair<double, double> computePeakLimitRatios(const JointTrajectory& trajectory) const;
 
   /// @brief Computes the achieved Cartesian path length (meters) traced by the path's tip frames.
-  /// @details Re-runs forward kinematics over the trajectory and sums the world-frame translation
-  /// travelled by every tip frame in `path`. Joints outside the planning group are held at the
-  /// scene's current state; because that contributes only a constant rigid offset, it cancels in
-  /// the per-step differences and does not affect the result.
   /// @param trajectory The joint trajectory to evaluate (e.g. the output of plan()).
   /// @param path The Cartesian path whose tip frames were traced.
   /// @return The summed Cartesian path length (meters) across all tip frames.
@@ -321,9 +306,8 @@ private:
   /// @brief Caller-supplied tracking tasks, non-empty only when the components constructor is used.
   /// @details Cached at construction so buildFrameReferences() can wire each reference to its task
   /// on every plan() call; a non-empty value also marks the custom-components mode (in which the
-  /// default FrameTask/ConfigurationTask/VelocityLimit/PositionLimit setup is bypassed). The other
-  /// caller-supplied objectives are consumed into oink_/tasks_/constraints_/barriers_ at
-  /// construction, so they do not need to be retained.
+  /// default OInK setup is bypassed). The other caller-supplied objectives are consumed into
+  /// oink_/tasks_/constraints_/barriers_ at construction, so they do not need to be retained.
   std::vector<std::shared_ptr<FrameTask>> tracking_tasks_;
 
   /// @brief Reused solver task list passed to Oink::solveIk each control step.

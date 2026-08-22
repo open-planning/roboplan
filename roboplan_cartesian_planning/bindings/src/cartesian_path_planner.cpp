@@ -20,7 +20,8 @@ using namespace nanobind::literals;
 
 void init_cartesian_path_planner(nanobind::module_& m) {
   nanobind::enum_<CartesianSpeedMode>(
-      m, "CartesianSpeedMode", "Selects how the planner assigns speed/timing along the path.")
+      m, "CartesianSpeedMode",
+      "Selects how the planner assigns speed/timing along the Cartesian path.")
       .value("Bounded", CartesianSpeedMode::Bounded,
              "Trace the path under bounded Cartesian velocity and acceleration.")
       .value("TimeOptimal", CartesianSpeedMode::TimeOptimal,
@@ -38,14 +39,14 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
            "lm_damping"_a = 0.01, "regularization"_a = 1e-6, "config_task_weight"_a = 0.05,
            "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0,
-           "toppra_blend_deviation"_a = 0.05, "position_limit_gain"_a = 1.0)
+           "toppra_blend_deviation"_a = 0.0025, "position_limit_gain"_a = 1.0)
       .def_rw("group_name", &CartesianPlannerOptions::group_name, "Joint group name.")
       .def_rw("dt", &CartesianPlannerOptions::dt, "Output trajectory sample period (s).")
       .def_rw("speed_mode", &CartesianPlannerOptions::speed_mode, "Speed/timing strategy.")
       .def_rw("max_linear_speed", &CartesianPlannerOptions::max_linear_speed,
-              "Maximum linear tool speed (m/s).")
+              "Maximum linear tool speed (m/s), Bounded mode.")
       .def_rw("max_angular_speed", &CartesianPlannerOptions::max_angular_speed,
-              "Maximum angular tool speed (rad/s).")
+              "Maximum angular tool speed (rad/s), Bounded mode.")
       .def_rw("max_linear_acceleration", &CartesianPlannerOptions::max_linear_acceleration,
               "Maximum linear tool acceleration (m/s^2), Bounded mode.")
       .def_rw("max_angular_acceleration", &CartesianPlannerOptions::max_angular_acceleration,
@@ -66,14 +67,16 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_rw("config_task_weight", &CartesianPlannerOptions::config_task_weight,
               "Weight of the nullspace configuration-regularization task.")
       .def_rw("velocity_scale", &CartesianPlannerOptions::velocity_scale,
-              "Scaling factor for joint velocity limits.")
+              "Scaling factor (0, 1] for joint velocity limits, applied by the re-timing in "
+              "both speed modes.")
       .def_rw("acceleration_scale", &CartesianPlannerOptions::acceleration_scale,
-              "Scaling factor for joint acceleration limits, applied by the TOPP-RA re-timing.")
+              "Scaling factor (0, 1] for joint acceleration limits, applied by the re-timing in "
+              "both speed modes.")
       .def_rw("toppra_blend_deviation", &CartesianPlannerOptions::toppra_blend_deviation,
-              "Corner-rounding tolerance (rad) for the TOPP-RA line+blend geometry; also sets how "
-              "far the resolved path may be decimated before re-timing.")
+              "Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend "
+              "geometry. Each corner becomes an arc straying from it by at most this much.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
-              "Gain for the joint position-limit constraint.");
+              "Gain (0, 1] for the joint position-limit constraint.");
 
   nanobind::class_<CartesianPlannerComponents>(
       m, "CartesianPlannerComponents",
@@ -92,9 +95,13 @@ void init_cartesian_path_planner(nanobind::module_& m) {
 
   nanobind::class_<CartesianPathPlanner>(
       m, "CartesianPathPlanner",
-      "Offline Cartesian path planner that traces a CartesianPath in joint space using Oink.")
+      "Offline Cartesian path planner that traces a CartesianPath in joint space using Oink. "
+      "This planner uses the scene passed into it in a way that is not thread-safe; when using "
+      "it, the robot must not be moving and no other planning steps must be running "
+      "concurrently.")
       .def(nanobind::init<const std::shared_ptr<Scene>, const CartesianPlannerOptions&>(),
-           "scene"_a, "options"_a)
+           "scene"_a, "options"_a,
+           "Constructs a planner that builds the default OInK setup internally.")
       .def(nanobind::init<const std::shared_ptr<Scene>, const CartesianPlannerOptions&,
                           const CartesianPlannerComponents&>(),
            "scene"_a, "options"_a, "components"_a,
@@ -105,7 +112,7 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "q_start"_a)
       .def("compute_peak_limit_ratios", &CartesianPathPlanner::computePeakLimitRatios,
            "Computes the (peak velocity / limit, peak acceleration / limit) ratios over a "
-           "trajectory.",
+           "trajectory. Values <= 1.0 mean the respective joint limits are respected.",
            "trajectory"_a)
       .def("compute_achieved_path_length", &CartesianPathPlanner::computeAchievedPathLength,
            "Computes the achieved Cartesian path length (m) traced by the path's tip frames.",

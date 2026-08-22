@@ -155,9 +155,9 @@ void CartesianPathPlanner::buildStaticSolverComponents(
   const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
 
   if (components) {
-    // Caller-supplied setup: the solver objectives are fixed, so assemble them once. The tracking
-    // tasks are prepended so they are always solved; everything else passes through. Cache the
-    // tracking tasks for per-plan() wiring in buildFrameReferences().
+    // Caller-supplied setup: the solver objectives are fixed, so assemble them once.
+    // The tracking tasks are prepended so they are always solved; everything else passes through.
+    // Cache the tracking tasks for per-plan() wiring in buildFrameReferences().
     tracking_tasks_ = components->tracking_tasks;
     tasks_.clear();
     tasks_.reserve(tracking_tasks_.size() + components->extra_tasks.size());
@@ -648,9 +648,6 @@ CartesianPathPlanner::computeCartesianPeaks(const JointTrajectory& trajectory,
     return peaks;
   }
 
-  // The trajectory stores only the group coordinates; forwardKinematics needs a full model
-  // configuration. The non-group joints are held at the scene's current state, a constant rigid
-  // offset that cancels in the per-sample differences below.
   Eigen::VectorXd q_full = oink_->getContext().getJointPositions();
   for (const auto& tip_frame : path.tip_frames) {
     std::vector<double> linear_speeds;
@@ -727,12 +724,7 @@ double CartesianPathPlanner::computeAchievedPathLength(const JointTrajectory& tr
     return 0.0;
   }
 
-  // The trajectory stores only the group coordinates; forwardKinematics needs a full model
-  // configuration. Reuse one buffer, writing each waypoint into the group slice. The non-group
-  // joints are held at the scene's current state: that is a constant rigid offset on every tip
-  // pose, which cancels in the per-step differences below.
   Eigen::VectorXd q_full = oink_->getContext().getJointPositions();
-
   double length = 0.0;
   for (const auto& tip_frame : path.tip_frames) {
     q_full(joint_group_info_.q_indices) = trajectory.positions.front();

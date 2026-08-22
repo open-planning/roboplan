@@ -7,7 +7,7 @@ import roboplan.optimal_ik._optimal_ik_ext
 
 
 class CartesianSpeedMode(enum.Enum):
-    """Selects how the planner assigns speed/timing along the path."""
+    """Selects how the planner assigns speed/timing along the Cartesian path."""
 
     Bounded = 0
     """Trace the path under bounded Cartesian velocity and acceleration."""
@@ -20,7 +20,7 @@ class CartesianSpeedMode(enum.Enum):
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.05, position_limit_gain: float = 1.0) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.0025, position_limit_gain: float = 1.0) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -45,14 +45,14 @@ class CartesianPlannerOptions:
 
     @property
     def max_linear_speed(self) -> float:
-        """Maximum linear tool speed (m/s)."""
+        """Maximum linear tool speed (m/s), Bounded mode."""
 
     @max_linear_speed.setter
     def max_linear_speed(self, arg: float, /) -> None: ...
 
     @property
     def max_angular_speed(self) -> float:
-        """Maximum angular tool speed (rad/s)."""
+        """Maximum angular tool speed (rad/s), Bounded mode."""
 
     @max_angular_speed.setter
     def max_angular_speed(self, arg: float, /) -> None: ...
@@ -129,7 +129,9 @@ class CartesianPlannerOptions:
 
     @property
     def velocity_scale(self) -> float:
-        """Scaling factor for joint velocity limits."""
+        """
+        Scaling factor (0, 1] for joint velocity limits, applied by the re-timing in both speed modes.
+        """
 
     @velocity_scale.setter
     def velocity_scale(self, arg: float, /) -> None: ...
@@ -137,7 +139,7 @@ class CartesianPlannerOptions:
     @property
     def acceleration_scale(self) -> float:
         """
-        Scaling factor for joint acceleration limits, applied by the TOPP-RA re-timing.
+        Scaling factor (0, 1] for joint acceleration limits, applied by the re-timing in both speed modes.
         """
 
     @acceleration_scale.setter
@@ -146,7 +148,7 @@ class CartesianPlannerOptions:
     @property
     def toppra_blend_deviation(self) -> float:
         """
-        Corner-rounding tolerance (rad) for the TOPP-RA line+blend geometry; also sets how far the resolved path may be decimated before re-timing.
+        Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend geometry. Each corner becomes an arc straying from it by at most this much.
         """
 
     @toppra_blend_deviation.setter
@@ -154,7 +156,7 @@ class CartesianPlannerOptions:
 
     @property
     def position_limit_gain(self) -> float:
-        """Gain for the joint position-limit constraint."""
+        """Gain (0, 1] for the joint position-limit constraint."""
 
     @position_limit_gain.setter
     def position_limit_gain(self, arg: float, /) -> None: ...
@@ -205,11 +207,12 @@ class CartesianPlannerComponents:
 
 class CartesianPathPlanner:
     """
-    Offline Cartesian path planner that traces a CartesianPath in joint space using Oink.
+    Offline Cartesian path planner that traces a CartesianPath in joint space using Oink. This planner uses the scene passed into it in a way that is not thread-safe; when using it, the robot must not be moving and no other planning steps must be running concurrently.
     """
 
     @overload
-    def __init__(self, scene: roboplan.core._core_ext.Scene, options: CartesianPlannerOptions) -> None: ...
+    def __init__(self, scene: roboplan.core._core_ext.Scene, options: CartesianPlannerOptions) -> None:
+        """Constructs a planner that builds the default OInK setup internally."""
 
     @overload
     def __init__(self, scene: roboplan.core._core_ext.Scene, options: CartesianPlannerOptions, components: CartesianPlannerComponents) -> None:
@@ -222,7 +225,7 @@ class CartesianPathPlanner:
 
     def compute_peak_limit_ratios(self, trajectory: roboplan.core._core_ext.JointTrajectory) -> tuple[float, float]:
         """
-        Computes the (peak velocity / limit, peak acceleration / limit) ratios over a trajectory.
+        Computes the (peak velocity / limit, peak acceleration / limit) ratios over a trajectory. Values <= 1.0 mean the respective joint limits are respected.
         """
 
     def compute_achieved_path_length(self, trajectory: roboplan.core._core_ext.JointTrajectory, path: roboplan.core._core_ext.CartesianPath) -> float:
