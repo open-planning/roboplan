@@ -268,9 +268,8 @@ void init_optimal_ik(nanobind::module_& m) {
           "scene"_a, "tasks"_a, "constraints"_a, "barriers"_a, "delta_q"_a,
           "regularization"_a = 1e-12,
           "Solve inverse kinematics for given tasks, constraints, and optional barriers.\n\n"
-          "Solves a QP optimization problem to compute the joint velocity that minimizes\n"
-          "weighted task errors while satisfying all constraints and barrier functions.\n"
-          "The result is written directly into the provided delta_q buffer.\n\n"
+          "Solves a QP minimizing weighted task errors subject to the constraints and\n"
+          "barriers, writing the result into delta_q.\n\n"
           "Args:\n"
           "    tasks: List of weighted tasks to optimize for.\n"
           "    constraints: List of constraints to satisfy.\n"
@@ -361,10 +360,9 @@ void init_optimal_ik(nanobind::module_& m) {
           },
           "q"_a, "tasks"_a, "constraints"_a, "barriers"_a, "delta_q"_a, "regularization"_a = 1e-12,
           "Solve inverse kinematics at an explicitly supplied configuration.\n\n"
-          "This is the primary entry point. The overloads taking a scene are this one, called\n"
-          "with the scene's current joint positions. Prefer this whenever more than one solver\n"
-          "is running: passing q directly means the configuration never travels through the\n"
-          "shared Scene, so two threads cannot overwrite each other's notion of 'current'.\n\n"
+          "The primary entry point; the scene overloads call this with the scene's current\n"
+          "joint positions. Prefer it when several solvers run at once, since q never goes\n"
+          "through the shared Scene.\n\n"
           "Args:\n"
           "    q: Configuration to solve at (size model.nq).\n"
           "    tasks: List of weighted tasks to optimize for.\n"
@@ -411,8 +409,7 @@ void init_optimal_ik(nanobind::module_& m) {
           },
           "q"_a, "barriers"_a, "delta_q"_a, "tolerance"_a = 0.0,
           "Validate delta_q against barriers at an explicitly supplied configuration.\n\n"
-          "As with solveIk, this is the primary entry point and the scene overload forwards to\n"
-          "it with the scene's current joint positions.\n\n"
+          "As with solveIk, the primary entry point; the scene overload forwards here.\n\n"
           "Args:\n"
           "    q: Configuration to evaluate at (size model.nq).\n"
           "    barriers: List of barrier functions to check.\n"
@@ -429,11 +426,9 @@ void init_optimal_ik(nanobind::module_& m) {
           },
           "scene"_a, "barriers"_a, "delta_q"_a, "tolerance"_a = 0.0,
           "Validate delta_q against barriers using forward kinematics.\n\n"
-          "This method provides a post-solve safety check by evaluating the actual barrier\n"
-          "values at the candidate configuration (q + delta_q). If any barrier would be\n"
-          "violated, delta_q is set to zero to prevent unsafe motion.\n\n"
-          "This is a backup safety mechanism for cases where the linearized CBF constraint\n"
-          "in the QP has significant error (e.g., large jumps, near-boundary configurations).\n\n"
+          "Post-solve safety check: evaluates the barriers at q + delta_q and zeroes delta_q\n"
+          "if any would be violated. Backs up the QP's linearized CBF constraint where its\n"
+          "error is large (e.g., large jumps or near-boundary configurations).\n\n"
           "Args:\n"
           "    barriers: List of barrier functions to check.\n"
           "    delta_q: Configuration displacement to validate. Modified in place: set to\n"

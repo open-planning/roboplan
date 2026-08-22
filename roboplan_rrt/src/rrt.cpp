@@ -90,12 +90,7 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
   const auto start_time = std::chrono::steady_clock::now();
 
   // Snapshot the scene into this plan's private context. Collision checks and configuration
-  // sampling below both route through it, so plan() never contends on the Scene's shared scratch
-  // or its RNG, and several plans can run concurrently against one Scene.
-  //
-  // The context captures the scene's current joint positions on construction: that single read is
-  // the only place this plan looks at scene state that another thread could write, and everything
-  // downstream (including the non-group joints of q_start / q_goal below) comes from the snapshot.
+  // sampling both route through it, so several plans can run concurrently against one Scene.
   SceneContext context(*scene_);
 
   // Derive the context's sampling seed from this planner's own generator, so setRngSeed() alone
@@ -591,11 +586,6 @@ Eigen::VectorXd RRT::extend(const Eigen::VectorXd& q_start, const Eigen::VectorX
                                 max_connection_dist / distance);
 }
 
-void RRT::setRngSeed(unsigned int seed) {
-  // Seeds only this planner. Each plan() derives its sampling context's seed from this generator,
-  // so a seeded RRT is reproducible on its own -- two seeded planners sharing a Scene no longer
-  // reseed one another, and seeding a planner no longer discards the Scene's own seed.
-  rng_gen_ = std::mt19937(seed);
-}
+void RRT::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 }  // namespace roboplan

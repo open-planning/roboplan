@@ -1,6 +1,9 @@
 find_package(GTest REQUIRED)
 find_package(roboplan_example_models REQUIRED)
 
+# Shared test-only helpers (test_utils.hpp), included by the tests in the subdirectories below.
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
 # Build Oink integration tests
 add_executable(test_oink test_oink.cpp)
 set_property(TARGET test_oink PROPERTY CXX_STANDARD 20)

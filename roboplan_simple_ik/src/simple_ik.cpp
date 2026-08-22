@@ -63,9 +63,8 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   const auto start_time = std::chrono::steady_clock::now();
   const std::chrono::duration<double> timeout(options_.max_time);
 
-  // Snapshot the scene into a private context for this solve, so the IK iterations check
-  // collisions, draw restart configurations, and run kinematics against their own scratch rather
-  // than the Scene's shared data and RNG. Several solves can therefore run at once on one Scene.
+  // Snapshot the scene into a private context for this solve, so solves can run
+  // concurrently on one Scene.
   SceneContext context(*scene_);
   context.setRngSeed(static_cast<unsigned int>(rng_gen_()));
 

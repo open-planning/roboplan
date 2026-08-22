@@ -171,6 +171,8 @@ Oink::Oink(const Scene& scene, const std::string& group_name)
 
 Oink::~Oink() = default;
 
+void Oink::refreshContext(const Scene& scene) { context_ = std::make_unique<SceneContext>(scene); }
+
 tl::expected<void, std::string>
 Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Constraints>>& constraints,
@@ -184,17 +186,16 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
                                ". delta_q must be pre-allocated to num_variables.");
   }
 
-  // Pose this solver's own context at the requested configuration. Everything below -- every task,
-  // constraint, and barrier -- reads `q` and writes its kinematics scratch through this context, so
-  // the configuration being solved at never passes through state another thread can write.
+  // Pose this solver's own context at the requested configuration. Everything below reads `q`
+  // and writes its kinematics scratch through this context, so the configuration being solved
+  // at never passes through state another thread can write.
   context_->setJointPositions(q);
   const SceneContext& context = *context_;
 
   // Barriers are evaluated value-first, so computeBarrier() reads frame placements that no
-  // Jacobian call has populated yet; refresh them up front so that is a precondition the solver
-  // guarantees rather than an ordering coincidence. Tasks do not need this -- each computes its
-  // own Jacobian (which runs forward kinematics) before its error term reads oMf -- so the
-  // barrier-free path, which is the hot one for plain pose tracking, does not pay for the pass.
+  // Jacobian call has populated yet. so refresh them up front. Tasks do not need this; each
+  // computes its own Jacobian (which runs forward kinematics) before its error term reads oMf,
+  // so the barrier-free path does not pay for the pass.
   if (!barriers.empty()) {
     context.updateFramePlacements(q);
   }

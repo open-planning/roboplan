@@ -54,7 +54,9 @@ std::string readFile(const std::filesystem::path& path);
 /// 3. Mutable bookkeeping (`setJointPositions`, `setRngSeed`, and the geometry mutators). These
 ///    are for single-threaded setup and interactive use. Library code must not write them while
 ///    other threads are querying, and must not read `getCurrentJointPositions()` in the middle of
-///    an algorithm -- read it once on entry to seed a SceneContext, then use the context.
+///    an algorithm.
+///
+/// For items 2. and 3., if you need thread safety, we recommend using a SceneContext.
 class Scene {
 public:
   /// @brief Basic constructor
@@ -82,9 +84,8 @@ public:
 
   // Non-copyable and non-movable. `broadphase_manager_` caches raw pointers to this Scene's
   // `model_` and `collision_model_data_`, so a defaulted copy or move would silently produce a
-  // Scene whose manager collides against the *original* Scene's data (and dangles once that Scene
-  // dies). Share a Scene with `std::shared_ptr<Scene>` and give each thread its own SceneContext
-  // rather than cloning the Scene.
+  // Scene whose manager collides against the *original* Scene's data. Share a Scene with
+  // `std::shared_ptr<Scene>` and give each thread its own SceneContext rather than cloning it.
   Scene(const Scene&) = delete;
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&&) = delete;
@@ -122,9 +123,6 @@ public:
   void computeCollisionDistances(const Eigen::VectorXd& q) const;
 
   /// @brief A counter that changes whenever the collision geometry is modified.
-  /// @details Bumped by addGeometry(), removeGeometry(), updateGeometryPlacement(), and
-  /// setCollisions(). A SceneContext records this at construction and refuses to answer queries
-  /// once it drifts, since the context sizes its own scratch from the geometry it snapshotted.
   /// @return The current geometry version.
   uint64_t getGeometryVersion() const { return geometry_version_; };
 
@@ -156,11 +154,9 @@ public:
   Eigen::VectorXd randomPositions();
 
   /// @brief Generates random positions using a caller-supplied random number generator.
-  /// @details One of the explicit-scratch overloads: it draws from `rng` rather than the Scene's
-  /// own generator, so it reads nothing mutable and any number of threads may call it at once as
-  /// long as each passes its own. The overload above is exactly this, called with the Scene's
-  /// generator. Prefer SceneContext, which owns an `rng` and calls this for you; the overload
-  /// exists so both paths share one implementation.
+  /// @details This draws from `rng` rather than the Scene's own generator, so it reads nothing
+  /// mutable and any number of threads may call it at once as long as each passes its own.
+  /// Prefer SceneContext, which owns an `rng` and calls this for you.
   /// @param rng The random number generator to draw from.
   /// @return The random positions.
   Eigen::VectorXd randomPositions(std::mt19937& rng) const;
@@ -174,7 +170,7 @@ public:
   void randomizeJointPositions(const std::vector<std::string>& joint_names, Eigen::VectorXd& q);
 
   /// @brief Randomizes the given joints in-place using a caller-supplied random number generator.
-  /// @details The explicit-scratch overload of the above; see randomPositions(std::mt19937&).
+  /// @details The explicit-scratch overload of the above.
   /// @param rng The random number generator to draw from.
   /// @param joint_names The names of the joints to randomize.
   /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
@@ -251,11 +247,9 @@ public:
                                     const std::string& base_frame = "") const;
 
   /// @brief Calculates forward kinematics into a caller-supplied Pinocchio data.
-  /// @details One of the explicit-scratch overloads: it writes `data` rather than the Scene's
-  /// shared scratch, so it reads nothing mutable and any number of threads may call it at once as
-  /// long as each passes its own. The overload above is exactly this, called with the Scene's
-  /// scratch. Prefer SceneContext, which owns a `data` and calls this for you; the overload exists
-  /// so both paths share one implementation.
+  /// @details This writes `data` rather than the Scene's shared scratch, so it reads nothing
+  /// mutable and any number of threads may call it at once as long as each passes its own.
+  /// Prefer SceneContext, which owns a `data` and calls this for you.
   /// @param data The Pinocchio data to write.
   /// @param q The joint configuration.
   /// @param frame_name The name of the frame for which to perform forward kinematics.
@@ -278,8 +272,7 @@ public:
                             Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
   /// @brief Computes the frame Jacobian into a caller-supplied Pinocchio data.
-  /// @details The explicit-scratch overload of the above; see forwardKinematics(pinocchio::Data&,
-  /// const Eigen::VectorXd&, const std::string&, const std::string&).
+  /// @details The explicit-scratch overload of the above.
   /// @param data The Pinocchio data to write.
   /// @param q The joint configuration.
   /// @param frame_id The Pinocchio frame ID of the frame.
@@ -308,8 +301,7 @@ public:
                                     Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
   /// @brief Computes the relative frame Jacobian into a caller-supplied Pinocchio data.
-  /// @details The explicit-scratch overload of the above; see forwardKinematics(pinocchio::Data&,
-  /// const Eigen::VectorXd&, const std::string&, const std::string&).
+  /// @details The explicit-scratch overload of the above.
   /// @param data The Pinocchio data to write.
   /// @param q The joint configuration.
   /// @param frame_id The Pinocchio frame ID of the end-effector frame.
@@ -329,8 +321,7 @@ public:
   void computeJointJacobians(const Eigen::VectorXd& q) const;
 
   /// @brief Computes the joint Jacobians into a caller-supplied Pinocchio data.
-  /// @details The explicit-scratch overload of the above; see forwardKinematics(pinocchio::Data&,
-  /// const Eigen::VectorXd&, const std::string&, const std::string&).
+  /// @details The explicit-scratch overload of the above.
   /// @param data The Pinocchio data to write.
   /// @param q The joint configuration.
   void computeJointJacobians(pinocchio::Data& data, const Eigen::VectorXd& q) const;

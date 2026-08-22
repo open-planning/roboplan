@@ -329,18 +329,15 @@ void init_core_scene(nanobind::module_& m) {
       m, "SceneContext",
       "Per-thread scratch for scene queries: Pinocchio data, geometry data, the broadphase tree, "
       "a random number generator, and a current configuration.\n\n"
-      "A Scene's query methods write shared scratch, so one Scene cannot answer them from several "
-      "threads at once. Give each thread its own SceneContext over one shared Scene and they do "
-      "not interact. Each method here is the Scene query of the same name, run against this "
-      "context's private scratch.\n\n"
-      "A context snapshots the scene's collision geometry when built. Adding or removing geometry, "
-      "or changing collision pairs, makes it stale: it will report that rather than answer against "
-      "geometry it was not sized for. Build a new one after such a change.")
+      "Each method is the Scene query of the same name, run against this context's private "
+      "scratch; give each thread its own. Adding or removing geometry, or changing collision "
+      "pairs, leaves that scratch stale and the collision queries report the mismatch, so build "
+      "a new context after such a change.")
       // The context borrows the scene (and its model and geometry model) by reference.
       .def(nanobind::init<const Scene&>(), nanobind::keep_alive<1, 2>(), "scene"_a,
-           "Snapshots the current collision geometry of `scene`.")
+           "Builds a context over `scene`'s current collision geometry.")
       .def("hasCollisions", &SceneContext::hasCollisions,
-           "Checks collisions at the given joint positions.", "q"_a)
+           "Checks collisions at the given joint positions.", "q"_a, "debug"_a = false)
       .def("computeDistances", &SceneContext::computeDistances,
            "Computes the distance for every active collision pair into this context's data.", "q"_a,
            "broadphase_margin"_a = std::optional<double>())
@@ -368,9 +365,9 @@ void init_core_scene(nanobind::module_& m) {
            "context's current configuration.",
            "group_name"_a, "q"_a)
       .def("isGeometryCurrent", &SceneContext::isGeometryCurrent,
-           "Whether the scene's collision geometry is still the one snapshotted here.")
+           "Whether the scene's collision geometry is still the one this context was built from.")
       .def("getScene", &SceneContext::getScene, nanobind::rv_policy::reference_internal,
-           "The Scene this context was snapshotted from.");
+           "The Scene this context was built from.");
 }
 
 void init_core_path_utils(nanobind::module_& m) {
@@ -388,8 +385,7 @@ void init_core_path_utils(nanobind::module_& m) {
         nanobind::overload_cast<const Scene&, const Eigen::VectorXd&, const Eigen::VectorXd&,
                                 const double, const bool, const bool>(&hasCollisionsAlongPath),
         "Checks collisions along a specified configuration space path. Uses the Scene's own "
-        "collision scratch, so it is not safe to call concurrently with other queries on the same "
-        "Scene.",
+        "collision scratch, so it is not safe to call concurrently on one Scene.",
         "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
         "check_endpoints"_a = true);
   m.def("computePathLength", unwrap_expected(&computePathLength),

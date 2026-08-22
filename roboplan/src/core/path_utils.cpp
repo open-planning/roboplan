@@ -223,9 +223,7 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
   std::uniform_real_distribution<double> dis(std::numeric_limits<double>::epsilon(), 1.0);
 
   // Snapshot the scene into a private context for this shortcutting pass, so all connection checks
-  // below use their own scratch instead of the Scene's shared collision data. The context captures
-  // the scene's current joint positions on construction; reading them from it, rather than from the
-  // scene again, keeps this pass to a single look at state another thread could write.
+  // below use their own scratch instead of the Scene's shared collision data.
   const SceneContext scene_context(*scene_);
 
   q_full_ = scene_context.getJointPositions();

@@ -150,11 +150,22 @@ struct SelfCollisionBarrier : public Barrier {
   ///        velocity DOFs (before selecting the joint-group columns).
   mutable Eigen::RowVectorXd full_row;
 
-  /// @brief Non-owning pointer to the Oink solver's shared collision scratch (Data + GeometryData),
-  /// captured from `oink.getContext()` at construction. All distance / joint-Jacobian
-  /// queries run on this context instead of the scene's shared collision data, so the barrier never
-  /// mutates scene state. The referenced Oink must outlive this barrier.
-  const SceneContext* scene_context;
+  /// @brief The pair count originally requested via SelfCollisionBarrierOptions.
+  /// @details `n_collision_pairs` is this value clipped to the number of collision pairs the
+  /// context actually holds. Keeping the request lets computeBarrier() re-clip when the geometry
+  /// changes, rather than staying pinned to whatever the scene held at construction.
+  int requested_collision_pairs;
+
+  /// @brief Non-owning pointer to the Oink solver whose collision scratch this barrier runs on.
+  /// @details Resolved through context() on every use rather than cached as a SceneContext
+  /// pointer: a solver may replace its context (for example after the scene's collision geometry
+  /// changes), and a pointer captured at construction would then refer to a freed context. All
+  /// distance / joint-Jacobian queries run on that context instead of the scene's shared collision
+  /// data, so the barrier never mutates scene state. The referenced Oink must outlive this barrier.
+  const Oink* oink;
+
+  /// @brief The Oink solver's current collision scratch (Data + GeometryData).
+  const SceneContext& context() const { return oink->getContext(); }
 };
 
 }  // namespace roboplan

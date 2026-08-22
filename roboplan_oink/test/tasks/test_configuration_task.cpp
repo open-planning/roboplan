@@ -7,22 +7,9 @@
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 #include <roboplan_oink/tasks/configuration.hpp>
+#include <test_utils.hpp>
 
 namespace roboplan {
-
-namespace {
-
-/// @brief Poses `oink`'s context at `scene`'s current joint positions and returns it.
-/// @details Oink::solveIk() does this on entry. These tests drive tasks, constraints, and barriers
-/// one method at a time, so they perform the same step a real solve would.
-const SceneContext& posed(Oink& oink, const Scene& scene) {
-  const Eigen::VectorXd& q = scene.getCurrentJointPositions();
-  oink.getContext().setJointPositions(q);
-  oink.getContext().updateFramePlacements(q);
-  return oink.getContext();
-}
-
-}  // namespace
 
 class ConfigurationTaskTest : public ::testing::Test {
 protected:

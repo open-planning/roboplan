@@ -439,9 +439,20 @@ struct Oink {
   /// @details Tasks, constraints, and barriers evaluate against this context, so a single snapshot
   /// of the scene's collision geometry is reused across the whole solve and no two solvers share
   /// kinematics scratch. It is snapshotted from the scene at construction; if the scene's collision
-  /// geometry changes, rebuild the solver (the context does not auto-sync, and will report the
+  /// geometry changes, call refreshContext() (the context does not auto-sync, and will report the
   /// mismatch rather than answer against geometry it was not sized for).
   const SceneContext& getContext() const { return *context_; }
+
+  /// @brief Re-snapshots the solver's context from `scene`, picking up its current collision
+  /// geometry.
+  /// @details Call this after adding or removing geometry, or changing collision pairs, instead of
+  /// rebuilding the solver. Tasks, constraints, and barriers attached to this solver resolve the
+  /// context through the solver on each use, so they follow the new one; any that additionally
+  /// size buffers from the collision geometry re-derive them on their next evaluation.
+  /// @note The previous context is destroyed, so nothing may hold a reference to it across this
+  /// call. Not safe to call while another thread is solving on this Oink.
+  /// @param scene The scene to snapshot. Normally the same scene the solver was built from.
+  void refreshContext(const Scene& scene);
 
   /// @brief Mutable access to the solver's context, for posing it at a configuration.
   /// @details solveIk() does this itself. Use this only to drive the pieces of a solve by hand

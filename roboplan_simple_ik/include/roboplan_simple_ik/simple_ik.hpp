@@ -71,8 +71,6 @@ public:
                JointConfiguration& solution);
 
   /// @brief Sets the seed used to draw restart configurations.
-  /// @details Seeds only this solver. Each solveIk() derives its context's seed from this
-  /// generator, so a seeded solver is reproducible without touching the shared Scene's RNG.
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);
 

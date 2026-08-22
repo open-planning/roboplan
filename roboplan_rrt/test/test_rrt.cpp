@@ -338,8 +338,6 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
 TEST_F(RoboPlanRRTTest, ConcurrentSeededPlansMatchTheSerialPlan) {
   // The determinism check that a data-race detector alone cannot make: several planners running at
   // once against one shared Scene must each produce exactly the path they produce running alone.
-  // Anything shared between them -- kinematics scratch, the sampling RNG, the current
-  // configuration -- would show up here as a diverging path rather than as a crash.
   constexpr unsigned int kSeed = 1234;
   constexpr int kNumThreads = 8;
 

@@ -525,9 +525,8 @@ class Oink:
         """
         Solve inverse kinematics for given tasks, constraints, and optional barriers.
 
-        Solves a QP optimization problem to compute the joint velocity that minimizes
-        weighted task errors while satisfying all constraints and barrier functions.
-        The result is written directly into the provided delta_q buffer.
+        Solves a QP minimizing weighted task errors subject to the constraints and
+        barriers, writing the result into delta_q.
 
         Args:
             tasks: List of weighted tasks to optimize for.
@@ -606,10 +605,9 @@ class Oink:
         """
         Solve inverse kinematics at an explicitly supplied configuration.
 
-        This is the primary entry point. The overloads taking a scene are this one, called
-        with the scene's current joint positions. Prefer this whenever more than one solver
-        is running: passing q directly means the configuration never travels through the
-        shared Scene, so two threads cannot overwrite each other's notion of 'current'.
+        The primary entry point; the scene overloads call this with the scene's current
+        joint positions. Prefer it when several solvers run at once, since q never goes
+        through the shared Scene.
 
         Args:
             q: Configuration to solve at (size model.nq).
@@ -649,8 +647,7 @@ class Oink:
         """
         Validate delta_q against barriers at an explicitly supplied configuration.
 
-        As with solveIk, this is the primary entry point and the scene overload forwards to
-        it with the scene's current joint positions.
+        As with solveIk, the primary entry point; the scene overload forwards here.
 
         Args:
             q: Configuration to evaluate at (size model.nq).
@@ -664,12 +661,9 @@ class Oink:
         """
         Validate delta_q against barriers using forward kinematics.
 
-        This method provides a post-solve safety check by evaluating the actual barrier
-        values at the candidate configuration (q + delta_q). If any barrier would be
-        violated, delta_q is set to zero to prevent unsafe motion.
-
-        This is a backup safety mechanism for cases where the linearized CBF constraint
-        in the QP has significant error (e.g., large jumps, near-boundary configurations).
+        Post-solve safety check: evaluates the barriers at q + delta_q and zeroes delta_q
+        if any would be violated. Backs up the QP's linearized CBF constraint where its
+        error is large (e.g., large jumps or near-boundary configurations).
 
         Args:
             barriers: List of barrier functions to check.

@@ -58,10 +58,57 @@ TEST_F(RoboPlanSceneContextTest, ContextAgreesWithScene) {
   }
 }
 
+TEST_F(RoboPlanSceneContextTest, DebugCollisionsAgreeWithScene) {
+  // The debug path takes the naive all-pairs backend rather than the broadphase tree, so it must
+  // still agree with the fast path it replaces -- on the context and against the scene.
+  const SceneContext context(*scene);
+  for (const auto& q : sampleConfigurations(kNumSamples)) {
+    testing::internal::CaptureStdout();
+    const bool debug_result = context.hasCollisions(q, /*debug=*/true);
+    const std::string output = testing::internal::GetCapturedStdout();
+
+    EXPECT_EQ(debug_result, context.hasCollisions(q, /*debug=*/false));
+    EXPECT_EQ(debug_result, scene->hasCollisions(q, /*debug=*/false));
+
+    // Colliding pairs are enumerated on the way out; collision-free configurations stay quiet.
+    EXPECT_EQ(debug_result, output.find("Collision detected between") != std::string::npos);
+  }
+}
+
+TEST_F(RoboPlanSceneContextTest, DebugCollisionsEnumerateEveryPair) {
+  // The point of the debug path is that it does not stop at the first collision, so a
+  // deliberately colliding configuration should report every pair the scene reports.
+  const SceneContext context(*scene);
+
+  Eigen::VectorXd colliding = Eigen::VectorXd::Zero(scene->getModel().nq);
+  bool found = false;
+  for (const auto& q : sampleConfigurations(500)) {
+    if (scene->hasCollisions(q)) {
+      colliding = q;
+      found = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(found) << "test setup: expected at least one colliding sample";
+
+  testing::internal::CaptureStdout();
+  EXPECT_TRUE(context.hasCollisions(colliding, /*debug=*/true));
+  const std::string context_output = testing::internal::GetCapturedStdout();
+
+  testing::internal::CaptureStdout();
+  EXPECT_TRUE(scene->hasCollisions(colliding, /*debug=*/true));
+  const std::string scene_output = testing::internal::GetCapturedStdout();
+
+  // Same scratch-independent computation, so the context must enumerate exactly what the scene
+  // does.
+  EXPECT_EQ(context_output, scene_output);
+  EXPECT_NE(context_output.find("Collision detected between"), std::string::npos);
+}
+
 TEST_F(RoboPlanSceneContextTest, ConcurrentQueriesMatchSerialResults) {
-  // The point of the split: many threads querying one shared Scene, each through its own context,
-  // must produce exactly what a single thread produces. Run this under
-  // -fsanitize=thread to also assert that nothing is written concurrently.
+  // Many threads querying a shared Scene, each through its own context,
+  // must produce exactly what a single thread produces.
+  // Run this under -fsanitize=thread to also assert that nothing is written concurrently.
   const auto configurations = sampleConfigurations(kNumSamples);
 
   // Serial reference answers, computed on the scene itself.
@@ -108,8 +155,8 @@ TEST_F(RoboPlanSceneContextTest, ConcurrentQueriesMatchSerialResults) {
 }
 
 TEST_F(RoboPlanSceneContextTest, SeededContextsAreIndependent) {
-  // Two contexts seeded alike draw alike, and neither disturbs the other or the scene. This is
-  // what lets two seeded planners share a Scene and stay reproducible.
+  // Two contexts seeded alike draw alike, and neither disturbs the other or the scene.
+  // This is what lets two seeded algorithms share a Scene and stay reproducible.
   SceneContext first(*scene);
   SceneContext second(*scene);
   first.setRngSeed(42);

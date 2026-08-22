@@ -11,6 +11,7 @@
 #include <pinocchio/collision/distance.hpp>
 
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_utils.hpp>
 
 namespace roboplan {
 
@@ -25,23 +26,12 @@ SceneContext::SceneContext(const Scene& scene)
 
   // Bind a fresh broadphase manager to this context's own geometry data, then seed the geometry
   // world placements (at the neutral configuration) before the first AABB-tree build so coal does
-  // not see degenerate bounding volumes. Mirrors Scene::rebuildBroadphaseManager().
-  //
-  // compute_local_aabb is false here on purpose. Local AABBs live on the coal geometries, which are
-  // *shared* with the Scene and with every other context, so recomputing them would both write
-  // shared state from a per-thread object (a data race when two contexts are built at once) and
-  // re-walk every mesh's vertices on each construction. The Scene already computes them: its
-  // constructor and rebuildBroadphaseManager() both run this update with compute_local_aabb=true,
-  // and rebuildBroadphaseManager() runs on every geometry change, so they are current before any
-  // context can exist.
+  // not see degenerate bounding volumes. compute_local_aabb is false here on purpose.
+  // Local AABBs live on the coal geometries, which are  shared with the Scene and other contexts.
   manager_.emplace(&model_, &collision_model_, &geom_data_);
   pinocchio::updateGeometryPlacements(model_, data_, collision_model_, geom_data_,
                                       pinocchio::neutral(model_));
   manager_->update(/*compute_local_aabb=*/false);
-
-  // One coal collision object per geometry, used by computeDistances() to refresh world AABBs for
-  // broadphase culling. reserve() keeps the objects address-stable during the fill (only relevant
-  // for re-entrancy, not correctness).
   aabb_objects_.reserve(collision_model_.geometryObjects.size());
   for (const auto& geom_obj : collision_model_.geometryObjects) {
     aabb_objects_.emplace_back(geom_obj.geometry, /*compute_local_aabb=*/false);
@@ -64,9 +54,12 @@ void SceneContext::checkGeometryCurrent(const char* what) const {
       "geometry or changing collision pairs.");
 }
 
-bool SceneContext::hasCollisions(const Eigen::VectorXd& q) const {
+bool SceneContext::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
   checkGeometryCurrent("hasCollisions");
-  return pinocchio::computeCollisions(model_, data_, *manager_, q, /*stopAtFirstCollision=*/true);
+  if (!debug) {
+    return pinocchio::computeCollisions(model_, data_, *manager_, q, /*stopAtFirstCollision=*/true);
+  }
+  return computeCollisionsVerbose(model_, data_, collision_model_, geom_data_, q);
 }
 
 void SceneContext::computeDistances(const Eigen::VectorXd& q,

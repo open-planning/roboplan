@@ -74,6 +74,18 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
 /// @return Position vector aligned with getJointNamesWithMimics().
 Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene, const Eigen::VectorXd& q);
 
+/// @brief Runs an all-pairs collision check into the given scratch, printing every colliding pair.
+/// @details This deliberately skips the broadphase fast path that stops at the first collision.
+/// @param model The Pinocchio model.
+/// @param data The Pinocchio data to write.
+/// @param collision_model The Pinocchio collision (geometry) model.
+/// @param geom_data The Pinocchio collision (geometry) data to write.
+/// @param q The joint configuration at which to check collisions.
+/// @return True if there are collisions, else false.
+bool computeCollisionsVerbose(const pinocchio::Model& model, pinocchio::Data& data,
+                              const pinocchio::GeometryModel& collision_model,
+                              pinocchio::GeometryData& geom_data, const Eigen::VectorXd& q);
+
 /// @brief Holds extended joint limits (acceleration, jerk) parsed from a URDF <limit> tag.
 /// @details This is a temporary holdover until Pinocchio properly supports URDF 1.2 extended
 /// limits in its own parsers. See https://github.com/stack-of-tasks/pinocchio/issues/2893

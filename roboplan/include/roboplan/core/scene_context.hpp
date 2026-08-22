@@ -28,17 +28,16 @@ class Scene;
 /// @details A Scene's query methods mutate shared scratch (joint and frame placements, geometry
 /// world transforms, the broadphase AABB tree) and shared bookkeeping (its RNG and current joint
 /// positions), so a single Scene cannot answer those queries from multiple threads concurrently.
-/// A SceneContext owns its own copy of all of that over the Scene's *immutable* model and geometry
-/// model (shared by reference), so an algorithm such as the RRT can run without contending with
-/// anything else.
+/// A SceneContext owns its own copy of all of that over the Scene's immutable model and geometry
+/// model (shared by reference), so an algorithm can run without contending with anything else.
 ///
-/// Every method here is the exact query of the same name on Scene, run against this context's
-/// private scratch instead of the Scene's. Give each thread its own context and none of them
-/// interact.
+/// Every method is the exact query of the same name on Scene, run against this context's private
+/// scratch instead of the Scene's. Give each thread its own context and none of them interact.
 ///
-/// A context is a snapshot of the scene's collision geometry at construction time. If the scene's
-/// geometry changes (see Scene::getGeometryVersion), the context refuses further queries rather
-/// than indexing its now differently-sized scratch; discard it and build a new one.
+/// A context borrows the scene's model and collision geometry and sizes its own scratch from them
+/// at construction. Adding/removing geometry or changing collision pairs leaves that scratch stale
+/// (see Scene::getGeometryVersion): the collision queries report the mismatch, while kinematics
+/// and sampling are unaffected. Moving existing geometry invalidates nothing.
 class SceneContext {
 public:
   /// @brief Snapshots the current collision geometry of `scene`.
@@ -46,23 +45,22 @@ public:
   /// RNG is seeded pseudorandomly; use setJointPositions() and setRngSeed() to pin either.
   explicit SceneContext(const Scene& scene);
 
-  // Non-copyable and non-movable: the broadphase manager caches a raw pointer to `geom_data_`, so
-  // the object's address must remain stable for its whole lifetime. Hold one behind a pointer
-  // (e.g. std::unique_ptr) if it needs to be relocated or rebuilt.
+  // Non-copyable and non-movable: the broadphase manager caches a raw pointer to `geom_data_`,
+  // so the object's address must remain stable for its whole lifetime.
+  /// Hold one behind a pointer e.g., std::unique_ptr) if it needs to be relocated or rebuilt.
   SceneContext(const SceneContext&) = delete;
   SceneContext& operator=(const SceneContext&) = delete;
   SceneContext(SceneContext&&) = delete;
   SceneContext& operator=(SceneContext&&) = delete;
 
-  /// @brief Checks collisions at `q`, stopping at the first collision. Uses this context's own
-  /// scratch, so it is safe to call concurrently with queries on other contexts or the Scene.
-  bool hasCollisions(const Eigen::VectorXd& q) const;
+  /// @brief Checks collisions at `q` using this context's own scratch.
+  /// @param q The joint positions.
+  /// @param debug If true, prints every colliding pair instead of stopping at the first collision.
+  /// @return True if there are collisions, else false.
+  bool hasCollisions(const Eigen::VectorXd& q, const bool debug = false) const;
 
   /// @brief Refreshes geometry placements at `q` and computes the distance for every active
   /// collision pair into this context's own GeometryData.
-  /// @details Runs on this context's private scratch, so it is safe to call concurrently with
-  /// queries on other contexts or the Scene. Results are available via getCollisionData().
-  ///
   /// @param broadphase_margin Broadphase cull distance. Pairs whose world axis-aligned bounding
   /// boxes are farther apart than this are skipped: their (cheap) AABB-gap lower bound is stored as
   /// the distance and their witness points are collapsed to the origin, so any Jacobian built from
@@ -74,19 +72,14 @@ public:
   void computeDistances(const Eigen::VectorXd& q,
                         std::optional<double> broadphase_margin = std::nullopt) const;
 
-  /// @brief Computes the joint Jacobians at `q` into this context's own Data, so consumers that
-  /// build task/barrier Jacobians (e.g. self-collision) do not have to touch the Scene's scratch.
-  /// Results are available via getData().
+  /// @brief Computes the joint Jacobians at `q` into this context's own Data.
+  /// @details Results are available via getData().
   void computeJointJacobians(const Eigen::VectorXd& q) const;
 
   /// @brief Runs forward kinematics at `q` and refreshes every frame placement in getData().oMf.
-  /// @details Consumers that read `getData().oMf` directly (an Oink task's error term, a position
-  /// barrier's frame position) need the placements to already be current for `q`. Calling this once
-  /// after posing the context makes that a stated precondition rather than an accident of the order
-  /// in which the solver happens to invoke its tasks.
   void updateFramePlacements(const Eigen::VectorXd& q) const;
 
-  /// @brief Calculates forward kinematics for a specific frame, into this context's own Data.
+  /// @brief Calculates forward kinematics for a specific frame, into this context's Data.
   /// @param q The joint configuration.
   /// @param frame_name The name of the frame for which to perform forward kinematics.
   /// @param base_frame Optional base frame. If empty, returns the world-frame pose.
@@ -125,9 +118,6 @@ public:
   std::optional<Eigen::VectorXd> randomCollisionFreePositions(size_t max_samples = 1000);
 
   /// @brief This context's current joint positions (size model.nq).
-  /// @details The per-thread replacement for Scene::getCurrentJointPositions(). Algorithms seed it
-  /// once on entry and then read it here, so the configuration an algorithm is working at never
-  /// travels through state another thread can write.
   const Eigen::VectorXd& getJointPositions() const { return q_; }
 
   /// @brief Sets this context's current joint positions.
@@ -174,8 +164,8 @@ private:
   mutable std::optional<BroadPhaseManager>
       manager_;  ///< Owned; bound to this context's geom_data_.
 
-  /// @brief One coal collision object per geometry object (parallel to collision_model_'s
-  /// geometryObjects), reused by computeDistances() to refresh world AABBs for broadphase culling.
+  /// @brief One coal collision object per geometry object, parallel to collision_model_'s
+  /// geometryObjects, reused by computeDistances() to refresh world AABBs for broadphase culling.
   mutable std::vector<coal::CollisionObject> aabb_objects_;
 
   /// @brief This context's own random number generator.

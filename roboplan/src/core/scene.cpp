@@ -285,13 +285,7 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
 
 void Scene::rebuildBroadphaseManager() {
   // Any caller that reaches here changed the number of geometries or collision pairs, which is
-  // exactly what makes an existing SceneContext's fixed-size scratch the wrong shape. Bumping here
-  // covers addGeometry(), removeGeometry(), and setCollisions() in one place.
-  //
-  // updateGeometryPlacement() deliberately does not bump: it only edits a geometry's placement in
-  // the model that contexts hold by reference, so their next query picks the new placement up and
-  // nothing is resized. Invalidating every context on each obstacle move would break the common
-  // "reposition an obstacle every frame" loop for no safety gain.
+  // exactly what makes an existing SceneContext's fixed-size scratch the wrong shape.
   ++geometry_version_;
 
   // The manager caches AABB-tree state and pointers into collision_model_/collision_model_data_,
@@ -317,23 +311,7 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
   // Debug path: evaluate every pair with the naive backend (no stop-at-first) so that all
   // individual colliding pairs can be printed. The broadphase fast path stops at the first
   // collision and therefore cannot enumerate every colliding pair.
-  pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
-                                      q);
-  const auto result =
-      pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_, q,
-                                   /* stop_at_first_collision*/ false);
-
-  for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
-    const auto& cp = collision_model_.collisionPairs.at(k);
-    const auto& cr = collision_model_data_.collisionResults.at(k);
-    if (cr.isCollision()) {
-      const auto& body1 = collision_model_.geometryObjects.at(cp.first).name;
-      const auto& body2 = collision_model_.geometryObjects.at(cp.second).name;
-      std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
-    }
-  }
-
-  return result;
+  return computeCollisionsVerbose(model_, model_data_, collision_model_, collision_model_data_, q);
 }
 
 void Scene::computeCollisionDistances(const Eigen::VectorXd& q) const {
