@@ -331,10 +331,6 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   ASSERT_EQ(maybe_path2.value().first.positions, expected_positions);
 }
 
-/// @brief Fixture for the pose constraint and constrained planning tests.
-/// @details Constrains the UR5 tool frame to hold its z axis near vertical, leaving position and
-/// the rotation about that axis free. The nominal orientation is a half turn about x, so a zero
-/// displacement points the tool straight down.
 TEST_F(RoboPlanRRTTest, ConcurrentSeededPlansMatchTheSerialPlan) {
   // The determinism check that a data-race detector alone cannot make: several planners running at
   // once against one shared Scene must each produce exactly the path they produce running alone.
@@ -386,6 +382,10 @@ TEST_F(RoboPlanRRTTest, ConcurrentSeededPlansMatchTheSerialPlan) {
   EXPECT_EQ(mismatches.load(), 0);
 }
 
+/// @brief Fixture for the pose constraint and constrained planning tests.
+/// @details Constrains the UR5 tool frame to hold its z axis near vertical, leaving position and
+/// the rotation about that axis free. The nominal orientation is a half turn about x, so a zero
+/// displacement points the tool straight down.
 class RoboPlanConstrainedRRTTest : public RoboPlanRRTTest {
 protected:
   void SetUp() override {
