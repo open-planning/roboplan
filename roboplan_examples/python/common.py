@@ -505,6 +505,23 @@ def get_model_data():
     }
 
 
+def load_point_cloud(pointcloud_path: Path) -> NDArray:
+    """
+    Loads a point cloud from a PLY file.
+
+    Args:
+        pointcloud_path: The path to the point cloud.
+
+    Returns:
+        An (N, 3) array of point positions.
+    """
+    from plyfile import PlyData  # Lazy import to not require plyfile
+
+    ply_data = PlyData.read(pointcloud_path)
+    vertices = ply_data["vertex"]
+    return np.array([vertices["x"], vertices["y"], vertices["z"]], dtype=np.float64).T
+
+
 def load_octree_from_point_cloud(pointcloud_path: Path, voxel_resolution: float = 0.04):
     """
     Loads a point cloud from a PLY file and converts it into an octree structure.
@@ -517,17 +534,55 @@ def load_octree_from_point_cloud(pointcloud_path: Path, voxel_resolution: float 
         An octree data structure representing the hierarchical spatial partitioning
         of the point cloud.
     """
-    from plyfile import PlyData  # Lazy import to not require plyfile
+    return coal.makeOctree(load_point_cloud(pointcloud_path), voxel_resolution)
 
-    # Read the PLY file
-    ply_data = PlyData.read(pointcloud_path)
 
-    # Access vertex data
-    vertices = ply_data["vertex"]
-    vertex_array = np.array([vertices["x"], vertices["y"], vertices["z"]]).T
-    octree = coal.makeOctree(vertex_array, voxel_resolution)
+def sample_points_on_robot(
+    model: pin.Model,
+    collision_model: pin.GeometryModel,
+    q: NDArray,
+    num_points: int,
+    rng: np.random.Generator,
+    noise_std: float = 0.0,
+) -> NDArray:
+    """
+    Samples points on the robot's collision geometry at a given configuration.
 
-    return octree
+    This mimics what a depth camera would see of the robot's own body: points are drawn
+    from the collision mesh vertices (or the local bounding box, for primitive shapes)
+    of each geometry, placed at the configuration `q`, with optional sensor-like noise.
+
+    Args:
+        model: The Pinocchio model.
+        collision_model: The Pinocchio collision geometry model.
+        q: The joint configuration at which to place the robot.
+        num_points: The number of points to sample.
+        rng: The NumPy random generator to draw from.
+        noise_std: Standard deviation, in meters, of Gaussian noise added to the points.
+
+    Returns:
+        An (num_points, 3) array of world-frame points on the robot body.
+    """
+    data = model.createData()
+    geom_data = pin.GeometryData(collision_model)
+    pin.updateGeometryPlacements(model, data, collision_model, geom_data, q)
+
+    candidates = []
+    for geom_obj, oMg in zip(collision_model.geometryObjects, geom_data.oMg):
+        geom = geom_obj.geometry
+        if hasattr(geom, "vertices"):  # Meshes: use the actual surface vertices.
+            local_points = np.asarray(geom.vertices())
+        else:  # Primitive shapes: fall back to sampling the local bounding box.
+            geom.computeLocalAABB()
+            aabb = geom.aabb_local
+            local_points = rng.uniform(aabb.min_, aabb.max_, size=(64, 3))
+        candidates.append(local_points @ oMg.rotation.T + oMg.translation)
+    candidates = np.vstack(candidates)
+
+    points = candidates[rng.integers(0, len(candidates), size=num_points)]
+    if noise_std > 0.0:
+        points = points + rng.normal(scale=noise_std, size=points.shape)
+    return points
 
 
 def get_octree():

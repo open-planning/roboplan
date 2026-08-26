@@ -54,8 +54,13 @@ endif()
 # Add roboplan libraries.
 add_library(
   roboplan SHARED
-  src/core/scene_context.cpp src/core/path_utils.cpp src/core/pose_utils.cpp
-  src/core/scene.cpp src/core/scene_utils.cpp src/core/types.cpp)
+  src/core/scene_context.cpp
+  src/core/path_utils.cpp
+  src/core/pose_utils.cpp
+  src/core/robot_body_filter.cpp
+  src/core/scene.cpp
+  src/core/scene_utils.cpp
+  src/core/types.cpp)
 target_include_directories(
   roboplan PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                   $<INSTALL_INTERFACE:include>)

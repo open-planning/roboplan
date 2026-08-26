@@ -473,6 +473,17 @@ public:
   tl::expected<std::vector<pinocchio::GeomIndex>, std::string>
   getCollisionGeometryIds(const std::string& body);
 
+  /// @brief Gets the collision geometry IDs belonging to the robot model itself.
+  /// @details That is, the geometries loaded from the URDF at construction, excluding any
+  /// objects (boxes, spheres, meshes, octrees, etc.) added to the scene afterwards. These IDs
+  /// are computed once at construction: added objects always append after the robot's
+  /// geometries, and only added objects can be removed (shifting only the indices above the
+  /// robot's), so they stay valid for the Scene's lifetime.
+  /// @return The collision geometry indices for the robot's own geometry.
+  const std::vector<pinocchio::GeomIndex>& getRobotCollisionGeometryIds() const {
+    return robot_collision_geometry_ids_;
+  }
+
   /// @brief Sets the allowable collisions for a pair of bodies in the model.
   /// @details The body names can either be model frame names or collision model geometry names.
   /// @param body1 The name of the first body.
@@ -543,6 +554,9 @@ private:
 
   /// @brief Maps each added collision geometry to its respective Pinocchio geometry ID.
   std::unordered_map<std::string, pinocchio::GeomIndex> collision_geometry_map_;
+
+  /// @brief The collision geometry IDs of the robot itself (see getRobotCollisionGeometryIds).
+  std::vector<pinocchio::GeomIndex> robot_collision_geometry_ids_;
 
   /// @brief Incremented on every change to the collision geometry, so that SceneContexts
   /// snapshotted from an older version can detect that they are stale.
