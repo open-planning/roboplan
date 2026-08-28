@@ -31,16 +31,13 @@ from common import get_model_data
 
 
 def _build_reduced_model(
-    urdf_xml: str, group_joints: set[str]
+    urdf_xml: str, locked_joint_names: list[str]
 ) -> tuple[pin.Model, pin.Model, np.ndarray]:
-    """Full + reduced pinocchio models for the planning group (mirrors the C++ ReducedGroupModel)."""
+    """Full + reduced pinocchio models for the planning group (mirrors the C++ ReducedGroupModel).
+    `locked_joint_names` comes from Scene.getLockedJointNames."""
     full = pin.buildModelFromXML(urdf_xml)
     q_ref_full = pin.neutral(full)
-    joints_to_lock = [
-        full.getJointId(full.names[i])
-        for i in range(1, full.njoints)
-        if full.names[i] not in group_joints
-    ]
+    joints_to_lock = [full.getJointId(name) for name in locked_joint_names]
     reduced = pin.buildReducedModel(full, joints_to_lock, q_ref_full)
     return full, reduced, q_ref_full
 
@@ -155,10 +152,11 @@ def main(
     )
 
     group_name = model_data.default_joint_group
-    group_joints = set(scene.getJointGroupInfo(group_name).joint_names)
     tip_frame = model_data.ee_names[0]
 
-    full, reduced, q_ref_full = _build_reduced_model(urdf_xml, group_joints)
+    full, reduced, q_ref_full = _build_reduced_model(
+        urdf_xml, scene.getLockedJointNames(group_name)
+    )
     data = reduced.createData()
     tip_id = reduced.getFrameId(tip_frame)
 

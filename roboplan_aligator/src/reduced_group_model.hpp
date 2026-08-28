@@ -31,6 +31,14 @@ namespace roboplan {
 
 class Scene;
 
+/// @brief Remaps a full-model vector into reduced-model layout by joint name.
+/// @details Order-robust (does not assume preserved joint ordering between the full and reduced
+/// models). `use_tangent` selects the tangent layout (size reduced_model.nv, velocities / torques)
+/// vs. the configuration layout (size reduced_model.nq). Shared by the ReducedGroupModel q0 remap
+/// and the cost/constraint factories' limit-vector remaps.
+Eigen::VectorXd remapFullToReduced(const Eigen::VectorXd& full, const pinocchio::Model& full_model,
+                                   const pinocchio::Model& reduced_model, bool use_tangent);
+
 /// @brief Reduced pinocchio model + geometry for a named joint group, with non-group joints
 /// physically locked at the scene's current configuration.
 /// @details Value-type snapshot whose shape mirrors roboplan::CollisionContext: it owns the

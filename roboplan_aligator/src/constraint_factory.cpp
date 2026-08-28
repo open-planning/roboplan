@@ -54,27 +54,9 @@ pinocchio::FrameIndex resolveFrame(const ReducedGroupModel& rgm, const std::stri
   return *frame_id;
 }
 
-// Remaps a full-model limit vector into reduced-model layout by joint name, mirroring the q0 remap
-// in reduced_group_model.cpp (order-robust; does not assume preserved joint ordering).
-// `use_tangent` selects the tangent layout (idx_vs/nvs, size nv — velocity / torque) vs the
-// configuration layout (idx_qs/nqs, size nq).
-Eigen::VectorXd remapFullToReduced(const Eigen::VectorXd& full, const pinocchio::Model& full_model,
-                                   const pinocchio::Model& reduced_model, bool use_tangent) {
-  const int reduced_size = use_tangent ? reduced_model.nv : reduced_model.nq;
-  Eigen::VectorXd reduced = Eigen::VectorXd::Zero(reduced_size);
-  for (pinocchio::JointIndex j = 1; j < static_cast<pinocchio::JointIndex>(reduced_model.njoints);
-       ++j) {
-    const pinocchio::JointIndex full_id = full_model.getJointId(reduced_model.names[j]);
-    if (use_tangent) {
-      reduced.segment(reduced_model.idx_vs[j], reduced_model.nvs[j]) =
-          full.segment(full_model.idx_vs[full_id], full_model.nvs[full_id]);
-    } else {
-      reduced.segment(reduced_model.idx_qs[j], reduced_model.nqs[j]) =
-          full.segment(full_model.idx_qs[full_id], full_model.nqs[full_id]);
-    }
-  }
-  return reduced;
-}
+// Remaps a full-model limit vector into reduced-model layout by joint name. Implemented once in
+// reduced_group_model.{hpp,cpp} and shared with the ReducedGroupModel q0 remap; see
+// roboplan::remapFullToReduced.
 
 // Validates a user-supplied bound: empty is allowed (use the model default); otherwise the size
 // must match `expected`.

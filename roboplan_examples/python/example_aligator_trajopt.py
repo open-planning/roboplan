@@ -40,18 +40,15 @@ from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOp
 from roboplan.visualization import visualizeJointTrajectory
 
 
-def _build_reduced_model(urdf_xml: str, group_joints: set[str]) -> pin.Model:
+def _build_reduced_model(urdf_xml: str, locked_joint_names: list[str]) -> pin.Model:
     """Reduced pinocchio model matching TrajectoryOptimizer's internal per-group reduction
-    (non-group joints locked at the neutral configuration). Used only to compute the inverse-
-    dynamics torque a non-dynamics-aware trajectory (e.g. TOPP-RA's) would actually require.
+    (non-group joints locked at the neutral configuration). `locked_joint_names` comes from
+    Scene.getLockedJointNames. Used only to compute the inverse-dynamics torque a
+    non-dynamics-aware trajectory (e.g. TOPP-RA's) would actually require.
     """
     full = pin.buildModelFromXML(urdf_xml)
     q_ref_full = pin.neutral(full)
-    joints_to_lock = [
-        full.getJointId(full.names[i])
-        for i in range(1, full.njoints)
-        if full.names[i] not in group_joints
-    ]
+    joints_to_lock = [full.getJointId(name) for name in locked_joint_names]
     return pin.buildReducedModel(full, joints_to_lock, q_ref_full)
 
 
@@ -134,7 +131,7 @@ def main(
     group_name = model_data.default_joint_group
     group_info = scene.getJointGroupInfo(group_name)
     q_indices = group_info.q_indices
-    reduced = _build_reduced_model(urdf_xml, set(group_info.joint_names))
+    reduced = _build_reduced_model(urdf_xml, scene.getLockedJointNames(group_name))
 
     viz_model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(

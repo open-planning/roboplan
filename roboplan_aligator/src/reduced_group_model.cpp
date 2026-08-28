@@ -42,20 +42,19 @@ ReducedGroupModel::ReducedGroupModel(const Scene& scene, const std::string& grou
     }
   }
 
-  // Lock every movable joint that is NOT in the group. Joint 0 is the universe root and is
-  // never locked. When the group already spans every movable joint, this list is empty and the
-  // reduction is a no-op.
-  std::vector<bool> in_group(static_cast<std::size_t>(full_model_.njoints), false);
-  for (const auto joint_index : group.joint_indices) {
-    in_group[joint_index] = true;
+  // Lock every movable joint that is NOT in the group. The locked-joint set comes from core
+  // (Scene::getLockedJointNames), which derives it from the group's joint indices; we resolve each
+  // name back to its index to build the buildReducedModel input. When the group already spans every
+  // movable joint, this list is empty and the reduction is a no-op.
+  const auto maybe_locked = scene.getLockedJointNames(group_name);
+  if (!maybe_locked) {
+    throw std::invalid_argument("ReducedGroupModel: " + maybe_locked.error());
   }
+  locked_joint_names_ = maybe_locked.value();
   std::vector<pinocchio::JointIndex> joints_to_lock;
-  for (pinocchio::JointIndex j = 1; j < static_cast<pinocchio::JointIndex>(full_model_.njoints);
-       ++j) {
-    if (!in_group[j]) {
-      joints_to_lock.push_back(j);
-      locked_joint_names_.push_back(full_model_.names[j]);
-    }
+  joints_to_lock.reserve(locked_joint_names_.size());
+  for (const std::string& name : locked_joint_names_) {
+    joints_to_lock.push_back(full_model_.getJointId(name));
   }
 
   // Reduce both the kinematic model and the collision geometry, locking the non-group joints at
@@ -66,17 +65,10 @@ ReducedGroupModel::ReducedGroupModel(const Scene& scene, const std::string& grou
   pinocchio::buildReducedModel(full_model_, full_collision_model_, joints_to_lock,
                                reference_configuration, reduced_model_, reduced_collision_model_);
 
-  // Reduced q0 by joint-name remap: copy each reduced joint's config segment out of the full
-  // reference configuration. Order-robust (does not rely on preserved joint ordering). v0
-  // defaults to zero (design §3.1).
-  q0_ = Eigen::VectorXd::Zero(reduced_model_.nq);
-  for (pinocchio::JointIndex j = 1; j < static_cast<pinocchio::JointIndex>(reduced_model_.njoints);
-       ++j) {
-    const std::string& name = reduced_model_.names[j];
-    const pinocchio::JointIndex full_id = full_model_.getJointId(name);
-    q0_.segment(reduced_model_.idx_qs[j], reduced_model_.nqs[j]) =
-        reference_configuration.segment(full_model_.idx_qs[full_id], full_model_.nqs[full_id]);
-  }
+  // Reduced q0 by joint-name remap out of the full reference configuration (storage layout
+  // remapFullToReduced; order-robust, does not rely on preserved joint ordering). v0 defaults to
+  // zero (design §3.1).
+  q0_ = remapFullToReduced(reference_configuration, full_model_, reduced_model_, /*tangent=*/false);
   v0_ = Eigen::VectorXd::Zero(reduced_model_.nv);
 
   // Group velocity-index map, read verbatim from core (not re-derived here).
@@ -101,6 +93,24 @@ std::vector<std::string> ReducedGroupModel::frameNames() const {
     names.push_back(frame.name);
   }
   return names;
+}
+
+Eigen::VectorXd remapFullToReduced(const Eigen::VectorXd& full, const pinocchio::Model& full_model,
+                                   const pinocchio::Model& reduced_model, bool use_tangent) {
+  const int reduced_size = use_tangent ? reduced_model.nv : reduced_model.nq;
+  Eigen::VectorXd reduced = Eigen::VectorXd::Zero(reduced_size);
+  for (pinocchio::JointIndex j = 1; j < static_cast<pinocchio::JointIndex>(reduced_model.njoints);
+       ++j) {
+    const pinocchio::JointIndex full_id = full_model.getJointId(reduced_model.names[j]);
+    if (use_tangent) {
+      reduced.segment(reduced_model.idx_vs[j], reduced_model.nvs[j]) =
+          full.segment(full_model.idx_vs[full_id], full_model.nvs[full_id]);
+    } else {
+      reduced.segment(reduced_model.idx_qs[j], reduced_model.nqs[j]) =
+          full.segment(full_model.idx_qs[full_id], full_model.nqs[full_id]);
+    }
+  }
+  return reduced;
 }
 
 }  // namespace roboplan
