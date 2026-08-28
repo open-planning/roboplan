@@ -436,8 +436,7 @@ CartesianPathPlanner::solveStep(const std::vector<FrameReference>& references,
   if (!result) {
     return tl::make_unexpected(result.error());
   }
-  Eigen::VectorXd delta_q_full = Eigen::VectorXd::Zero(scene_->getModel().nv);
-  delta_q_full(oink.v_indices) = delta_q;
+  const Eigen::VectorXd delta_q_full = scene_->toFullJointVelocities(options_.group_name, delta_q);
   q_candidate = scene_->integrate(q, delta_q_full);
 
   // Worst-case pose error across all tracked frames drives the tolerance/throttling logic.

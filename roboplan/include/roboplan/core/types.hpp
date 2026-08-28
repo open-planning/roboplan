@@ -147,7 +147,7 @@ struct JointPath {
   /// @brief The list of joint names.
   std::vector<std::string> joint_names;
 
-  /// @brief The list of joint configuration positions.
+  /// @brief The list of zjoint configuration positions.
   std::vector<Eigen::VectorXd> positions;
 
   // TODO: Add higher-order terms as needed.
