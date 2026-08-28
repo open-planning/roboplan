@@ -1,38 +1,28 @@
 #include <gtest/gtest.h>
 
-#include <filesystem>
 #include <memory>
 #include <vector>
 
 #include <Eigen/Dense>
 
 #include <roboplan/core/scene.hpp>
-#include <roboplan_example_models/resources.hpp>
 
-// Internal detail headers (not installed); test/CMakeLists.txt adds ../src to the include path,
-// and this target links aligator directly so it can read the discrete-dynamics Jacobians.
 #include "problem_builder.hpp"
 #include "reduced_group_model.hpp"
+#include "test_fd_util.hpp"
+#include "test_util.hpp"
 
 namespace roboplan {
 namespace {
 
-// SO-101 with the 5-DoF "arm" group: 5 fixed-base revolute joints (gripper locked). A strict
-// reduction that loads reliably in core (see test_reduced_group_model.cpp for the fixture
-// rationale), which is exactly the fixed-base, fully-actuated setting §3.2 targets.
-std::shared_ptr<Scene> makeSo101Scene() {
-  const auto model_prefix = example_models::get_package_models_dir();
-  const std::vector<std::filesystem::path> package_paths = {
-      example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / "so101_robot_model" / "so101.urdf",
-                                 model_prefix / "so101_robot_model" / "so101.srdf", package_paths);
-}
+using testing::deterministicState;
+using testing::makeSo101Scene;
 
 }  // namespace
 
-// The discretized dynamics are the physics backbone of the whole package, so §8 mandates a
-// finite-difference check of their Jacobians. We finite-difference the SAME integrated dynamics
-// the optimizer builds (via the shared problem_builder), so this verifies the exact code path.
+// The discretized dynamics are the physics backbone of the package, so their Jacobians get a
+// finite-difference check. We FD the SAME integrated dynamics the optimizer builds (via the shared
+// problem_builder), verifying the exact code path.
 TEST(DynamicsTest, IntegratedDynamicsJacobiansMatchFiniteDifferences) {
   auto scene = makeSo101Scene();
   const ReducedGroupModel rgm(*scene, "arm");
@@ -42,8 +32,7 @@ TEST(DynamicsTest, IntegratedDynamicsJacobiansMatchFiniteDifferences) {
   const int nu = rgm.nv();      // fully-actuated: nu = nv
   const double dt = 0.01;
 
-  // Central differences in the tangent space: truncation O(eps^2) and roundoff O(macheps/eps), so
-  // eps ~ 1e-6 leaves total error well under the tolerance.
+  // Central differences in the tangent space: eps ~ 1e-6 leaves total error well under 1e-5.
   const double eps = 1e-6;
   const double tol = 1e-5;
 
@@ -51,14 +40,9 @@ TEST(DynamicsTest, IntegratedDynamicsJacobiansMatchFiniteDifferences) {
     const auto dyn = aligator_detail::makeDiscreteDynamics(space, integ, dt);
     const auto data = dyn->createData();
 
-    // A deterministic, non-trivial operating point (reproducible across runs): a fixed tangent
-    // offset from the neutral configuration and a constant nonzero torque, so gravity and the
-    // actuation both contribute to the Jacobians.
-    Eigen::VectorXd delta(ndx);
-    for (int i = 0; i < ndx; ++i) {
-      delta(i) = 0.1 * (i + 1);
-    }
-    const Eigen::VectorXd x = space.integrate(space.neutral(), delta);
+    // A deterministic, non-trivial operating point: fixed tangent offset + constant torque, so both
+    // gravity and actuation contribute to the Jacobians.
+    const Eigen::VectorXd x = deterministicState(space);
     const Eigen::VectorXd u = Eigen::VectorXd::Constant(nu, 0.3);
 
     // aligator's convention is evaluate-then-differentiate: dForward assumes forward has populated

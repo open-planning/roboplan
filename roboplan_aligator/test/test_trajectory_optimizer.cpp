@@ -2,38 +2,32 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <filesystem>
 #include <memory>
 #include <vector>
 
 #include <Eigen/Dense>
 
 #include <roboplan/core/scene.hpp>
-#include <roboplan_example_models/resources.hpp>
 
 #include <roboplan_aligator/trajectory_optimizer.hpp>
 #include <roboplan_aligator/types.hpp>
 
+#include "test_util.hpp"
+
 // This target exercises ONLY the public TrajectoryOptimizer surface, so it does not link aligator
-// (the driver's whole point is that aligator stays behind the PIMPL). The finite-difference test
-// of the underlying dynamics lives in test_dynamics.cpp.
+// (the PIMPL keeps aligator out of the driver). The finite-difference dynamics test lives in
+// test_dynamics.cpp.
 
 namespace roboplan {
 namespace {
 
-std::shared_ptr<Scene> makeSo101Scene() {
-  const auto model_prefix = example_models::get_package_models_dir();
-  const std::vector<std::filesystem::path> package_paths = {
-      example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / "so101_robot_model" / "so101.urdf",
-                                 model_prefix / "so101_robot_model" / "so101.srdf", package_paths);
-}
+using testing::makeSo101Scene;
 
 }  // namespace
 
-// The problem shell carries only the default control-regularization cost, so the well-posed
-// optimum from rest is to drive the controls toward zero — the solver must converge and return a
-// fully-populated, dimensionally-consistent result.
+// The problem shell carries only the default control-regularization cost, so from rest the optimal
+// control is (near) zero torque; the solver must converge and return a fully-populated,
+// dimensionally-consistent result.
 TEST(TrajectoryOptimizerTest, SolvesControlRegShellAndReturnsPopulatedResult) {
   auto scene = makeSo101Scene();
   TrajOptOptions options;
@@ -81,11 +75,9 @@ TEST(TrajectoryOptimizerTest, SolvesControlRegShellAndReturnsPopulatedResult) {
     EXPECT_LT(u.cwiseAbs().maxCoeff(), 1e-2);
   }
 
-  // Same-seed determinism (testing rule): a fresh optimizer solving the identical problem and seed
-  // reproduces the trajectory. A second instance (rather than re-solving on the same one) isolates
-  // input->output determinism from the solver's carried-over internal state. Compared to 1e-9,
-  // which is ~5 orders below the 1e-4 solver tolerance yet above the ~1e-16 floating-point /
-  // OpenMP reduction-order noise that makes bit-exact reproduction unattainable.
+  // Same-seed determinism (testing rule): a fresh, identically-built solve reproduces the result
+  // via a second instance (isolating input->output determinism from carried-over solver state).
+  // 1e-9 is ~5 orders below the 1e-4 solver tolerance yet above FP/OpenMP reduction-order noise.
   const double determinism_tol = 1e-9;
   TrajectoryOptimizer opt2(makeSo101Scene(), "arm", /*horizon=*/10, /*dt=*/0.02, options);
   opt2.build();
@@ -134,12 +126,12 @@ TEST(TrajectoryOptimizerTest, ConstructorRejectsInvalidGrid) {
   EXPECT_THROW(TrajectoryOptimizer(scene, "arm", /*horizon=*/5, /*dt=*/0.0), std::invalid_argument);
 }
 
-// --- Lifecycle: build() gate (design §3.4, Prompt 9) ------------------------------------------
+// --- Lifecycle: build() gate ----------------------------------------------------------------
 
 TEST(TrajectoryOptimizerTest, SolveBeforeBuildErrors) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
-  // solve() does not auto-build (maintainer decision, Prompt 9): it returns a recoverable error.
+  // solve() does not auto-build: it returns a recoverable error.
   const auto result = opt.solve(TrajOptSeed{});
   ASSERT_FALSE(result.has_value());
   EXPECT_NE(result.error().find("build()"), std::string::npos);
@@ -159,7 +151,7 @@ TEST(TrajectoryOptimizerTest, BuildIsIdempotentAndResetRequiresRebuild) {
   EXPECT_TRUE(opt.solve(TrajOptSeed{}).has_value());
 }
 
-// --- Warm-start seeding (design §3.6, Prompt 9) -----------------------------------------------
+// --- Warm-start seeding ---------------------------------------------------------------------
 
 TEST(TrajectoryOptimizerTest, InterpolatePathBuildsGridSeed) {
   auto scene = makeSo101Scene();
@@ -256,26 +248,25 @@ TEST(TrajectoryOptimizerTest, SolveFromPreviousResultWarmStarts) {
   ASSERT_EQ(second->xs.size(), first->xs.size());
 }
 
-// --- Receding-horizon MPC smoke test (design §3.6, Prompt 9) ----------------------------------
+// --- Receding-horizon MPC smoke test ---------------------------------------------------------
 
 TEST(TrajectoryOptimizerTest, RecedingHorizonMpcTracksAndIsDeterministic) {
   auto scene = makeSo101Scene();
 
   // One receding-horizon run: per tick, apply controls[0] (advance the plant to the optimizer's
-  // predicted next state), then re-solve from the shifted previous solution toward a fixed goal
-  // ("chasing the carrot"). Returns the per-tick distance from the measured config to the goal.
+  // predicted next state), then re-solve from the shifted previous solution toward a fixed goal.
+  // Returns the per-tick distance from the measured config to the goal.
   const auto run_mpc = [&scene]() {
     TrajOptOptions options;
-    options.max_iters = 40;  // MPC uses a modest per-tick iteration budget (design UC3)
+    options.max_iters = 40;  // modest per-tick iteration budget
     TrajectoryOptimizer opt(scene, "arm", /*horizon=*/20, /*dt=*/0.05, options);
     const int nq = opt.nq();
     const int nv = opt.nv();
     const Eigen::VectorXd goal = Eigen::VectorXd::Constant(nq, 0.35);
 
-    // A well-posed tracking problem (a bare terminal position cost over a short horizon under
-    // gravity produces a swing-through with high terminal velocity, which destabilizes the receding
-    // loop): pull toward the goal at the terminal, arrive at rest (terminal velocity), and damp
-    // velocity along the horizon.
+    // A well-posed tracking problem (a bare terminal position cost under gravity produces a
+    // swing-through with high terminal velocity that destabilizes the receding loop): pull toward
+    // the goal terminally, arrive at rest (terminal velocity), and damp velocity along the horizon.
     ConfigurationCost tracking;
     tracking.q_target = goal;
     tracking.weights = Eigen::VectorXd::Constant(nv, 50.0);
@@ -313,12 +304,11 @@ TEST(TrajectoryOptimizerTest, RecedingHorizonMpcTracksAndIsDeterministic) {
   };
 
   const std::vector<double> errors_a = run_mpc();
-  // Receding-horizon tracking makes progress: the arm is closer to the goal at the end than the
-  // start.
+  // Receding-horizon tracking makes progress: closer to the goal at the end than the start.
   EXPECT_LT(errors_a.back(), errors_a.front());
 
-  // Same-seed determinism (testing rule): the identical loop reproduces the per-tick errors. 1e-9
-  // is ~5 orders below the solver tolerance yet above FP/OpenMP reduction-order noise.
+  // Same-seed determinism (testing rule): the loop reproduces the per-tick errors (1e-9 = ~5 orders
+  // below the solver tolerance yet above FP/OpenMP reduction-order noise).
   const std::vector<double> errors_b = run_mpc();
   ASSERT_EQ(errors_a.size(), errors_b.size());
   for (std::size_t k = 0; k < errors_a.size(); ++k) {

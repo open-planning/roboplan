@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -14,7 +13,6 @@
 #include <pinocchio/multibody/data.hpp>
 
 #include <roboplan/core/scene.hpp>
-#include <roboplan_example_models/resources.hpp>
 
 #include <roboplan_aligator/costs.hpp>
 #include <roboplan_aligator/trajectory_optimizer.hpp>
@@ -24,6 +22,8 @@
 #include "frame_axis_residual.hpp"
 #include "problem_builder.hpp"
 #include "reduced_group_model.hpp"
+#include "test_fd_util.hpp"
+#include "test_util.hpp"
 
 namespace roboplan {
 namespace {
@@ -32,25 +32,9 @@ using aligator_detail::CostStack;
 using aligator_detail::PhaseSpace;
 using ManifoldPoly = xyz::polymorphic<aligator::ManifoldAbstractTpl<double>>;
 using CostAbstract = aligator::CostAbstractTpl<double>;
-
-constexpr const char* kTipFrame = "gripper_link";  // SO-101 arm chain tip (movable by the group).
-
-std::shared_ptr<Scene> makeSo101Scene() {
-  const auto model_prefix = example_models::get_package_models_dir();
-  const std::vector<std::filesystem::path> package_paths = {
-      example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / "so101_robot_model" / "so101.urdf",
-                                 model_prefix / "so101_robot_model" / "so101.srdf", package_paths);
-}
-
-// A deterministic, non-trivial state on the phase space (reproducible across runs).
-Eigen::VectorXd deterministicState(const PhaseSpace& space) {
-  Eigen::VectorXd delta(space.ndx());
-  for (int i = 0; i < space.ndx(); ++i) {
-    delta(i) = 0.1 * (i + 1);
-  }
-  return space.integrate(space.neutral(), delta);
-}
+using testing::deterministicState;
+using testing::kTipFrame;
+using testing::makeSo101Scene;
 
 // Frame pose (4x4) of `fid` at reduced configuration `q`, for reach checks.
 Eigen::Matrix4d framePose(const pinocchio::Model& model, const Eigen::VectorXd& q,
@@ -61,8 +45,8 @@ Eigen::Matrix4d framePose(const pinocchio::Model& model, const Eigen::VectorXd& 
   return data.oMf[fid].toHomogeneousMatrix();
 }
 
-// Central-difference check: the cost's analytic gradient (Lx_, Lu_) matches finite differences of
-// its value. eps=1e-6 gives O(eps^2) truncation and ~1e-10 roundoff, well under the 1e-5 tolerance.
+// Central-difference check: analytic cost gradient (Lx_, Lu_) vs finite differences of its value.
+// eps=1e-6 gives O(eps^2) truncation and ~1e-10 roundoff, well under the 1e-5 tolerance.
 void expectCostGradientMatchesFD(CostAbstract& cost, const PhaseSpace& space,
                                  const Eigen::VectorXd& x, const Eigen::VectorXd& u) {
   const int ndx = space.ndx();
@@ -194,7 +178,7 @@ TEST(CostTest, FrameAxisResidualJacobianMatchesFD) {
                                               Eigen::Vector3d::UnitZ(), Eigen::Vector3d::UnitX());
   auto data = residual.createData();
   const Eigen::VectorXd x = deterministicState(f.space);
-  residual.evaluate(x, *data);  // caches R_wf; aligator always evaluates before differentiating
+  residual.evaluate(x, *data);
   residual.computeJacobians(x, *data);
   const Eigen::MatrixXd jx = data->Jx_;  // 3 x ndx
 
@@ -218,10 +202,10 @@ TEST(CostTest, FrameAxisResidualJacobianMatchesFD) {
   EXPECT_LT((jx - jx_fd).cwiseAbs().maxCoeff(), 1e-5);
 }
 
-// --- Mutable target (value-polymorphism caveat, §3.5) -----------------------------------------
+// --- Mutable target (value-polymorphism caveat) ------------------------------------------------
 
-// Build a terminal reach, solve, then setTarget to a new pose and re-solve: the second solve must
-// reflect the new target (proving setTarget mutates the residual living INSIDE the problem).
+// setTarget must mutate the residual living INSIDE the problem: solve to pose A, retarget to B,
+// re-solve, and the second result must approach B.
 TEST(CostTest, SetTargetMutatesInProblemResidual) {
   auto scene = makeSo101Scene();
   const ReducedGroupModel rgm(*scene, "arm");
@@ -254,17 +238,15 @@ TEST(CostTest, SetTargetMutatesInProblemResidual) {
   const Eigen::Matrix4d reached_b = framePose(model, res_b->xs.back().head(nq), fid);
 
   const auto pos = [](const Eigen::Matrix4d& m) { return Eigen::Vector3d(m.block<3, 1>(0, 3)); };
-  // After retargeting to B, the terminal frame is nearer B than the A-solve was: setTarget took
-  // effect on the solved problem.
+  // After retargeting to B, the terminal frame is nearer B than the A-solve was.
   const double err_b_after = (pos(reached_b) - pos(target_b)).norm();
   const double err_b_before = (pos(reached_a) - pos(target_b)).norm();
   EXPECT_LT(err_b_after, err_b_before);
   EXPECT_LT(err_b_after, 0.05) << "terminal frame did not track the new target B";
 }
 
-// Same §3.5 build->setTarget->solve contract, but for a VECTOR-target cost (ConfigurationCost) —
-// its in-problem residual is reached through a different path (QuadraticStateCost::setTarget) than
-// the FramePose one, so it is exercised end-to-end separately.
+// Same build->setTarget->solve contract for a VECTOR-target cost (ConfigurationCost), which reaches
+// its in-problem residual through QuadraticStateCost::setTarget rather than the FramePose path.
 TEST(CostTest, SetTargetMutatesVectorCostResidual) {
   auto scene = makeSo101Scene();
   const int nq = ReducedGroupModel(*scene, "arm").nq();
@@ -324,16 +306,14 @@ TEST(CostTest, TerminalFramePoseReachConverges) {
   const auto result = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(result.has_value()) << result.error();
 
-  // Convergence here means the terminal FRAME reaches the target pose — not the solver's tolerance
-  // flag: a pure terminal-cost reach with only control regularization drives the endpoint to the
-  // target but need not push the AL primal-dual residual below `tol` within the iteration budget.
+  // Convergence means the terminal FRAME reaches the pose — not the solver's tolerance flag: a pure
+  // terminal-cost reach with only control regularization need not push the AL residual below `tol`.
   const Eigen::Matrix4d reached = framePose(model, result->xs.back().head(nq), fid);
   const double pos_err = (reached.block<3, 1>(0, 3) - target.block<3, 1>(0, 3)).norm();
   // Rotation error via the trace of R_reached^T R_target: err = arccos((trace - 1) / 2).
   const Eigen::Matrix3d r_rel = reached.block<3, 3>(0, 0).transpose() * target.block<3, 3>(0, 0);
   const double rot_err = std::acos(std::clamp((r_rel.trace() - 1.0) / 2.0, -1.0, 1.0));
-  // 3 cm / ~3 deg: the terminal-only reach need not be exact (no terminal velocity cost), but must
-  // clearly converge to the target neighborhood.
+  // 3 cm / 0.05 rad: a terminal-only reach (no terminal velocity cost) converges to a neighborhood.
   EXPECT_LT(pos_err, 0.03) << "terminal position error " << pos_err << " m";
   EXPECT_LT(rot_err, 0.05) << "terminal orientation error " << rot_err << " rad";
 }
@@ -360,8 +340,8 @@ TEST(CostTest, CostHandleRejectsWrongTargetKind) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
 
-  // Typed locals: the two setTarget overloads (Matrix4d vs VectorXd) are only unambiguous for
-  // concrete types, not raw Eigen expressions.
+  // Typed locals: the setTarget overloads (Matrix4d vs VectorXd) are unambiguous only for concrete
+  // types, not raw Eigen expressions.
   const Eigen::Matrix4d identity_pose = Eigen::Matrix4d::Identity();
   const Eigen::VectorXd control_target = Eigen::VectorXd::Zero(opt.nv());
   const Eigen::VectorXd wrong_size = Eigen::VectorXd::Zero(opt.nv() + 1);

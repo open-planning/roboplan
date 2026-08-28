@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -8,22 +7,17 @@
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
-#include <roboplan_example_models/resources.hpp>
 
 #include <roboplan_aligator/types.hpp>
+
+#include "test_util.hpp"
 
 namespace roboplan {
 namespace {
 
-// SO-101 with the 5-DoF "arm" group (see test_reduced_group_model.cpp for the fixture rationale;
-// FR3/dual_fr3 currently fail to load in core, so so101 is the strict-subset fixture).
-std::shared_ptr<Scene> makeSo101Scene() {
-  const auto model_prefix = example_models::get_package_models_dir();
-  const std::vector<std::filesystem::path> package_paths = {
-      example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / "so101_robot_model" / "so101.urdf",
-                                 model_prefix / "so101_robot_model" / "so101.srdf", package_paths);
-}
+using testing::makeSo101Scene;
+// SO-101 with the 5-DoF "arm" group (strict subset; FR3/dual_fr3 fail to load in core, so so101 is
+// the loadable strict-subset fixture). See test_reduced_group_model.cpp for the rationale.
 
 }  // namespace
 
@@ -41,12 +35,10 @@ TEST(StageWindowTest, RangeIsHalfOpen) {
   const StageWindow w = StageWindow::range(1, 4);
   EXPECT_EQ(w.kind(), StageWindow::Kind::Range);
   EXPECT_FALSE(w.isTerminal());
-  // [1, 4) excludes the upper bound: stages 1, 2, 3 — NOT 4. This is the documented convention.
+  // [1, 4) excludes the upper bound: stages 1, 2, 3 — the documented half-open convention.
   EXPECT_EQ(w.resolveStages(5), (std::vector<int>{1, 2, 3}));
-  // A single-stage window [2, 3) is exactly one stage.
-  EXPECT_EQ(StageWindow::range(2, 3).resolveStages(5), (std::vector<int>{2}));
-  // end == horizon is legal (b <= N); begin == 0 is legal.
-  EXPECT_EQ(StageWindow::range(0, 5).resolveStages(5), (std::vector<int>{0, 1, 2, 3, 4}));
+  EXPECT_EQ(StageWindow::range(2, 3).resolveStages(5), (std::vector<int>{2}));  // single stage
+  EXPECT_EQ(StageWindow::range(0, 5).resolveStages(5), (std::vector<int>{0, 1, 2, 3, 4}));  // full
 }
 
 TEST(StageWindowTest, TerminalAttachesToNoStage) {
@@ -58,18 +50,15 @@ TEST(StageWindowTest, TerminalAttachesToNoStage) {
 }
 
 TEST(StageWindowTest, InvalidRangeConstructionThrows) {
-  // Negative begin.
+  // Negative begin / empty range (end == begin) / inverted range (end < begin).
   EXPECT_THROW(StageWindow::range(-1, 3), std::invalid_argument);
-  // Empty range (end == begin) — half-open [2, 2) covers nothing.
   EXPECT_THROW(StageWindow::range(2, 2), std::invalid_argument);
-  // Inverted range (end < begin).
   EXPECT_THROW(StageWindow::range(4, 2), std::invalid_argument);
 }
 
 TEST(StageWindowTest, ResolveRejectsOutOfHorizonRange) {
-  // end > horizon violates b <= N.
+  // end > horizon violates b <= N (begin at/after horizon is caught the same way).
   EXPECT_THROW(StageWindow::range(2, 6).resolveStages(5), std::invalid_argument);
-  // begin at/after horizon is caught via end > horizon as well.
   EXPECT_THROW(StageWindow::range(5, 7).resolveStages(5), std::invalid_argument);
 }
 
@@ -120,8 +109,7 @@ TEST(TrajOptResultTest, ToRoboplanExpandsReducedPositionsToFullLayout) {
     for (int i = 0; i < group->v_indices.size(); ++i) {
       EXPECT_DOUBLE_EQ(jt.velocities[k](group->v_indices(i)), v_reduced(i));
     }
-    // Non-group position DoF keep the scene's current configuration (toFullJointPositions seeds
-    // from cur_state_); non-group velocity DoF are exactly zero (toFullJointVelocities).
+    // Non-group velocity DoF are exactly zero (toFullJointVelocities).
     for (int idx = 0; idx < jt.velocities[k].size(); ++idx) {
       if ((group->v_indices.array() == idx).any()) {
         continue;
@@ -130,7 +118,7 @@ TEST(TrajOptResultTest, ToRoboplanExpandsReducedPositionsToFullLayout) {
     }
   }
 
-  // Accelerations are intentionally empty (design §4.5): not a ProxDDP output.
+  // Accelerations are intentionally empty: not a ProxDDP output.
   EXPECT_TRUE(jt.accelerations.empty());
 }
 

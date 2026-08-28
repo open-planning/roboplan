@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <filesystem>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -17,7 +16,6 @@
 #include <pinocchio/multibody/geometry.hpp>
 
 #include <roboplan/core/scene.hpp>
-#include <roboplan_example_models/resources.hpp>
 
 #include <roboplan_aligator/constraints.hpp>
 #include <roboplan_aligator/costs.hpp>
@@ -28,6 +26,8 @@
 #include "constraint_factory.hpp"
 #include "problem_builder.hpp"
 #include "reduced_group_model.hpp"
+#include "test_fd_util.hpp"
+#include "test_util.hpp"
 
 namespace roboplan {
 namespace {
@@ -35,25 +35,9 @@ namespace {
 using aligator_detail::ConstraintPair;
 using aligator_detail::PhaseSpace;
 using BoxConstraint = aligator::BoxConstraintTpl<double>;
-
-constexpr const char* kTipFrame = "gripper_link";  // SO-101 arm chain tip (movable by the group).
-
-std::shared_ptr<Scene> makeSo101Scene() {
-  const auto model_prefix = example_models::get_package_models_dir();
-  const std::vector<std::filesystem::path> package_paths = {
-      example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / "so101_robot_model" / "so101.urdf",
-                                 model_prefix / "so101_robot_model" / "so101.srdf", package_paths);
-}
-
-// A deterministic, non-trivial state on the phase space (reproducible across runs).
-Eigen::VectorXd deterministicState(const PhaseSpace& space) {
-  Eigen::VectorXd delta(space.ndx());
-  for (int i = 0; i < space.ndx(); ++i) {
-    delta(i) = 0.1 * (i + 1);
-  }
-  return space.integrate(space.neutral(), delta);
-}
+using testing::deterministicState;
+using testing::kTipFrame;
+using testing::makeSo101Scene;
 
 // The BoxConstraintTpl behind a pair's constraint set (for bound inspection).
 const BoxConstraint& asBox(const ConstraintPair& pair) {
@@ -89,7 +73,7 @@ double peakTorque(const std::vector<Eigen::VectorXd>& us) {
   return peak;
 }
 
-// Reusable single-pair signed-distance evaluator on a reduced model (avoids rebuilding scratch per
+// Reusable single-pair signed-distance evaluator on a reduced model (avoids building scratch per
 // call — coal mesh distance is expensive). One instance per test.
 struct PairDistance {
   const pinocchio::Model& model;
@@ -312,9 +296,8 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
     return opt;
   };
 
-  // The unconstrained reach's peak torque is ~0.10 Nm; a 0.08 Nm cap sits strictly below it, so the
-  // bound is genuinely active (the optimizer must press against it), yet close enough that the
-  // reach stays feasible and the AL solve drives the constraint violation to ~6e-5.
+  // The unconstrained reach's peak torque is ~0.10 Nm; a 0.08 Nm cap sits strictly below it (so the
+  // bound is genuinely active) yet high enough that the reach stays feasible (AL violation ~6e-5).
   const double tau = 0.08;
 
   auto opt_unc = make_reach_opt();
@@ -335,14 +318,12 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
 
   const double peak_c = peakTorque(res_c->us);
   const double viol = res_c->max_constraint_violation;
-  // The solved torques respect the box up to the reported constraint violation (1e-6 is Eigen
-  // round-off on the max-coeff comparison, not a slackening of the bound).
+  // Respect the box up to the reported violation (1e-6 = Eigen round-off, not a slackened bound).
   EXPECT_LE(peak_c, tau + viol + 1e-6) << "peak " << peak_c << " exceeds bound " << tau;
-  // The AL constraint is satisfied to a small residual within the iteration budget. 1e-3 (Nm): a
-  // clearly-feasible torque box (the solve reaches ~7e-5 here), not a tautological pass.
+  // AL residual below 1e-3 Nm: a clearly-feasible box (the solve reaches ~7e-5), not tautological.
   EXPECT_LT(viol, 1e-3) << "max_constraint_violation " << viol;
-  // The bound is genuinely active: the optimizer drives the peak torque up to (essentially) the cap
-  // rather than leaving it slack. 0.9*tau leaves margin for benign solver variation.
+  // Bound is genuinely active: the optimizer presses the peak torque up to the cap (0.9*tau
+  // margin).
   EXPECT_GE(peak_c, 0.9 * tau) << "peak torque " << peak_c << " never approached the bound " << tau;
 
   // Same-seed determinism (testing rule): a fresh, identically-built solve reproduces the controls.
@@ -358,18 +339,18 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
   for (std::size_t k = 0; k < res_c->us.size(); ++k) {
     max_diff = std::max(max_diff, (res_c->us[k] - res_c2->us[k]).cwiseAbs().maxCoeff());
   }
-  // 1e-9: bit-for-bit determinism up to benign FP reassociation across two fresh solver instances.
+  // 1e-9: determinism up to benign FP reassociation across two fresh solver instances.
   EXPECT_LT(max_diff, 1e-9) << "same-seed solves diverged by " << max_diff;
 }
 
-// --- Collision constraints (design §5, reuse of FrameCollisionResidual) -----------------------
+// --- Collision constraints (custom witness-point normal) --------------------------------------
 
 TEST(ConstraintTest, CollisionPairSelectionAndClassification) {
   ConstraintFixture f;
   const Eigen::VectorXd q0 = f.rgm.q0();
 
-  // For the SO-101 arm group, the reduced collision model has 45 link-vs-link (self) and 40
-  // link-vs-static (base) pairs, all optimizer-relevant (some geometry moves with the group).
+  // For the SO-101 arm group the reduced collision model has 45 link-vs-link (self) and 40
+  // link-vs-static (base) pairs.
   SelfCollisionConstraint self;  // n_pairs = 0 => all candidates
   const auto self_pairs = aligator_detail::buildSelfCollisionConstraints(f.space, f.rgm, self, q0);
   EXPECT_EQ(self_pairs.size(), 45u);
@@ -378,7 +359,7 @@ TEST(ConstraintTest, CollisionPairSelectionAndClassification) {
   const auto env_pairs = aligator_detail::buildCollisionConstraints(f.space, f.rgm, env, q0);
   EXPECT_EQ(env_pairs.size(), 40u);
 
-  // The two kinds partition the candidate pairs (no overlap, and together they are all 85).
+  // The two kinds partition the candidates: no overlap, and together all 85.
   EXPECT_EQ(self_pairs.size() + env_pairs.size(), 85u);
 
   // n_pairs caps the tracked set to the closest few.
@@ -398,11 +379,10 @@ TEST(ConstraintTest, CollisionPairSelectionAndClassification) {
   EXPECT_TRUE(std::isinf(box.upper_limit[0]) && box.upper_limit[0] > 0.0);
 }
 
-// CollisionDistanceResidual's witness-point analytic Jacobian must match finite differences. Tested
-// on every comfortably-separated self pair (coal's signed distance is smooth away from contact);
-// the witness-direction normal makes the gradient exact even on mesh geometry, where aligator's
-// stock FrameCollisionResidual (which reads coal's frequently-zero normal) would give a zero
-// Jacobian.
+// CollisionDistanceResidual's witness-point analytic Jacobian must match finite differences, on
+// every comfortably-separated self pair (coal's signed distance is smooth away from contact). The
+// witness-direction normal makes the gradient exact even on mesh geometry, unlike aligator's stock
+// FrameCollisionResidual (which reads coal's frequently-zero normal).
 TEST(ConstraintTest, CollisionResidualJacobianMatchesFD) {
   ConstraintFixture f;
   using aligator_detail::CollisionDistanceResidual;
@@ -439,9 +419,8 @@ TEST(ConstraintTest, CollisionResidualJacobianMatchesFD) {
     const bool is_self = full_geom.geometryObjects[cp.first].parentJoint > 0 &&
                          full_geom.geometryObjects[cp.second].parentJoint > 0;
     const double dist = geom_data.distanceResults[k].min_distance;
-    // Comfortably separated: below ~1 cm the coal witness sits on a mesh edge and the
-    // signed-distance field is non-smooth (kinked), so central differences are not a fair reference
-    // there.
+    // Skip pairs below ~1 cm (coal's witness sits on a mesh edge there, so the field is
+    // non-smooth).
     if (!is_self || dist < 0.02 || dist > 0.15) {
       continue;
     }
@@ -453,14 +432,12 @@ TEST(ConstraintTest, CollisionResidualJacobianMatchesFD) {
 
     const Eigen::RowVectorXd fd1 = central_fd(residual, 1e-6);
     const Eigen::RowVectorXd fd2 = central_fd(residual, 2.5e-7);
-    // 1e-8: two central-difference step sizes must agree, else this pair sits on a witness
-    // transition where the distance is non-smooth (not a valid point to check an analytic gradient
-    // against).
+    // 1e-8: the two step sizes must agree, else this pair sits on a witness transition
+    // (non-smooth).
     if ((fd1 - fd2).cwiseAbs().maxCoeff() > 1e-8) {
       continue;
     }
-    // 1e-5: central-difference accuracy on the smooth (separated) signed-distance field. (The
-    // witness-direction gradient matches FD to ~1e-11; 1e-5 is a comfortable margin.)
+    // 1e-5: central-difference accuracy on the smooth (separated) field (matches to ~1e-11).
     EXPECT_LT((jx - fd1).cwiseAbs().maxCoeff(), 1e-5) << "self pair " << k << " dist " << dist;
     // Distance depends on q only: the velocity block of the state Jacobian is zero.
     EXPECT_LT(jx.tail(f.nv()).cwiseAbs().maxCoeff(), 1e-12) << "self pair " << k;
@@ -469,12 +446,10 @@ TEST(ConstraintTest, CollisionResidualJacobianMatchesFD) {
   ASSERT_GT(tested, 0) << "no separated self pair available to finite-difference";
 }
 
-// Inter-stage clearance caveat (design §5): the constraint holds at stage knots, but a
-// straight-line segment whose two knots both clear d_min can pass through a CLOSER interior point.
-// The SO-101 arm's tightest single-joint self-approach is the wrist-vs-jaw pair swept by the wrist
-// joint — it reaches an interior closest approach (the jaw swings toward the wrist and back out).
-// Straddling that closest angle with the two knots makes the segment's midpoint nearer to contact
-// than either knot.
+// Inter-stage clearance caveat: the constraint holds at stage knots, but a straight-line segment
+// whose two knots both clear d_min can pass through a CLOSER interior point. The SO-101
+// wrist-vs-jaw pair, swept by the wrist joint, reaches an interior closest approach — straddling
+// that angle makes the segment's midpoint nearer to contact than either knot.
 TEST(ConstraintTest, InterStageClearanceCaveat) {
   ConstraintFixture f;
   const auto& reduced_model = f.rgm.reducedModel();
@@ -485,8 +460,8 @@ TEST(ConstraintTest, InterStageClearanceCaveat) {
   ASSERT_NE(pair, std::numeric_limits<std::size_t>::max()) << "expected SO-101 wrist/jaw pair";
 
   // Find the joint whose sweep gives this pair the deepest interior closest-approach (a V-shape:
-  // farther at both range ends than at some interior angle). Self-calibrating, so it survives model
-  // re-indexing; asserts such a joint exists (the geometry does fold this pair).
+  // farther at both range ends than at an interior angle). Self-calibrating, so it survives
+  // re-indexing; asserts such a joint exists.
   const int samples = 41;
   const Eigen::VectorXd base = f.rgm.q0();
   int best_joint = -1;
@@ -538,17 +513,15 @@ TEST(ConstraintTest, InterStageClearanceCaveat) {
   const double d_b = pair_dist.at(q_b, pair);
 
   // Both knots are farther from contact than the segment's interior: a d_min in (d_mid,
-  // min(d_a,d_b)] is satisfied at the knots but violated between them — knot feasibility does not
-  // imply trajectory feasibility (§5 caveat; the reason inter-stage clearance must be checked by
-  // fine FK resampling).
+  // min(d_a,d_b)] passes at the knots but is violated between them — knot feasibility does not
+  // imply trajectory feasibility (hence inter-stage clearance needs fine FK resampling).
   EXPECT_LT(d_mid, d_a) << "d_mid=" << d_mid << " d_a=" << d_a;
   EXPECT_LT(d_mid, d_b) << "d_mid=" << d_mid << " d_b=" << d_b;
 }
 
-// Self-collision attaches through the public API and the assembled problem still solves to a finite
-// result. Deliberately tiny (short horizon, few pairs, few iterations): each mesh-distance
-// collision residual is evaluated per stage per DDP iteration, so this only checks the wiring, not
-// convergence.
+// Self-collision attaches through the public API and the problem solves to a finite result.
+// Deliberately tiny (short horizon, few pairs, few iterations) because each mesh-distance residual
+// is evaluated per stage per DDP iteration: this checks wiring, not convergence.
 TEST(ConstraintTest, SelfCollisionConstraintAttachesAndSolves) {
   auto scene = makeSo101Scene();
   TrajOptOptions options;

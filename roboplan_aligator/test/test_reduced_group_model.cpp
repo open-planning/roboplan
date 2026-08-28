@@ -1,41 +1,26 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
-#include <roboplan_example_models/resources.hpp>
 
 // Internal detail header (not installed); test/CMakeLists.txt adds ../src to the include path.
 #include "reduced_group_model.hpp"
+#include "test_util.hpp"
 
 namespace roboplan {
 namespace {
 
-std::shared_ptr<Scene> makeScene(const std::string& robot_dir, const std::string& urdf,
-                                 const std::string& srdf) {
-  const auto model_prefix = example_models::get_package_models_dir();
-  const std::vector<std::filesystem::path> package_paths = {
-      example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / robot_dir / urdf,
-                                 model_prefix / robot_dir / srdf, package_paths);
-}
+using testing::makeSo101Scene;
+using testing::makeUr5Scene;
 
-// SO-101 with the 5-DoF "arm" group: the model also has a 1-DoF "gripper" joint, so the arm
-// group is a strict subset and this exercises real reduction (gripper locked). UR5's "arm"
-// chain spans the whole movable model, exercising the no-op branch.
-std::shared_ptr<Scene> makeSo101Scene() {
-  return makeScene("so101_robot_model", "so101.urdf", "so101.srdf");
-}
-std::shared_ptr<Scene> makeUr5Scene() {
-  return makeScene("ur_robot_model", "ur5_gripper.urdf", "ur5_gripper.srdf");
-}
-
-// The SO-101 arm group: 5 revolute (non-continuous) joints, and its chain-tip link frame.
+// SO-101's "arm" group is a strict subset (the 1-DoF "gripper" is locked), exercising real
+// reduction. UR5's "arm" chain spans the whole movable model, exercising the no-op branch.
 constexpr int kSo101ArmNv = 5;
 const char* const kSo101ArmJoints[] = {"shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex",
                                        "wrist_roll"};
@@ -58,13 +43,13 @@ TEST(ReducedGroupModelTest, ReducedDimensionsMatchGroup) {
   EXPECT_EQ(rgm.nv(), kSo101ArmNv);
   EXPECT_EQ(rgm.nq(), kSo101ArmNv);
 
-  // nv() must equal the group's velocity-index count read from core (round-trip, not re-derived).
+  // nv() equals the group's velocity-index count read from core (round-trip, not re-derived).
   const auto group = scene->getJointGroupInfo("arm");
   ASSERT_TRUE(group.has_value());
   EXPECT_EQ(rgm.vIndices().size(), group->v_indices.size());
   EXPECT_EQ(rgm.vIndices(), group->v_indices);
 
-  // Reduction actually happened: the reduced model is strictly smaller than the full one.
+  // The reduced model is strictly smaller than the full one (reduction actually happened).
   EXPECT_LT(rgm.reducedModel().nv, rgm.fullModel().nv);
 }
 
@@ -79,15 +64,14 @@ TEST(ReducedGroupModelTest, LockedJointsAreTheNonGroupComplement) {
   for (const char* arm_joint : kSo101ArmJoints) {
     EXPECT_FALSE(contains(locked, arm_joint));
   }
-  // A locked joint is frozen: it is no longer a movable joint of the reduced model (it becomes a
-  // FIXED_JOINT frame). Every locked name must be absent from the reduced model's joints.
+  // A locked joint becomes a FIXED_JOINT frame, so it is absent from the reduced model.
   for (const auto& name : locked) {
     EXPECT_FALSE(rgm.reducedModel().existJointName(name)) << name << " should be locked/frozen";
     EXPECT_TRUE(rgm.fullModel().existJointName(name)) << name << " should exist in the full model";
   }
 
-  // Structural invariant (holds for reduction and no-op alike): reduced movable joints + locked
-  // joints == full movable joints. njoints counts the universe root, hence the -1 on each side.
+  // Structural invariant (reduction and no-op alike): reduced movable + locked == full movable.
+  // (njoints counts the universe root, hence the -1 on each side.)
   const int reduced_movable = rgm.reducedModel().njoints - 1;
   const int full_movable = rgm.fullModel().njoints - 1;
   EXPECT_EQ(reduced_movable + static_cast<int>(locked.size()), full_movable);
@@ -100,11 +84,10 @@ TEST(ReducedGroupModelTest, InitialStateMatchesSceneConfiguration) {
   ASSERT_EQ(rgm.q0().size(), rgm.nq());
   ASSERT_EQ(rgm.v0().size(), rgm.nv());
 
-  // v0 defaults to zero (design §3.1).
+  // v0 defaults to zero.
   EXPECT_TRUE(rgm.v0().isZero());
 
-  // q0 must reproduce the scene's current arm configuration. Copy the arm's q-values out of the
-  // full reference configuration via the group's q_indices and compare.
+  // q0 reproduces the scene's current arm configuration, copied via the group's q_indices.
   const Eigen::VectorXd& full_q = scene->getCurrentJointPositions();
   const auto group = scene->getJointGroupInfo("arm");
   ASSERT_TRUE(group.has_value());
@@ -148,7 +131,7 @@ TEST(ReducedGroupModelTest, WholeModelGroupIsNoOp) {
   auto scene = makeUr5Scene();
   const ReducedGroupModel rgm(*scene, "arm");
 
-  // The UR5 "arm" chain covers every movable joint, so nothing is locked and the reduced model
+  // The UR5 "arm" chain covers every movable joint: nothing is locked, and the reduced model
   // equals the full one dimensionally.
   EXPECT_TRUE(rgm.lockedJointNames().empty());
   EXPECT_EQ(rgm.reducedModel().nq, rgm.fullModel().nq);
@@ -169,12 +152,11 @@ TEST(ReducedGroupModelTest, UnknownGroupThrows) {
 }
 
 // The two remaining constructor guards are defensive and intentionally NOT exercised here:
-//   * the floating-base rejection (reduced_group_model.cpp) needs a group containing a
-//     free-flyer/planar joint, and
+//   * the floating-base rejection (reduced_group_model.cpp) needs a free-flyer/planar joint, and
 //   * the "no movable joints" guard needs a joint-less group,
-// neither of which any loadable example_models fixture produces (all are fixed-base robots with
-// non-empty groups; FR3/dual_fr3, the only candidates with richer structure, currently fail to
-// load in core with an unrelated IndexError). These branches stay covered by construction —
-// documented here rather than silently untested, per .claude/rules/testing.md.
+// neither of which any loadable example_models fixture produces (all are fixed-base, non-empty
+// groups; FR3/dual_fr3 fail to load in core with an unrelated IndexError). These branches stay
+// covered by construction — documented here rather than silently untested, per
+// .claude/rules/testing.md.
 
 }  // namespace roboplan
