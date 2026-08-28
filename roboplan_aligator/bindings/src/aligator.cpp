@@ -27,9 +27,8 @@ using namespace nanobind::literals;
 
 namespace {
 
-// Maps the Python `timesteps` convenience to a StageWindow (design §3.3): `None` -> all stages;
-// an `(begin, end)` tuple -> the half-open range; an int -> the terminal node. StageWindow itself
-// is not exposed to Python — `timesteps` is the whole public surface for windowing.
+// Maps the Python `timesteps` convenience to a StageWindow: `None` -> all stages; an
+// `(begin, end)` tuple -> the half-open range; an int -> the terminal node.
 StageWindow windowFromTimesteps(const nb::object& timesteps) {
   if (timesteps.is_none()) {
     return StageWindow::all();
@@ -43,7 +42,7 @@ StageWindow windowFromTimesteps(const nb::object& timesteps) {
     return StageWindow::range(nb::cast<int>(range[0]), nb::cast<int>(range[1]));
   }
   if (nb::isinstance<nb::int_>(timesteps)) {
-    return StageWindow::terminal();  // an int selects the terminal node (§3.3)
+    return StageWindow::terminal();
   }
   throw std::invalid_argument(
       "timesteps must be None (all stages), an (begin, end) tuple (a stage range), or an int (the "
@@ -53,7 +52,7 @@ StageWindow windowFromTimesteps(const nb::object& timesteps) {
 }  // namespace
 
 void init_aligator(nb::module_& m) {
-  // --- Options + integrator (design §4.1) -----------------------------------------------------
+  // --- Options + integrator -------------------------------------------------------------------
 
   nb::enum_<IntegratorType>(m, "IntegratorType",
                             "Which aligator integrator discretizes the multibody dynamics.")
@@ -61,7 +60,7 @@ void init_aligator(nb::module_& m) {
       .value("RK2", IntegratorType::RK2);
 
   nb::class_<TrajOptOptions>(m, "TrajOptOptions",
-                             "Options controlling the ProxDDP trajectory optimizer (design §4.1).")
+                             "Options controlling the ProxDDP trajectory optimizer.")
       .def(nb::init<>())
       .def(
           "__init__",
@@ -81,7 +80,7 @@ void init_aligator(nb::module_& m) {
       .def_rw("control_reg", &TrajOptOptions::control_reg,
               "Weight of the default quadratic control regularization (0 disables it).");
 
-  // --- Costs (soft) (design §4.3) -------------------------------------------------------------
+  // --- Costs (soft) ---------------------------------------------------------------------------
 
   nb::class_<FramePoseCost>(m, "FramePoseCost",
                             "Penalize the SE3 placement error of a frame from a target pose.")
@@ -125,8 +124,8 @@ void init_aligator(nb::module_& m) {
 
   nb::class_<CostHandle>(
       m, "CostHandle",
-      "Mutable handle to an attached cost, for hot-path target updates (design §3.5). Returned by "
-      "addCost; dangles if the optimizer is destroyed or resetProblem() is called.")
+      "Mutable handle to an attached cost, for target updates between solves. Returned by addCost; "
+      "dangles if the optimizer is destroyed or resetProblem() is called.")
       .def(
           "setTarget",
           [](CostHandle& self, const Eigen::Matrix4d& target_pose) { self.setTarget(target_pose); },
@@ -138,7 +137,7 @@ void init_aligator(nb::module_& m) {
           "Set a new target vector for a ConfigurationCost/ControlCost/VelocityCost/FrameAxisCost "
           "handle.");
 
-  // --- Constraints (hard) (design §4.4) -------------------------------------------------------
+  // --- Constraints (hard) ---------------------------------------------------------------------
 
   nb::class_<PositionLimit>(
       m, "PositionLimit", "Box limit on the reduced-group configuration (defaults from the model).")
@@ -172,22 +171,22 @@ void init_aligator(nb::module_& m) {
       .def_rw("tol_rot", &FramePoseConstraint::tol_rot,
               "Allowed rotation-log error half-width (radians).");
 
-  nb::class_<SelfCollisionConstraint>(
-      m, "SelfCollisionConstraint", "Keep the robot's articulated links clear of each other (§5).")
+  nb::class_<SelfCollisionConstraint>(m, "SelfCollisionConstraint",
+                                      "Keep the robot's articulated links clear of each other.")
       .def(nb::init<>())
       .def_rw("n_pairs", &SelfCollisionConstraint::n_pairs,
               "Number of closest self-collision pairs to constrain (<= 0 tracks all).")
       .def_rw("d_min", &SelfCollisionConstraint::d_min,
               "Minimum allowed signed distance (metres).");
 
-  nb::class_<CollisionConstraint>(
-      m, "CollisionConstraint", "Keep the robot's articulated links clear of static geometry (§5).")
+  nb::class_<CollisionConstraint>(m, "CollisionConstraint",
+                                  "Keep the robot's articulated links clear of static geometry.")
       .def(nb::init<>())
       .def_rw("n_pairs", &CollisionConstraint::n_pairs,
               "Number of closest robot-vs-static pairs to constrain (<= 0 tracks all).")
       .def_rw("d_min", &CollisionConstraint::d_min, "Minimum allowed signed distance (metres).");
 
-  // --- Seed / result (design §3.6, §4.5) ------------------------------------------------------
+  // --- Seed / result --------------------------------------------------------------------------
 
   nb::class_<TrajOptSeed>(m, "TrajOptSeed",
                           "Warm-start states/controls on the horizon grid (reduced-group layout).")
@@ -204,8 +203,7 @@ void init_aligator(nb::module_& m) {
       .def_rw("velocities", &TrajOptTrajectory::velocities,
               "Reduced-group velocities v at each time.");
 
-  nb::class_<TrajOptResult>(m, "TrajOptResult",
-                            "Result of a trajectory optimization solve (design §4.5).")
+  nb::class_<TrajOptResult>(m, "TrajOptResult", "Result of a trajectory optimization solve.")
       .def(nb::init<>())
       .def_rw("converged", &TrajOptResult::converged, "Whether the solver reached its tolerance.")
       .def_rw("iterations", &TrajOptResult::iterations, "Number of ProxDDP outer iterations taken.")
@@ -221,12 +219,12 @@ void init_aligator(nb::module_& m) {
            "Convert the optimized trajectory to a full-model roboplan.JointTrajectory (positions + "
            "times; velocities/accelerations empty; torques dropped).");
 
-  // --- The optimizer (design §4.2) ------------------------------------------------------------
+  // --- The optimizer ---------------------------------------------------------------------------
 
   nb::class_<TrajectoryOptimizer>(
       m, "TrajectoryOptimizer",
       "Trajectory optimizer wrapping aligator's proximal-DDP solver over reduced-model free-space "
-      "multibody dynamics (design §4.2).")
+      "multibody dynamics.")
       .def(nb::init<std::shared_ptr<Scene>, std::string, int, double, TrajOptOptions>(), "scene"_a,
            "group_name"_a, "horizon"_a, "dt"_a, "options"_a = TrajOptOptions{})
       .def("horizon", &TrajectoryOptimizer::horizon, "Number of stages N.")

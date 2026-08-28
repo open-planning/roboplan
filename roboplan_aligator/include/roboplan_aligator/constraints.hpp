@@ -6,31 +6,20 @@
 
 namespace roboplan {
 
-// Hard-constraint specifications (design §4.4). Like the cost specs (costs.hpp), these are plain
-// value structs describing a constraint in terms the USER understands (per-DoF bounds, frame names,
-// tolerances). They carry no aligator or pinocchio types and no reference to the optimizer's
-// internal reduced model: the residual + aligator ConstraintSet are built inside
-// TrajectoryOptimizer::addConstraint, which owns the reduced model and reads the limit defaults
-// from core (§4.4 "defaults from Scene::getPositionLimitVectors / getVelocityLimitVectors, not
-// re-derived").
-//
-// Each is attached with `TrajectoryOptimizer::addConstraint(spec, window)` over a window of stages
-// (§3.3). Unlike costs, constraints have no mutable-target handle — they are fixed at build time
-// (rebuild via resetProblem() to change them).
+// A constraint is a hard bound described in terms the user understands (per-DoF bounds, frame
+// names, tolerances). Each is attached with `TrajectoryOptimizer::addConstraint(spec, window)`
+// over a window of stages. Unlike costs, constraints are fixed at build time — rebuild via
+// `resetProblem()` to change them.
 //
 // Bound vectors are in the optimizer's REDUCED-group layout (size nq for configurations, nv for
-// velocities / torques — the same layout as setInitialState). A user-supplied bound is clamped to
-// the model's own physical limit per-DoF (it can only ever tighten, never loosen; maintainer
-// decision, Prompt 7). Leaving a bound empty uses the model default verbatim.
+// velocities / torques — the same layout as `setInitialState`). A user-supplied bound only ever
+// tightens the model's own physical limit (never loosens it); leaving a bound empty uses the model
+// default.
 
-/// @brief Box limit on the reduced-group configuration q over a window of stages (design §4.4).
-/// @details Maps to a state-slice residual (StateError sliced to the q-tangent rows) + a box
-/// constraint set. Both bounds default to the model's position limits
-/// (Scene::getPositionLimitVectors) when left empty; a supplied bound is intersected with the
-/// model's per-DoF. Bounds are expressed in the state manifold's tangent frame; for revolute and
-/// prismatic joints this equals the raw configuration box, so it is exact. Continuous
-/// (unbounded-revolute) joints — whose configuration is a cos/sin pair — are not supported by this
-/// limit; use a group without them.
+/// @brief Box limit on the reduced-group configuration q.
+/// @details Both bounds default to the model's position limits when left empty. Not supported for
+/// continuous (unbounded-revolute) joints, whose configuration is a cos/sin pair — use a group
+/// without them.
 struct PositionLimit {
   /// @brief Lower configuration bound (size nq). Empty ⇒ the model's lower position limit.
   Eigen::VectorXd q_min;
@@ -39,39 +28,26 @@ struct PositionLimit {
   Eigen::VectorXd q_max;
 };
 
-/// @brief Symmetric box limit on the reduced-group velocity v over a window of stages (design
-/// §4.4).
-/// @details Maps to a state-slice residual (StateError sliced to the v rows) + a box constraint set
-/// [-v_max, +v_max]. Defaults to the model's velocity limits (Scene::getVelocityLimitVectors) when
-/// left empty; a supplied bound is intersected with the model's per-DoF.
+/// @brief Symmetric box limit on the reduced-group velocity v, giving the box [-v_max, +v_max].
+/// @details Defaults to the model's velocity limits (which may be asymmetric) when left empty.
 struct VelocityLimit {
-  /// @brief Symmetric per-DoF velocity bound (size nv), giving the box [-v_max, +v_max]. Empty ⇒
-  /// the model's velocity limits (which may be asymmetric).
+  /// @brief Symmetric per-DoF velocity bound (size nv). Empty ⇒ the model's velocity limits.
   Eigen::VectorXd v_max;
 };
 
-/// @brief Symmetric box limit on the control (joint torque) u over a window of stages (design
-/// §4.4).
-/// @details Maps to a control residual (value = u) + a box constraint set [-tau_max, +tau_max].
-/// Defaults to the reduced model's effort limits when left empty (design §4.4 "model effort
-/// limits"); a supplied bound is intersected with the model's per-DoF. A DoF whose model effort
-/// limit is non-finite or zero is treated as unbounded (±inf), never clamped to zero torque
-/// (maintainer decision, Prompt 7). Illegal on the terminal window (the terminal node has no
-/// control).
+/// @brief Symmetric box limit on the control (joint torque) u, giving the box [-tau_max, +tau_max].
+/// @details Defaults to the reduced model's effort limits when left empty. A DoF whose model effort
+/// limit is non-finite or zero is treated as unbounded. Not allowed on the terminal window (the
+/// terminal node has no control).
 struct TorqueLimit {
-  /// @brief Symmetric per-DoF torque bound (size nv), giving the box [-tau_max, +tau_max]. Empty ⇒
-  /// the model's effort limits.
+  /// @brief Symmetric per-DoF torque bound (size nv). Empty ⇒ the model's effort limits.
   Eigen::VectorXd tau_max;
 };
 
-/// @brief Keep the robot's articulated links clear of each other over a window of stages (§4.4,
-/// §5).
-/// @details Expands to one collision residual + box constraint (signed distance ≥ `d_min`)
-/// per tracked collision pair. Self-collision pairs (both geometries on articulated robot links)
-/// are taken from the reduced model's collision geometry; the `n_pairs` closest at the optimizer's
-/// initial configuration are tracked (fixed set — the reuse path does not re-select per iteration,
-/// so raise `n_pairs` / simplify geometry if a pair only becomes close mid-trajectory, §5 caveat).
-/// Enforced at stage knots only; inter-stage clearance is not enforced (§5 caveat).
+/// @brief Keep the robot's articulated links clear of each other over a window of stages.
+/// @details Constraints the `n_pairs` closest self-collision pairs (both geometries on articulated
+/// robot links) at the initial configuration, requiring signed distance > `d_min`. The pair set is
+/// fixed at the initial configuration and enforced at the stage knots only.
 struct SelfCollisionConstraint {
   /// @brief Number of closest self-collision pairs to constrain. `<= 0` tracks every candidate
   /// pair.
@@ -81,10 +57,9 @@ struct SelfCollisionConstraint {
   double d_min = 0.02;
 };
 
-/// @brief Keep the robot's articulated links clear of static geometry over a window (§4.4, §5).
-/// @details Same mechanism as SelfCollisionConstraint, but tracks robot-vs-static pairs: pairs
-/// where exactly one geometry is attached to the world (the fixed base or an environment obstacle).
-/// The `n_pairs` closest at the initial configuration are tracked (fixed set; §5 caveat as above).
+/// @brief Keep the robot's articulated links clear of static geometry over a window.
+/// @details Same mechanism as `SelfCollisionConstraint`, but for robot-vs-static pairs (exactly one
+/// geometry on the fixed world, e.g. the base or an environment obstacle).
 struct CollisionConstraint {
   /// @brief Number of closest robot-vs-static pairs to constrain. `<= 0` tracks every candidate
   /// pair.
@@ -94,14 +69,12 @@ struct CollisionConstraint {
   double d_min = 0.02;
 };
 
-/// @brief Hard bound on a frame's SE3 placement error from a target pose over a window (design
-/// §4.4).
-/// @details Maps to aligator FramePlacementResidual + a box constraint set on the 6-D log6 error,
-/// ordered [translation(3); rotation-log(3)]: translation error within ±`tol_pos` (metres) and
-/// rotation-log error within ±`tol_rot` (radians), per axis. Commonly attached to the Terminal
-/// window as a reach/grasp constraint.
+/// @brief Hard bound on a frame's SE3 placement error from a target pose.
+/// @details Bounds the 6-D log6 error, ordered [translation(3); rotation-log(3)]: translation
+/// within ±`tol_pos` (metres) and rotation within ±`tol_rot` (radians) per axis. Commonly attached
+/// to the Terminal window as a reach/grasp constraint.
 struct FramePoseConstraint {
-  /// @brief Name of the frame whose pose is constrained (resolved against the reduced model).
+  /// @brief Name of the frame whose pose is constrained.
   std::string frame;
 
   /// @brief Target pose as a 4x4 homogeneous transform (world <- frame).

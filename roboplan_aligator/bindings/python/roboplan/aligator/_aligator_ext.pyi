@@ -15,7 +15,7 @@ class IntegratorType(enum.Enum):
     RK2 = 1
 
 class TrajOptOptions:
-    """Options controlling the ProxDDP trajectory optimizer (design §4.1)."""
+    """Options controlling the ProxDDP trajectory optimizer."""
 
     @overload
     def __init__(self) -> None: ...
@@ -192,7 +192,7 @@ class VelocityCost:
 
 class CostHandle:
     """
-    Mutable handle to an attached cost, for hot-path target updates (design §3.5). Returned by addCost; dangles if the optimizer is destroyed or resetProblem() is called.
+    Mutable handle to an attached cost, for target updates between solves. Returned by addCost; dangles if the optimizer is destroyed or resetProblem() is called.
     """
 
     @overload
@@ -288,7 +288,7 @@ class FramePoseConstraint:
     def tol_rot(self, arg: float, /) -> None: ...
 
 class SelfCollisionConstraint:
-    """Keep the robot's articulated links clear of each other (§5)."""
+    """Keep the robot's articulated links clear of each other."""
 
     def __init__(self) -> None: ...
 
@@ -307,7 +307,7 @@ class SelfCollisionConstraint:
     def d_min(self, arg: float, /) -> None: ...
 
 class CollisionConstraint:
-    """Keep the robot's articulated links clear of static geometry (§5)."""
+    """Keep the robot's articulated links clear of static geometry."""
 
     def __init__(self) -> None: ...
 
@@ -373,7 +373,7 @@ class TrajOptTrajectory:
     def velocities(self, arg: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]], /) -> None: ...
 
 class TrajOptResult:
-    """Result of a trajectory optimization solve (design §4.5)."""
+    """Result of a trajectory optimization solve."""
 
     def __init__(self) -> None: ...
 
@@ -440,7 +440,7 @@ class TrajOptResult:
 
 class TrajectoryOptimizer:
     """
-    Trajectory optimizer wrapping aligator's proximal-DDP solver over reduced-model free-space multibody dynamics (design §4.2).
+    Trajectory optimizer wrapping aligator's proximal-DDP solver over reduced-model free-space multibody dynamics.
     """
 
     def __init__(self, scene: roboplan.core._core_ext.Scene, group_name: str, horizon: int, dt: float, options: TrajOptOptions = ...) -> None: ...

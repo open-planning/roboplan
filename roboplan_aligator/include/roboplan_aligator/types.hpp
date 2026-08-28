@@ -9,21 +9,17 @@
 
 namespace roboplan {
 
-// Forward-declared: toRoboplan() borrows the Scene by const reference only, so the full
-// definition is not needed here. aligator/pinocchio types are deliberately absent from this
-// public header (aligator is linked PRIVATE; see roboplan_aligator/CLAUDE.md).
+// Forward-declared: toRoboplan() borrows the Scene by const reference only.
 class Scene;
 
-/// @brief Which aligator integrator discretizes the continuous multibody dynamics.
-/// @details Maps to an aligator integrator class inside TrajectoryOptimizer (design §3.2);
-/// the concrete class is resolved there, so this public enum stays aligator-free.
+/// @brief Which integrator discretizes the continuous multibody dynamics.
 enum class IntegratorType {
-  SemiImplicitEuler,  ///< aligator IntegratorSemiImplEuler (default). Python: "semi_euler".
-  RK2,                ///< aligator IntegratorRK2. Python: "rk2".
+  SemiImplicitEuler,  ///< Semi-implicit Euler (default).
+  RK2,                ///< Runge-Kutta 2.
 };
 
-/// @brief Options controlling the ProxDDP trajectory optimizer (design §4.1).
-/// @details Plain value struct, mirroring TOPPRAOptions (`roboplan_toppra/toppra.hpp`).
+/// @brief Options controlling the ProxDDP trajectory optimizer.
+/// @details Plain value struct, mirroring `TOPPRAOptions` (`roboplan_toppra`).
 struct TrajOptOptions {
   /// @brief Maximum ProxDDP outer iterations.
   int max_iters = 100;
@@ -37,17 +33,17 @@ struct TrajOptOptions {
   /// @brief Dynamics integrator (semi-implicit Euler by default).
   IntegratorType integrator = IntegratorType::SemiImplicitEuler;
 
-  /// @brief Whether the solver prints per-iteration progress (maps to aligator VerboseLevel).
+  /// @brief Whether the solver prints per-iteration progress.
   bool verbose = false;
 
   /// @brief Weight of the default quadratic control (torque) regularization cost. 0 disables it.
   double control_reg = 1e-3;
 };
 
-/// @brief Warm-start for a solve: state and control guesses on the horizon grid (design §3.6).
-/// @details Reduced-group layout. `xs` are stacked states x = [q; v] (each size nq + nv);
-/// `us` are controls/torques (each size nv). Produced by TrajectoryOptimizer::interpolatePath
-/// and ::shift, or hand-built. For an N-step horizon, `xs` has N + 1 entries and `us` has N.
+/// @brief Warm-start for a solve: state and control guesses on the horizon grid.
+/// @details Reduced-group layout. `xs` are stacked states x = [q; v] (each size nq + nv); `us` are
+/// controls/torques (each size nv). Produced by `TrajectoryOptimizer::interpolatePath` / `::shift`,
+/// or hand-built. For an N-step horizon, `xs` has N + 1 entries and `us` has N.
 struct TrajOptSeed {
   /// @brief Per-knot state guesses x = [q; v], reduced-group layout (size N + 1).
   std::vector<Eigen::VectorXd> xs;
@@ -56,10 +52,9 @@ struct TrajOptSeed {
   std::vector<Eigen::VectorXd> us;
 };
 
-/// @brief The optimized state trajectory sampled at `dt` (design §4.5).
-/// @details Reduced-group layout. Accelerations are intentionally NOT included: ProxDDP's
-/// outputs are state (q, v) and control (torque); the headline dynamic quantity this package
-/// provides is torque, exposed via TrajOptResult::controls, not acceleration (design §4.5).
+/// @brief The optimized state trajectory sampled at `dt`.
+/// @details Reduced-group layout. Torque is exposed via `TrajOptResult::controls`; acceleration is
+/// not computed.
 struct TrajOptTrajectory {
   /// @brief Sample times, k * dt for k = 0..N (size N + 1).
   std::vector<double> times;
@@ -71,10 +66,10 @@ struct TrajOptTrajectory {
   std::vector<Eigen::VectorXd> velocities;
 };
 
-/// @brief Result of a trajectory optimization solve (design §4.5).
-/// @details Plain value struct. `xs`/`us` are the raw solver arrays; `trajectory`/`controls`
-/// are their semantic views. `controls` is the N x nv torque profile (the headline capability;
-/// equal to `us` for a fully-actuated group with actuation B = I).
+/// @brief Result of a trajectory optimization solve.
+/// @details Plain value struct. `xs`/`us` are the raw solver arrays; `trajectory`/`controls` are
+/// their semantic views. `controls` is the N x nv torque profile (equal to `us` for a fully-
+/// actuated group with actuation B = I).
 struct TrajOptResult {
   /// @brief Whether the solver reached its convergence tolerance.
   bool converged = false;
@@ -101,24 +96,19 @@ struct TrajOptResult {
   TrajOptTrajectory trajectory;
 
   /// @brief Converts the optimized trajectory to a full-model roboplan::JointTrajectory.
-  /// @details Maps each reduced-group position to full-model layout via
-  /// Scene::toFullJointPositions, and each reduced-group velocity to full-model layout via
-  /// Scene::toFullJointVelocities (non-group DoF zero; design §4.5). Accelerations are left
-  /// empty (not a ProxDDP output). Torques are dropped entirely — JointTrajectory has no torque
-  /// field, so use `controls` for those.
+  /// @details Maps reduced-group positions/velocities to full-model layout (non-group DoF zero).
+  /// Accelerations are left empty and torques are dropped — use `controls` for those.
   /// @param scene The scene the trajectory was optimized against.
   /// @param group_name The planning group whose reduced positions/velocities are being expanded.
   /// @return A full-model JointTrajectory (positions + velocities + times; accelerations empty).
   JointTrajectory toRoboplan(const Scene& scene, const std::string& group_name) const;
 };
 
-/// @brief A half-open range of stages a cost/constraint attaches to (design §3.3).
-/// @details THE half-open convention, stated once and used everywhere (the #1 documented
-/// off-by-one trap): `Range(a, b)` covers stages a, a+1, ..., b-1 (b excluded), with
-/// 0 <= a < b <= N, where N is the horizon (number of stages). `All` covers every stage
-/// [0, N); `Terminal` attaches to the terminal node only (mapped to the terminal cost /
-/// terminal constraint by the optimizer). Windowing attaches a term only to in-range stages
-/// at problem build — never via weight masks.
+/// @brief A half-open range of stages a cost/constraint attaches to.
+/// @details Half-open convention: `Range(a, b)` covers stages a, ..., b-1 (b excluded), with
+/// 0 <= a < b <= N, where N is the horizon (number of stages). `All` covers every stage [0, N);
+/// `Terminal` attaches to the terminal node only (mapped to the terminal cost / terminal
+/// constraint).
 class StageWindow {
 public:
   /// @brief The kind of window.
@@ -146,9 +136,8 @@ public:
   bool isTerminal() const { return kind_ == Kind::Terminal; }
 
   /// @brief The concrete stage indices this window covers for a horizon of `horizon` stages.
-  /// @details All -> {0, 1, ..., horizon - 1}; Range -> {begin, ..., end - 1};
-  /// Terminal -> {} (empty — it attaches to the terminal node, not to any stage; use
-  /// isTerminal() to detect it).
+  /// @details All -> {0, ..., horizon - 1}; Range -> {begin, ..., end - 1}; Terminal -> {} (it
+  /// attaches to the terminal node, not to a stage; use `isTerminal()` to detect it).
   /// @param horizon The number of stages N (must be strictly positive).
   /// @throws std::invalid_argument if horizon <= 0, or if this is a Range with end > horizon.
   /// @return The in-range stage indices, ascending.
