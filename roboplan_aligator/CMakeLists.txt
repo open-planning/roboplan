@@ -68,7 +68,6 @@ endif()
 
 # Add libraries
 add_library(roboplan_aligator SHARED
-    src/roboplan_aligator.cpp
     src/reduced_group_model.cpp
     src/types.cpp
     src/problem_builder.cpp
@@ -86,7 +85,6 @@ target_include_directories(roboplan_aligator PUBLIC
 target_include_directories(roboplan_aligator PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
-target_compile_definitions(roboplan_aligator PRIVATE ROBOPLAN_ALIGATOR_VERSION="${PROJECT_VERSION}")
 # aligator is linked PRIVATE: neither its types nor pinocchio (which aligator links
 # PUBLIC) may leak into roboplan_aligator's public headers or exported link interface.
 target_link_libraries(roboplan_aligator

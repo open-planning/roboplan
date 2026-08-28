@@ -5,7 +5,6 @@ find_package(roboplan_example_models REQUIRED)
 # the internal src/ detail header on its include path (that header is intentionally not
 # installed).
 set(ROBOPLAN_ALIGATOR_TESTS
-    test_aligator
     test_reduced_group_model
     test_types
     test_dynamics
