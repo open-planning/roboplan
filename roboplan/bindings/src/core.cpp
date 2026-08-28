@@ -276,6 +276,8 @@ void init_core_scene(nanobind::module_& m) {
            "Get the Pinocchio model ID of a frame by its name.", "name"_a)
       .def("getJointGroupInfo", unwrap_expected(&Scene::getJointGroupInfo),
            "Get the joint group information of a scene by its name.", "name"_a)
+      .def("getLockedJointNames", unwrap_expected(&Scene::getLockedJointNames),
+           "Get the names of the movable joints excluded from a joint group.", "name"_a)
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions,
            "Get the current Pinocchio configuration vector (model.nq).")
       .def("getCurrentJointPositionsWithMimics", &Scene::getCurrentJointPositionsWithMimics,

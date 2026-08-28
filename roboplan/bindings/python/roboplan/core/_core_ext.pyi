@@ -472,6 +472,9 @@ class Scene:
     def getJointGroupInfo(self, name: str) -> JointGroupInfo:
         """Get the joint group information of a scene by its name."""
 
+    def getLockedJointNames(self, name: str) -> list[str]:
+        """Get the names of the movable joints excluded from a joint group."""
+
     def getCurrentJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Get the current Pinocchio configuration vector (model.nq)."""
 
