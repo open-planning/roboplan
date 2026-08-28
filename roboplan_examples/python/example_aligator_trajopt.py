@@ -55,7 +55,9 @@ def _build_reduced_model(urdf_xml: str, group_joints: set[str]) -> pin.Model:
     return pin.buildReducedModel(full, joints_to_lock, q_ref_full)
 
 
-def _required_torque(reduced: pin.Model, positions, velocities, accelerations) -> np.ndarray:
+def _required_torque(
+    reduced: pin.Model, positions, velocities, accelerations
+) -> np.ndarray:
     """Inverse-dynamics torque (pin.rnea) the reduced model needs to realize a trajectory."""
     data = reduced.createData()
     return np.array(
@@ -211,16 +213,25 @@ def main(
 
         print("Timing with TOPP-RA...")
         t0 = time.time()
-        toppra_traj = toppra.generate(path, TOPPRAOptions(dt=toppra_dt, mode=toppra_mode))
+        toppra_traj = toppra.generate(
+            path, TOPPRAOptions(dt=toppra_dt, mode=toppra_mode)
+        )
         print(f"  {toppra_traj.times[-1]:.3f} s duration in {time.time() - t0:.3f} s")
         toppra_torque = _required_torque(
-            reduced, toppra_traj.positions, toppra_traj.velocities, toppra_traj.accelerations
+            reduced,
+            toppra_traj.positions,
+            toppra_traj.velocities,
+            toppra_traj.accelerations,
         )
         print(f"  peak required |torque| : {np.max(np.abs(toppra_torque)):.3f} Nm")
 
         print("Optimizing with roboplan_aligator...")
         opt = al.TrajectoryOptimizer(
-            scene, group_name, horizon, aligator_dt, al.TrajOptOptions(max_iters=max_iters)
+            scene,
+            group_name,
+            horizon,
+            aligator_dt,
+            al.TrajOptOptions(max_iters=max_iters),
         )
         opt.setInitialState(np.asarray(start.positions))
 
@@ -261,7 +272,9 @@ def main(
             f"max_constraint_violation={result.max_constraint_violation:.2e} "
             f"in {time.time() - t0:.3f} s"
         )
-        print(f"  peak |torque|           : {np.max(np.abs(np.array(result.us))):.3f} Nm")
+        print(
+            f"  peak |torque|           : {np.max(np.abs(np.array(result.us))):.3f} Nm"
+        )
         aligator_traj = result.toRoboplan(scene, group_name)
 
         solved["path"] = path
@@ -276,10 +289,20 @@ def main(
         # un-shortcut RRT path. That's inherent to what an RRT path looks like pre-shortcutting,
         # not a bug; the "Animate RRT path" button still shows the actual path on the robot.
         visualizeJointTrajectory(
-            viz, scene, toppra_traj, model_data.ee_names, (30, 100, 220), "/compare/toppra"
+            viz,
+            scene,
+            toppra_traj,
+            model_data.ee_names,
+            (30, 100, 220),
+            "/compare/toppra",
         )
         visualizeJointTrajectory(
-            viz, scene, aligator_traj, model_data.ee_names, (220, 120, 30), "/compare/aligator"
+            viz,
+            scene,
+            aligator_traj,
+            model_data.ee_names,
+            (220, 120, 30),
+            "/compare/aligator",
         )
         q_start_full = scene.toFullJointPositions(group_name, start.positions)
         q_goal_full = scene.toFullJointPositions(group_name, goal.positions)
