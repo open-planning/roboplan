@@ -219,6 +219,25 @@ public:
   Eigen::VectorXd toFullJointPositions(const std::string& group_name, const Eigen::VectorXd& q,
                                        const Eigen::VectorXd& q_reference) const;
 
+  /// @brief Converts partial joint velocities to full joint velocities.
+  /// @details This includes adding new joints. The joints outside `group_name` are filled from the
+  /// scene's current state; use the three-argument overload to supply them explicitly instead.
+  /// @param group_name The name of the joint group.
+  /// @param v The original (partial) joint velocities.
+  /// @return The full joint velocities (size model.nv), with non-group entries set to current
+  /// internal state.
+  Eigen::VectorXd toFullJointVelocities(const std::string& group_name,
+                                        const Eigen::VectorXd& v) const;
+
+  /// @brief Converts partial joint velocities to full joint velocities.
+  /// @details Reads no Scene state beyond the immutable model, so it is safe to call concurrently.
+  /// @param group_name The name of the joint group.
+  /// @param v The original (partial) joint velocities.
+  /// @param v_reference The full velocity vector supplying the joints outside the group.
+  /// @return The full joint velocities (size model.nv).
+  Eigen::VectorXd toFullJointVelocities(const std::string& group_name, const Eigen::VectorXd& v,
+                                        const Eigen::VectorXd& v_reference) const;
+
   /// @brief Interpolates between two joint configurations.
   /// @param q_start The starting joint configuration.
   /// @param q_end The ending joint configuration.
