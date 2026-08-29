@@ -53,6 +53,8 @@ function(roboplan_register_build_tree_packages)
     ALIASES roboplan_rrt::roboplan_rrt=roboplan_rrt)
   roboplan_register_build_tree_package(roboplan_toppra
     ALIASES roboplan_toppra::roboplan_toppra=roboplan_toppra)
+  roboplan_register_build_tree_package(roboplan_aligator
+    ALIASES roboplan_aligator::roboplan_aligator=roboplan_aligator)
   roboplan_register_build_tree_package(roboplan_cartesian_planning
     ALIASES roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning)
 endfunction()
@@ -105,6 +107,7 @@ function(roboplan_configure_unified_python_wheel)
       roboplan_oink
       roboplan_rrt
       roboplan_toppra
+      roboplan_aligator
       roboplan_cartesian_planning)
     if(TARGET ${target})
       set_property(TARGET ${target} PROPERTY INSTALL_RPATH "${ROBOPLAN_UNIFIED_LIBRARY_INSTALL_RPATH}")
@@ -119,6 +122,7 @@ function(roboplan_configure_unified_python_wheel)
       _optimal_ik_ext
       _rrt_ext
       _toppra_ext
+      _aligator_ext
       _cartesian_ext)
     if(TARGET ${target})
       set_property(TARGET ${target} PROPERTY INSTALL_RPATH "${ROBOPLAN_UNIFIED_EXTENSION_INSTALL_RPATH}")
@@ -126,6 +130,9 @@ function(roboplan_configure_unified_python_wheel)
   endforeach()
 
   foreach(library IN ITEMS
+      aligator
+      fmt
+      mimalloc
       boost_atomic
       boost_filesystem
       boost_serialization
@@ -159,6 +166,9 @@ function(roboplan_configure_unified_python_wheel)
   endforeach()
 
   foreach(library_pattern IN ITEMS
+      "libaligator.so.*"
+      "libfmt.so.*"
+      "libmimalloc.so.*"
       "libassimp.so.*"
       "libboost_atomic.so.*"
       "libboost_filesystem.so.*"
@@ -176,6 +186,9 @@ function(roboplan_configure_unified_python_wheel)
       "liburdfdom_sensor.so.*"
       "liburdfdom_world.so.*"
       "libyaml-cpp.so.*"
+      "libaligator.*.dylib"
+      "libfmt.*.dylib"
+      "libmimalloc.*.dylib"
       "libassimp.*.dylib"
       "libboost_atomic.*.dylib"
       "libboost_filesystem.*.dylib"

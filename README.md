@@ -20,6 +20,7 @@ The main folders found in this repo are as follows.
 - `roboplan_oink` : A task-based Optimal Inverse Kinematics (OInK) solver.
 - `roboplan_rrt` : A Rapidly-exploring Random Tree (RRT) based motion planner.
 - `roboplan_toppra` : A wrapper around the TOPP-RA algorithm for trajectory timing.
+- `roboplan_aligator` : A trajectory optimizer wrapping the aligator proximal-DDP solver.
 - `roboplan_cartesian_planning` : A Cartesian planner for following task-space paths.
 - `roboplan_example_models` : Contains robot models used for testing and examples.
 - `roboplan_examples` : Basic examples with real robot models.

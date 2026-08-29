@@ -219,6 +219,25 @@ public:
   Eigen::VectorXd toFullJointPositions(const std::string& group_name, const Eigen::VectorXd& q,
                                        const Eigen::VectorXd& q_reference) const;
 
+  /// @brief Converts partial joint velocities to full joint velocities.
+  /// @details This includes adding new joints. The joints outside `group_name` are filled from the
+  /// scene's current state; use the three-argument overload to supply them explicitly instead.
+  /// @param group_name The name of the joint group.
+  /// @param v The original (partial) joint velocities.
+  /// @return The full joint velocities (size model.nv), with non-group entries set to current
+  /// internal state.
+  Eigen::VectorXd toFullJointVelocities(const std::string& group_name,
+                                        const Eigen::VectorXd& v) const;
+
+  /// @brief Converts partial joint velocities to full joint velocities.
+  /// @details Reads no Scene state beyond the immutable model, so it is safe to call concurrently.
+  /// @param group_name The name of the joint group.
+  /// @param v The original (partial) joint velocities.
+  /// @param v_reference The full velocity vector supplying the joints outside the group.
+  /// @return The full joint velocities (size model.nv).
+  Eigen::VectorXd toFullJointVelocities(const std::string& group_name, const Eigen::VectorXd& v,
+                                        const Eigen::VectorXd& v_reference) const;
+
   /// @brief Interpolates between two joint configurations.
   /// @param q_start The starting joint configuration.
   /// @param q_end The ending joint configuration.
@@ -335,6 +354,18 @@ public:
   /// @param name The name of the joint group to look up.
   /// @return The joint group information if successful, else a string describing the error.
   tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
+
+  /// @brief Get the names of the movable joints excluded from a joint group.
+  /// @details These are the joints that must be locked (e.g. in a Pinocchio reduced model) when a
+  /// group is planned for in isolation. Includes every non-group joint except the universe root
+  /// (joint 0); an empty list means the group spans the whole robot. Useful for building reduced
+  /// models or other group-subsetting machinery without re-deriving the joint list from
+  /// @ref getJointGroupInfo.
+  /// @param name The name of the joint group to look up.
+  /// @return The names of the non-group joined joints if successful, else a string describing the
+  /// error.
+  tl::expected<std::vector<std::string>, std::string>
+  getLockedJointNames(const std::string& name) const;
 
   /// @brief Get the current Pinocchio configuration vector (model.nq).
   /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).

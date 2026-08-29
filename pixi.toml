@@ -123,6 +123,7 @@ build_all = { depends-on = [
   { task = "install", args = ["roboplan_oink"] },
   { task = "install", args = ["roboplan_rrt"] },
   { task = "install", args = ["roboplan_toppra"] },
+  { task = "install", args = ["roboplan_aligator"] },
   { task = "install", args = ["roboplan_cartesian_planning"] },
   { task = "build", args = ["roboplan_examples"] },
 ] }
@@ -188,6 +189,11 @@ build_tests = { depends-on = [
     "ON",
   ] },
   { task = "install", args = [
+    "roboplan_aligator",
+    "{{ cxx_flags }}",
+    "ON",
+  ] },
+  { task = "install", args = [
     "roboplan_cartesian_planning",
     "{{ cxx_flags }}",
     "ON",
@@ -213,6 +219,7 @@ test_cpp = { depends-on = [
   { task = "test", args = ["roboplan_simple_ik"] },
   { task = "test", args = ["roboplan_oink"] },
   { task = "test", args = ["roboplan_toppra"] },
+  { task = "test", args = ["roboplan_aligator"] },
   { task = "test", args = ["roboplan_cartesian_planning"] },
 ] }
 test_all = { depends-on = ["test_py", "test_cpp"] }

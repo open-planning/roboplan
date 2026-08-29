@@ -656,4 +656,49 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
   std::filesystem::remove(tmp_config);
 }
 
+// so101's "arm" group (shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll) is a
+// strict subset of the full model, which also has a "gripper" joint outside the group — needed to
+// exercise toFullJointVelocities' non-group-DOF-is-zero behavior (RoboPlanSceneTest's ur5_gripper
+// "arm" group spans the whole model, so it cannot distinguish group from non-group entries).
+class RoboPlanSceneSo101Test : public ::testing::Test {
+protected:
+  void SetUp() override {
+    const auto model_prefix = example_models::get_package_models_dir();
+    const std::vector<std::filesystem::path> package_paths = {
+        example_models::get_package_share_dir()};
+    scene =
+        std::make_unique<Scene>("test_scene", model_prefix / "so101_robot_model" / "so101.urdf",
+                                model_prefix / "so101_robot_model" / "so101.srdf", package_paths);
+  }
+
+public:
+  std::unique_ptr<Scene> scene;
+};
+
+TEST_F(RoboPlanSceneSo101Test, ToFullJointVelocitiesPlacesGroupZerosRest) {
+  ASSERT_EQ(scene->getModel().nv, 6);
+
+  const auto maybe_group_info = scene->getJointGroupInfo("arm");
+  ASSERT_TRUE(maybe_group_info.has_value()) << maybe_group_info.error();
+  const auto& v_indices = maybe_group_info.value().v_indices;
+  ASSERT_EQ(v_indices.size(), 5);  // "arm" excludes the "gripper" joint's DOF.
+
+  Eigen::VectorXd v_reduced(5);
+  v_reduced << 1.0, 2.0, 3.0, 4.0, 5.0;
+  const Eigen::VectorXd v_full = scene->toFullJointVelocities("arm", v_reduced);
+
+  ASSERT_EQ(v_full.size(), 6);
+  EXPECT_TRUE(v_full(v_indices).isApprox(v_reduced, kTolerance));
+}
+
+TEST_F(RoboPlanSceneSo101Test, ToFullJointVelocitiesWrongSizeThrows) {
+  const Eigen::VectorXd v_wrong_size = Eigen::VectorXd::Zero(3);
+  EXPECT_THROW(scene->toFullJointVelocities("arm", v_wrong_size), std::runtime_error);
+}
+
+TEST_F(RoboPlanSceneSo101Test, ToFullJointVelocitiesUnknownGroupThrows) {
+  const Eigen::VectorXd v = Eigen::VectorXd::Zero(5);
+  EXPECT_THROW(scene->toFullJointVelocities("no_such_group", v), std::runtime_error);
+}
+
 }  // namespace roboplan

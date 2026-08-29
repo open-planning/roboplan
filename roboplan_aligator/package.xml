@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>roboplan_aligator</name>
+  <version>0.5.1</version>
+  <description>Trajectory optimization (aligator proximal-DDP) satellite for RoboPlan.</description>
+  <maintainer email="sebastian.jahr@tuta.io">Sebastian Jahr</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <build_depend>nanobind-dev</build_depend>
+  <build_depend>python3-dev</build_depend>
+
+  <depend>roboplan</depend>
+  <!--
+  aligator (the proximal-DDP trajectory optimizer) is not yet available through ROS
+  binaries or rosdep, so the build resolves it via find_package(aligator CONFIG) and
+  otherwise fetches a pinned commit through CMake FetchContent (see CMakeLists.txt). It
+  is linked PRIVATE and does not appear in roboplan_aligator's public/export interface.
+  TODO: Restore once aligator has synced to ROS binaries.
+  <depend>aligator</depend>
+  -->
+
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>roboplan_example_models</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

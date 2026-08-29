@@ -446,6 +446,31 @@ Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name, const
   return q_out;
 }
 
+Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
+                                             const Eigen::VectorXd& v) const {
+  return toFullJointVelocities(group_name, v, cur_state_.velocities);
+}
+
+Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
+                                             const Eigen::VectorXd& v,
+                                             const Eigen::VectorXd& v_reference) const {
+  const auto maybe_group_info = getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    throw std::runtime_error("Failed to get full joint velocities: " + maybe_group_info.error());
+  }
+  const auto& v_indices = maybe_group_info.value().v_indices;
+  if (v_indices.size() != v.size()) {
+    throw std::runtime_error("Failed to get full joint velocities: Joint group '" + group_name +
+                             "' has nv=" + std::to_string(v_indices.size()) +
+                             " but the input velocities is of size " + std::to_string(v.size()) +
+                             ".");
+  }
+
+  Eigen::VectorXd v_out = v_reference;
+  v_out(v_indices) = v;
+  return v_out;
+}
+
 Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                                    const double fraction) const {
   return pinocchio::interpolate(model_, q_start, q_end, fraction);
@@ -622,6 +647,30 @@ tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::st
     return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_map_.");
   }
   return it->second;
+}
+
+tl::expected<std::vector<std::string>, std::string>
+Scene::getLockedJointNames(const std::string& name) const {
+  const auto maybe_group_info = getJointGroupInfo(name);
+  if (!maybe_group_info) {
+    return tl::make_unexpected("Failed to get locked joint names: " + maybe_group_info.error());
+  }
+  const auto& joint_names = maybe_group_info.value().joint_names;
+
+  // A joint is "locked" if it is a movable (nq > 0) joint of the model that is not in the group.
+  // Membership is decided by name (authoritative), so mimic joints (nq == 0, but present in the
+  // model and in the group's joint_names) are correctly treated as not requiring locking.
+  std::vector<bool> in_group(static_cast<std::size_t>(model_.njoints), false);
+  for (const auto& joint_name : joint_names) {
+    in_group[model_.getJointId(joint_name)] = true;
+  }
+  std::vector<std::string> locked_joint_names;
+  for (pinocchio::JointIndex j = 1; j < static_cast<pinocchio::JointIndex>(model_.njoints); ++j) {
+    if (model_.joints[j].nq() > 0 && !in_group[j]) {
+      locked_joint_names.push_back(model_.names[j]);
+    }
+  }
+  return locked_joint_names;
 }
 
 Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
