@@ -40,6 +40,7 @@ from roboplan.core import (
     CartesianTrajectory,
     JointTrajectory,
     Scene,
+    UrdfSceneDescription,
 )
 from roboplan.example_models import get_package_share_dir
 from roboplan.interpolation import (
@@ -329,8 +330,7 @@ def main(
 
     scene = Scene(
         "policy_action_chunk_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
+        UrdfSceneDescription(urdf_xml, srdf_xml),
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
@@ -350,13 +350,13 @@ def main(
 
     collision_model = pin.buildGeomFromUrdfString(
         model_pin,
-        urdf_xml,
+        str(model_data.urdf_path),
         pin.GeometryType.COLLISION,
         package_dirs=package_paths,
     )
     visual_model = pin.buildGeomFromUrdfString(
         model_pin,
-        urdf_xml,
+        str(model_data.urdf_path),
         pin.GeometryType.VISUAL,
         package_dirs=package_paths,
     )

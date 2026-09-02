@@ -1,3 +1,4 @@
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
@@ -55,7 +56,10 @@ namespace roboplan {
 
 class RoboPlanJointTest : public ::testing::Test {
 protected:
-  void SetUp() override { scene = std::make_unique<Scene>("test_scene", kUrdf, kSrdf); }
+  void SetUp() override {
+    scene = std::make_unique<Scene>("test_scene",
+                                    UrdfSceneDescription{.urdf_xml = kUrdf, .srdf_xml = kSrdf});
+  }
 
 public:
   // No default constructor, so must be a pointer.
@@ -112,7 +116,7 @@ TEST_F(RoboPlanJointTest, JointGroupLinksFromChainAndExplicitLinks) {
   </group>
 </robot>
 )";
-  Scene scene("chain_scene", kUrdf, srdf);
+  Scene scene("chain_scene", UrdfSceneDescription{.urdf_xml = kUrdf, .srdf_xml = srdf});
 
   // The chain from base_link to link3 covers link1, link2, and link3 (base_link is excluded).
   const auto chain_info = scene.getJointGroupInfo("chain_group").value();

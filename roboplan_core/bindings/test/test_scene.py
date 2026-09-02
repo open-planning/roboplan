@@ -4,21 +4,22 @@ Unit tests for scenes in RoboPlan.
 
 from pathlib import Path
 
-import pytest
 import numpy as np
 import pinocchio as pin
-
+import pytest
 from roboplan.core import (
-    hasCollisionsAlongPath,
     Box,
     Cylinder,
     JointType,
     Mesh,
     Scene,
     Sphere,
+    UrdfSceneDescription,
+    hasCollisionsAlongPath,
+    loadMjcfModel,
+    loadUrdfSceneDescription,
 )
 from roboplan.example_models import get_install_prefix
-
 
 URDF = """
 <robot name="robot">
@@ -72,7 +73,12 @@ def test_scene() -> Scene:
     package_paths = [roboplan_examples_dir]
     yaml_config_path = roboplan_models_dir / "ur_robot_model" / "ur5_config.yaml"
 
-    return Scene("test_scene", urdf_path, srdf_path, package_paths, yaml_config_path)
+    return Scene(
+        "test_scene",
+        loadUrdfSceneDescription(urdf_path, srdf_path),
+        package_paths,
+        yaml_config_path,
+    )
 
 
 def test_scene_properties(test_scene: Scene) -> None:
@@ -339,9 +345,27 @@ def test_jerk_limits_vector(test_scene: Scene) -> None:
     assert np.allclose(upper_limits, expected_upper_limits)
 
 
+def test_mjcf_scene(tmp_path: Path) -> None:
+    mjcf_path = tmp_path / "robot.xml"
+    mjcf_path.write_text(
+        """
+        <mujoco model="robot">
+          <worldbody>
+            <body name="base">
+              <joint name="joint1" type="hinge" axis="0 0 1"/>
+              <geom type="box" size="0.1 0.1 0.1"/>
+            </body>
+          </worldbody>
+        </mujoco>
+        """
+    )
+    scene = Scene("test_scene", loadMjcfModel(mjcf_path))
+    assert scene.getJointNames() == ["joint1"]
+
+
 def test_mimics() -> None:
     # Native Pinocchio mimics: mimic has no q slot; link3 pose follows revolute via FK.
-    test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
+    test_scene = Scene("test_scene", UrdfSceneDescription(URDF, SRDF))
     assert test_scene.getJointNames() == ["continuous_joint", "revolute_joint"]
     assert test_scene.getJointNamesWithMimics() == [
         "continuous_joint",

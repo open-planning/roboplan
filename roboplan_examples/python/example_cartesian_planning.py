@@ -11,7 +11,12 @@ import pinocchio as pin
 from pinocchio.visualize import ViserVisualizer
 
 from common import get_home_configuration, get_model_data
-from roboplan.core import Scene, JointConfiguration, CartesianPath
+from roboplan.core import (
+    Scene,
+    UrdfSceneDescription,
+    JointConfiguration,
+    CartesianPath,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.cartesian_planning import (
     CartesianPathPlanner,
@@ -197,15 +202,14 @@ def main(
         print(f"Invalid model requested: {model}")
         sys.exit(1)
 
-    # Pre-process with xacro. This is not necessary for raw URDFs.
+    package_paths = [get_package_share_dir()]
+
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
-    package_paths = [get_package_share_dir()]
 
     scene = Scene(
         "cartesian_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
+        UrdfSceneDescription(urdf_xml, srdf_xml),
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
@@ -288,10 +292,16 @@ def main(
     # Visualize: build a redundant Pinocchio model for rendering with mimic joints.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
-        model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
+        model_pin,
+        str(model_data.urdf_path),
+        pin.GeometryType.COLLISION,
+        package_dirs=package_paths,
     )
     visual_model = pin.buildGeomFromUrdfString(
-        model_pin, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
+        model_pin,
+        str(model_data.urdf_path),
+        pin.GeometryType.VISUAL,
+        package_dirs=package_paths,
     )
     viz = ViserVisualizer(model_pin, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
