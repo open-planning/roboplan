@@ -10,6 +10,15 @@
 
 namespace roboplan {
 
+pinocchio::FrameIndex resolveFrame(const ReducedGroupModel& rgm, const std::string& frame,
+                                   const char* name) {
+  const auto frame_id = rgm.frameId(frame);
+  if (!frame_id) {
+    throw std::invalid_argument(std::string(name) + ": " + frame_id.error());
+  }
+  return *frame_id;
+}
+
 ReducedGroupModel::ReducedGroupModel(const Scene& scene, const std::string& group_name)
     : group_name_(group_name), full_model_(scene.getModel()),
       full_collision_model_(scene.getCollisionModel()) {

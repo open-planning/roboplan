@@ -14,9 +14,9 @@
 
 #include "test_util.hpp"
 
-// This target exercises ONLY the public TrajectoryOptimizer surface, so it does not link aligator
-// (the PIMPL keeps aligator out of the driver). The finite-difference dynamics test lives in
-// test_dynamics.cpp.
+// This target exercises ONLY the public TrajectoryOptimizer surface (no direct aligator or
+// reduced-model calls), so it does not need the finite-difference/geometry machinery of the
+// internal tests. The finite-difference dynamics test lives in test_dynamics.cpp.
 
 namespace roboplan {
 namespace {

@@ -39,7 +39,6 @@ struct FrameAxisResidualData;
 
 /// @brief Residual aligning a body-fixed axis in `frame` with a world-target direction.
 struct FrameAxisResidual : aligator::UnaryFunctionTpl<double> {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   ALIGATOR_DYNAMIC_TYPEDEFS(double);
   ALIGATOR_UNARY_FUNCTION_INTERFACE(double);
   using BaseData = aligator::StageFunctionDataTpl<double>;
@@ -71,7 +70,6 @@ struct FrameAxisResidual : aligator::UnaryFunctionTpl<double> {
 };
 
 struct FrameAxisResidualData : aligator::StageFunctionDataTpl<double> {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   using Base = aligator::StageFunctionDataTpl<double>;
   using PinData = pinocchio::DataTpl<double>;
 
@@ -91,7 +89,7 @@ inline std::shared_ptr<FrameAxisResidual::BaseData> FrameAxisResidual::createDat
 
 inline void FrameAxisResidual::evaluate(const ConstVectorRef& x, BaseData& data) const {
   Data& d = static_cast<Data&>(data);
-  const Eigen::VectorXd q = x.head(pin_model_.nq);
+  const auto& q = x.head(pin_model_.nq);
   pinocchio::forwardKinematics(pin_model_, d.pin_data_, q);
   pinocchio::updateFramePlacement(pin_model_, d.pin_data_, frame_id_);
   d.frame_rotation_ = d.pin_data_.oMf[frame_id_].rotation();

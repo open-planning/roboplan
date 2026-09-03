@@ -18,12 +18,12 @@
 #include <roboplan_aligator/trajectory_optimizer.hpp>
 #include <roboplan_aligator/types.hpp>
 
-#include <roboplan_aligator/cost_factory.hpp>
 #include "frame_axis_residual.hpp"
-#include <roboplan_aligator/problem_builder.hpp>
-#include <roboplan_aligator/reduced_group_model.hpp>
 #include "test_fd_util.hpp"
 #include "test_util.hpp"
+#include <roboplan_aligator/cost_factory.hpp>
+#include <roboplan_aligator/problem_builder.hpp>
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan {
 namespace {

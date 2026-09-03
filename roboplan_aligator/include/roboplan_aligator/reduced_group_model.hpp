@@ -91,4 +91,12 @@ private:
   std::vector<std::string> locked_joint_names_;
 };
 
+/// @brief Resolves a frame name against the reduced model, throwing a setup-time invariant
+/// violation if the frame is absent (a cost/constraint referencing a nonexistent frame is a
+/// misconfiguration, not a per-call failure). `name` labels the offending spec in the message.
+/// Shared by the cost and constraint factories (previously each kept a private copy), all of
+/// which construct an aligator residual from a named frame on the reduced model.
+pinocchio::FrameIndex resolveFrame(const ReducedGroupModel& rgm, const std::string& frame,
+                                   const char* name);
+
 }  // namespace roboplan

@@ -10,9 +10,9 @@
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/vector.h>
 
+#include <aligator/core/constraint-set.hpp>
 #include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/function-abstract.hpp>
-#include <aligator/core/constraint-set.hpp>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>  // JointTrajectory (returned by TrajOptResult::toRoboplan)
@@ -284,13 +284,11 @@ void init_aligator(nb::module_& m) {
       // addCost: direct aligator cost abstract (advanced)
       .def(
           "addCost",
-          [](TrajectoryOptimizer& self,
-             xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+          [](TrajectoryOptimizer& self, xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
              const nb::object& timesteps, double weight) {
             return self.addCost(std::move(cost), windowFromTimesteps(timesteps), weight);
           },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
-          nb::keep_alive<0, 1>())
+          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
       // addConstraint overloads: each accepts a concrete constraint type and wraps it in
       // ConstraintSpec for the unified C++ addConstraint method.
       .def(

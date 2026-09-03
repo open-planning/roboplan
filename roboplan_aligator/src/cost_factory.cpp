@@ -28,24 +28,12 @@ using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
 using FramePlacementResidual = aligator::FramePlacementResidualTpl<double>;
 using CostItem = CostStack::CostItem;
 
-// Resolves a frame name against the reduced model, throwing a setup-time invariant violation if the
-// frame is absent (a cost referencing a nonexistent frame is a misconfiguration, not a per-call
-// failure).
-pinocchio::FrameIndex resolveFrame(const ReducedGroupModel& rgm, const std::string& frame,
-                                   const char* cost_name) {
-  const auto frame_id = rgm.frameId(frame);
-  if (!frame_id) {
-    throw std::invalid_argument(std::string(cost_name) + ": " + frame_id.error());
-  }
-  return *frame_id;
-}
-
 }  // namespace
 
 std::function<void(const Eigen::Matrix4d&)>
 attachFramePoseCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
                     const FramePoseCost& spec, double weight) {
-  const pinocchio::FrameIndex frame_id = resolveFrame(rgm, spec.frame, "FramePoseCost");
+  const pinocchio::FrameIndex frame_id = roboplan::resolveFrame(rgm, spec.frame, "FramePoseCost");
   const int ndx = space.ndx();
   const int nu = rgm.nv();
 
@@ -69,7 +57,7 @@ attachFramePoseCost(CostStack& stack, const PhaseSpace& space, const ReducedGrou
 std::function<void(const Eigen::VectorXd&)>
 attachFrameAxisCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
                     const FrameAxisCost& spec, double weight) {
-  const pinocchio::FrameIndex frame_id = resolveFrame(rgm, spec.frame, "FrameAxisCost");
+  const pinocchio::FrameIndex frame_id = roboplan::resolveFrame(rgm, spec.frame, "FrameAxisCost");
   const int ndx = space.ndx();
   const int nu = rgm.nv();
 

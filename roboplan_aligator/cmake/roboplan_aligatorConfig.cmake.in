@@ -2,7 +2,9 @@
 
 find_package(roboplan REQUIRED)
 
-# aligator is linked PRIVATE and is not part of roboplan_aligator's public interface,
-# so consumers do not need to find it here (mirrors roboplan_oink's proxsuite handling).
+# aligator is part of roboplan_aligator's public interface (linked PUBLIC): its transitive
+# deps (Eigen3, fmt, pinocchio, OpenMP) and the aligator::aligator target itself are referenced
+# by the exported roboplan_aligatorTargets.cmake below. The consuming package must therefore
+# resolve aligator (find_package(aligator) or the FetchContent build tree) before this file.
 
 include("${CMAKE_CURRENT_LIST_DIR}/roboplan_aligatorTargets.cmake")

@@ -7,10 +7,10 @@
 
 #include <roboplan/core/scene.hpp>
 
-#include <roboplan_aligator/problem_builder.hpp>
-#include <roboplan_aligator/reduced_group_model.hpp>
 #include "test_fd_util.hpp"
 #include "test_util.hpp"
+#include <roboplan_aligator/problem_builder.hpp>
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan {
 namespace {

@@ -7,8 +7,8 @@
 #include <Eigen/Dense>
 #include <tl/expected.hpp>
 
-#include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/constraint-set.hpp>
+#include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/function-abstract.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 #include <aligator/modelling/spaces/multibody.hpp>

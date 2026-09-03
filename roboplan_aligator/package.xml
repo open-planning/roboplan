@@ -18,7 +18,7 @@
   aligator (the proximal-DDP trajectory optimizer) is not yet available through ROS
   binaries or rosdep, so the build resolves it via find_package(aligator CONFIG) and
   otherwise fetches a pinned commit through CMake FetchContent (see CMakeLists.txt). It
-  is linked PRIVATE and does not appear in roboplan_aligator's public/export interface.
+  is linked PUBLIC and is part of roboplan_aligator's exported link interface.
   TODO: Restore once aligator has synced to ROS binaries.
   <depend>aligator</depend>
   -->

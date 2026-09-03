@@ -102,7 +102,7 @@ struct CollisionDistanceResidualData : aligator::StageFunctionDataTpl<double> {
 
 inline void CollisionDistanceResidual::evaluate(const ConstVectorRef& x, BaseData& data) const {
   auto& d = static_cast<CollisionDistanceResidualData&>(data);
-  const auto q = x.head(pin_model_.nq);
+  const auto& q = x.head(pin_model_.nq);
   pinocchio::forwardKinematics(pin_model_, d.pin_data_, q);
   pinocchio::updateFramePlacements(pin_model_, d.pin_data_);
   pinocchio::updateGeometryPlacements(pin_model_, d.pin_data_, geom_model_, d.geom_data_, q);

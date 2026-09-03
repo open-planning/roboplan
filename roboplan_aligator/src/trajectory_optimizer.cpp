@@ -86,25 +86,23 @@ void attachConstraintPair(aligator_detail::Problem& problem,
 
 TrajectoryOptimizer::TrajectoryOptimizer(std::shared_ptr<Scene> scene, std::string group_name,
                                          int horizon, double dt, TrajOptOptions options)
-    : scene_(
-          [&] {
-            if (scene == nullptr) {
-              throw std::invalid_argument("TrajectoryOptimizer: scene must not be null.");
-            }
-            if (horizon <= 0) {
-              throw std::invalid_argument(
-                  "TrajectoryOptimizer: horizon (number of stages) must be > 0, got " +
-                  std::to_string(horizon) + ".");
-            }
-            if (dt <= 0.0) {
-              throw std::invalid_argument("TrajectoryOptimizer: dt must be > 0, got " +
-                                          std::to_string(dt) + ".");
-            }
-            return std::move(scene);
-          }()),
+    : scene_([&] {
+        if (scene == nullptr) {
+          throw std::invalid_argument("TrajectoryOptimizer: scene must not be null.");
+        }
+        if (horizon <= 0) {
+          throw std::invalid_argument(
+              "TrajectoryOptimizer: horizon (number of stages) must be > 0, got " +
+              std::to_string(horizon) + ".");
+        }
+        if (dt <= 0.0) {
+          throw std::invalid_argument("TrajectoryOptimizer: dt must be > 0, got " +
+                                      std::to_string(dt) + ".");
+        }
+        return std::move(scene);
+      }()),
       group_name_(std::move(group_name)), horizon_(horizon), dt_(dt), options_(options),
-      rgm_(*scene_, group_name_),
-      space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
+      rgm_(*scene_, group_name_), space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
       x0_(stackState(rgm_.q0(), rgm_.v0())),
       problem_(aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_)) {}
 
@@ -113,8 +111,7 @@ TrajectoryOptimizer::~TrajectoryOptimizer() = default;
 TrajectoryOptimizer::TrajectoryOptimizer(TrajectoryOptimizer&& other) noexcept
     : scene_(std::move(other.scene_)), group_name_(std::move(other.group_name_)),
       horizon_(other.horizon_), dt_(other.dt_), options_(other.options_),
-      rgm_(*scene_, group_name_),
-      space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
+      rgm_(*scene_, group_name_), space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
       x0_(std::move(other.x0_)), problem_(std::move(other.problem_)),
       solver_(std::move(other.solver_)), locked_(other.locked_) {}
 
@@ -212,9 +209,8 @@ CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow&
       cost);
 }
 
-CostHandle TrajectoryOptimizer::addCost(
-    xyz::polymorphic<aligator::CostAbstractTpl<double>> cost, const StageWindow& window,
-    double weight) {
+CostHandle TrajectoryOptimizer::addCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+                                        const StageWindow& window, double weight) {
   requireUnlocked(locked_);
   for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
     stack->addCost(std::move(cost), weight);

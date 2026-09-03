@@ -10,8 +10,8 @@
 #include <roboplan/core/types.hpp>
 
 // Internal detail header (now installed under include/roboplan_aligator/).
-#include <roboplan_aligator/reduced_group_model.hpp>
 #include "test_util.hpp"
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan {
 namespace {

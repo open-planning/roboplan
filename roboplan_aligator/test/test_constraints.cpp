@@ -23,11 +23,11 @@
 #include <roboplan_aligator/types.hpp>
 
 #include "collision_residual.hpp"
+#include "test_fd_util.hpp"
+#include "test_util.hpp"
 #include <roboplan_aligator/constraint_factory.hpp>
 #include <roboplan_aligator/problem_builder.hpp>
 #include <roboplan_aligator/reduced_group_model.hpp>
-#include "test_fd_util.hpp"
-#include "test_util.hpp"
 
 namespace roboplan {
 namespace {

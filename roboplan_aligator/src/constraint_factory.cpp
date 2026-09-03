@@ -43,17 +43,6 @@ using StateSlice = aligator::FunctionSliceXprTpl<double, aligator::UnaryFunction
 
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
-// Resolves a frame name against the reduced model, throwing a setup-time invariant violation if the
-// frame is absent (a constraint referencing a nonexistent frame is a misconfiguration).
-pinocchio::FrameIndex resolveFrame(const ReducedGroupModel& rgm, const std::string& frame,
-                                   const char* name) {
-  const auto frame_id = rgm.frameId(frame);
-  if (!frame_id) {
-    throw std::invalid_argument(std::string(name) + ": " + frame_id.error());
-  }
-  return *frame_id;
-}
-
 // Remaps a full-model limit vector into reduced-model layout by joint name. Implemented once in
 // reduced_group_model.{hpp,cpp} and shared with the ReducedGroupModel q0 remap; see
 // roboplan::remapFullToReduced.
@@ -182,7 +171,8 @@ ConstraintPair buildFramePoseConstraint(const PhaseSpace& space, const ReducedGr
   if (spec.tol_pos < 0.0 || spec.tol_rot < 0.0) {
     throw std::invalid_argument("FramePoseConstraint: tol_pos and tol_rot must be nonnegative.");
   }
-  const pinocchio::FrameIndex frame_id = resolveFrame(rgm, spec.frame, "FramePoseConstraint");
+  const pinocchio::FrameIndex frame_id =
+      roboplan::resolveFrame(rgm, spec.frame, "FramePoseConstraint");
   const int ndx = space.ndx();
   const int nu = rgm.nv();
 

@@ -37,9 +37,9 @@ endforeach()
 
 # test_dynamics finite-differences the discretized aligator dynamics directly (through the
 # internal problem_builder header), so unlike the other tests it needs aligator's headers and
-# symbols. aligator is linked PRIVATE to roboplan_aligator and is therefore not available
-# transitively, so link it here explicitly (the aligator::aligator target is created in the parent
-# CMakeLists before this subdirectory is added).
+# symbols explicitly rather than only via the public surface. aligator is linked PUBLIC to
+# roboplan_aligator and is available transitively, but we link it here too for clarity (the
+# aligator::aligator target is created in the parent CMakeLists before this subdirectory is added).
 target_link_libraries(test_dynamics aligator::aligator)
 
 # test_costs builds aligator costs/residuals directly (through the internal cost_factory and
