@@ -85,6 +85,8 @@ target_link_libraries(roboplan_oink
     PRIVATE proxsuite::proxsuite
 )
 set_property(TARGET roboplan_oink PROPERTY CXX_STANDARD 20)
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan_oink::roboplan_oink ALIAS roboplan_oink)
 
 install(
   TARGETS

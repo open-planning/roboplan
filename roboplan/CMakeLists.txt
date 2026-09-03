@@ -20,6 +20,13 @@ find_package(pinocchio REQUIRED)
 find_package(console_bridge REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
+# pinocchio's coal (collision library) dependency lands as a directory-scoped
+# IMPORTED target on CMake < 3.24, invisible to sibling add_subdirectory()
+# packages in a superbuild. Promote it to global so they can link pinocchio.
+if(TARGET coal::coal)
+  set_target_properties(coal::coal PROPERTIES IMPORTED_GLOBAL TRUE)
+endif()
+
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
 # find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion
@@ -78,6 +85,8 @@ else()
     target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan::roboplan ALIAS roboplan)
 
 add_library(roboplan_filters SHARED
     src/filters/se3_low_pass_filter.cpp
@@ -92,6 +101,7 @@ target_link_libraries(roboplan_filters
     pinocchio::pinocchio
 )
 set_property(TARGET roboplan_filters PROPERTY CXX_STANDARD 20)
+add_library(roboplan::roboplan_filters ALIAS roboplan_filters)
 list(APPEND TARGETS_LIST roboplan_filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})

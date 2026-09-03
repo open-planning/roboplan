@@ -154,8 +154,7 @@ jobs:
           manifest-path: pixi.toml
       - name: Build and test
         run: |
-          pixi run -e ci install_all
-          pixi run -e ci build_tests
+          pixi run -e ci install
           pixi run -e ci test_all
       - name: Run clang-tidy
         if: matrix.clang_tidy
@@ -163,7 +162,7 @@ jobs:
       - name: Check bindings stub files
         run: |
           if ! git diff --exit-code --shortstat -- '*.pyi'; then
-            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds using 'pixi run -e ci install_all' and commit the changes."
+            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds using 'pixi run -e ci install' and commit the changes."
             echo "Git Diff:"
             git diff -- '*.pyi'
             exit 1
@@ -195,6 +194,6 @@ jobs:
           frozen: true
           manifest-path: pixi.toml
       - name: Build
-        run: pixi run -e default install_all
+        run: pixi run -e default install
       - name: Run RRT benchmarks
         run: pixi run -e default test_benchmarks

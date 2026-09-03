@@ -35,6 +35,8 @@ target_link_libraries(roboplan_simple_ik
     roboplan::roboplan
 )
 set_property(TARGET roboplan_simple_ik PROPERTY CXX_STANDARD 20)
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan_simple_ik::roboplan_simple_ik ALIAS roboplan_simple_ik)
 
 install(
   TARGETS

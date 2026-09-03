@@ -44,7 +44,7 @@ if(NOT toppra_FOUND)
     FetchContent_Declare(
         toppra
         GIT_REPOSITORY https://github.com/hungpham2511/toppra.git
-        GIT_TAG 0.6.8
+        GIT_TAG 0.6.10
         SOURCE_SUBDIR cpp
     )
     # toppra maps the deprecated BUILD_TESTS variable onto BUILD_TESTING with
@@ -79,6 +79,8 @@ target_link_libraries(roboplan_toppra
     roboplan::roboplan
     toppra::toppra
 )
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan_toppra::roboplan_toppra ALIAS roboplan_toppra)
 
 install(
   TARGETS

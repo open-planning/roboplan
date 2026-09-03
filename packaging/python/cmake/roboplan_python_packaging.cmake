@@ -1,3 +1,8 @@
+# roboplan_register_build_tree_package(s) is generic to any single-configure
+# superbuild, so it lives in the shared module also used by
+# superbuild/CMakeLists.txt.
+include("${CMAKE_CURRENT_LIST_DIR}/../../../superbuild/RoboplanSuperbuild.cmake")
+
 function(roboplan_configure_scikit_build_prefix)
   find_package(Python COMPONENTS Interpreter REQUIRED)
   execute_process(
@@ -13,48 +18,6 @@ function(roboplan_configure_scikit_build_prefix)
     list(PREPEND CMAKE_PREFIX_PATH "${ROBOPLAN_CMEEL_PREFIX}")
     set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH}" PARENT_SCOPE)
   endif()
-endfunction()
-
-function(roboplan_register_build_tree_package package_name)
-  set(options)
-  set(one_value_args)
-  set(multi_value_args ALIASES)
-  cmake_parse_arguments(ARG "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
-
-  set(_package_dir "${PROJECT_BINARY_DIR}/packaging-python-package-configs/${package_name}")
-  file(MAKE_DIRECTORY "${_package_dir}")
-  set(_config_file "${_package_dir}/${package_name}Config.cmake")
-  file(WRITE "${_config_file}" "# Generated for the packaging/python build tree.\n")
-
-  foreach(alias_pair IN LISTS ARG_ALIASES)
-    string(REPLACE "=" ";" alias_parts "${alias_pair}")
-    list(GET alias_parts 0 namespaced_target)
-    list(GET alias_parts 1 local_target)
-    file(APPEND "${_config_file}"
-      "if(TARGET ${local_target} AND NOT TARGET ${namespaced_target})\n"
-      "  add_library(${namespaced_target} ALIAS ${local_target})\n"
-      "endif()\n"
-    )
-  endforeach()
-
-  set(${package_name}_DIR "${_package_dir}" CACHE PATH "Build-tree ${package_name} package config" FORCE)
-endfunction()
-
-function(roboplan_register_build_tree_packages)
-  roboplan_register_build_tree_package(roboplan_example_models
-    ALIASES roboplan_example_models::roboplan_example_models=roboplan_example_models)
-  roboplan_register_build_tree_package(roboplan
-    ALIASES roboplan::roboplan=roboplan roboplan::roboplan_filters=roboplan_filters)
-  roboplan_register_build_tree_package(roboplan_simple_ik
-    ALIASES roboplan_simple_ik::roboplan_simple_ik=roboplan_simple_ik)
-  roboplan_register_build_tree_package(roboplan_oink
-    ALIASES roboplan_oink::roboplan_oink=roboplan_oink)
-  roboplan_register_build_tree_package(roboplan_rrt
-    ALIASES roboplan_rrt::roboplan_rrt=roboplan_rrt)
-  roboplan_register_build_tree_package(roboplan_toppra
-    ALIASES roboplan_toppra::roboplan_toppra=roboplan_toppra)
-  roboplan_register_build_tree_package(roboplan_cartesian_planning
-    ALIASES roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning)
 endfunction()
 
 function(roboplan_install_matching_libraries pattern)

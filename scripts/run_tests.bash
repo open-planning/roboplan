@@ -5,8 +5,8 @@
 EXIT_CODE=0
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# The RoboPlan packages to test. Add new packages here so both the C++ and
-# Python test runners below pick them up.
+# Packages with Python binding tests, for the Python runner below (C++
+# tests run via one ctest invocation, no package list needed).
 PACKAGES=(
     roboplan
     roboplan_rrt
@@ -42,15 +42,7 @@ else
 Running C++ tests...
 =======================
 "
-    pushd "${SCRIPT_DIR}/../build" > /dev/null || exit
-    for PACKAGE in "${PACKAGES[@]}";
-    do
-        [[ -d "${PACKAGE}/test" ]] || continue
-        pushd "${PACKAGE}/test" > /dev/null || exit
-        ctest -V || EXIT_CODE=$?
-        popd > /dev/null || exit
-    done
-    popd > /dev/null || exit
+    ctest -V --test-dir "${SCRIPT_DIR}/../build" || EXIT_CODE=$?
 
     echo "
 =======================

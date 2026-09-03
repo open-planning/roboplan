@@ -163,6 +163,18 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
     PYTHON_PATH "$<TARGET_FILE_DIR:_filters_ext>"
     DEPENDS _filters_ext
   )
+
+  # Stage each extension + its __init__.py under pystage/ so sibling
+  # packages in the same build tree can import roboplan.<sub> during their
+  # own stub generation.
+  set_target_properties(_core_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/core")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/core/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/core")
+  set_target_properties(_filters_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/filters")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/filters/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/filters")
 endif()
 
 # Ships the roboplan/<sub>/ packages and the generated .pyi/py.typed stubs.

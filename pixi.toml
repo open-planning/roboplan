@@ -46,193 +46,77 @@ ROBOPLAN_EXTRA_CMAKE_ARGS = "-DCMAKE_LINKER=lld-link"
 CMAKE_INSTALL_MODE = "COPY"
 
 [tasks]
-configure = { cmd = [
-  "cmake",
-  "-GNinja",
-  "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
-  "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-  "-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE",
-  "-DBUILD_TESTING=ON",
-  "-DCMAKE_C_COMPILER=$ROBOPLAN_C_COMPILER",
-  "-DCMAKE_CXX_COMPILER=$ROBOPLAN_CXX_COMPILER",
-  # Use mold as the linker, only on linux
-  "-DCMAKE_EXE_LINKER_FLAGS=$ROBOPLAN_LINKER_FLAG",
-  "-DCMAKE_MODULE_LINKER_FLAGS=$ROBOPLAN_LINKER_FLAG",
-  "-DCMAKE_SHARED_LINKER_FLAGS=$ROBOPLAN_LINKER_FLAG",
-  # Use sccache to speed up compilation
-  "-DCMAKE_C_COMPILER_LAUNCHER=sccache",
-  "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache",
-  # Activate color output with Ninja
-  "-DCMAKE_COLOR_DIAGNOSTICS=ON",
-  # Compiler flags
-  "{{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }}",
-  "{{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }}",
-  "{{ extra_flags }}",
-  # Extra per-platform arguments (expands to nothing by default)
-  "$ROBOPLAN_EXTRA_CMAKE_ARGS",
-  # Disable warnings about unused command line arguments
-  "--no-warn-unused-cli",
-  "-S",
-  "{{ package_name }}",
-  "-B",
-  "build//{{ package_name }}",
-], args = [
-  { arg = "package_name" },
+# Configures the whole superbuild in one shared build tree, using the
+# 'pixi' preset (superbuild/CMakePresets.json) for compiler/linker/build-cache
+# settings. cxx_flags/extra_flags are for one-off variant builds (see
+# build_asan/build_timetrace below); leave default for a normal configure.
+configure = { cmd = "cmake -S superbuild --preset pixi {{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }} {{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }} {{ extra_flags }} $ROBOPLAN_EXTRA_CMAKE_ARGS", args = [
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
-] }
-build = { cmd = [
-  "cmake",
-  "--build",
-  "build/{{ package_name }}",
-], depends-on = [
-  { task = "configure", args = [
-    "{{ package_name }}",
-    "{{ cxx_flags }}",
-    "{{ extra_flags }}",
-  ] },
-], args = [
-  { arg = "package_name" },
-  { arg = "cxx_flags", default = "" },
-  { arg = "extra_flags", default = "" },
-] }
-install = { cmd = [
-  "cmake",
-  "--install",
-  "build/{{ package_name }}",
-], depends-on = [
-  { task = "build", args = [
-    "{{ package_name }}",
-    "{{ cxx_flags }}",
-    "{{ extra_flags }}",
-  ] },
-], args = [
-  { arg = "package_name" },
-  { arg = "cxx_flags", default = "" },
-  { arg = "extra_flags", default = "" },
-] }
-# Each package builds and installs its own Python bindings (extension + PEP 420
-# namespace package + stubs) as part of its CMake install, since
-# BUILD_PYTHON_BINDINGS defaults ON. roboplan must be installed before its
-# dependents: they resolve it via find_package(roboplan) and import roboplan.core
-# during stub generation.
-build_all = { depends-on = [
-  { task = "install", args = ["roboplan_example_models"] },
-  { task = "install", args = ["roboplan"] },
-  { task = "install", args = ["roboplan_simple_ik"] },
-  { task = "install", args = ["roboplan_oink"] },
-  { task = "install", args = ["roboplan_rrt"] },
-  { task = "install", args = ["roboplan_toppra"] },
-  { task = "install", args = ["roboplan_cartesian_planning"] },
-  { task = "build", args = ["roboplan_examples"] },
-] }
-install_all = { depends-on = [
-  { task = "build_all" },
-  { task = "install", args = ["roboplan_examples"] },
 ] }
 
-build_asan = { cmd = [
-  "cmake",
-  "--build",
-  "build/{{ package_name }}",
-], depends-on = [
+# Builds everything by default. Pass a package name to build just that
+# package (library, tests, bindings) and its deps, e.g. `pixi run build
+# roboplan_rrt` -- maps to Ninja's per-directory `<dir>/all` target.
+build = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
   { task = "configure", args = [
-    "{{ package_name }}",
+    "{{ cxx_flags }}",
+    "{{ extra_flags }}",
+  ] },
+], args = [
+  { arg = "package_name", default = "" },
+  { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
+] }
+
+# Installs every package into $CONDA_PREFIX. Always installs everything --
+# one shared install tree, no meaningful "install just one package".
+install = { cmd = "cmake --install build", depends-on = [
+  { task = "build", args = [
+    "",
+    "{{ cxx_flags }}",
+    "{{ extra_flags }}",
+  ] },
+], args = [
+  { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
+] }
+
+build_asan = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
+  { task = "configure", args = [
     "-fsanitize=address",
     "-DGENERATE_PYTHON_STUBS=OFF",
   ] },
 ], args = [
-  { arg = "package_name" },
+  { arg = "package_name", default = "" },
 ] }
 # https://clang.llvm.org/docs/analyzer/developer-docs/PerformanceInvestigation.html#performance-analysis-using-ftime-trace
-build_timetrace = { depends-on = [
+build_timetrace = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
   { task = "configure", args = [
-    "{{ package_name }}",
     "-ftime-trace",
+    "",
   ] },
-  { task = "build", args = [
-    "{{ package_name }}",
-  ] },
-], args = [
-  { arg = "package_name" },
-] }
-build_tests = { depends-on = [
-  { task = "install", args = [
-    "roboplan_example_models",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "install", args = [
-    "roboplan",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "install", args = [
-    "roboplan_simple_ik",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "install", args = [
-    "roboplan_oink",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "install", args = [
-    "roboplan_rrt",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "install", args = [
-    "roboplan_toppra",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "install", args = [
-    "roboplan_cartesian_planning",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-  { task = "build", args = [
-    "roboplan_examples",
-    "{{ cxx_flags }}",
-    "ON",
-  ] },
-], args = [
-  { arg = "cxx_flags", "default" = "" },
-] }
-
-# Test related tasks
-test = { cmd = "ctest -V --test-dir build/{{ package_name }}", args = [
-  { arg = "package_name" },
-], env = { GTEST_COLOR = "YES" } }
-
-test_py  = { cmd = "python -m pytest --capture=no */bindings/test roboplan_examples/test" }
-test_cpp = { depends-on = [
-  { task = "test", args = ["roboplan"] },
-  { task = "test", args = ["roboplan_rrt"] },
-  { task = "test", args = ["roboplan_simple_ik"] },
-  { task = "test", args = ["roboplan_oink"] },
-  { task = "test", args = ["roboplan_toppra"] },
-  { task = "test", args = ["roboplan_cartesian_planning"] },
-] }
-test_all = { depends-on = ["test_py", "test_cpp"] }
-test_benchmarks = { cmd = "python -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
-
-# Clang-tidy static analysis
-clang-tidy = { cmd = [
-  "bash",
-  "scripts/run_clang_tidy.bash",
-  "{{ package_name }}",
 ], args = [
   { arg = "package_name", default = "" },
 ] }
 
-clang-tidy-fix = { cmd = [
-  "bash",
-  "scripts/run_clang_tidy.bash",
-  "{{ package_name }}",
-  "--fix",
-], args = [
+# Pass a package name to run just that package's tests, e.g.
+# `pixi run test roboplan_rrt` -- scopes --test-dir to its build subdir.
+test = { cmd = "ctest -V --test-dir build{{ '/' + package_name if package_name }}", args = [
+  { arg = "package_name", default = "" },
+], env = { GTEST_COLOR = "YES" } }
+
+test_py  = { cmd = "python -m pytest --capture=no */bindings/test roboplan_examples/test" }
+test_all = { depends-on = ["test_py", "test"] }
+test_benchmarks = { cmd = "python -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
+
+# Clang-tidy against the superbuild's single compile_commands.json. Pass a
+# package name to scope to just that package's sources.
+clang-tidy = { cmd = "run-clang-tidy -p build -quiet \"^$PIXI_PROJECT_ROOT/{{ package_name + '/' if package_name }}[^.]\"", args = [
+  { arg = "package_name", default = "" },
+] }
+
+clang-tidy-fix = { cmd = "run-clang-tidy -p build -fix -quiet \"^$PIXI_PROJECT_ROOT/{{ package_name + '/' if package_name }}[^.]\"", args = [
   { arg = "package_name", default = "" },
 ] }
 

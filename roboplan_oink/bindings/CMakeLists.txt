@@ -103,14 +103,29 @@ if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
     "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
+  # roboplan.optimal_ik imports roboplan.core; use the staged copy if a
+  # sibling build already produced one.
+  set(_extra_stub_python_path)
+  set(_extra_stub_depends)
+  if(TARGET _core_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _core_ext)
+  endif()
   nanobind_add_stub(
     _optimal_ik_ext_stub
     MODULE _optimal_ik_ext
     OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/optimal_ik/_optimal_ik_ext.pyi"
     MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/optimal_ik/py.typed"
-    PYTHON_PATH "$<TARGET_FILE_DIR:_optimal_ik_ext>"
-    DEPENDS _optimal_ik_ext
+    PYTHON_PATH "$<TARGET_FILE_DIR:_optimal_ik_ext>" ${_extra_stub_python_path}
+    DEPENDS _optimal_ik_ext ${_extra_stub_depends}
   )
+
+  # Stage this extension under pystage/, so roboplan_cartesian_planning can
+  # import roboplan.optimal_ik during its own stub generation.
+  set_target_properties(_optimal_ik_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/optimal_ik")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/optimal_ik/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/optimal_ik")
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")

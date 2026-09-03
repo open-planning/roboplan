@@ -1,7 +1,6 @@
 import enum
-from typing import overload
-
 import roboplan.core._core_ext
+from typing import overload
 
 
 class SplineFittingMode(enum.Enum):

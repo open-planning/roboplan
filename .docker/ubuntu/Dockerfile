@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt update -y \
     && apt upgrade -y \
     && apt install -y \
-        cmake git libeigen3-dev libgmock-dev liburdfdom-dev libyaml-cpp-dev python3-pip
+        cmake git libeigen3-dev libgmock-dev liburdfdom-dev libyaml-cpp-dev ninja-build python3-pip
 RUN pip3 install nanobind pytest scikit-build-core
 
 # Install pinocchio with pip as it supports additional CPU architectures.
@@ -36,12 +36,10 @@ RUN mkdir -p /roboplan_ws
 WORKDIR /roboplan_ws
 COPY . /roboplan_ws
 
-# Build RoboPlan from source and add it to the cmake and LD library paths.
+# Build via the superbuild and add its shared install prefix to cmake/LD paths.
 RUN . /roboplan_env.sh && ./scripts/build_cmake.bash
-RUN echo "export CMAKE_PREFIX_PATH=/roboplan_ws/install/:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh
-RUN for PACKAGE in /roboplan_ws/install/*/lib; do \
-        echo "export LD_LIBRARY_PATH=${PACKAGE}:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh; \
-    done
+RUN echo "export CMAKE_PREFIX_PATH=/roboplan_ws/install:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh \
+    && echo "export LD_LIBRARY_PATH=/roboplan_ws/install/lib:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh
 
 # Set up entrypoint.
 COPY .docker/ubuntu/entrypoint.sh /entrypoint.sh

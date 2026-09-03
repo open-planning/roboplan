@@ -103,14 +103,28 @@ if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
     "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
+  # roboplan.toppra imports roboplan.core; use the staged copy if a sibling
+  # build already produced one.
+  set(_extra_stub_python_path)
+  set(_extra_stub_depends)
+  if(TARGET _core_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _core_ext)
+  endif()
   nanobind_add_stub(
     _toppra_ext_stub
     MODULE _toppra_ext
     OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/toppra/_toppra_ext.pyi"
     MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/toppra/py.typed"
-    PYTHON_PATH "$<TARGET_FILE_DIR:_toppra_ext>"
-    DEPENDS _toppra_ext
+    PYTHON_PATH "$<TARGET_FILE_DIR:_toppra_ext>" ${_extra_stub_python_path}
+    DEPENDS _toppra_ext ${_extra_stub_depends}
   )
+
+  # Stage this extension under pystage/, for any sibling package that might need it.
+  set_target_properties(_toppra_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/toppra")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/toppra/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/toppra")
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")

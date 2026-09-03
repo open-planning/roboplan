@@ -39,6 +39,8 @@ target_link_libraries(roboplan_cartesian_planning
     roboplan_oink::roboplan_oink
     roboplan_toppra::roboplan_toppra
 )
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan_cartesian_planning::roboplan_cartesian_planning ALIAS roboplan_cartesian_planning)
 
 install(
   TARGETS

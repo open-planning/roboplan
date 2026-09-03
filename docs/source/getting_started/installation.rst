@@ -94,16 +94,16 @@ Once set up, you can run the ``pixi`` tasks as follows.
 ::
 
     # Build all packages, including Python bindings
-    pixi run build_all
+    pixi run build
 
     # Install all packages
-    pixi run install_all
+    pixi run install
 
-    # This will only build the package (You must have built the dependencies first)
+    # This will only build one package (and its dependencies)
     pixi run build PACKAGE_NAME
 
-    # This will only install the package
-    pixi run install PACKAGE_NAME
+All packages share a single build tree (``build/``), configured in one shot, so there is no separate
+"install one package" operation -- ``pixi run install`` always installs everything.
 
 After building all the packages, you can use the Pixi shell to run specific examples.
 
@@ -141,6 +141,9 @@ Build with compilation time report
 ::
 
     pixi run build_timetrace PACKAGE_NAME
+
+``PACKAGE_NAME`` is optional for ``build``/``build_asan``/``build_timetrace``/``test`` above; omit it to build or test
+every package.
 
 ---
 

@@ -1,8 +1,9 @@
+import re
 from collections.abc import Iterable
 from pathlib import Path
-import re
-import tomllib
 from typing import cast
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON_BINDING_PACKAGES = (
@@ -153,21 +154,81 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
 
 def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
     helper = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
+    shared_helper = _read("superbuild/RoboplanSuperbuild.cmake")
     packaging_cmake = _read("packaging/python/CMakeLists.txt")
 
     assert "roboplan_register_build_tree_packages()" in packaging_cmake
     assert "roboplan_configure_cmeel_package" not in helper
+    assert (
+        'include("${CMAKE_CURRENT_LIST_DIR}/../../../superbuild/RoboplanSuperbuild.cmake")'
+        in helper
+    )
+    assert "function(roboplan_register_build_tree_package package_name)" not in helper
     _assert_contains_all(
-        helper,
+        shared_helper,
         [
             "function(roboplan_register_build_tree_package package_name)",
             "${package_name}_DIR",
-            "roboplan::roboplan=roboplan",
-            "roboplan::roboplan_filters=roboplan_filters",
-            "roboplan_example_models::roboplan_example_models=roboplan_example_models",
-            "roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning",
         ],
     )
+    # Aliasing is now each package's own job (test_packages_self_alias_their_targets).
+    _assert_excludes_all(shared_helper, ["ALIASES", "cmake_parse_arguments"])
+
+
+def test_packages_self_alias_their_targets() -> None:
+    expected_aliases = {
+        "roboplan_example_models": [
+            "roboplan_example_models::roboplan_example_models=roboplan_example_models",
+        ],
+        "roboplan": [
+            "roboplan::roboplan=roboplan",
+            "roboplan::roboplan_filters=roboplan_filters",
+        ],
+        "roboplan_simple_ik": [
+            "roboplan_simple_ik::roboplan_simple_ik=roboplan_simple_ik",
+        ],
+        "roboplan_oink": ["roboplan_oink::roboplan_oink=roboplan_oink"],
+        "roboplan_rrt": ["roboplan_rrt::roboplan_rrt=roboplan_rrt"],
+        "roboplan_toppra": ["roboplan_toppra::roboplan_toppra=roboplan_toppra"],
+        "roboplan_cartesian_planning": [
+            "roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning",
+        ],
+    }
+    for package, aliases in expected_aliases.items():
+        source = _read(f"{package}/CMakeLists.txt")
+        for alias in aliases:
+            namespaced_target, local_target = alias.split("=")
+            assert f"add_library({namespaced_target} ALIAS {local_target})" in source, (
+                package,
+                alias,
+            )
+
+
+def test_superbuild_directory_is_ignored_by_colcon() -> None:
+    assert (ROOT / "superbuild/COLCON_IGNORE").exists()
+
+
+def test_superbuild_cmake_adds_all_packages_in_order() -> None:
+    source = _read("superbuild/CMakeLists.txt")
+    package_order = re.findall(
+        r'add_subdirectory\("\$\{ROBOPLAN_REPOSITORY_ROOT\}/(roboplan(?:_[a-z_]+)?)"\s+"[^"]+"\)',
+        source,
+    )
+
+    assert package_order == [*PYTHON_BINDING_PACKAGES, "roboplan_examples"]
+    _assert_contains_all(
+        source,
+        [
+            'include("${CMAKE_CURRENT_SOURCE_DIR}/RoboplanSuperbuild.cmake")',
+            "roboplan_register_build_tree_packages()",
+            'option(BUILD_TESTING "Build the RoboPlan C++ unit tests" ON)',
+            'option(BUILD_PYTHON_BINDINGS "Build the RoboPlan Python bindings" ON)',
+            "option(GENERATE_PYTHON_STUBS",
+        ],
+    )
+    # Same WIN32-conditional default each package uses standalone.
+    assert "option(GENERATE_PYTHON_STUBS" in source
+    assert "_generate_stubs_default" in source
 
 
 def test_dependent_packages_keep_upstream_find_package_shape() -> None:

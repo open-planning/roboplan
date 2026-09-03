@@ -1,47 +1,19 @@
 #!/bin/bash
 
-# Helper script that builds all the packages using vanilla CMake.
+# Builds all packages via vanilla CMake, using the superbuild in
+# ../superbuild and its CMakePresets.json "default" preset.
 
 set -e  # Needed to ensure cmake failures propagate up
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_ROOT_DIR="${SCRIPT_DIR}/.."
-pushd ${REPO_ROOT_DIR} || exit
+pushd "${REPO_ROOT_DIR}" || exit
 
-# Helper function to build a CMake project.
-build_project() {
-  local PROJECT_NAME=$1
+INSTALL_PREFIX="${PWD}/install"
 
-  if [ -z "$PROJECT_NAME" ]; then
-    echo "Error: No project name provided."
-    return 1
-  fi
-
-  cmake "${PROJECT_NAME}/CMakeLists.txt" \
-    -B"build/${PROJECT_NAME}" \
-    -DCMAKE_INSTALL_PREFIX="${PWD}/install/${PROJECT_NAME}"
-  cmake --build "build/${PROJECT_NAME}" --parallel "$(nproc)"
-  cmake --install "build/${PROJECT_NAME}"
-
-  # Make this package's installed libraries discoverable to later packages.
-  # Build steps such as nanobind stub generation import the just-built
-  # extensions, which transitively load shared libraries.
-  export LD_LIBRARY_PATH="${PWD}/install/${PROJECT_NAME}/lib:${LD_LIBRARY_PATH}"
-}
-
-# Build all the packages with CMake
-# rm -rf build install  # If you want a clean build
-mkdir -p build install
-export CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:${PWD}/install/
-
-build_project roboplan_example_models
-build_project roboplan
-build_project roboplan_simple_ik
-build_project roboplan_oink
-build_project roboplan_toppra
-build_project roboplan_rrt
-build_project roboplan_cartesian_planning
-build_project roboplan_examples
+cmake -S superbuild --preset default -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+cmake --build build --parallel "$(nproc)"
+cmake --install build
 
 echo "
 =======================

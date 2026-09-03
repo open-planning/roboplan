@@ -1,0 +1,41 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default superbuild settings",
+      "description": "Generator, build dir, and editor ergonomics shared by every way of configuring this superbuild. CMAKE_EXPORT_COMPILE_COMMANDS must be set here, not in CMakeLists.txt: CMake pre-seeds it blank before project code runs, so set(... CACHE ...) there is a no-op.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build",
+      "warnings": {
+        "unusedCli": false
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_COLOR_DIAGNOSTICS": "ON"
+      }
+    },
+    {
+      "name": "pixi",
+      "inherits": "default",
+      "displayName": "Pixi-managed toolchain",
+      "description": "Adds the compiler/linker/build-cache settings pixi sets via ../pixi.toml's [activation.env]. Requires 'pixi run' (only place these env vars are set). Not used by colcon, conda-forge, or per-package wheels.",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "$env{CMAKE_INSTALL_PREFIX}",
+        "CMAKE_BUILD_TYPE": "$env{CMAKE_BUILD_TYPE}",
+        "CMAKE_C_COMPILER": "$env{ROBOPLAN_C_COMPILER}",
+        "CMAKE_CXX_COMPILER": "$env{ROBOPLAN_CXX_COMPILER}",
+        "CMAKE_EXE_LINKER_FLAGS": "$env{ROBOPLAN_LINKER_FLAG}",
+        "CMAKE_MODULE_LINKER_FLAGS": "$env{ROBOPLAN_LINKER_FLAG}",
+        "CMAKE_SHARED_LINKER_FLAGS": "$env{ROBOPLAN_LINKER_FLAG}",
+        "CMAKE_C_COMPILER_LAUNCHER": "sccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+      }
+    }
+  ]
+}

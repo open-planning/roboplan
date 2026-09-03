@@ -102,14 +102,28 @@ if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
     "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
+  # roboplan.simple_ik imports roboplan.core; use the staged copy if a
+  # sibling build already produced one.
+  set(_extra_stub_python_path)
+  set(_extra_stub_depends)
+  if(TARGET _core_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _core_ext)
+  endif()
   nanobind_add_stub(
     _simple_ik_ext_stub
     MODULE _simple_ik_ext
     OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/simple_ik/_simple_ik_ext.pyi"
     MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/simple_ik/py.typed"
-    PYTHON_PATH "$<TARGET_FILE_DIR:_simple_ik_ext>"
-    DEPENDS _simple_ik_ext
+    PYTHON_PATH "$<TARGET_FILE_DIR:_simple_ik_ext>" ${_extra_stub_python_path}
+    DEPENDS _simple_ik_ext ${_extra_stub_depends}
   )
+
+  # Stage this extension under pystage/, for any sibling package that might need it.
+  set_target_properties(_simple_ik_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/simple_ik")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/simple_ik/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/simple_ik")
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")

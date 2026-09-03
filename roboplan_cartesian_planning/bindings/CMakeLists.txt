@@ -106,14 +106,33 @@ if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
     "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
+  # roboplan.cartesian_planning imports roboplan.core and roboplan.optimal_ik;
+  # use the staged copies if a sibling build already produced them.
+  set(_extra_stub_python_path)
+  set(_extra_stub_depends)
+  if(TARGET _core_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _core_ext)
+  endif()
+  if(TARGET _optimal_ik_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _optimal_ik_ext)
+  endif()
+  list(REMOVE_DUPLICATES _extra_stub_python_path)
   nanobind_add_stub(
     _cartesian_ext_stub
     MODULE _cartesian_ext
     OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/cartesian_planning/_cartesian_ext.pyi"
     MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/cartesian_planning/py.typed"
-    PYTHON_PATH "$<TARGET_FILE_DIR:_cartesian_ext>"
-    DEPENDS _cartesian_ext
+    PYTHON_PATH "$<TARGET_FILE_DIR:_cartesian_ext>" ${_extra_stub_python_path}
+    DEPENDS _cartesian_ext ${_extra_stub_depends}
   )
+
+  # Stage this extension under pystage/, for any sibling package that might need it.
+  set_target_properties(_cartesian_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/cartesian_planning")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/cartesian_planning/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/cartesian_planning")
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")
