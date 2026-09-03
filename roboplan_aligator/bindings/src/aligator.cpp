@@ -7,12 +7,15 @@
 #include <nanobind/eigen/dense.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/variant.h>
 #include <nanobind/stl/vector.h>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>  // JointTrajectory (returned by TrajOptResult::toRoboplan)
 
+#include <roboplan_aligator/constraint_spec.hpp>
 #include <roboplan_aligator/constraints.hpp>
+#include <roboplan_aligator/cost_spec.hpp>
 #include <roboplan_aligator/costs.hpp>
 #include <roboplan_aligator/trajectory_optimizer.hpp>
 #include <roboplan_aligator/types.hpp>
@@ -236,72 +239,81 @@ void init_aligator(nb::module_& m) {
            "v"_a = Eigen::VectorXd(),
            "Set the fixed initial state x0 = [q; v] (hot-path; empty v means zero velocity).")
       // addCost overloads: return a CostHandle whose setTarget mutates the in-problem residual.
+      // Each overload accepts a concrete cost type and wraps it in CostSpec for the unified C++
+      // addCost method.
       .def(
           "addCost",
           [](TrajectoryOptimizer& self, const FramePoseCost& cost, const nb::object& timesteps,
-             double weight) { return self.addCost(cost, windowFromTimesteps(timesteps), weight); },
+             double weight) {
+            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
+          },
           "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
           nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
       .def(
           "addCost",
           [](TrajectoryOptimizer& self, const FrameAxisCost& cost, const nb::object& timesteps,
-             double weight) { return self.addCost(cost, windowFromTimesteps(timesteps), weight); },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
-          nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
+             double weight) {
+            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
+          },
+          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
       .def(
           "addCost",
           [](TrajectoryOptimizer& self, const ConfigurationCost& cost, const nb::object& timesteps,
-             double weight) { return self.addCost(cost, windowFromTimesteps(timesteps), weight); },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
-          nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
+             double weight) {
+            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
+          },
+          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
       .def(
           "addCost",
           [](TrajectoryOptimizer& self, const ControlCost& cost, const nb::object& timesteps,
-             double weight) { return self.addCost(cost, windowFromTimesteps(timesteps), weight); },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
-          nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
+             double weight) {
+            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
+          },
+          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
       .def(
           "addCost",
           [](TrajectoryOptimizer& self, const VelocityCost& cost, const nb::object& timesteps,
-             double weight) { return self.addCost(cost, windowFromTimesteps(timesteps), weight); },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
-          nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
-      // addConstraint overloads.
+             double weight) {
+            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
+          },
+          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
+      // addConstraint overloads: each accepts a concrete constraint type and wraps it in
+      // ConstraintSpec for the unified C++ addConstraint method.
       .def(
           "addConstraint",
           [](TrajectoryOptimizer& self, const PositionLimit& c, const nb::object& timesteps) {
-            self.addConstraint(c, windowFromTimesteps(timesteps));
+            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())
       .def(
           "addConstraint",
           [](TrajectoryOptimizer& self, const VelocityLimit& c, const nb::object& timesteps) {
-            self.addConstraint(c, windowFromTimesteps(timesteps));
+            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())
       .def(
           "addConstraint",
           [](TrajectoryOptimizer& self, const TorqueLimit& c, const nb::object& timesteps) {
-            self.addConstraint(c, windowFromTimesteps(timesteps));
+            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())
       .def(
           "addConstraint",
           [](TrajectoryOptimizer& self, const FramePoseConstraint& c, const nb::object& timesteps) {
-            self.addConstraint(c, windowFromTimesteps(timesteps));
+            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())
       .def(
           "addConstraint",
           [](TrajectoryOptimizer& self, const SelfCollisionConstraint& c,
              const nb::object& timesteps) {
-            self.addConstraint(c, windowFromTimesteps(timesteps));
+            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())
       .def(
           "addConstraint",
           [](TrajectoryOptimizer& self, const CollisionConstraint& c, const nb::object& timesteps) {
-            self.addConstraint(c, windowFromTimesteps(timesteps));
+            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())
       .def(

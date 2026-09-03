@@ -7,7 +7,9 @@
 #include <Eigen/Dense>
 #include <tl/expected.hpp>
 
+#include <roboplan_aligator/constraint_spec.hpp>
 #include <roboplan_aligator/constraints.hpp>
+#include <roboplan_aligator/cost_spec.hpp>
 #include <roboplan_aligator/costs.hpp>
 #include <roboplan_aligator/types.hpp>
 
@@ -77,57 +79,33 @@ public:
 
   /// @brief Attaches a soft cost to the problem over a window of stages.
   /// @details Adds the cost to each stage in `window`; a Terminal window maps to the terminal cost.
-  /// Legal only before the first `solve()` (or after `resetProblem()`).
-  /// @param cost The cost specification (see `costs.hpp`).
+  /// Legal only before the first `solve()` (or after `resetProblem()`). Accepts any concrete cost
+  /// type via CostSpec (FramePoseCost, FrameAxisCost, ConfigurationCost, ControlCost,
+  /// VelocityCost).
+  /// @param cost The cost specification (any concrete cost type; see `costs.hpp`).
   /// @param window The stages the cost attaches to (default: all stages).
   /// @param weight Overall scalar weight multiplying the cost (default 1).
   /// @return A `CostHandle` whose `setTarget` updates the target between solves.
   /// @throws std::logic_error if called after the first `solve()` (message names `resetProblem()`).
   /// @throws std::invalid_argument if a frame is unknown, a spec field has the wrong size, or the
   ///   window is out of range.
-  CostHandle addCost(const FramePoseCost& cost, const StageWindow& window = StageWindow::all(),
-                     double weight = 1.0);
-  /// @copydoc addCost(const FramePoseCost&, const StageWindow&, double)
-  CostHandle addCost(const FrameAxisCost& cost, const StageWindow& window = StageWindow::all(),
-                     double weight = 1.0);
-  /// @copydoc addCost(const FramePoseCost&, const StageWindow&, double)
-  CostHandle addCost(const ConfigurationCost& cost, const StageWindow& window = StageWindow::all(),
-                     double weight = 1.0);
-  /// @copydoc addCost(const FramePoseCost&, const StageWindow&, double)
-  CostHandle addCost(const ControlCost& cost, const StageWindow& window = StageWindow::all(),
-                     double weight = 1.0);
-  /// @copydoc addCost(const FramePoseCost&, const StageWindow&, double)
-  CostHandle addCost(const VelocityCost& cost, const StageWindow& window = StageWindow::all(),
+  CostHandle addCost(const CostSpec& cost, const StageWindow& window = StageWindow::all(),
                      double weight = 1.0);
 
   /// @brief Attaches a hard constraint to the problem over a window of stages.
   /// @details Adds the constraint to each stage in `window`; a Terminal window maps to the terminal
   /// constraint. Legal only before the first `solve()` (or after `resetProblem()`). Constraints are
-  /// fixed at build time — rebuild via `resetProblem()` to change them.
-  /// @param constraint The constraint specification (see `constraints.hpp`).
+  /// fixed at build time — rebuild via `resetProblem()` to change them. Accepts any concrete
+  /// constraint type via ConstraintSpec (PositionLimit, VelocityLimit, TorqueLimit,
+  /// FramePoseConstraint, SelfCollisionConstraint, CollisionConstraint).
+  /// @param constraint The constraint specification (any concrete constraint type;
+  ///   see `constraints.hpp`).
   /// @param window The stages the constraint attaches to (default: all stages).
   /// @throws std::logic_error if called after the first `solve()` (message names `resetProblem()`).
   /// @throws std::invalid_argument if a frame is unknown, a bound has the wrong size, the window is
   ///   out of range, or a TorqueLimit targets the Terminal window (the terminal node has no
   ///   control).
-  void addConstraint(const PositionLimit& constraint,
-                     const StageWindow& window = StageWindow::all());
-  /// @copydoc addConstraint(const PositionLimit&, const StageWindow&)
-  void addConstraint(const VelocityLimit& constraint,
-                     const StageWindow& window = StageWindow::all());
-  /// @copydoc addConstraint(const PositionLimit&, const StageWindow&)
-  void addConstraint(const TorqueLimit& constraint, const StageWindow& window = StageWindow::all());
-  /// @copydoc addConstraint(const PositionLimit&, const StageWindow&)
-  void addConstraint(const FramePoseConstraint& constraint,
-                     const StageWindow& window = StageWindow::all());
-  /// @copydoc addConstraint(const PositionLimit&, const StageWindow&)
-  /// @details Constrains the `n_pairs` closest self-collision pairs at the current initial state.
-  /// Set the initial state (`setInitialState`) before adding these — the pair set is fixed at this
-  /// call and does not re-select if the initial state changes later.
-  void addConstraint(const SelfCollisionConstraint& constraint,
-                     const StageWindow& window = StageWindow::all());
-  /// @copydoc addConstraint(const SelfCollisionConstraint&, const StageWindow&)
-  void addConstraint(const CollisionConstraint& constraint,
+  void addConstraint(const ConstraintSpec& constraint,
                      const StageWindow& window = StageWindow::all());
 
   /// @brief Finalizes the problem: allocates the solver workspace and freezes the structure so it

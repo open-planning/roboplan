@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <algorithm>  // std::min
+#include <variant>
 
 #include <aligator/fwd.hpp>                             // VerboseLevel
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>  // SolverProxDDPTpl
@@ -169,135 +170,100 @@ void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q, const Eigen:
 
 // --- Costs (design §4.3) ---------------------------------------------------------------------
 
-CostHandle TrajectoryOptimizer::addCost(const FramePoseCost& cost, const StageWindow& window,
+CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow& window,
                                         double weight) {
   Impl& im = *impl_;
   requireUnlocked(im.locked);
-  auto handle = std::make_unique<CostHandle::Impl>();
-  handle->kind = CostHandle::Impl::Kind::Pose;
-  for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
-    handle->pose_setters.push_back(
-        aligator_detail::attachFramePoseCost(*stack, im.space, im.rgm, cost, weight));
-  }
-  return CostHandle(std::move(handle));
-}
 
-CostHandle TrajectoryOptimizer::addCost(const FrameAxisCost& cost, const StageWindow& window,
-                                        double weight) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  auto handle = std::make_unique<CostHandle::Impl>();
-  handle->kind = CostHandle::Impl::Kind::Vector;
-  handle->expected_size = 3;  // world-axis direction
-  for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
-    handle->vector_setters.push_back(
-        aligator_detail::attachFrameAxisCost(*stack, im.space, im.rgm, cost, weight));
-  }
-  return CostHandle(std::move(handle));
-}
+  return std::visit(
+      [&](const auto& spec) -> CostHandle {
+        using T = std::decay_t<decltype(spec)>;
+        auto handle = std::make_unique<CostHandle::Impl>();
 
-CostHandle TrajectoryOptimizer::addCost(const ConfigurationCost& cost, const StageWindow& window,
-                                        double weight) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  auto handle = std::make_unique<CostHandle::Impl>();
-  handle->kind = CostHandle::Impl::Kind::Vector;
-  handle->expected_size = im.rgm.nq();  // target is a reduced configuration
-  for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
-    handle->vector_setters.push_back(
-        aligator_detail::attachConfigurationCost(*stack, im.space, im.rgm, cost, weight));
-  }
-  return CostHandle(std::move(handle));
-}
+        if constexpr (std::is_same_v<T, FramePoseCost>) {
+          handle->kind = CostHandle::Impl::Kind::Pose;
+          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+            handle->pose_setters.push_back(
+                aligator_detail::attachFramePoseCost(*stack, im.space, im.rgm, spec, weight));
+          }
+        } else if constexpr (std::is_same_v<T, FrameAxisCost>) {
+          handle->kind = CostHandle::Impl::Kind::Vector;
+          handle->expected_size = 3;
+          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+            handle->vector_setters.push_back(
+                aligator_detail::attachFrameAxisCost(*stack, im.space, im.rgm, spec, weight));
+          }
+        } else if constexpr (std::is_same_v<T, ConfigurationCost>) {
+          handle->kind = CostHandle::Impl::Kind::Vector;
+          handle->expected_size = im.rgm.nq();
+          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+            handle->vector_setters.push_back(
+                aligator_detail::attachConfigurationCost(*stack, im.space, im.rgm, spec, weight));
+          }
+        } else if constexpr (std::is_same_v<T, ControlCost>) {
+          handle->kind = CostHandle::Impl::Kind::Vector;
+          handle->expected_size = im.rgm.nv();
+          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+            handle->vector_setters.push_back(
+                aligator_detail::attachControlCost(*stack, im.space, im.rgm, spec, weight));
+          }
+        } else if constexpr (std::is_same_v<T, VelocityCost>) {
+          handle->kind = CostHandle::Impl::Kind::Vector;
+          handle->expected_size = im.rgm.nv();
+          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+            handle->vector_setters.push_back(
+                aligator_detail::attachVelocityCost(*stack, im.space, im.rgm, spec, weight));
+          }
+        }
 
-CostHandle TrajectoryOptimizer::addCost(const ControlCost& cost, const StageWindow& window,
-                                        double weight) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  auto handle = std::make_unique<CostHandle::Impl>();
-  handle->kind = CostHandle::Impl::Kind::Vector;
-  handle->expected_size = im.rgm.nv();  // target is a control (torque) vector
-  for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
-    handle->vector_setters.push_back(
-        aligator_detail::attachControlCost(*stack, im.space, im.rgm, cost, weight));
-  }
-  return CostHandle(std::move(handle));
-}
-
-CostHandle TrajectoryOptimizer::addCost(const VelocityCost& cost, const StageWindow& window,
-                                        double weight) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  auto handle = std::make_unique<CostHandle::Impl>();
-  handle->kind = CostHandle::Impl::Kind::Vector;
-  handle->expected_size = im.rgm.nv();  // target is a velocity vector
-  for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
-    handle->vector_setters.push_back(
-        aligator_detail::attachVelocityCost(*stack, im.space, im.rgm, cost, weight));
-  }
-  return CostHandle(std::move(handle));
+        return CostHandle(std::move(handle));
+      },
+      cost);
 }
 
 // --- Constraints (design §4.4) ---------------------------------------------------------------
 
-void TrajectoryOptimizer::addConstraint(const PositionLimit& constraint,
+void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint,
                                         const StageWindow& window) {
   Impl& im = *impl_;
   requireUnlocked(im.locked);
-  const auto pair = aligator_detail::buildPositionLimit(im.space, im.rgm, *im.scene, constraint);
-  attachConstraintPair(*im.problem, pair, window, im.horizon);
-}
 
-void TrajectoryOptimizer::addConstraint(const VelocityLimit& constraint,
-                                        const StageWindow& window) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  const auto pair = aligator_detail::buildVelocityLimit(im.space, im.rgm, *im.scene, constraint);
-  attachConstraintPair(*im.problem, pair, window, im.horizon);
-}
+  std::visit(
+      [&](const auto& spec) {
+        using T = std::decay_t<decltype(spec)>;
 
-void TrajectoryOptimizer::addConstraint(const TorqueLimit& constraint, const StageWindow& window) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  if (window.isTerminal()) {
-    throw std::invalid_argument(
-        "TrajectoryOptimizer::addConstraint: a TorqueLimit cannot target the Terminal window; the "
-        "terminal node has no control.");
-  }
-  const auto pair = aligator_detail::buildTorqueLimit(im.space, im.rgm, constraint);
-  attachConstraintPair(*im.problem, pair, window, im.horizon);
-}
-
-void TrajectoryOptimizer::addConstraint(const FramePoseConstraint& constraint,
-                                        const StageWindow& window) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  const auto pair = aligator_detail::buildFramePoseConstraint(im.space, im.rgm, constraint);
-  attachConstraintPair(*im.problem, pair, window, im.horizon);
-}
-
-void TrajectoryOptimizer::addConstraint(const SelfCollisionConstraint& constraint,
-                                        const StageWindow& window) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  // Pairs are pre-selected at the current initial configuration (reuse path — no per-iteration
-  // re-selection, §5). One collision residual + box is attached to the window per tracked pair.
-  const Eigen::VectorXd q_select = im.x0.head(im.rgm.nq());
-  for (const auto& pair :
-       aligator_detail::buildSelfCollisionConstraints(im.space, im.rgm, constraint, q_select)) {
-    attachConstraintPair(*im.problem, pair, window, im.horizon);
-  }
-}
-
-void TrajectoryOptimizer::addConstraint(const CollisionConstraint& constraint,
-                                        const StageWindow& window) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
-  const Eigen::VectorXd q_select = im.x0.head(im.rgm.nq());
-  for (const auto& pair :
-       aligator_detail::buildCollisionConstraints(im.space, im.rgm, constraint, q_select)) {
-    attachConstraintPair(*im.problem, pair, window, im.horizon);
-  }
+        if constexpr (std::is_same_v<T, PositionLimit>) {
+          const auto pair = aligator_detail::buildPositionLimit(im.space, im.rgm, *im.scene, spec);
+          attachConstraintPair(*im.problem, pair, window, im.horizon);
+        } else if constexpr (std::is_same_v<T, VelocityLimit>) {
+          const auto pair = aligator_detail::buildVelocityLimit(im.space, im.rgm, *im.scene, spec);
+          attachConstraintPair(*im.problem, pair, window, im.horizon);
+        } else if constexpr (std::is_same_v<T, TorqueLimit>) {
+          if (window.isTerminal()) {
+            throw std::invalid_argument(
+                "TrajectoryOptimizer::addConstraint: a TorqueLimit cannot target the Terminal "
+                "window; the terminal node has no control.");
+          }
+          const auto pair = aligator_detail::buildTorqueLimit(im.space, im.rgm, spec);
+          attachConstraintPair(*im.problem, pair, window, im.horizon);
+        } else if constexpr (std::is_same_v<T, FramePoseConstraint>) {
+          const auto pair = aligator_detail::buildFramePoseConstraint(im.space, im.rgm, spec);
+          attachConstraintPair(*im.problem, pair, window, im.horizon);
+        } else if constexpr (std::is_same_v<T, SelfCollisionConstraint>) {
+          const Eigen::VectorXd q_select = im.x0.head(im.rgm.nq());
+          for (const auto& pair :
+               aligator_detail::buildSelfCollisionConstraints(im.space, im.rgm, spec, q_select)) {
+            attachConstraintPair(*im.problem, pair, window, im.horizon);
+          }
+        } else if constexpr (std::is_same_v<T, CollisionConstraint>) {
+          const Eigen::VectorXd q_select = im.x0.head(im.rgm.nq());
+          for (const auto& pair :
+               aligator_detail::buildCollisionConstraints(im.space, im.rgm, spec, q_select)) {
+            attachConstraintPair(*im.problem, pair, window, im.horizon);
+          }
+        }
+      },
+      constraint);
 }
 
 void TrajectoryOptimizer::build() {
