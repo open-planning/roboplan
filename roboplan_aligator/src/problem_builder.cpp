@@ -1,4 +1,4 @@
-#include "problem_builder.hpp"
+#include <roboplan_aligator/problem_builder.hpp>
 
 #include <utility>
 #include <vector>

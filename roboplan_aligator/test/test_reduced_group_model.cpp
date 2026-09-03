@@ -9,8 +9,8 @@
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
 
-// Internal detail header (not installed); test/CMakeLists.txt adds ../src to the include path.
-#include "reduced_group_model.hpp"
+// Internal detail header (now installed under include/roboplan_aligator/).
+#include <roboplan_aligator/reduced_group_model.hpp>
 #include "test_util.hpp"
 
 namespace roboplan {

@@ -7,8 +7,8 @@
 
 #include <roboplan/core/scene.hpp>
 
-#include "problem_builder.hpp"
-#include "reduced_group_model.hpp"
+#include <roboplan_aligator/problem_builder.hpp>
+#include <roboplan_aligator/reduced_group_model.hpp>
 #include "test_fd_util.hpp"
 #include "test_util.hpp"
 

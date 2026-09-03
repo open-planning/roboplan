@@ -1,18 +1,5 @@
 #pragma once
 
-// INTERNAL helper — NOT public API. This header lives under src/, is not installed, and is not
-// exposed in the Python bindings. It centralizes ALL aligator problem/dynamics/cost construction
-// so aligator (and pinocchio, which aligator links PUBLIC) types never touch a public
-// roboplan_aligator header — aligator is linked PRIVATE (design §2.2, roboplan_aligator/CLAUDE.md).
-//
-// It is shared by two consumers:
-//   - TrajectoryOptimizer (src/trajectory_optimizer.cpp): assembles the full problem + solver.
-//   - the finite-difference dynamics test (test/test_dynamics.cpp): builds the SAME discretized
-//     dynamics so what the test finite-differences is byte-identical to what the optimizer solves.
-//
-// Every aligator symbol used here is verified against pinned source and recorded in API_NOTES.md
-// (§ "Problem shell + solver driver", Prompt 5) before use.
-
 #include <memory>
 
 #include <Eigen/Core>

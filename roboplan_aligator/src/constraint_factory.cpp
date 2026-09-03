@@ -1,4 +1,4 @@
-#include "constraint_factory.hpp"
+#include <roboplan_aligator/constraint_factory.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -22,7 +22,7 @@
 #include <roboplan/core/scene.hpp>
 
 #include "collision_residual.hpp"
-#include "reduced_group_model.hpp"
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan::aligator_detail {
 

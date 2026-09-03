@@ -481,6 +481,9 @@ class TrajectoryOptimizer:
     def addCost(self, cost: VelocityCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
 
     @overload
+    def addCost(self, cost: "xyz::polymorphic<aligator::CostAbstractTpl<double>, std::allocator<aligator::CostAbstractTpl<double> > >", timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
+
+    @overload
     def addConstraint(self, constraint: PositionLimit, timesteps: object | None = None) -> None: ...
 
     @overload
@@ -497,6 +500,9 @@ class TrajectoryOptimizer:
 
     @overload
     def addConstraint(self, constraint: CollisionConstraint, timesteps: object | None = None) -> None: ...
+
+    @overload
+    def addConstraint(self, residual: "xyz::polymorphic<aligator::StageFunctionTpl<double>, std::allocator<aligator::StageFunctionTpl<double> > >", set: "xyz::polymorphic<aligator::ConstraintSetTpl<double>, std::allocator<aligator::ConstraintSetTpl<double> > >", timesteps: object | None = None) -> None: ...
 
     def build(self) -> None:
         """

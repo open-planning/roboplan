@@ -1,23 +1,5 @@
 #pragma once
 
-// INTERNAL helper — NOT public API. This header lives under src/, is not installed, and is
-// not exposed in the Python bindings. It is built once inside the (future) TrajectoryOptimizer
-// constructor and passed privately to the cost/constraint factories. Consumers of
-// roboplan_aligator cannot include it.
-//
-// Why this exists (design doc §3.1): every other roboplan satellite does memoryless
-// kinematics on the full Scene::getModel() and column-slices the group's DoF. Trajectory
-// optimization instead integrates forward dynamics (aligator's MultibodyPhaseSpace /
-// MultibodyFreeFwdDynamics integrate ALL DoF of whatever model they are handed), so non-group
-// joints must be physically LOCKED into a reduced pinocchio::Model — an integrator cannot drop
-// a DoF by column selection. When the group already spans the whole movable model, the
-// reduction is a harmless no-op (no joints locked).
-//
-// Index maps and limits are NOT re-derived here: v_indices come from Scene::getJointGroupInfo,
-// limit vectors from Scene::getPositionLimitVectors / getVelocityLimitVectors (read by the
-// factories, exactly as OInK does). This helper's only unique contribution is the reduced
-// Model + reduced GeometryModel and the frame remap into the reduced model.
-
 #include <string>
 #include <vector>
 

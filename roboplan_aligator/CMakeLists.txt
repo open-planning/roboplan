@@ -79,17 +79,9 @@ target_include_directories(roboplan_aligator PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-# Internal detail headers (e.g. reduced_group_model.hpp) live in src/ and are NOT installed.
-# They are visible to this library's own sources and to the test target (which adds src/ to its
-# include path), but never to consumers of roboplan_aligator.
-target_include_directories(roboplan_aligator PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-)
-# aligator is linked PRIVATE: neither its types nor pinocchio (which aligator links
-# PUBLIC) may leak into roboplan_aligator's public headers or exported link interface.
 target_link_libraries(roboplan_aligator
     PUBLIC roboplan::roboplan
-    PRIVATE aligator::aligator
+    PUBLIC aligator::aligator
 )
 set_property(TARGET roboplan_aligator PROPERTY CXX_STANDARD 20)
 

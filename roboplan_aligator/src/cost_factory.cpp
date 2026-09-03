@@ -1,4 +1,4 @@
-#include "cost_factory.hpp"
+#include <roboplan_aligator/cost_factory.hpp>
 
 #include <stdexcept>
 #include <string>
@@ -10,7 +10,7 @@
 #include <pinocchio/spatial/se3.hpp>
 
 #include "frame_axis_residual.hpp"
-#include "reduced_group_model.hpp"
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan {
 

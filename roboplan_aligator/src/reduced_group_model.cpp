@@ -1,4 +1,4 @@
-#include "reduced_group_model.hpp"
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 #include <cstddef>
 #include <stdexcept>

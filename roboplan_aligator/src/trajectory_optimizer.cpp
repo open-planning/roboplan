@@ -16,10 +16,10 @@
 
 #include <roboplan/core/scene.hpp>
 
-#include "constraint_factory.hpp"
-#include "cost_factory.hpp"
-#include "problem_builder.hpp"
-#include "reduced_group_model.hpp"
+#include <roboplan_aligator/constraint_factory.hpp>
+#include <roboplan_aligator/cost_factory.hpp>
+#include <roboplan_aligator/problem_builder.hpp>
+#include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan {
 
@@ -32,38 +32,6 @@ Eigen::VectorXd stackState(const Eigen::VectorXd& q, const Eigen::VectorXd& v) {
   x << q, v;
   return x;
 }
-
-}  // namespace
-
-// --- PIMPL: owns all aligator/pinocchio state --------------------------------------------------
-
-struct TrajectoryOptimizer::Impl {
-  std::shared_ptr<Scene> scene;
-  std::string group_name;
-  int horizon;
-  double dt;
-  TrajOptOptions options;
-
-  ReducedGroupModel rgm;                              // reduced pinocchio model snapshot (§3.1)
-  aligator_detail::PhaseSpace space;                  // x = [q; v] on the reduced model
-  Eigen::VectorXd x0;                                 // current fixed initial state [q0; v0]
-  std::unique_ptr<aligator_detail::Problem> problem;  // assembled N-stage shell
-  aligator::SolverProxDDPTpl<double> solver;
-
-  // True once build() has run solver.setup() on the assembled problem. addCost / addConstraint /
-  // resetProblem are illegal while locked (lifecycle §3.4); solve() requires it. setup is deferred
-  // to build() (not the ctor) so that costs/constraints added via addCost/addConstraint are part of
-  // the problem structure the workspace is allocated for.
-  bool locked = false;
-
-  Impl(std::shared_ptr<Scene> s, std::string g, int h, double d, TrajOptOptions o)
-      : scene(std::move(s)), group_name(std::move(g)), horizon(h), dt(d), options(o),
-        rgm(*scene, group_name), space(aligator_detail::makePhaseSpace(rgm.reducedModel())),
-        x0(stackState(rgm.q0(), rgm.v0())),
-        problem(aligator_detail::buildProblemShell(space, x0, horizon, dt, options)), solver() {}
-};
-
-namespace {
 
 // The in-problem CostStacks a window targets: each in-range stage's cost sum, or the terminal cost.
 // Returned as pointers into the assembled problem so attached costs mutate its final home (§3.5).
@@ -117,39 +85,63 @@ void attachConstraintPair(aligator_detail::Problem& problem,
 // --- Special members -------------------------------------------------------------------------
 
 TrajectoryOptimizer::TrajectoryOptimizer(std::shared_ptr<Scene> scene, std::string group_name,
-                                         int horizon, double dt, TrajOptOptions options) {
-  if (scene == nullptr) {
-    throw std::invalid_argument("TrajectoryOptimizer: scene must not be null.");
-  }
-  if (horizon <= 0) {
-    throw std::invalid_argument(
-        "TrajectoryOptimizer: horizon (number of stages) must be > 0, got " +
-        std::to_string(horizon) + ".");
-  }
-  if (dt <= 0.0) {
-    throw std::invalid_argument("TrajectoryOptimizer: dt must be > 0, got " + std::to_string(dt) +
-                                ".");
-  }
-  impl_ = std::make_unique<Impl>(std::move(scene), std::move(group_name), horizon, dt, options);
-}
+                                         int horizon, double dt, TrajOptOptions options)
+    : scene_(
+          [&] {
+            if (scene == nullptr) {
+              throw std::invalid_argument("TrajectoryOptimizer: scene must not be null.");
+            }
+            if (horizon <= 0) {
+              throw std::invalid_argument(
+                  "TrajectoryOptimizer: horizon (number of stages) must be > 0, got " +
+                  std::to_string(horizon) + ".");
+            }
+            if (dt <= 0.0) {
+              throw std::invalid_argument("TrajectoryOptimizer: dt must be > 0, got " +
+                                          std::to_string(dt) + ".");
+            }
+            return std::move(scene);
+          }()),
+      group_name_(std::move(group_name)), horizon_(horizon), dt_(dt), options_(options),
+      rgm_(*scene_, group_name_),
+      space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
+      x0_(stackState(rgm_.q0(), rgm_.v0())),
+      problem_(aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_)) {}
 
 TrajectoryOptimizer::~TrajectoryOptimizer() = default;
-TrajectoryOptimizer::TrajectoryOptimizer(TrajectoryOptimizer&&) noexcept = default;
-TrajectoryOptimizer& TrajectoryOptimizer::operator=(TrajectoryOptimizer&&) noexcept = default;
+
+TrajectoryOptimizer::TrajectoryOptimizer(TrajectoryOptimizer&& other) noexcept
+    : scene_(std::move(other.scene_)), group_name_(std::move(other.group_name_)),
+      horizon_(other.horizon_), dt_(other.dt_), options_(other.options_),
+      rgm_(*scene_, group_name_),
+      space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
+      x0_(std::move(other.x0_)), problem_(std::move(other.problem_)),
+      solver_(std::move(other.solver_)), locked_(other.locked_) {}
+
+// rgm_ (and the space_ derived from it) hold references into the originating scene and cannot be
+// moved or reassigned, so move assignment reconstructs the members in place from the moved-from
+// optimizer's scene/group.
+TrajectoryOptimizer& TrajectoryOptimizer::operator=(TrajectoryOptimizer&& other) noexcept {
+  if (this != &other) {
+    this->~TrajectoryOptimizer();
+    new (this) TrajectoryOptimizer(std::move(other));
+  }
+  return *this;
+}
 
 // --- Introspection ---------------------------------------------------------------------------
 
-int TrajectoryOptimizer::horizon() const { return impl_->horizon; }
-double TrajectoryOptimizer::dt() const { return impl_->dt; }
-int TrajectoryOptimizer::nq() const { return impl_->rgm.nq(); }
-int TrajectoryOptimizer::nv() const { return impl_->rgm.nv(); }
-int TrajectoryOptimizer::nx() const { return impl_->rgm.nq() + impl_->rgm.nv(); }
+int TrajectoryOptimizer::horizon() const { return horizon_; }
+double TrajectoryOptimizer::dt() const { return dt_; }
+int TrajectoryOptimizer::nq() const { return rgm_.nq(); }
+int TrajectoryOptimizer::nv() const { return rgm_.nv(); }
+int TrajectoryOptimizer::nx() const { return rgm_.nq() + rgm_.nv(); }
 
 // --- Initial state ---------------------------------------------------------------------------
 
 void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q, const Eigen::VectorXd& v) {
-  const int nq = impl_->rgm.nq();
-  const int nv = impl_->rgm.nv();
+  const int nq = rgm_.nq();
+  const int nv = rgm_.nv();
   if (q.size() != nq) {
     throw std::invalid_argument("TrajectoryOptimizer::setInitialState: q has size " +
                                 std::to_string(q.size()) +
@@ -163,17 +155,16 @@ void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q, const Eigen:
                                 std::to_string(v.size()) +
                                 ", expected reduced nv = " + std::to_string(nv) + ".");
   }
-  impl_->x0 = stackState(q, v_used);
+  x0_ = stackState(q, v_used);
   // Updates the initial-condition constraint target in place (no rebuild, §3.4).
-  impl_->problem->setInitState(impl_->x0);
+  problem_->setInitState(x0_);
 }
 
 // --- Costs (design §4.3) ---------------------------------------------------------------------
 
 CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow& window,
                                         double weight) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
+  requireUnlocked(locked_);
 
   return std::visit(
       [&](const auto& spec) -> CostHandle {
@@ -182,37 +173,37 @@ CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow&
 
         if constexpr (std::is_same_v<T, FramePoseCost>) {
           handle->kind = CostHandle::Impl::Kind::Pose;
-          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->pose_setters.push_back(
-                aligator_detail::attachFramePoseCost(*stack, im.space, im.rgm, spec, weight));
+                aligator_detail::attachFramePoseCost(*stack, space_, rgm_, spec, weight));
           }
         } else if constexpr (std::is_same_v<T, FrameAxisCost>) {
           handle->kind = CostHandle::Impl::Kind::Vector;
           handle->expected_size = 3;
-          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
-                aligator_detail::attachFrameAxisCost(*stack, im.space, im.rgm, spec, weight));
+                aligator_detail::attachFrameAxisCost(*stack, space_, rgm_, spec, weight));
           }
         } else if constexpr (std::is_same_v<T, ConfigurationCost>) {
           handle->kind = CostHandle::Impl::Kind::Vector;
-          handle->expected_size = im.rgm.nq();
-          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+          handle->expected_size = rgm_.nq();
+          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
-                aligator_detail::attachConfigurationCost(*stack, im.space, im.rgm, spec, weight));
+                aligator_detail::attachConfigurationCost(*stack, space_, rgm_, spec, weight));
           }
         } else if constexpr (std::is_same_v<T, ControlCost>) {
           handle->kind = CostHandle::Impl::Kind::Vector;
-          handle->expected_size = im.rgm.nv();
-          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+          handle->expected_size = rgm_.nv();
+          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
-                aligator_detail::attachControlCost(*stack, im.space, im.rgm, spec, weight));
+                aligator_detail::attachControlCost(*stack, space_, rgm_, spec, weight));
           }
         } else if constexpr (std::is_same_v<T, VelocityCost>) {
           handle->kind = CostHandle::Impl::Kind::Vector;
-          handle->expected_size = im.rgm.nv();
-          for (auto* stack : resolveTargetStacks(*im.problem, window, im.horizon)) {
+          handle->expected_size = rgm_.nv();
+          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
-                aligator_detail::attachVelocityCost(*stack, im.space, im.rgm, spec, weight));
+                aligator_detail::attachVelocityCost(*stack, space_, rgm_, spec, weight));
           }
         }
 
@@ -221,82 +212,97 @@ CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow&
       cost);
 }
 
+CostHandle TrajectoryOptimizer::addCost(
+    xyz::polymorphic<aligator::CostAbstractTpl<double>> cost, const StageWindow& window,
+    double weight) {
+  requireUnlocked(locked_);
+  for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
+    stack->addCost(std::move(cost), weight);
+  }
+  // Return a default handle (no target setters for custom costs).
+  return CostHandle(std::make_unique<CostHandle::Impl>());
+}
+
 // --- Constraints (design §4.4) ---------------------------------------------------------------
 
 void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint,
                                         const StageWindow& window) {
-  Impl& im = *impl_;
-  requireUnlocked(im.locked);
+  requireUnlocked(locked_);
 
   std::visit(
       [&](const auto& spec) {
         using T = std::decay_t<decltype(spec)>;
 
         if constexpr (std::is_same_v<T, PositionLimit>) {
-          const auto pair = aligator_detail::buildPositionLimit(im.space, im.rgm, *im.scene, spec);
-          attachConstraintPair(*im.problem, pair, window, im.horizon);
+          const auto pair = aligator_detail::buildPositionLimit(space_, rgm_, *scene_, spec);
+          attachConstraintPair(*problem_, pair, window, horizon_);
         } else if constexpr (std::is_same_v<T, VelocityLimit>) {
-          const auto pair = aligator_detail::buildVelocityLimit(im.space, im.rgm, *im.scene, spec);
-          attachConstraintPair(*im.problem, pair, window, im.horizon);
+          const auto pair = aligator_detail::buildVelocityLimit(space_, rgm_, *scene_, spec);
+          attachConstraintPair(*problem_, pair, window, horizon_);
         } else if constexpr (std::is_same_v<T, TorqueLimit>) {
           if (window.isTerminal()) {
             throw std::invalid_argument(
                 "TrajectoryOptimizer::addConstraint: a TorqueLimit cannot target the Terminal "
                 "window; the terminal node has no control.");
           }
-          const auto pair = aligator_detail::buildTorqueLimit(im.space, im.rgm, spec);
-          attachConstraintPair(*im.problem, pair, window, im.horizon);
+          const auto pair = aligator_detail::buildTorqueLimit(space_, rgm_, spec);
+          attachConstraintPair(*problem_, pair, window, horizon_);
         } else if constexpr (std::is_same_v<T, FramePoseConstraint>) {
-          const auto pair = aligator_detail::buildFramePoseConstraint(im.space, im.rgm, spec);
-          attachConstraintPair(*im.problem, pair, window, im.horizon);
+          const auto pair = aligator_detail::buildFramePoseConstraint(space_, rgm_, spec);
+          attachConstraintPair(*problem_, pair, window, horizon_);
         } else if constexpr (std::is_same_v<T, SelfCollisionConstraint>) {
-          const Eigen::VectorXd q_select = im.x0.head(im.rgm.nq());
+          const Eigen::VectorXd q_select = x0_.head(rgm_.nq());
           for (const auto& pair :
-               aligator_detail::buildSelfCollisionConstraints(im.space, im.rgm, spec, q_select)) {
-            attachConstraintPair(*im.problem, pair, window, im.horizon);
+               aligator_detail::buildSelfCollisionConstraints(space_, rgm_, spec, q_select)) {
+            attachConstraintPair(*problem_, pair, window, horizon_);
           }
         } else if constexpr (std::is_same_v<T, CollisionConstraint>) {
-          const Eigen::VectorXd q_select = im.x0.head(im.rgm.nq());
+          const Eigen::VectorXd q_select = x0_.head(rgm_.nq());
           for (const auto& pair :
-               aligator_detail::buildCollisionConstraints(im.space, im.rgm, spec, q_select)) {
-            attachConstraintPair(*im.problem, pair, window, im.horizon);
+               aligator_detail::buildCollisionConstraints(space_, rgm_, spec, q_select)) {
+            attachConstraintPair(*problem_, pair, window, horizon_);
           }
         }
       },
       constraint);
 }
 
+void TrajectoryOptimizer::addConstraint(
+    xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
+    xyz::polymorphic<aligator::ConstraintSetTpl<double>> set, const StageWindow& window) {
+  requireUnlocked(locked_);
+  const aligator_detail::ConstraintPair pair{std::move(residual), std::move(set)};
+  attachConstraintPair(*problem_, pair, window, horizon_);
+}
+
 void TrajectoryOptimizer::build() {
-  Impl& im = *impl_;
-  if (im.locked) {
+  if (locked_) {
     return;  // idempotent: already built (setup() run, problem structure frozen).
   }
   // Allocate the solver workspace for the assembled problem and freeze it: no more addCost /
   // addConstraint / resetProblem until resetProblem() unlocks (lifecycle §3.4). Deferred to here
   // (not the ctor) so every cost/constraint added is part of the structure setup() allocates for.
-  im.solver.setup(*im.problem);
-  im.locked = true;
+  solver_.setup(*problem_);
+  locked_ = true;
 }
 
 void TrajectoryOptimizer::resetProblem() {
-  Impl& im = *impl_;
   // Rebuild the empty shell (default control regularization only). Any outstanding CostHandle now
   // dangles (its residual pointers referenced the discarded problem). build() is required again.
-  im.problem = aligator_detail::buildProblemShell(im.space, im.x0, im.horizon, im.dt, im.options);
-  im.locked = false;
+  problem_ = aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_);
+  locked_ = false;
 }
 
 // --- Solve -----------------------------------------------------------------------------------
 
 tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOptSeed& seed) {
-  Impl& im = *impl_;
-  const auto num_stages = static_cast<std::size_t>(im.horizon);
-  const int nx = im.rgm.nq() + im.rgm.nv();
-  const int nu = im.rgm.nv();
+  const auto num_stages = static_cast<std::size_t>(horizon_);
+  const int nx = rgm_.nq() + rgm_.nv();
+  const int nu = rgm_.nv();
 
   // The problem must be finalized (build()) before it can be solved (maintainer decision, Prompt 9:
   // solve does not auto-build). A missing build() is a recoverable per-call misuse, not a throw.
-  if (!im.locked) {
+  if (!locked_) {
     return tl::make_unexpected(
         "TrajectoryOptimizer::solve: the problem has not been built; call build() first (add all "
         "costs/constraints, then build(), then solve()).");
@@ -337,21 +343,21 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   // honours §3.4's "max_iters/tol editable between solves without a rebuild". mu_init_ is consumed
   // by run() (setAlmPenalty(mu_init_), solver-proxddp.hxx:460), not by setup(), so assigning it
   // here means every solve honours the current options.mu_init.
-  im.solver.target_tol_ = im.options.tol;
-  im.solver.mu_init_ = im.options.mu_init;
-  im.solver.max_iters = static_cast<std::size_t>(im.options.max_iters);
-  im.solver.verbose_ =
-      im.options.verbose ? aligator::VerboseLevel::VERBOSE : aligator::VerboseLevel::QUIET;
+  solver_.target_tol_ = options_.tol;
+  solver_.mu_init_ = options_.mu_init;
+  solver_.max_iters = static_cast<std::size_t>(options_.max_iters);
+  solver_.verbose_ =
+      options_.verbose ? aligator::VerboseLevel::VERBOSE : aligator::VerboseLevel::QUIET;
 
   bool converged = false;
   try {
-    converged = im.solver.run(*im.problem, seed.xs, seed.us);
+    converged = solver_.run(*problem_, seed.xs, seed.us);
   } catch (const std::exception& e) {
     return tl::make_unexpected(std::string("TrajectoryOptimizer::solve: aligator solver threw: ") +
                                e.what());
   }
 
-  const auto& res = im.solver.results_;
+  const auto& res = solver_.results_;
 
   TrajOptResult out;
   out.converged = converged;
@@ -364,13 +370,13 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
 
   // Semantic views: split each state x = [q; v] and sample times k*dt. Positions use nq, velocities
   // use nv (never assume nq == nv, numerics rule) even though nu == nv here for actuation B = I.
-  const int nq = im.rgm.nq();
-  const int nv = im.rgm.nv();
+  const int nq = rgm_.nq();
+  const int nv = rgm_.nv();
   out.trajectory.times.reserve(res.xs.size());
   out.trajectory.positions.reserve(res.xs.size());
   out.trajectory.velocities.reserve(res.xs.size());
   for (std::size_t k = 0; k < res.xs.size(); ++k) {
-    out.trajectory.times.push_back(static_cast<double>(k) * im.dt);
+    out.trajectory.times.push_back(static_cast<double>(k) * dt_);
     out.trajectory.positions.emplace_back(res.xs[k].head(nq));
     out.trajectory.velocities.emplace_back(res.xs[k].segment(nq, nv));
   }
@@ -388,9 +394,8 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
 
 TrajOptSeed
 TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const {
-  const Impl& im = *impl_;
-  const int nq = im.rgm.nq();
-  const int nv = im.rgm.nv();
+  const int nq = rgm_.nq();
+  const int nv = rgm_.nv();
   if (waypoints.empty()) {
     throw std::invalid_argument(
         "TrajectoryOptimizer::interpolatePath: need at least one waypoint.");
@@ -408,17 +413,17 @@ TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoin
   // (pinocchio::interpolate; Scene::interpolate is bound to the full model, so it cannot target the
   // reduced sub-model — API_NOTES §3.6). Multiple waypoints form a piecewise-linear path evenly
   // parameterized over [0, 1]; velocities and controls are zero (design §3.6).
-  const pinocchio::Model& model = im.rgm.reducedModel();
+  const pinocchio::Model& model = rgm_.reducedModel();
   const int num_segments = static_cast<int>(waypoints.size()) - 1;
 
   TrajOptSeed seed;
-  seed.xs.reserve(static_cast<std::size_t>(im.horizon) + 1);
-  for (int k = 0; k <= im.horizon; ++k) {
+  seed.xs.reserve(static_cast<std::size_t>(horizon_) + 1);
+  for (int k = 0; k <= horizon_; ++k) {
     Eigen::VectorXd q(nq);
     if (num_segments == 0) {
       q = waypoints.front();  // single waypoint: a constant seed at that configuration.
     } else {
-      const double t = static_cast<double>(k) / static_cast<double>(im.horizon);  // global [0, 1]
+      const double t = static_cast<double>(k) / static_cast<double>(horizon_);  // global [0, 1]
       const double scaled = t * num_segments;
       int segment = std::min(static_cast<int>(scaled), num_segments - 1);  // clamp the t == 1 end
       const double alpha = scaled - segment;
@@ -429,13 +434,12 @@ TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoin
     x << q, Eigen::VectorXd::Zero(nv);
     seed.xs.push_back(std::move(x));
   }
-  seed.us.assign(static_cast<std::size_t>(im.horizon), Eigen::VectorXd::Zero(nv));
+  seed.us.assign(static_cast<std::size_t>(horizon_), Eigen::VectorXd::Zero(nv));
   return seed;
 }
 
 TrajOptSeed TrajectoryOptimizer::shift(const TrajOptResult& result, int n_steps) const {
-  const Impl& im = *impl_;
-  const auto num_stages = static_cast<std::size_t>(im.horizon);
+  const auto num_stages = static_cast<std::size_t>(horizon_);
   if (n_steps < 0) {
     throw std::invalid_argument("TrajectoryOptimizer::shift: n_steps must be >= 0, got " +
                                 std::to_string(n_steps) + ".");
