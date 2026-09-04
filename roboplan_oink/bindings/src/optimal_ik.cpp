@@ -16,6 +16,7 @@
 #include <roboplan_oink/optimal_ik.hpp>
 #include <roboplan_oink/tasks/configuration.hpp>
 #include <roboplan_oink/tasks/frame.hpp>
+#include <roboplan_oink/tasks/look_at.hpp>
 
 #include <modules/optimal_ik.hpp>
 
@@ -33,6 +34,43 @@ void init_optimal_ik(nanobind::module_& m) {
               "Priority level (1 = highest; lower priorities are projected into the nullspace of "
               "higher priorities).")
       .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.");
+
+  // Bind LookAtTaskOptions configuration struct
+  nanobind::class_<LookAtTaskOptions>(m, "LookAtTaskOptions", "Parameters for LookAtTask.")
+      .def(nanobind::init<double, double, double, double, double, double, int>(),
+           "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
+           "lm_damping"_a = 0.0, "max_position_error"_a = std::numeric_limits<double>::infinity(),
+           "max_rotation_error"_a = std::numeric_limits<double>::infinity(), "priority"_a = 1,
+           "Constructor with custom parameters.")
+      .def_rw("position_cost", &LookAtTaskOptions::position_cost, "Position cost weight.")
+      .def_rw("orientation_cost", &LookAtTaskOptions::orientation_cost, "Orientation cost weight.")
+      .def_rw("task_gain", &LookAtTaskOptions::task_gain, "Task gain for low-pass filtering.")
+      .def_rw("lm_damping", &LookAtTaskOptions::lm_damping, "Levenberg-Marquardt damping.")
+      .def_rw("max_position_error", &LookAtTaskOptions::max_position_error,
+              "Maximum position error magnitude (meters). Infinite = no limit.")
+      .def_rw("max_rotation_error", &LookAtTaskOptions::max_rotation_error,
+              "Maximum rotation error magnitude (radians). Infinite = no limit.")
+      .def_rw("priority", &LookAtTaskOptions::priority,
+              "Priority level (1 = highest). Tasks at higher priority numbers are projected "
+              "into the nullspace of lower priority numbers.");
+
+  // Bind FrameTask inheriting from Task
+  nanobind::class_<LookAtTask, Task>(m, "LookAtTask",
+                                     "Task to reach a target pose for a specified frame.")
+      .def(nanobind::init<const Oink&, const Scene&, const CartesianConfiguration&,
+                          const LookAtTaskOptions&>(),
+           "oink"_a, "scene"_a, "target_pose"_a, "options"_a = LookAtTaskOptions{})
+      .def_ro("frame_name", &LookAtTask::frame_name, "Name of the frame to control.")
+      .def_ro("frame_id", &LookAtTask::frame_id,
+              "Index of the frame in the scene's Pinocchio model.")
+      .def_ro("v_indices", &LookAtTask::v_indices, "Velocity vector indices for the joint group.")
+      .def_ro("target_pose", &LookAtTask::target_pose, "Target pose for the frame.")
+      .def_ro("max_position_error", &LookAtTask::max_position_error,
+              "Maximum position error magnitude (meters).")
+      .def_ro("max_rotation_error", &LookAtTask::max_rotation_error,
+              "Maximum rotation error magnitude (radians).")
+      .def("setTargetFrameTransform", &LookAtTask::setTargetFrameTransform, "tform"_a,
+           "Sets the target transform for this frame task.");
 
   // Bind FrameTaskOptions configuration struct
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
