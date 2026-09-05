@@ -111,7 +111,7 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
     DEPENDS _example_models_ext
   )
 
-  # Stage this extension under pystage/ (see roboplan/bindings/CMakeLists.txt).
+  # Stage this extension under pystage/ (see roboplan_core/bindings/CMakeLists.txt).
   set_target_properties(_example_models_ext PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/example_models")
   file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/example_models/__init__.py"

@@ -1,7 +1,7 @@
 # Python bindings for the roboplan core package.
 #
 # This file is added via `add_subdirectory(bindings)` from the parent
-# roboplan/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the C++
+# roboplan_core/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the C++
 # targets (roboplan, roboplan_filters) already exist in this configure and
 # do not need to be found via find_package.
 #
@@ -38,7 +38,7 @@ execute_process(
 find_package(nanobind CONFIG REQUIRED)
 
 # NOTE: the shared binding utility header <roboplan_bindings/expected.hpp> lives
-# in this package's main include tree (roboplan/include/roboplan_bindings/) and
+# in this package's main include tree (roboplan_core/include/roboplan_bindings/) and
 # is installed unconditionally by the top-level CMakeLists, so dependent packages
 # (e.g. roboplan_rrt, roboplan_toppra) can find it via find_package(roboplan)
 # even when this package is built without the Python bindings. The core.hpp /

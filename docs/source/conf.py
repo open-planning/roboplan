@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -9,7 +9,7 @@ import subprocess
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 autoapi_dirs = [
-    "../../roboplan/bindings/python",
+    "../../roboplan_core/bindings/python",
     "../../roboplan_example_models/bindings/python",
     "../../roboplan_oink/bindings/python",
     "../../roboplan_rrt/bindings/python",
