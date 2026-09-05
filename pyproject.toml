@@ -268,6 +268,7 @@ cmake = ">=3.30.5,<4"
 ninja = ">=1.12.1,<2"
 clangxx = ">=19.1.7,<20"
 lld = ">=19.1.2,<20"
+sccache = ">=0.16.0,<0.17"
 yaml-cpp = ">=0.8.0,<0.9"
 eigen = ">=3.4.0"
 libtoppra = ">=0.6.4,<0.7"
@@ -289,6 +290,19 @@ clangxx     = ">=22.1.8,<23"
 compiler-rt = ">=22.1.8,<23"
 lld         = ">=22.1.8,<23"
 llvm-tools  = ">=22.1.8,<23"
+
+# Use the MSVC-compatible clang driver: conda-forge packages are built with
+# MSVC and export MSVC-style flags that the GNU-style clang++ driver rejects.
+[tool.pixi.feature.ros.target.win.tasks]
+build = { cmd = [
+  "colcon", "build", "--cmake-args",
+  "-DBUILD_TESTING=ON",
+  "-GNinja",
+  "-DCMAKE_C_COMPILER=clang-cl",
+  "-DCMAKE_CXX_COMPILER=clang-cl",
+  "-DCMAKE_LINKER=lld-link",
+  "-DPython3_EXECUTABLE=$CONDA_PREFIX/python.exe",  # conda envs ship no python3.exe on Windows
+] }
 
 [tool.pixi.feature.ros.tasks]
 setup = "colcon mixin add default https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml || true && colcon mixin update default"

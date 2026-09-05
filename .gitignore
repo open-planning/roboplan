@@ -1,6 +1,8 @@
 **/__pycache__
 **/build/
 **/install/
+**/log/
+.sccache/
 
 .claude
 .vscode
