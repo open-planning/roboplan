@@ -1,0 +1,36 @@
+name: "Pixi ROS Build and Test"
+
+on:
+  workflow_call: {}
+
+jobs:
+  pixi_ros_build_and_test:
+    name: ${{ matrix.os }} - Build, test (${{ matrix.ros_distro }})
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        ros_distro: [rolling, lyrical, kilted, jazzy, humble]
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # On Windows, this ensures bash stops at the first failing command.
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          environments: ${{ matrix.ros_distro }}
+      - name: Build and test
+        run: |
+          pixi run -e ${{ matrix.ros_distro }} setup
+          pixi run -e ${{ matrix.ros_distro }} build
+          pixi run -e ${{ matrix.ros_distro }} test
+          pixi run -e ${{ matrix.ros_distro }} test-result
