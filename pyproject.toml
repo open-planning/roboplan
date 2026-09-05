@@ -251,3 +251,113 @@ lint = "pre-commit run --all-files"
 default = { features = ["local"] }
 ci = { features = ["ci"] }
 lint = { features = ["lint"], no-default-feature = true }
+
+# ROS 2 environments
+rolling = { features = ["ros", "rolling"], no-default-feature = true }
+lyrical = { features = ["ros", "lyrical"], no-default-feature = true }
+kilted = { features = ["ros", "kilted"], no-default-feature = true }
+jazzy = { features = ["ros", "jazzy"], no-default-feature = true }
+humble = { features = ["ros", "humble"], no-default-feature = true }
+
+# ROS Environment targets.
+# These will bypass the super build and test roboplan using colcon directly.
+[tool.pixi.feature.ros.dependencies]
+colcon-common-extensions = ">=0.3.0,<0.4"
+colcon-mixin = ">=0.2.3,<0.3"
+cmake = ">=3.30.5,<4"
+ninja = ">=1.12.1,<2"
+clangxx = ">=19.1.7,<20"
+lld = ">=19.1.2,<20"
+yaml-cpp = ">=0.8.0,<0.9"
+eigen = ">=3.4.0"
+libtoppra = ">=0.6.4,<0.7"
+proxsuite = ">=0.7.3,<0.8"
+nanobind = ">=2.8.0,<3"
+numpy = "*"
+xacro = ">=2.1.1,<3"
+gtest = ">=1.17.0,<2"
+pytest = ">=6"
+
+[tool.pixi.feature.ros.target.linux.dependencies]
+mold = ">=2.40.2,<3"
+
+[tool.pixi.feature.ros.target.win.dependencies]
+dlfcn-win32 = ">=1.4.2,<2"
+clang-tools = ">=22.1.8,<23"
+clangxx     = ">=22.1.8,<23"
+compiler-rt = ">=22.1.8,<23"
+lld         = ">=22.1.8,<23"
+llvm-tools  = ">=22.1.8,<23"
+
+[tool.pixi.feature.ros.tasks]
+setup = "colcon mixin add default https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml || true && colcon mixin update default"
+build = { cmd = ["colcon", "build", "--cmake-args", "-DBUILD_TESTING=ON"] }
+test = { cmd = ["colcon", "test"] }
+test-result = { cmd = ["colcon", "test-result", "--verbose"] }
+
+###################
+## ROS 2 Rolling ##
+###################
+[tool.pixi.feature.rolling]
+channels = ["https://prefix.dev/robostack-rolling"]
+
+[tool.pixi.feature.rolling.dependencies]
+ros-rolling-ros-core = "*"
+# Pinocchio from conda-forge, since RoboStack does not build it for win-64.
+pinocchio = ">=4.1.0,<5"
+
+[tool.pixi.feature.rolling.activation.env]
+ROS_DISTRO = "rolling"
+
+###################
+## ROS 2 Lyrical ##
+###################
+[tool.pixi.feature.lyrical]
+channels = ["https://prefix.dev/robostack-lyrical"]
+
+[tool.pixi.feature.lyrical.dependencies]
+ros-lyrical-ros-core = "*"
+pinocchio = ">=4.1.0,<5"
+
+[tool.pixi.feature.lyrical.activation.env]
+ROS_DISTRO = "lyrical"
+
+##################
+## ROS 2 Kilted ##
+##################
+[tool.pixi.feature.kilted]
+channels = ["https://prefix.dev/robostack-kilted"]
+
+[tool.pixi.feature.kilted.dependencies]
+ros-kilted-ros-core = "*"
+pinocchio = ">=4.1.0,<5"
+
+[tool.pixi.feature.kilted.activation.env]
+ROS_DISTRO = "kilted"
+
+#################
+## ROS 2 Jazzy ##
+#################
+[tool.pixi.feature.jazzy]
+channels = ["https://prefix.dev/robostack-jazzy"]
+
+[tool.pixi.feature.jazzy.dependencies]
+ros-jazzy-ros-core = "*"
+pinocchio = ">=4.1.0,<5"
+
+[tool.pixi.feature.jazzy.activation.env]
+ROS_DISTRO = "jazzy"
+
+##################
+## ROS 2 Humble ##
+##################
+[tool.pixi.feature.humble]
+channels = ["https://prefix.dev/robostack-humble"]
+
+[tool.pixi.feature.humble.dependencies]
+ros-humble-ros-core = "*"
+# Humble's boost pin limits Pinocchio to 4.0.0, unlike the newer distros.
+pinocchio = ">=4.0.0,<5"
+
+[tool.pixi.feature.humble.activation.env]
+ROS_DISTRO = "humble"
