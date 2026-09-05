@@ -446,6 +446,31 @@ Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name, const
   return q_out;
 }
 
+Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
+                                             const Eigen::VectorXd& v) const {
+  return toFullJointVelocities(group_name, v, cur_state_.velocities);
+}
+
+Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
+                                             const Eigen::VectorXd& v,
+                                             const Eigen::VectorXd& v_reference) const {
+  const auto maybe_group_info = getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    throw std::runtime_error("Failed to get full joint velocities: " + maybe_group_info.error());
+  }
+  const auto& v_indices = maybe_group_info.value().v_indices;
+  if (v_indices.size() != v.size()) {
+    throw std::runtime_error("Failed to get full joint velocities: Joint group '" + group_name +
+                             "' has nv=" + std::to_string(v_indices.size()) +
+                             " but the input velocities is of size " + std::to_string(v.size()) +
+                             ".");
+  }
+
+  Eigen::VectorXd v_out = v_reference;
+  v_out(v_indices) = v;
+  return v_out;
+}
+
 Eigen::VectorXd Scene::interpolate(const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
                                    const double fraction) const {
   return pinocchio::interpolate(model_, q_start, q_end, fraction);
