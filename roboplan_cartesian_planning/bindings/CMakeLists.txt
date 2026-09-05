@@ -78,8 +78,17 @@ if(APPLE)
     "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/cartesian_planning"
     "${CMAKE_INSTALL_PREFIX}/lib"
   )
+  set(_cartesian_ext_rpaths "@loader_path/${_ext_to_lib}")
+  if(AMENT_BUILD)
+    # Isolated colcon installs give each dependency its own prefix, so ensure that they
+    # point to their actual install locations too.
+    foreach(_dep_target IN ITEMS
+      roboplan::roboplan roboplan_oink::roboplan_oink roboplan_toppra::roboplan_toppra)
+      list(APPEND _cartesian_ext_rpaths "$<TARGET_FILE_DIR:${_dep_target}>")
+    endforeach()
+  endif()
   set_target_properties(_cartesian_ext PROPERTIES
-    INSTALL_RPATH "@loader_path/${_ext_to_lib}"
+    INSTALL_RPATH "${_cartesian_ext_rpaths}"
   )
 endif()
 

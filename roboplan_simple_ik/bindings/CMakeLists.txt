@@ -74,8 +74,14 @@ if(APPLE)
     "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/simple_ik"
     "${CMAKE_INSTALL_PREFIX}/lib"
   )
+  set(_simple_ik_ext_rpaths "@loader_path/${_ext_to_lib}")
+  if(AMENT_BUILD)
+    # Isolated colcon installs give each dependency its own prefix, so ensure that they
+    # point to their actual install locations too.
+    list(APPEND _simple_ik_ext_rpaths "$<TARGET_FILE_DIR:roboplan::roboplan>")
+  endif()
   set_target_properties(_simple_ik_ext PROPERTIES
-    INSTALL_RPATH "@loader_path/${_ext_to_lib}"
+    INSTALL_RPATH "${_simple_ik_ext_rpaths}"
   )
 endif()
 
