@@ -42,6 +42,10 @@ jobs:
     name: Pixi
     uses: ./.github/workflows/pixi_build_and_test.yml
 
+  pixi_ros_build_and_test:
+    name: Pixi ROS
+    uses: ./.github/workflows/pixi_ros_build_and_test.yml
+
   rrt_benchmarks:
     name: Benchmarks
     uses: ./.github/workflows/rrt_benchmarks.yml

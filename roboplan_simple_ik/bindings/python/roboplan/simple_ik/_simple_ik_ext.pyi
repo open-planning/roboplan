@@ -1,6 +1,7 @@
 from collections.abc import Sequence
-import roboplan.core._core_ext
 from typing import overload
+
+import roboplan.core._core_ext
 
 
 class SimpleIkOptions:
