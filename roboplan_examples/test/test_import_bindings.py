@@ -4,7 +4,8 @@ Smoke test that the Python bindings of all roboplan packages are importable.
 This catches packaging issues for downstream packages that may use the bindings.
 """
 
-import importlib
+import subprocess
+import sys
 
 import pytest
 
@@ -22,4 +23,6 @@ BINDINGS_MODULES = [
 
 @pytest.mark.parametrize("module", BINDINGS_MODULES)
 def test_import_bindings(module: str) -> None:
-    importlib.import_module(module)
+    # Run in a fresh subprocess to ensure no cross contamination for dylb
+    # when importing modules that have transitive dependencies.
+    subprocess.run([sys.executable, "-c", f"import {module}"], check=True)
