@@ -46,7 +46,11 @@ from pynput import keyboard
 
 from common import get_home_configuration, get_model_data
 from roboplan.visualization import se3_to_viser_wxyz
-from roboplan.core import CartesianConfiguration, Scene
+from roboplan.core import (
+    CartesianConfiguration,
+    Scene,
+    UrdfSceneDescription,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.filters import SE3LowPassFilter
 from roboplan.optimal_ik import (
@@ -330,8 +334,7 @@ def main(
 
     scene = Scene(
         "teleop_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
+        UrdfSceneDescription(urdf_xml, srdf_xml),
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
@@ -359,13 +362,13 @@ def main(
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin,
-        urdf_xml,
+        str(model_data.urdf_path),
         pin.GeometryType.COLLISION,
         package_dirs=package_paths,
     )
     visual_model = pin.buildGeomFromUrdfString(
         model_pin,
-        urdf_xml,
+        str(model_data.urdf_path),
         pin.GeometryType.VISUAL,
         package_dirs=package_paths,
     )

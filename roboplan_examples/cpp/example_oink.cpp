@@ -21,7 +21,8 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
-  auto scene = Scene("example_optimal_ik_scene", urdf_path, srdf_path, package_paths);
+  auto scene = Scene("example_optimal_ik_scene", loadUrdfSceneDescription(urdf_path, srdf_path),
+                     package_paths);
 
   // Set up target configuration
   const auto& model = scene.getModel();

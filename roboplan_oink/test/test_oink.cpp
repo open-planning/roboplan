@@ -42,8 +42,8 @@ protected:
     srdf_path_ = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     package_paths_ = {example_models::get_package_share_dir()};
     yaml_config_path_ = model_prefix / "ur_robot_model" / "ur5_config.yaml";
-    scene_ = std::make_shared<Scene>("test_scene", urdf_path_, srdf_path_, package_paths_,
-                                     yaml_config_path_);
+    scene_ = std::make_shared<Scene>("test_scene", loadUrdfSceneDescription(urdf_path_, srdf_path_),
+                                     package_paths_, yaml_config_path_);
 
     // Get the number of variables (DOF)
     num_variables_ = scene_->getModel().nv;
@@ -680,8 +680,8 @@ protected:
     auto yaml_config_path = model_prefix / std::filesystem::path(config.yaml_config_path);
 
     // Load the robot model
-    scene_ = std::make_shared<Scene>(config.name, urdf_path, srdf_path, package_paths_,
-                                     yaml_config_path);
+    scene_ = std::make_shared<Scene>(config.name, loadUrdfSceneDescription(urdf_path, srdf_path),
+                                     package_paths_, yaml_config_path);
 
     // Get the number of variables (DOF)
     // nv = velocity DOF (for constraints), nq = configuration DOF (for setJointPositions)

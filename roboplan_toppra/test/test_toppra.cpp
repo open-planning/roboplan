@@ -150,7 +150,8 @@ protected:
     const auto yaml_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
-    scene = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths, yaml_path);
+    scene = std::make_shared<Scene>("test_scene", loadUrdfSceneDescription(urdf_path, srdf_path),
+                                    package_paths, yaml_path);
   }
 
 public:

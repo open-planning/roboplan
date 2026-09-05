@@ -33,8 +33,8 @@ protected:
     const auto yaml_config_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
-    scene_ = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths,
-                                     yaml_config_path);
+    scene_ = std::make_shared<Scene>("test_scene", loadUrdfSceneDescription(urdf_path, srdf_path),
+                                     package_paths, yaml_config_path);
   }
 
   /// @brief Builds a single-frame straight-line CartesianPath of `num_waypoints` points

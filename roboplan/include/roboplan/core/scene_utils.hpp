@@ -38,9 +38,13 @@ const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
 std::unordered_map<std::string, pinocchio::FrameIndex>
 createFrameMap(const pinocchio::Model& model);
 
-/// @brief Creates the joint group information for the scene;
+/// @brief Creates the default joint group containing the entire model.
+std::unordered_map<std::string, JointGroupInfo>
+createDefaultJointGroupInfo(const pinocchio::Model& model);
+
+/// @brief Creates joint groups from an SRDF, including the default whole-model group.
 /// @param model The Pinocchio model.
-/// @param srdf_stream The SRDF file contents.
+/// @param srdf The SRDF file contents.
 /// @return The map of robot joint group names to group info.
 std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Model& model,
                                                                      const std::string& srdf);
@@ -85,14 +89,6 @@ Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene, const 
 bool computeCollisionsVerbose(const pinocchio::Model& model, pinocchio::Data& data,
                               const pinocchio::GeometryModel& collision_model,
                               pinocchio::GeometryData& geom_data, const Eigen::VectorXd& q);
-
-/// @brief Holds extended joint limits (acceleration, jerk) parsed from a URDF <limit> tag.
-/// @details This is a temporary holdover until Pinocchio properly supports URDF 1.2 extended
-/// limits in its own parsers. See https://github.com/stack-of-tasks/pinocchio/issues/2893
-struct UrdfExtendedJointLimits {
-  std::optional<double> acceleration;
-  std::optional<double> jerk;
-};
 
 /// @brief Parses extended joint limits (acceleration, jerk) from URDF <limit> tags.
 /// @details Reads acceleration and jerk attributes if present, regardless of URDF version.

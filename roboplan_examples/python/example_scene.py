@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
 import numpy as np
-
 from common import get_model_data
-from roboplan.core import JointConfiguration, Scene
+from roboplan.core import (
+    JointConfiguration,
+    Scene,
+    UrdfSceneDescription,
+    loadUrdfSceneDescription,
+)
 from roboplan.example_models import get_package_share_dir
 
-
 if __name__ == "__main__":
-
     jc = JointConfiguration(
         ["joint_1", "joint_2", "joint_3"],
         np.array([0.1, 0.2, 0.3]),
@@ -22,6 +24,8 @@ if __name__ == "__main__":
     package_paths = [get_package_share_dir()]
 
     scene = Scene(
-        "test_scene", model_data.urdf_path, model_data.srdf_path, package_paths
+        "test_scene",
+        loadUrdfSceneDescription(model_data.urdf_path, model_data.srdf_path),
+        package_paths,
     )
     print(scene)
