@@ -280,6 +280,14 @@ gtest = ">=1.17.0,<2"
 # Newer pytest breaks ROS's launch_testing plugin's hookimpl signature.
 pytest = "<9.1.0"
 
+[tool.pixi.feature.ros.target.unix.activation.env]
+# Prioritize pixi installed packages
+CMAKE_PREFIX_PATH = "${CONDA_PREFIX}:${CMAKE_PREFIX_PATH}"
+# Ensures the linker knows where to look for conda managed packages
+LIBRARY_PATH = "${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+LD_LIBRARY_PATH = "${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+LDFLAGS = "-L${CONDA_PREFIX}/lib -Wl,-rpath,${CONDA_PREFIX}/lib"
+
 [tool.pixi.feature.ros.target.linux.dependencies]
 mold = ">=2.40.2,<3"
 
