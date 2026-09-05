@@ -1,0 +1,26 @@
+# Shared Python install-layout policy for RoboPlan CMake packages.
+# Set ROBOPLAN_PYTHON_INSTALL_DIR to override the destination; it may be
+# relative to CMAKE_INSTALL_PREFIX or an absolute site-packages path.
+function(roboplan_get_python_install_dir result)
+  if(DEFINED ROBOPLAN_PYTHON_INSTALL_DIR)
+    set(${result} "${ROBOPLAN_PYTHON_INSTALL_DIR}" PARENT_SCOPE)
+  elseif(DEFINED ENV{CMEEL_BUILD})
+    if(NOT DEFINED PYTHON_SITELIB)
+      message(FATAL_ERROR "cmeel did not provide PYTHON_SITELIB")
+    endif()
+    set(${result} "${PYTHON_SITELIB}" PARENT_SCOPE)
+  elseif(AMENT_BUILD)
+    ament_get_python_install_dir(_ament_python_dir)
+    if(_ament_python_dir MATCHES "dist-packages")
+      set(_python_version "${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
+      set(${result} "lib/python${_python_version}/site-packages" PARENT_SCOPE)
+    else()
+      set(${result} "${_ament_python_dir}" PARENT_SCOPE)
+    endif()
+  else()
+    find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+    # TO_CMAKE_PATH converts Windows backslashes for cmake_install.cmake.
+    file(TO_CMAKE_PATH "${Python_SITEARCH}" _python_destination)
+    set(${result} "${_python_destination}" PARENT_SCOPE)
+  endif()
+endfunction()

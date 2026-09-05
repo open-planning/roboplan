@@ -49,7 +49,15 @@ target_link_libraries(_example_models_ext PRIVATE
 #   - scikit-build wheel: the wheel root (".").
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
-if(AMENT_BUILD)
+if(NOT COMMAND roboplan_get_python_install_dir AND DEFINED ENV{CMEEL_BUILD})
+  find_package(roboplan_common CONFIG REQUIRED)
+endif()
+
+if(COMMAND roboplan_get_python_install_dir)
+  roboplan_get_python_install_dir(PYTHON_DESTINATION)
+elseif(DEFINED ROBOPLAN_PYTHON_INSTALL_DIR)
+  set(PYTHON_DESTINATION "${ROBOPLAN_PYTHON_INSTALL_DIR}")
+elseif(AMENT_BUILD)
   ament_get_python_install_dir(_ament_python_dir)
   if(_ament_python_dir MATCHES "dist-packages")
     set(PYTHON_DESTINATION

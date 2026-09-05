@@ -1,6 +1,6 @@
 [build-system]
-requires = ["scikit-build-core >=0.10", "nanobind >=1.3.2", "roboplan-common", "roboplan-core"]
-build-backend = "scikit_build_core.build"
+requires = ["cmeel[build] >=0.56", "nanobind >=1.3.2", "roboplan-common", "roboplan-core"]
+build-backend = "cmeel.build"
 
 [project]
 name = "roboplan-rrt"
@@ -8,6 +8,7 @@ version = "0.6.1"
 description = "Rapidly-Exploring Random Tree (RRT) implementation for RoboPlan."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
 authors = [
     { name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" },
 ]
@@ -19,9 +20,38 @@ dependencies = ["roboplan-common", "roboplan-core"]
 [project.urls]
 Homepage = "https://github.com/open-planning/roboplan"
 
-[tool.scikit-build]
-minimum-version = "build-system.requires"
-build-dir = "build/{wheel_tag}"
-cmake.define.BUILD_PYTHON_BINDINGS = "ON"
-cmake.define.BUILD_TESTING = "OFF"
-# PEP 420 namespace package: no top-level roboplan/__init__.py is shipped.
+[tool.cmeel]
+source = "."
+run-tests = false
+configure-args = [
+    "-DBUILD_PYTHON_BINDINGS=ON",
+    "-DBUILD_TESTING=OFF",
+    "-DGENERATE_PYTHON_STUBS=OFF",
+]
+
+[tool.pixi.package]
+publish = true
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-cmake", version = "*" }
+
+[tool.pixi.package.build.config]
+compilers = ["cxx"]
+
+extra-args = [
+    "-DBUILD_PYTHON_BINDINGS=ON",
+    "-DBUILD_TESTING=OFF",
+    "-DGENERATE_PYTHON_STUBS=OFF",
+]
+
+[tool.pixi.package.host-dependencies]
+cmake = ">=3.22"
+nanobind = ">=2.8"
+ninja = "*"
+python = ">=3.10,<3.15"
+roboplan-common = { path = "../roboplan_common" }
+roboplan-core = { path = "../roboplan" }
+
+[tool.pixi.package.run-dependencies]
+roboplan-common = { path = "../roboplan_common" }
+roboplan-core = { path = "../roboplan" }

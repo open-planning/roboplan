@@ -12,6 +12,7 @@
 # Python packaging artifacts
 dist/
 wheelhouse/
+*.conda
 
 # Benchmarking results
 pytest_benchmarks.json

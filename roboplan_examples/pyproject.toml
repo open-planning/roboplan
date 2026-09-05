@@ -1,0 +1,33 @@
+[tool.pixi.package]
+name = "roboplan-examples"
+version = "0.6.1"
+publish = false
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-cmake", version = "*" }
+
+[tool.pixi.package.host-dependencies]
+roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
+roboplan-core = { path = "../roboplan" }
+roboplan-example-models = { path = "../roboplan_example_models" }
+roboplan-oink = { path = "../roboplan_oink" }
+roboplan-rrt = { path = "../roboplan_rrt" }
+roboplan-simple-ik = { path = "../roboplan_simple_ik" }
+roboplan-toppra = { path = "../roboplan_toppra" }
+
+[tool.pixi.package.run-dependencies]
+matplotlib = ">=3.10.5,<4"
+numpy = "*"
+pinocchio = ">=4.1,<5"
+plyfile = ">=1.1,<2"
+pynput = ">=1.8.2,<2"
+roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
+roboplan-core = { path = "../roboplan" }
+roboplan-example-models = { path = "../roboplan_example_models" }
+roboplan-oink = { path = "../roboplan_oink" }
+roboplan-rrt = { path = "../roboplan_rrt" }
+roboplan-simple-ik = { path = "../roboplan_simple_ik" }
+roboplan-toppra = { path = "../roboplan_toppra" }
+tyro = ">=0.9.26,<0.10"
+viser = ">=1.0.29,<2"
+xacro = ">=2.1.1,<3"
