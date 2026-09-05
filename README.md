@@ -16,6 +16,7 @@ The main folders found in this repo are as follows.
 
 - `docs` : The documentation source.
 - `roboplan` : The core C++ library.
+- `roboplan_common` : Shared utilities such as Python install helpers and CMake macros.
 - `roboplan_simple_ik` : A simple inverse kinematics (IK) solver.
 - `roboplan_oink` : A task-based Optimal Inverse Kinematics (OInK) solver.
 - `roboplan_rrt` : A Rapidly-exploring Random Tree (RRT) based motion planner.
