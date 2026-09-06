@@ -9,32 +9,41 @@ permissions:
 
 jobs:
   check_version:
-    name: Check package version
+    name: Check package versions
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.package.outputs.version }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
-      - name: Read package metadata
+      - name: Read and validate package metadata
         id: package
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import tomllib
           from pathlib import Path
 
-          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
-          project = pyproject["project"]
-          if project["name"] != "roboplan":
-              raise SystemExit(f"Unexpected package name: {project['name']}")
-          version = project.get("version")
-          if not isinstance(version, str):
-              raise SystemExit("pyproject.toml must declare a static project.version")
-          print(f"version={version}")
+          packages = [
+              "roboplan",
+              "roboplan_common",
+              "roboplan_core",
+              "roboplan_example_models",
+              "roboplan_oink",
+              "roboplan_rrt",
+              "roboplan_simple_ik",
+              "roboplan_toppra",
+              "roboplan_cartesian_planning",
+          ]
+          versions = {
+              package: tomllib.loads((Path(package) / "pyproject.toml").read_text())["project"]["version"]
+              for package in packages
+          }
+          if len(set(versions.values())) != 1:
+              raise SystemExit(f"Package versions differ: {versions}")
+          print(f"version={next(iter(versions.values()))}")
           PY
       - name: Check tag matches package version
         if: startsWith(github.ref, 'refs/tags/')
@@ -51,38 +60,61 @@ jobs:
             exit 1
           fi
 
-  build_sdist:
-    name: Build source distribution
+  build_common_wheels:
+    name: Build roboplan-common for Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     needs: check_version
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build --wheel --outdir wheelhouse roboplan_common
+          python -m twine check wheelhouse/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions-bootstrap-common-${{ matrix.python-version }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  build_metapackage:
+    name: Build roboplan metapackage
+    runs-on: ubuntu-latest
+    needs: check_version
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build sdist
+      - name: Build wheel
         run: |
-          rm -rf dist
           python -m pip install --upgrade build twine
-          python -m build --sdist
-          python -m twine check dist/*.tar.gz
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
+          python -m build --wheel --outdir wheelhouse roboplan
+          python -m twine check wheelhouse/*.whl
+      - uses: actions/upload-artifact@v4
         with:
-          name: python-distributions-sdist
-          path: dist/roboplan-*.tar.gz
+          name: python-distributions-bootstrap-metapackage
+          path: wheelhouse/*.whl
           if-no-files-found: error
 
   build_wheels:
     name: Build ${{ matrix.name }} wheels
     runs-on: ${{ matrix.os }}
-    needs: check_version
+    needs: [build_common_wheels, build_metapackage]
     strategy:
       fail-fast: false
       matrix:
@@ -102,38 +134,121 @@ jobs:
             archs: arm64
             artifact: macos-arm64
             extra_environment: "MACOSX_DEPLOYMENT_TARGET=14.0"
+    env:
+      CIBW_ARCHS: ${{ matrix.archs }}
+      CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+      CIBW_SKIP: "*-musllinux*"
+      CIBW_REPAIR_WHEEL_COMMAND: ""
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+      CIBW_ENVIRONMENT: >-
+        CMEEL_JOBS=2
+        CMAKE_BUILD_PARALLEL_LEVEL=2
+        MAKEFLAGS="-j2"
+        NINJAFLAGS="-j2"
+        ${{ matrix.extra_environment }}
+      CIBW_BEFORE_BUILD_LINUX: pip config set global.find-links /host${{ github.workspace }}/wheelhouse
+      CIBW_BEFORE_BUILD_MACOS: pip config set global.find-links ${{ github.workspace }}/wheelhouse
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
-      - name: Build wheels
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: python-distributions-bootstrap-*
+          merge-multiple: true
+          path: wheelhouse
+      - name: Build roboplan-core wheels
         uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_core
+          output-dir: wheelhouse
+
+      - name: Build roboplan-example-models wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_example_models
+          output-dir: wheelhouse
+      - name: Build roboplan-oink wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_oink
+          output-dir: wheelhouse
+      - name: Build roboplan-rrt wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_rrt
+          output-dir: wheelhouse
+      - name: Build roboplan-simple-ik wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_simple_ik
+          output-dir: wheelhouse
+      - name: Build roboplan-toppra wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_toppra
+          output-dir: wheelhouse
+      - name: Build and test roboplan-cartesian-planning wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_cartesian_planning
+          output-dir: wheelhouse
         env:
-          CIBW_ARCHS: ${{ matrix.archs }}
-          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
-          CIBW_SKIP: "pp* *-musllinux*"
-          # Intentionally short-circuit CIBW's "repair" step that vendors libraries automatically.
-          # This is the recommended way to do this (see https://github.com/cmake-wheel/cmeel-example/blob/cmeel/.github/workflows/release.yml)
-          # because cmeel avoids vendoring where possible to avoid shipping duplicate libraries.
-          CIBW_REPAIR_WHEEL_COMMAND: ""
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
-          CIBW_ENVIRONMENT: >-
-            CMEEL_JOBS=2
-            CMAKE_BUILD_PARALLEL_LEVEL=2
-            MAKEFLAGS="-j2"
-            NINJAFLAGS="-j2"
-            ${{ matrix.extra_environment }}
+          CIBW_BEFORE_TEST_LINUX: >-
+            pip install --find-links /host${{ github.workspace }}/wheelhouse
+            roboplan roboplan-example-models roboplan-rrt roboplan-simple-ik
+          CIBW_BEFORE_TEST_MACOS: >-
+            pip install --find-links ${{ github.workspace }}/wheelhouse
+            roboplan roboplan-example-models roboplan-rrt roboplan-simple-ik
           CIBW_TEST_COMMAND: >-
-            python -c "import roboplan; import roboplan.core; import roboplan.filters; import roboplan.example_models;
+            python -c "import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;
             import roboplan.toppra; import roboplan.cartesian_planning; print('roboplan imports ok')"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: python-distributions-${{ matrix.artifact }}
-          path: wheelhouse/roboplan-*.whl
+          path: |
+            wheelhouse/roboplan_core-*.whl
+            wheelhouse/roboplan_example_models-*.whl
+            wheelhouse/roboplan_oink-*.whl
+            wheelhouse/roboplan_rrt-*.whl
+            wheelhouse/roboplan_simple_ik-*.whl
+            wheelhouse/roboplan_toppra-*.whl
+            wheelhouse/roboplan_cartesian_planning-*.whl
+          if-no-files-found: error
+
+  build_sdist:
+    name: Build source distributions
+    runs-on: ubuntu-latest
+    needs: [build_common_wheels, build_metapackage, build_wheels]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: python-distributions-*
+          merge-multiple: true
+          path: wheelhouse
+      - name: Build source distributions
+        run: |
+          python -m pip install --upgrade build twine
+          mkdir -p "$HOME/.config/pip" dist
+          printf '[global]\nfind-links = %s/wheelhouse\n' "$PWD" > "$HOME/.config/pip/pip.conf"
+          for package in roboplan_common roboplan_core roboplan_example_models roboplan_oink roboplan_rrt roboplan_simple_ik roboplan_toppra roboplan_cartesian_planning roboplan; do
+            python -m build --sdist --outdir dist "$package"
+          done
+          python -m twine check dist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions-sdist
+          path: dist/*.tar.gz
           if-no-files-found: error

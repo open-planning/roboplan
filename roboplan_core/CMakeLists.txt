@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(roboplan VERSION 0.6.1)
+project(roboplan_core VERSION 0.6.1)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
   # clang-cl remaps plain -Wall to MSVC /Wall (clang's -Weverything); use the
@@ -76,6 +76,7 @@ target_link_libraries(roboplan
     PUBLIC
     Eigen3::Eigen
     pinocchio::pinocchio
+    PRIVATE
     tinyxml2::tinyxml2
     console_bridge::console_bridge
 )

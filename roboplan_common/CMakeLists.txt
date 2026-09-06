@@ -12,9 +12,9 @@ elseif(ament_cmake_FOUND)
     set(PYTHON_DESTINATION
         "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
   endif()
-elseif(SKBUILD)
-  # scikit-build collects files installed at the wheel root.
-  set(PYTHON_DESTINATION ".")
+elseif(DEFINED PYTHON_SITELIB)
+  # cmeel installs Python files under its isolated prefix.
+  set(PYTHON_DESTINATION "${PYTHON_SITELIB}")
 else()
   find_package(Python REQUIRED COMPONENTS Interpreter)
   file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
