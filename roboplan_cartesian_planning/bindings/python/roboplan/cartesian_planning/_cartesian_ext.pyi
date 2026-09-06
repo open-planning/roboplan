@@ -1,9 +1,8 @@
 from collections.abc import Sequence
 import enum
-from typing import overload
-
 import roboplan.core._core_ext
 import roboplan.optimal_ik._optimal_ik_ext
+from typing import overload
 
 
 class CartesianSpeedMode(enum.Enum):

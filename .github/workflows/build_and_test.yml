@@ -1,4 +1,4 @@
-name: build_and_test
+name: CI
 
 on:
   # Run action on certain pull request events
@@ -7,7 +7,7 @@ on:
 
   # Nightly job on default (main) branch
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 
   # Whenever certain branches are pushed
   push:
@@ -22,179 +22,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  format:
+    name: Format
+    uses: ./.github/workflows/format.yml
+
+  build_pypi_wheels:
+    name: Wheels
+    uses: ./.github/workflows/build-pypi-wheels.yml
 
   ubuntu_build_and_test:
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        ubuntu_version: [22.04, 24.04, 26.04]
+    name: Bare Ubuntu
+    uses: ./.github/workflows/ubuntu_build_and_test.yml
 
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Sanitize tag name
-        id: sanitize_tag
-        run: |
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          TAG="${BRANCH//\//-}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: .docker/ubuntu/Dockerfile
-          tags: roboplan_ubuntu:${{ steps.sanitize_tag.outputs.tag }}
-          build-args: |
-            UBUNTU_VERSION=${{ matrix.ubuntu_version }}
-          push: false
-          load: true
-          cache-from: type=gha,scope=ubuntu-${{ matrix.ubuntu_version }}
-          cache-to: type=gha,mode=max,scope=ubuntu-${{ matrix.ubuntu_version }}
-      - name: Run tests
-        run: |
-          docker run --rm \
-            roboplan_ubuntu:${{ steps.sanitize_tag.outputs.tag }} \
-            /bin/bash -c './scripts/run_tests.bash'
-
-  # Build ROS docker images and run tests.
   ros_build_and_test:
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        ros_distro: [humble, jazzy, kilted, lyrical, rolling]
-
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Sanitize tag name
-        id: sanitize_tag
-        run: |
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          TAG="${BRANCH//\//-}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: .docker/ros/Dockerfile
-          tags: roboplan_ros:${{ steps.sanitize_tag.outputs.tag }}
-          build-args: |
-            ROS_DISTRO=${{ matrix.ros_distro }}
-            GENERATE_PYTHON_STUBS=${{ matrix.ros_distro == 'humble' && 'OFF' || 'ON' }}
-          push: false
-          load: true
-          cache-from: type=gha,scope=ros-${{ matrix.ros_distro }}
-          cache-to: type=gha,mode=max,scope=ros-${{ matrix.ros_distro }}
-      - name: Run tests
-        run: |
-          docker run --rm \
-            roboplan_ros:${{ steps.sanitize_tag.outputs.tag }} \
-            /bin/bash -c './src/roboplan/scripts/run_tests.bash'
+    name: ROS
+    uses: ./.github/workflows/ros_build_and_test.yml
 
   pixi_build_and_test:
-    timeout-minutes: 30
-    env:
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            cache-key: ubuntu-22.04
-            clang_tidy: false
-          - os: ubuntu-24.04
-            cache-key: ubuntu-24.04
-            clang_tidy: false
-          - os: ubuntu-26.04
-            cache-key: ubuntu-26.04
-            clang_tidy: true
-          - os: macos-14
-            cache-key: macos-arm64
-            clang_tidy: false
-          - os: windows-latest
-            cache-key: windows
-            clang_tidy: false
-
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        # On Windows, bash stops at the first failing command,
-        # and the stub check step below uses bash syntax.
-        shell: bash
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Cache sccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: ${{ matrix.cache-key }}-sccache-${{ github.head_ref || github.ref_name }}
-          restore-keys: |
-            ${{ matrix.cache-key }}-sccache-main
-            ${{ matrix.cache-key }}-sccache
-      - uses: prefix-dev/setup-pixi@v0.10.0
-        with:
-          cache: true
-          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-          frozen: true
-          manifest-path: pixi.toml
-      - name: Build and test
-        run: |
-          pixi run -e ci install_all
-          pixi run -e ci build_tests
-          pixi run -e ci test_all
-      - name: Run clang-tidy
-        if: matrix.clang_tidy
-        run: pixi run -e ci clang-tidy
-      - name: Check bindings stub files
-        run: |
-          if ! git diff --exit-code --shortstat -- '*.pyi'; then
-            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds using 'pixi run -e ci install_all' and commit the changes."
-            echo "Git Diff:"
-            git diff -- '*.pyi'
-            exit 1
-          fi
-          echo "✅ .pyi stub files look good!"
+    name: Pixi
+    uses: ./.github/workflows/pixi_build_and_test.yml
 
   rrt_benchmarks:
-    timeout-minutes: 30
-    runs-on: ubuntu-24.04
-    env:
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Cache sccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.SCCACHE_DIR }}
-          key: ubuntu-24.04-benchmarks-sccache-${{ github.head_ref || github.ref_name }}
-          restore-keys: |
-            ubuntu-24.04-benchmarks-sccache-main
-            ubuntu-24.04-benchmarks-sccache
-      - uses: prefix-dev/setup-pixi@v0.8.14
-        with:
-          cache: true
-          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-          frozen: true
-          manifest-path: pixi.toml
-      - name: Build
-        run: pixi run -e default install_all
-      - name: Run RRT benchmarks
-        run: pixi run -e default test_benchmarks
+    name: Benchmarks
+    uses: ./.github/workflows/rrt_benchmarks.yml

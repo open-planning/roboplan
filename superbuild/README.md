@@ -1,18 +1,13 @@
-# Python packaging
+# RoboPlan superbuild and Python packaging
 
-This directory contains the PyPI/cibuildwheel-specific packaging helpers for RoboPlan.
-The normal source-tree CMake build remains in the package directories.
-`pyproject.toml` points `scikit-build-core` at this directory with `tool.scikit-build.cmake.source-dir`.
+This directory is RoboPlan's shared CMake entry point. The PyPI backend is
+`cmeel.build`, which configures this same superbuild and installs it into cmeel's
+isolated prefix. cmeel exposes the prefix's Python site-packages directory through
+its generated `.pth` file and discovers installed cmeel dependencies through
+`CMAKE_PREFIX_PATH`.
 
-The helper CMake files cover three packaging-only concerns:
-
-- expose `cmeel`'s isolated native dependency prefix to `scikit-build-core` builds;
-- install the runtime native libraries that wheels need at import time;
-- repair installed RPATHs with `patchelf` using checked-in CMake script templates rather than large embedded `install(CODE ...)` strings.
-
-Release wheels are built with `cibuildwheel` in the [`build-pypi-wheels.yml`](../../.github/workflows/build-pypi-wheels.yml) CI workflow, and are smoke-tested by importing the `roboplan` namespace and every compiled submodule.
-That workflow runs on pull requests so wheel build breakage is caught before release.
-The [`release.yml`](../../.github/workflows/release.yml) workflow invokes the same build workflow from the tagged commit, downloads those fresh artifacts, and publishes them through PyPI trusted publishing.
+Release wheels are built with `cibuildwheel` in the [`build-pypi-wheels.yml`](../.github/workflows/build-pypi-wheels.yml) CI workflow, and are smoke-tested by importing the `roboplan` namespace and every compiled submodule.
+The [`build_and_test.yml`](../.github/workflows/build_and_test.yml) and [`release.yml`](../.github/workflows/release.yml) workflows invoke it, so wheel builds use the same triggers as the overall CI workflow and tagged releases can publish fresh artifacts through PyPI trusted publishing.
 
 
 ## Local checks

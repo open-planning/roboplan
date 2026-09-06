@@ -5,7 +5,7 @@ Paths produced by sampling-based planners such as :doc:`RRT <sampling_based_plan
 Because the tree grows by random extension, the resulting path tends to wander, with unnecessary corners and detours that a more direct route would avoid.
 *Path shortcutting* is a fast post-processing step that smooths such a path without re-running the planner.
 
-RoboPlan provides the ``PathShortcutter`` class (in ``roboplan/include/roboplan/core/path_utils.hpp``), which shortens a ``JointPath`` using random shortcutting.
+RoboPlan provides the ``PathShortcutter`` class (in ``roboplan_core/include/roboplan/core/path_utils.hpp``), which shortens a ``JointPath`` using random shortcutting.
 
 Each iteration of the shortcutter:
 

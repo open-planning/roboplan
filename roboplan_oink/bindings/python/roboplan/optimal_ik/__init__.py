@@ -1,14 +1,8 @@
 # The `roboplan.optimal_ik` bindings, backed by `_optimal_ik_ext`.
 # Import core first to guarantee its types are registered before use.
-import os
+from roboplan_common import add_dll_directories
 
-# Python >= 3.8 on Windows does not search PATH for the DLLs an extension
-# module links against, and in a colcon workspace they live outside this
-# package. Register the PATH entries explicitly before importing.
-if os.name == "nt":
-    for _entry in os.environ.get("PATH", "").split(os.pathsep):
-        if _entry and os.path.isdir(_entry):
-            os.add_dll_directory(_entry)
+_dll_directories = add_dll_directories()
 
 import roboplan.core  # noqa: F401
 

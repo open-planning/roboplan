@@ -51,7 +51,11 @@ target_link_libraries(_rrt_ext PRIVATE
 #   - scikit-build wheel: the wheel root (".").
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
-if(AMENT_BUILD)
+if(COMMAND roboplan_get_python_install_dir)
+  roboplan_get_python_install_dir(PYTHON_DESTINATION)
+elseif(DEFINED ROBOPLAN_PYTHON_INSTALL_DIR)
+  set(PYTHON_DESTINATION "${ROBOPLAN_PYTHON_INSTALL_DIR}")
+elseif(AMENT_BUILD)
   ament_get_python_install_dir(_ament_python_dir)
   if(_ament_python_dir MATCHES "dist-packages")
     set(PYTHON_DESTINATION
@@ -101,14 +105,28 @@ if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
     "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
+  # roboplan.rrt imports roboplan.core; use the staged copy if a sibling
+  # build already produced one.
+  set(_extra_stub_python_path)
+  set(_extra_stub_depends)
+  if(TARGET _core_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _core_ext)
+  endif()
   nanobind_add_stub(
     _rrt_ext_stub
     MODULE _rrt_ext
     OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/rrt/_rrt_ext.pyi"
     MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/rrt/py.typed"
-    PYTHON_PATH "$<TARGET_FILE_DIR:_rrt_ext>"
-    DEPENDS _rrt_ext
+    PYTHON_PATH "$<TARGET_FILE_DIR:_rrt_ext>" ${_extra_stub_python_path}
+    DEPENDS _rrt_ext ${_extra_stub_depends}
   )
+
+  # Stage this extension under pystage/, for any sibling package that might need it.
+  set_target_properties(_rrt_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/rrt")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/rrt/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/rrt")
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")

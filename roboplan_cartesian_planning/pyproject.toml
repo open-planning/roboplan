@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core >=0.10", "nanobind >=1.3.2", "roboplan-core", "roboplan-oink", "roboplan-toppra"]
+requires = ["scikit-build-core >=0.10", "nanobind >=1.3.2", "roboplan-common", "roboplan-core", "roboplan-oink", "roboplan-toppra"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -14,7 +14,7 @@ authors = [
 classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["roboplan-core", "roboplan-oink", "roboplan-toppra"]
+dependencies = ["roboplan-common", "roboplan-core", "roboplan-oink", "roboplan-toppra"]
 
 [project.urls]
 Homepage = "https://github.com/open-planning/roboplan"

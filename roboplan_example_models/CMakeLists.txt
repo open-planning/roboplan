@@ -45,6 +45,8 @@ target_include_directories(roboplan_example_models PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 set_property(TARGET roboplan_example_models PROPERTY CXX_STANDARD 20)
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan_example_models::roboplan_example_models ALIAS roboplan_example_models)
 
 install(DIRECTORY include/ DESTINATION include)
 install(

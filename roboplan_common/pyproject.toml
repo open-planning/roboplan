@@ -1,0 +1,23 @@
+[build-system]
+requires = ["scikit-build-core >=0.10"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "roboplan-common"
+version = "0.6.1"
+description = "Shared runtime support for RoboPlan Python packages."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" },
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Homepage = "https://github.com/open-planning/roboplan"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"

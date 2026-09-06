@@ -15,7 +15,8 @@ Refer to the [full documentation](https://roboplan.readthedocs.io) for more info
 The main folders found in this repo are as follows.
 
 - `docs` : The documentation source.
-- `roboplan` : The core C++ library.
+- `roboplan_core` : The core C++ library.
+- `roboplan_common` : Shared utilities such as Python install helpers and CMake macros.
 - `roboplan_simple_ik` : A simple inverse kinematics (IK) solver.
 - `roboplan_oink` : A task-based Optimal Inverse Kinematics (OInK) solver.
 - `roboplan_rrt` : A Rapidly-exploring Random Tree (RRT) based motion planner.
@@ -23,7 +24,7 @@ The main folders found in this repo are as follows.
 - `roboplan_cartesian_planning` : A Cartesian planner for following task-space paths.
 - `roboplan_example_models` : Contains robot models used for testing and examples.
 - `roboplan_examples` : Basic examples with real robot models.
-- `packaging` : Files to help package wheels for release on PyPi.
+- `superbuild` : Shared CMake entry point for local, Conda, and PyPI-wheel builds.
 
 ---
 

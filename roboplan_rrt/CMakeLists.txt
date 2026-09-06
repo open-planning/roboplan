@@ -34,6 +34,8 @@ target_include_directories(roboplan_rrt PUBLIC
 )
 set_property(TARGET roboplan_rrt PROPERTY CXX_STANDARD 20)
 target_link_libraries(roboplan_rrt roboplan::roboplan)
+# Alias so this works via add_subdirectory() too, not just installed find_package().
+add_library(roboplan_rrt::roboplan_rrt ALIAS roboplan_rrt)
 
 install(
   TARGETS

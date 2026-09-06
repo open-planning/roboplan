@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>roboplan_common</name>
+  <version>0.6.1</version>
+  <description>Shared runtime support for RoboPlan Python packages.</description>
+  <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
+  <license>MIT</license>
+
+  <url type="website">https://roboplan.readthedocs.io</url>
+  <url type="repository">https://github.com/open-planning/roboplan</url>
+  <url type="bugtracker">https://github.com/open-planning/roboplan/issues</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <build_depend>python3-dev</build_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

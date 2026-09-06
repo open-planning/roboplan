@@ -1,7 +1,7 @@
 # Python bindings for the roboplan core package.
 #
 # This file is added via `add_subdirectory(bindings)` from the parent
-# roboplan/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the C++
+# roboplan_core/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the C++
 # targets (roboplan, roboplan_filters) already exist in this configure and
 # do not need to be found via find_package.
 #
@@ -38,7 +38,7 @@ execute_process(
 find_package(nanobind CONFIG REQUIRED)
 
 # NOTE: the shared binding utility header <roboplan_bindings/expected.hpp> lives
-# in this package's main include tree (roboplan/include/roboplan_bindings/) and
+# in this package's main include tree (roboplan_core/include/roboplan_bindings/) and
 # is installed unconditionally by the top-level CMakeLists, so dependent packages
 # (e.g. roboplan_rrt, roboplan_toppra) can find it via find_package(roboplan)
 # even when this package is built without the Python bindings. The core.hpp /
@@ -71,7 +71,11 @@ target_link_libraries(_core_ext PRIVATE
 #   - scikit-build wheel: the wheel root (".").
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
-if(AMENT_BUILD)
+if(COMMAND roboplan_get_python_install_dir)
+  roboplan_get_python_install_dir(PYTHON_DESTINATION)
+elseif(DEFINED ROBOPLAN_PYTHON_INSTALL_DIR)
+  set(PYTHON_DESTINATION "${ROBOPLAN_PYTHON_INSTALL_DIR}")
+elseif(AMENT_BUILD)
   ament_get_python_install_dir(_ament_python_dir)
   if(_ament_python_dir MATCHES "dist-packages")
     set(PYTHON_DESTINATION
@@ -163,6 +167,19 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
     PYTHON_PATH "$<TARGET_FILE_DIR:_filters_ext>"
     DEPENDS _filters_ext
   )
+
+  # Stage each extension + its __init__.py under pystage/ so sibling
+  # packages in the same build tree can import roboplan.<sub> during their
+  # own stub generation.
+  set_target_properties(_core_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/core")
+
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/core/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/core")
+  set_target_properties(_filters_ext PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pystage/roboplan/filters")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/filters/__init__.py"
+    DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/filters")
 endif()
 
 # Ships the roboplan/<sub>/ packages and the generated .pyi/py.typed stubs.

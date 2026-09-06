@@ -1,9 +1,9 @@
 from collections.abc import Sequence
+import roboplan.core._core_ext
 from typing import Annotated, overload
 
 import numpy
 from numpy.typing import NDArray
-import roboplan.core._core_ext
 
 
 class Task:
