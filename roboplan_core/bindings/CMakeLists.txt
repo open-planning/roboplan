@@ -83,8 +83,8 @@ elseif(AMENT_BUILD)
   else()
     set(PYTHON_DESTINATION "${_ament_python_dir}")
   endif()
-elseif(SKBUILD)
-  set(PYTHON_DESTINATION ".")
+elseif(DEFINED PYTHON_SITELIB)
+  set(PYTHON_DESTINATION "${PYTHON_SITELIB}")
 else()
   # TO_CMAKE_PATH converts Windows backslashes, which would otherwise become
   # invalid escape sequences in the generated cmake_install.cmake.

@@ -107,7 +107,7 @@ install(TARGETS roboplan_example_models
 install(
   DIRECTORY
   models
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/share/roboplan_example_models
+  DESTINATION share/roboplan_example_models
 )
 
 # Build the Python bindings by default (for the scikit-build wheel, colcon, and

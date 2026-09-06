@@ -1,0 +1,36 @@
+[build-system]
+requires = ["cmeel[build] >=0.56"]
+build-backend = "cmeel.build"
+
+[project]
+name = "roboplan"
+version = "0.6.1"
+description = "Modern robot motion planning library based on Pinocchio."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10,<3.15"
+authors = [
+    { name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" },
+    { name = "Erik Holum", email = "eholum@gmail.com" },
+    { name = "Sebastian Jahr", email = "sebastian.jahr@tuta.io" },
+    { name = "Jafar Uruç", email = "jafar.uruc@gmail.com" },
+]
+classifiers = ["License :: OSI Approved :: MIT License"]
+dependencies = [
+    "roboplan-cartesian-planning ==0.6.1",
+    "roboplan-common ==0.6.1",
+    "roboplan-core ==0.6.1",
+    "roboplan-example-models ==0.6.1",
+    "roboplan-oink ==0.6.1",
+    "roboplan-rrt ==0.6.1",
+    "roboplan-simple-ik ==0.6.1",
+    "roboplan-toppra ==0.6.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/open-planning/roboplan"
+
+[tool.cmeel]
+run-tests = false
+has-binaries = false
+has-sitelib = false

@@ -25,8 +25,6 @@ environments:
   ci:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
-    indexes:
-    - https://pypi.org/simple
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -331,8 +329,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/xacro-2.1.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
-      - pypi: https://files.pythonhosted.org/packages/6a/0b/2994217e1c7c9a9fc757bb442ee9db5e6b6e39c44771dfdd0e419d1ba12d/cmeel_yaml_cpp-0.8.0-0-py3-none-manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/alsa-lib-1.2.16.1-he30d5cf_0.conda
@@ -635,8 +631,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/xacro-2.1.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
-      - pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b1/b3/ea21520f69fe3c6f466195cf9b995af9c909232e566804ac33d1265374d4/cmeel_yaml_cpp-0.8.0-0-py3-none-manylinux_2_28_aarch64.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.6.17-hbd8a1cb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.6.17-pyhd8ed1ab_0.conda
@@ -876,8 +870,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstandard-0.25.0-py311h5bb9006_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/98/fc/19a47ccaef02bc34f32acb4defc64f806ef4efd1eac1c5c60b0d43f90342/cmeel_yaml_cpp-0.8.0-0-py3-none-macosx_12_0_arm64.whl
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.6.17-h4c7d964_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.6.17-pyhd8ed1ab_0.conda
@@ -1101,8 +1093,6 @@ environments:
   default:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
-    indexes:
-    - https://pypi.org/simple
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -1407,8 +1397,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/xacro-2.1.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
-      - pypi: https://files.pythonhosted.org/packages/6a/0b/2994217e1c7c9a9fc757bb442ee9db5e6b6e39c44771dfdd0e419d1ba12d/cmeel_yaml_cpp-0.8.0-0-py3-none-manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/alsa-lib-1.2.16.1-he30d5cf_0.conda
@@ -1711,8 +1699,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/xacro-2.1.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
-      - pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b1/b3/ea21520f69fe3c6f466195cf9b995af9c909232e566804ac33d1265374d4/cmeel_yaml_cpp-0.8.0-0-py3-none-manylinux_2_28_aarch64.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.6.17-hbd8a1cb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.6.17-pyhd8ed1ab_0.conda
@@ -1952,8 +1938,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstandard-0.25.0-py311h5bb9006_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/98/fc/19a47ccaef02bc34f32acb4defc64f806ef4efd1eac1c5c60b0d43f90342/cmeel_yaml_cpp-0.8.0-0-py3-none-macosx_12_0_arm64.whl
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.6.17-h4c7d964_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.6.17-pyhd8ed1ab_0.conda
@@ -16940,36 +16924,3 @@ packages:
     - zstd >=1.5.7,<1.6.0a0
   size: 388453
   timestamp: 1764777142545
-- pypi: https://files.pythonhosted.org/packages/6a/0b/2994217e1c7c9a9fc757bb442ee9db5e6b6e39c44771dfdd0e419d1ba12d/cmeel_yaml_cpp-0.8.0-0-py3-none-manylinux_2_28_x86_64.whl
-  name: cmeel-yaml-cpp
-  version: 0.8.0
-  sha256: c43e13d2b32d9f3e3923e5bd79987f909dafec52b8b08c4ef0f4fdf16aab48f9
-  requires_dist:
-  - cmeel
-  requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl
-  name: cmeel
-  version: 0.61.0
-  sha256: 924f04ac525c1e2c4c42963b3a18a423926d019f81a683dfbab18143721963a8
-  requires_dist:
-  - tomli>=2.1.0 ; python_full_version < '3.11'
-  - cmake>=3.31.2 ; extra == 'build'
-  - git-archive-all ; extra == 'build'
-  - packaging>=24.2 ; extra == 'build'
-  - wheel>=0.45.1 ; extra == 'build'
-  - argcomplete>=3.6.3 ; extra == 'cli'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/98/fc/19a47ccaef02bc34f32acb4defc64f806ef4efd1eac1c5c60b0d43f90342/cmeel_yaml_cpp-0.8.0-0-py3-none-macosx_12_0_arm64.whl
-  name: cmeel-yaml-cpp
-  version: 0.8.0
-  sha256: f0c415d319ea5cbcaa3a5c3c339471565900eeeeefbbb2b6ec9229837c0592fd
-  requires_dist:
-  - cmeel
-  requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/b1/b3/ea21520f69fe3c6f466195cf9b995af9c909232e566804ac33d1265374d4/cmeel_yaml_cpp-0.8.0-0-py3-none-manylinux_2_28_aarch64.whl
-  name: cmeel-yaml-cpp
-  version: 0.8.0
-  sha256: 362bd2317da4d9e655359f98095340dee02bde55328affaa80e7cb2a3c74335d
-  requires_dist:
-  - cmeel
-  requires_python: '>=3.8'
