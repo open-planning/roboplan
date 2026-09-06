@@ -154,6 +154,41 @@ TEST(RobotBodyFilterTest, PaddedObbMaskIsSupersetOfNarrowphase) {
   }
 }
 
+TEST(RobotBodyFilterTest, MultiThreadedMaskMatchesSerial) {
+  auto scene = makeUr5Scene();
+
+  // A cloud large enough to be split across threads, with the points near the robot clustered
+  // together (as in a sensor scan) so the work is unevenly distributed along the array.
+  std::mt19937 rng(7);
+  std::uniform_real_distribution<double> far_dist(-2.0, 2.0);
+  std::uniform_real_distribution<double> near_dist(-0.3, 0.3);
+  constexpr Eigen::Index kNumFar = 60000;
+  constexpr Eigen::Index kNumNear = 5000;
+  RobotBodyFilter::PointMatrix points(kNumFar + kNumNear, 3);
+  for (Eigen::Index i = 0; i < kNumFar; ++i) {
+    points.row(i) << far_dist(rng), far_dist(rng), far_dist(rng);
+  }
+  for (Eigen::Index i = kNumFar; i < points.rows(); ++i) {
+    points.row(i) << near_dist(rng), near_dist(rng), 0.3 + near_dist(rng);
+  }
+  Eigen::VectorXd extra_padding = Eigen::VectorXd::Zero(points.rows());
+  extra_padding.tail(kNumNear).setConstant(0.02);
+
+  const auto q = scene->getCurrentJointPositions();
+  for (const auto method :
+       {RobotBodyFilterMethod::NARROWPHASE, RobotBodyFilterMethod::PADDED_OBB}) {
+    RobotBodyFilter serial_filter(
+        scene, RobotBodyFilterOptions{.padding = 0.05, .method = method, .num_threads = 1});
+    RobotBodyFilter threaded_filter(
+        scene, RobotBodyFilterOptions{.padding = 0.05, .method = method, .num_threads = 4});
+
+    const auto serial_mask = serial_filter.computeMask(q, points, extra_padding);
+    const auto threaded_mask = threaded_filter.computeMask(q, points, extra_padding);
+    EXPECT_GT(serial_mask.count(), 0);
+    EXPECT_EQ(serial_mask, threaded_mask);
+  }
+}
+
 TEST(RobotBodyFilterTest, IgnoresGeometryAddedToScene) {
   auto scene = makeUr5Scene();
   const auto num_robot_geoms = scene->getRobotCollisionGeometryIds().size();

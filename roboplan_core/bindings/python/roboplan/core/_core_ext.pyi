@@ -721,7 +721,7 @@ class RobotBodyFilterMethod(enum.Enum):
 class RobotBodyFilterOptions:
     """Options struct for the robot body filter."""
 
-    def __init__(self, padding: float = 0.05, method: RobotBodyFilterMethod = RobotBodyFilterMethod.NARROWPHASE) -> None: ...
+    def __init__(self, padding: float = 0.05, method: RobotBodyFilterMethod = RobotBodyFilterMethod.NARROWPHASE, num_threads: int = 0) -> None: ...
 
     @property
     def padding(self) -> float:
@@ -738,6 +738,15 @@ class RobotBodyFilterOptions:
 
     @method.setter
     def method(self, arg: RobotBodyFilterMethod, /) -> None: ...
+
+    @property
+    def num_threads(self) -> int:
+        """
+        Number of threads used to classify points, or 0 to use all hardware threads. Small clouds are processed serially regardless.
+        """
+
+    @num_threads.setter
+    def num_threads(self, arg: int, /) -> None: ...
 
 class RobotBodyFilter:
     """

@@ -468,12 +468,15 @@ void init_core_robot_body_filter(nanobind::module_& m) {
 
   nanobind::class_<RobotBodyFilterOptions>(m, "RobotBodyFilterOptions",
                                            "Options struct for the robot body filter.")
-      .def(nanobind::init<double, RobotBodyFilterMethod>(), "padding"_a = 0.05,
-           "method"_a = RobotBodyFilterMethod::NARROWPHASE)
+      .def(nanobind::init<double, RobotBodyFilterMethod, size_t>(), "padding"_a = 0.05,
+           "method"_a = RobotBodyFilterMethod::NARROWPHASE, "num_threads"_a = 0)
       .def_rw("padding", &RobotBodyFilterOptions::padding,
               "Distance, in meters, around the robot's collision geometry within which points "
               "are considered part of the robot body.")
-      .def_rw("method", &RobotBodyFilterOptions::method, "The classification test to use.");
+      .def_rw("method", &RobotBodyFilterOptions::method, "The classification test to use.")
+      .def_rw("num_threads", &RobotBodyFilterOptions::num_threads,
+              "Number of threads used to classify points, or 0 to use all hardware threads. "
+              "Small clouds are processed serially regardless.");
 
   nanobind::class_<RobotBodyFilter>(
       m, "RobotBodyFilter",
