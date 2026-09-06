@@ -76,6 +76,7 @@ target_link_libraries(roboplan
     PUBLIC
     Eigen3::Eigen
     pinocchio::pinocchio
+    PRIVATE
     tinyxml2::tinyxml2
     console_bridge::console_bridge
 )
