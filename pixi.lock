@@ -164,7 +164,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.2.0-hdf11a46_19.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtasn1-4.21.0-hb03c661_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.1-h9d88235_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.8-hf367ea4_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libunistring-0.9.10-h7f98852_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.2-h5347b49_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_0.conda
@@ -469,7 +469,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.2.0-hdbbeba8_19.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtasn1-4.21.0-he30d5cf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.1-hdb009f0_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.8-ha77f9a1_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libunistring-0.9.10-hf897c2e_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.2-h1022ec0_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_0.conda
@@ -812,7 +812,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.2-h1ae2325_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-h1590b86_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.1-h4030677_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.8-h9e0aaf6_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-he62759b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h07db88b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hdb1d25a_0.conda
@@ -1035,7 +1035,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libsqlite-3.53.3-hf5d6505_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h9aa295b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.8-h53262c8_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.341.0-h477610d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_0.conda
@@ -1240,7 +1240,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.2.0-hdf11a46_19.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtasn1-4.21.0-hb03c661_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.1-h9d88235_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.8-hf367ea4_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libunistring-0.9.10-h7f98852_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.2-h5347b49_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_0.conda
@@ -1545,7 +1545,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.2.0-hdbbeba8_19.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtasn1-4.21.0-he30d5cf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.1-hdb009f0_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.8-ha77f9a1_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libunistring-0.9.10-hf897c2e_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.2-h1022ec0_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_0.conda
@@ -1888,7 +1888,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.2-h1ae2325_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-h1590b86_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.1-h4030677_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.8-h9e0aaf6_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-he62759b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h07db88b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hdb1d25a_0.conda
@@ -2111,7 +2111,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libsqlite-3.53.3-hf5d6505_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h9aa295b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.8-h53262c8_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.341.0-h477610d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_0.conda
@@ -4538,23 +4538,23 @@ packages:
     - libtiff >=4.7.1,<4.8.0a0
   size: 435273
   timestamp: 1762022005702
-- conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.8-hf367ea4_2.conda
-  sha256: 5cb7c24f7e4c814b7415f06fe0d528a922f522a447eee361e76cb81b7dc55fcd
-  md5: 539831879fdb10f942f9fb30dbc3e320
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_0.conda
+  sha256: 9f845550eb43496c114aab15c78e07f8b5aa10f9ea4381d4cc15f020a98f4ee6
+  md5: d7d8cc8f44d269bc90ae021c0ea4f085
   depends:
   - eigen-abi-devel
+  - libstdcxx >=15
+  - libgcc >=15
   - __glibc >=2.17,<3.0.a0
-  - libstdcxx >=14
-  - libgcc >=14
   - eigen-abi >=5.0.1.80,<5.0.1.81.0a0
   license: MIT
   license_family: MIT
   purls: []
   run_exports:
     weak:
-    - libtoppra >=0.6.8,<0.6.9.0a0
-  size: 131267
-  timestamp: 1778774316832
+    - libtoppra >=0.6.10,<0.6.11.0a0
+  size: 127756
+  timestamp: 1787922316029
 - conda: https://conda.anaconda.org/conda-forge/linux-64/libunistring-0.9.10-h7f98852_0.tar.bz2
   sha256: e88c45505921db29c08df3439ddb7f771bbff35f95e7d3103bf365d5d6ce2a6d
   md5: 7245a044b4a1980ed83196176b78b73a
@@ -8361,22 +8361,22 @@ packages:
     - libtiff >=4.7.1,<4.8.0a0
   size: 488407
   timestamp: 1762022048105
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.8-ha77f9a1_2.conda
-  sha256: 4c40f3178ea4f19e48decd5611d73821acb5995ac50e0886da9e9d54dfcd73e6
-  md5: 70774a659e9924f3080335bcf6d18ca1
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_0.conda
+  sha256: 54a2f972d3bcc0c900ed1bace921214ca8808ced48b2e8a1a22facc3d2267f1a
+  md5: 72c4cbc8041562f8281bdc89c5a44d1b
   depends:
   - eigen-abi-devel
-  - libstdcxx >=14
-  - libgcc >=14
+  - libstdcxx >=15
+  - libgcc >=15
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   license: MIT
   license_family: MIT
   purls: []
   run_exports:
     weak:
-    - libtoppra >=0.6.8,<0.6.9.0a0
-  size: 130846
-  timestamp: 1778774326566
+    - libtoppra >=0.6.10,<0.6.11.0a0
+  size: 126488
+  timestamp: 1787922300494
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libunistring-0.9.10-hf897c2e_0.tar.bz2
   sha256: 03acebd5a01a255fe40d47f941c6cab4dc7829206d86d990b0c88cf0ff66e646
   md5: 7c68521243dc20afba4c4c05eb09586e
@@ -13106,22 +13106,22 @@ packages:
     - libtiff >=4.7.1,<4.8.0a0
   size: 373892
   timestamp: 1762022345545
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.8-h9e0aaf6_2.conda
-  sha256: 23f6cb9671c02f6fae85674824a7cdb32429996e263636a8c1b6e81795b53814
-  md5: bd74704929daa0409a79c7e0bed9403f
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-he62759b_0.conda
+  sha256: 780f4febe99aa18ae465d6473e6af47a0261987160545743f9ca8986a4119575
+  md5: c57de9a56419f0d270279abad3df80de
   depends:
   - eigen-abi-devel
+  - libcxx >=21
   - __osx >=11.0
-  - libcxx >=19
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   license: MIT
   license_family: MIT
   purls: []
   run_exports:
     weak:
-    - libtoppra >=0.6.8,<0.6.9.0a0
-  size: 108888
-  timestamp: 1778774550446
+    - libtoppra >=0.6.10,<0.6.11.0a0
+  size: 112471
+  timestamp: 1787922443675
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_0.conda
   sha256: e23176af832f637693ebbb9bbe7d29c0f4cba662dabd001081d2aa6fc9f7f661
   md5: fa9fef7d9f33724b7c3899c883c25a3e
@@ -15779,9 +15779,9 @@ packages:
     - libtiff >=4.7.2,<4.8.0a0
   size: 1014598
   timestamp: 1783085017197
-- conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.8-h53262c8_2.conda
-  sha256: f60550a91d6967f39a3039ac98d36b7a0cced4c66e2a91c1820f700be4b4920d
-  md5: e4342cd7dc5f6c938bd2714dfe192fb0
+- conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_0.conda
+  sha256: d6f955928bb590b0c0b1a75032a90a1bafb6bbdabc7f4b1f6f277bea628c0ba2
+  md5: dd4ad9d8ecdb4aeb3a31188b31e6f985
   depends:
   - eigen-abi-devel
   - vc >=14.3,<15
@@ -15793,9 +15793,9 @@ packages:
   purls: []
   run_exports:
     weak:
-    - libtoppra >=0.6.8,<0.6.9.0a0
-  size: 28718
-  timestamp: 1778774368495
+    - libtoppra >=0.6.10,<0.6.11.0a0
+  size: 762819
+  timestamp: 1787922314886
 - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_0.conda
   sha256: ca55710ece8736785ffa0fad4d45402dd40992a81a045d69eda5d40bc1a288f9
   md5: 741d96e586ac833409e5d27cdae08d15

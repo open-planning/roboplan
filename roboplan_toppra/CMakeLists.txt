@@ -24,13 +24,8 @@ find_package(roboplan REQUIRED)
 find_package(ament_cmake QUIET)
 
 # If toppra is not found, fetch it from GitHub.
-# The find is skipped on Windows: the conda-forge win-64 libtoppra package is
-# missing its import library, and its broken CMake export aborts the
-# configure, so toppra is always built from source there.
 include(FetchContent)
-if(NOT WIN32)
-    find_package(toppra QUIET)
-endif()
+find_package(toppra QUIET)
 if(NOT toppra_FOUND)
     message(STATUS "toppra not found. Fetching from GitHub...")
     set(BUILD_TESTS OFF CACHE BOOL "Disable toppra tests" FORCE)
