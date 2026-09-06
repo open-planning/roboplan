@@ -78,7 +78,7 @@ repos:
 exclude: |
   (?x)^(
     .*/bindings/python/roboplan/.*\.pyi|
-    roboplan/include/tinyxml2/.*|
-    roboplan/include/tl/.*|
+    roboplan_core/include/tinyxml2/.*|
+    roboplan_core/include/tl/.*|
     roboplan_rrt/include/dynotree/.*
   )$

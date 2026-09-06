@@ -15,7 +15,7 @@ Refer to the [full documentation](https://roboplan.readthedocs.io) for more info
 The main folders found in this repo are as follows.
 
 - `docs` : The documentation source.
-- `roboplan` : The core C++ library.
+- `roboplan_core` : The core C++ library.
 - `roboplan_common` : Shared utilities such as Python install helpers and CMake macros.
 - `roboplan_simple_ik` : A simple inverse kinematics (IK) solver.
 - `roboplan_oink` : A task-based Optimal Inverse Kinematics (OInK) solver.
