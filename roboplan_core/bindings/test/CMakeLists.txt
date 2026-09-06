@@ -5,6 +5,7 @@ set(BINDINGS_TESTS_PY
   test_import
   test_scene
   test_filters
+  test_robot_body_filter
 )
 foreach(test_name ${BINDINGS_TESTS_PY})
   ament_add_pytest_test(${test_name} ${test_name}.py TIMEOUT 300)

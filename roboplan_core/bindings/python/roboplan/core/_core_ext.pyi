@@ -524,6 +524,11 @@ class Scene:
         Gets a list of collision geometry IDs corresponding to a specified body.
         """
 
+    def getRobotCollisionGeometryIds(self) -> list[int]:
+        """
+        Gets the collision geometry IDs belonging to the robot model itself (excluding objects added to the scene).
+        """
+
     def setCollisions(self, body1: str, body2: str, enable: bool) -> None:
         """Sets the allowable collisions for a pair of bodies in the model."""
 
@@ -697,3 +702,70 @@ def expandContinuousJointPositions(scene: Scene, group_name: str, q_orig: Annota
     """
     Expands a joint position vector's continuous joints from downstream algorithms.
     """
+
+class RobotBodyFilterMethod(enum.Enum):
+    """
+    The test used by RobotBodyFilter to classify points near the robot geometry.
+    """
+
+    NARROWPHASE = 0
+    """
+    Exact Coal narrowphase query (point vs. geometry with the padding as security margin) after the broadphase AABB cull.
+    """
+
+    PADDED_OBB = 1
+    """
+    Conservative point-in-padded-OBB test after the broadphase AABB cull. Faster, but over-removes points near the corners of the oriented boxes.
+    """
+
+class RobotBodyFilterOptions:
+    """Options struct for the robot body filter."""
+
+    def __init__(self, padding: float = 0.05, method: RobotBodyFilterMethod = RobotBodyFilterMethod.NARROWPHASE, num_threads: int = 0) -> None: ...
+
+    @property
+    def padding(self) -> float:
+        """
+        Distance, in meters, around the robot's collision geometry within which points are considered part of the robot body.
+        """
+
+    @padding.setter
+    def padding(self, arg: float, /) -> None: ...
+
+    @property
+    def method(self) -> RobotBodyFilterMethod:
+        """The classification test to use."""
+
+    @method.setter
+    def method(self, arg: RobotBodyFilterMethod, /) -> None: ...
+
+    @property
+    def num_threads(self) -> int:
+        """
+        Number of threads used to classify points, or 0 to use all hardware threads. Small clouds are processed serially regardless.
+        """
+
+    @num_threads.setter
+    def num_threads(self, arg: int, /) -> None: ...
+
+class RobotBodyFilter:
+    """
+    Filters points that lie on or near the robot's own collision geometry (self filtering), e.g. to remove the robot body from a sensor point cloud before turning it into an octree obstacle.
+
+    The robot geometry is snapshotted at construction; objects added to the scene afterwards are not filtered against. The filter owns private scratch, so it is safe to use distinct filters concurrently on one Scene, but a single filter must not be shared across threads.
+    """
+
+    def __init__(self, scene: Scene, options: RobotBodyFilterOptions) -> None: ...
+
+    def computeMask(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], points: Annotated[NDArray[numpy.float64], dict(shape=(None, 3), writable=False)], extra_padding: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.bool_], dict(shape=(None,), order='C')]:
+        """
+        Returns a boolean mask over the (N x 3) points; true marks a point within the padded robot body at configuration q. extra_padding optionally adds a per-point padding, e.g. the half-diagonals of octree cells.
+        """
+
+    def filterPoints(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], points: Annotated[NDArray[numpy.float64], dict(shape=(None, 3), writable=False)], extra_padding: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.float64], dict(shape=(None, 3), order='C')]:
+        """
+        Returns only the rows of the (N x 3) points that lie outside the padded robot body at configuration q.
+        """
+
+    def getOptions(self) -> RobotBodyFilterOptions:
+        """The filter options."""

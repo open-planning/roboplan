@@ -5,6 +5,7 @@ install(
   example_cartesian_planning.py
   example_constrained_rrt.py
   example_ik.py
+  example_octree_filtering.py
   example_oink_position_barriers.py
   example_oink.py
   example_rrt.py

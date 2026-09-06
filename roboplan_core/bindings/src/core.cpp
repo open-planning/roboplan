@@ -9,6 +9,7 @@
 
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/pose_utils.hpp>
+#include <roboplan/core/robot_body_filter.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/scene_utils.hpp>
@@ -316,6 +317,9 @@ void init_core_scene(nanobind::module_& m) {
            "Removes a geometry from the scene.", "name"_a)
       .def("getCollisionGeometryIDs", unwrap_expected(&Scene::getCollisionGeometryIds),
            "Gets a list of collision geometry IDs corresponding to a specified body.", "body"_a)
+      .def("getRobotCollisionGeometryIds", &Scene::getRobotCollisionGeometryIds,
+           "Gets the collision geometry IDs belonging to the robot model itself (excluding "
+           "objects added to the scene).")
       .def("setCollisions", unwrap_expected(&Scene::setCollisions),
            "Sets the allowable collisions for a pair of bodies in the model.", "body1"_a, "body2"_a,
            "enable"_a)
@@ -449,6 +453,53 @@ void init_core_scene_utils(nanobind::module_& m) {
   m.def("expandContinuousJointPositions", unwrap_expected(&expandContinuousJointPositions),
         "Expands a joint position vector's continuous joints from downstream algorithms.",
         "scene"_a, "group_name"_a, "q_orig"_a);
+}
+
+void init_core_robot_body_filter(nanobind::module_& m) {
+  nanobind::enum_<RobotBodyFilterMethod>(
+      m, "RobotBodyFilterMethod",
+      "The test used by RobotBodyFilter to classify points near the robot geometry.")
+      .value("NARROWPHASE", RobotBodyFilterMethod::NARROWPHASE,
+             "Exact Coal narrowphase query (point vs. geometry with the padding as security "
+             "margin) after the broadphase AABB cull.")
+      .value("PADDED_OBB", RobotBodyFilterMethod::PADDED_OBB,
+             "Conservative point-in-padded-OBB test after the broadphase AABB cull. Faster, but "
+             "over-removes points near the corners of the oriented boxes.");
+
+  nanobind::class_<RobotBodyFilterOptions>(m, "RobotBodyFilterOptions",
+                                           "Options struct for the robot body filter.")
+      .def(nanobind::init<double, RobotBodyFilterMethod, size_t>(), "padding"_a = 0.05,
+           "method"_a = RobotBodyFilterMethod::NARROWPHASE, "num_threads"_a = 0)
+      .def_rw("padding", &RobotBodyFilterOptions::padding,
+              "Distance, in meters, around the robot's collision geometry within which points "
+              "are considered part of the robot body.")
+      .def_rw("method", &RobotBodyFilterOptions::method, "The classification test to use.")
+      .def_rw("num_threads", &RobotBodyFilterOptions::num_threads,
+              "Number of threads used to classify points, or 0 to use all hardware threads. "
+              "Small clouds are processed serially regardless.");
+
+  nanobind::class_<RobotBodyFilter>(
+      m, "RobotBodyFilter",
+      "Filters points that lie on or near the robot's own collision geometry (self filtering), "
+      "e.g. to remove the robot body from a sensor point cloud before turning it into an "
+      "octree obstacle.\n\n"
+      "The robot geometry is snapshotted at construction; objects added to the scene afterwards "
+      "are not filtered against. The filter owns private scratch, so it is safe to use distinct "
+      "filters concurrently on one Scene, but a single filter must not be shared across threads.")
+      .def(nanobind::init<const std::shared_ptr<Scene>&, const RobotBodyFilterOptions&>(),
+           "scene"_a, "options"_a)
+      .def("computeMask", &RobotBodyFilter::computeMask,
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Returns a boolean mask over the (N x 3) points; true marks a point within the padded "
+           "robot body at configuration q. extra_padding optionally adds a per-point padding, "
+           "e.g. the half-diagonals of octree cells.",
+           "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
+      .def("filterPoints", &RobotBodyFilter::filterPoints,
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Returns only the rows of the (N x 3) points that lie outside the padded robot body "
+           "at configuration q.",
+           "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
+      .def("getOptions", &RobotBodyFilter::getOptions, "The filter options.");
 }
 
 }  // namespace roboplan
