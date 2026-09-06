@@ -18,6 +18,7 @@ requires-python = ">=3.10,<3.15"
 authors = [{ name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" }]
 classifiers = ["License :: OSI Approved :: MIT License"]
 dependencies = [
+    "cmeel-urdfdom[build] >=6",
     "cmeel-yaml-cpp >=0.8, <0.9; platform_system != 'Windows'",
     "pin >=4.1.0, <4.2",
     "roboplan-common ==0.6.1",
