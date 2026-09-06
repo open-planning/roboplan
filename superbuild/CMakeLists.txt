@@ -1,10 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-
-set(ROBOPLAN_DISTRIBUTION_VERSION "0.0.0")
-if(DEFINED SKBUILD_PROJECT_VERSION)
-  set(ROBOPLAN_DISTRIBUTION_VERSION "${SKBUILD_PROJECT_VERSION}")
-endif()
-project(roboplan_superbuild VERSION "${ROBOPLAN_DISTRIBUTION_VERSION}")
+project(roboplan_superbuild)
 
 # Superbuild: configures every RoboPlan package in one tree, so
 # build/install/test run once instead of once per package. Driven by
@@ -23,13 +18,9 @@ project(roboplan_superbuild VERSION "${ROBOPLAN_DISTRIBUTION_VERSION}")
 get_filename_component(ROBOPLAN_REPOSITORY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/RoboplanSuperbuild.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/RoboplanPythonInstall.cmake")
 
-option(ROBOPLAN_WHEEL "Build the unified relocatable Python wheel" OFF)
 option(ROBOPLAN_BUILD_EXAMPLES "Build the RoboPlan examples" ON)
-if(ROBOPLAN_WHEEL)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/RoboplanWheel.cmake")
-  roboplan_prepare_wheel_build()
-endif()
 
 roboplan_register_build_tree_packages()
 
@@ -70,6 +61,41 @@ if(ROBOPLAN_BUILD_EXAMPLES)
   add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_examples" "roboplan_examples")
 endif()
 
-if(ROBOPLAN_WHEEL)
-  roboplan_finalize_wheel()
+if(DEFINED ENV{CMEEL_BUILD})
+  if(APPLE)
+    set(_roboplan_library_rpath "@loader_path")
+    set(_roboplan_extension_rpath "@loader_path/../../../../")
+  else()
+    set(_roboplan_library_rpath "$ORIGIN")
+    set(_roboplan_extension_rpath "$ORIGIN/../../../../")
+  endif()
+
+  foreach(target IN ITEMS
+      roboplan_example_models
+      roboplan
+      roboplan_filters
+      roboplan_simple_ik
+      roboplan_oink
+      roboplan_rrt
+      roboplan_toppra
+      roboplan_cartesian_planning)
+    if(TARGET ${target})
+      set_property(TARGET ${target} PROPERTY INSTALL_RPATH
+        "${_roboplan_library_rpath}")
+    endif()
+  endforeach()
+  foreach(target IN ITEMS
+      _example_models_ext
+      _core_ext
+      _filters_ext
+      _simple_ik_ext
+      _optimal_ik_ext
+      _rrt_ext
+      _toppra_ext
+      _cartesian_ext)
+    if(TARGET ${target})
+      set_property(TARGET ${target} PROPERTY INSTALL_RPATH
+        "${_roboplan_extension_rpath}")
+    endif()
+  endforeach()
 endif()
