@@ -1,5 +1,11 @@
+#include <algorithm>
+#include <atomic>
+#include <exception>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include <pinocchio/algorithm/geometry.hpp>
 
@@ -81,43 +87,105 @@ RobotBodyFilter::computeMask(const Eigen::VectorXd& q, const Eigen::Ref<const Po
 
   const bool use_narrowphase = (options_.method == RobotBodyFilterMethod::NARROWPHASE);
   const coal::Sphere point_geom(0.0);
-  coal::CollisionRequest request;
 
   Mask mask = Mask::Constant(num_points, false);
-  for (Eigen::Index i = 0; i < num_points; ++i) {
-    const Eigen::Vector3d point = points.row(i);
-    const double extra = extra_padding ? (*extra_padding)(i) : 0.0;
 
-    for (const auto& scratch : geom_scratch_) {
-      // Broadphase: skip geometries whose padded world AABB does not contain the point.
-      if (((point - scratch.aabb_min).array() < -extra).any() ||
-          ((point - scratch.aabb_max).array() > extra).any()) {
-        continue;
-      }
+  // Classifies the points in [begin, end). Each worker owns its request so the per-point
+  // security margin can be set without sharing state; the geometries and their placements are
+  // read-only for the duration of the query, and each point writes only its own mask entry.
+  const auto classify_block = [&](const Eigen::Index begin, const Eigen::Index end,
+                                  coal::CollisionRequest& request) {
+    for (Eigen::Index i = begin; i < end; ++i) {
+      const Eigen::Vector3d point = points.row(i);
+      const double extra = extra_padding ? (*extra_padding)(i) : 0.0;
 
-      bool near_body;
-      if (use_narrowphase) {
-        // Exact point-vs-geometry query: a zero-radius sphere collides when it is within the
-        // security margin of the geometry surface, i.e. within the padding distance.
-        request.security_margin = padding + extra;
-        coal::CollisionResult result;
-        coal::collide(&point_geom, CoalTransform(point), scratch.geometry, scratch.transform,
-                      request, result);
-        near_body = result.isCollision();
-      } else {
-        // Conservative point-in-padded-OBB test in the geometry's local frame.
-        const Eigen::Vector3d local_point =
-            scratch.rotation.transpose() * (point - scratch.translation);
-        near_body = ((local_point - scratch.local_center).cwiseAbs().array() <=
-                     scratch.local_half_extents.array() + (padding + extra))
-                        .all();
-      }
+      for (const auto& scratch : geom_scratch_) {
+        // Broadphase: skip geometries whose padded world AABB does not contain the point.
+        if (((point - scratch.aabb_min).array() < -extra).any() ||
+            ((point - scratch.aabb_max).array() > extra).any()) {
+          continue;
+        }
 
-      if (near_body) {
-        mask(i) = true;
-        break;
+        bool near_body;
+        if (use_narrowphase) {
+          // Exact point-vs-geometry query: a zero-radius sphere collides when it is within the
+          // security margin of the geometry surface, i.e. within the padding distance.
+          request.security_margin = padding + extra;
+          coal::CollisionResult result;
+          coal::collide(&point_geom, CoalTransform(point), scratch.geometry, scratch.transform,
+                        request, result);
+          near_body = result.isCollision();
+        } else {
+          // Conservative point-in-padded-OBB test in the geometry's local frame.
+          const Eigen::Vector3d local_point =
+              scratch.rotation.transpose() * (point - scratch.translation);
+          near_body = ((local_point - scratch.local_center).cwiseAbs().array() <=
+                       scratch.local_half_extents.array() + (padding + extra))
+                          .all();
+        }
+
+        if (near_body) {
+          mask(i) = true;
+          break;
+        }
       }
     }
+  };
+
+  // Points are handed out in small fixed-size blocks from a shared counter, so threads that land
+  // on stretches of cheap (culled) points simply take more blocks than those doing narrowphase
+  // work, even when the points on the robot are clustered together in the cloud (as they are in
+  // a sensor scan). Spawning a thread costs on the order of the time it takes to classify a few
+  // thousand culled points, so the thread count is also capped to keep small clouds serial.
+  constexpr Eigen::Index kBlockSize = 256;
+  constexpr Eigen::Index kMinPointsPerThread = 8192;
+  const size_t max_threads = (options_.num_threads == 0)
+                                 ? std::max(1u, std::thread::hardware_concurrency())
+                                 : options_.num_threads;
+  const size_t num_threads = std::min<size_t>(
+      max_threads,
+      static_cast<size_t>(std::max<Eigen::Index>(1, num_points / kMinPointsPerThread)));
+
+  if (num_threads <= 1) {
+    coal::CollisionRequest request;
+    classify_block(0, num_points, request);
+    return mask;
+  }
+
+  std::atomic<Eigen::Index> next_begin{0};
+  std::exception_ptr worker_error;
+  std::mutex error_mutex;
+  const auto worker = [&]() {
+    try {
+      coal::CollisionRequest request;
+      while (true) {
+        const auto begin = next_begin.fetch_add(kBlockSize, std::memory_order_relaxed);
+        if (begin >= num_points) {
+          break;
+        }
+        classify_block(begin, std::min(begin + kBlockSize, num_points), request);
+      }
+    } catch (...) {
+      const std::lock_guard<std::mutex> lock(error_mutex);
+      if (!worker_error) {
+        worker_error = std::current_exception();
+      }
+      // Drain the remaining blocks so the other workers stop promptly.
+      next_begin.store(num_points, std::memory_order_relaxed);
+    }
+  };
+
+  std::vector<std::thread> workers;
+  workers.reserve(num_threads - 1);
+  for (size_t t = 1; t < num_threads; ++t) {
+    workers.emplace_back(worker);
+  }
+  worker();  // The calling thread takes part as well.
+  for (auto& thread : workers) {
+    thread.join();
+  }
+  if (worker_error) {
+    std::rethrow_exception(worker_error);
   }
   return mask;
 }

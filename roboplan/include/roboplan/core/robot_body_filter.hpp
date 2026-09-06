@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -38,6 +39,11 @@ struct RobotBodyFilterOptions {
 
   /// @brief The classification test to use.
   RobotBodyFilterMethod method = RobotBodyFilterMethod::NARROWPHASE;
+
+  /// @brief Number of threads used to classify points, or 0 to use all hardware threads. The
+  /// points are split into blocks that the threads pull from a shared queue, so at most one
+  /// thread per block is ever spawned and small clouds are processed serially either way.
+  size_t num_threads = 0;
 };
 
 /// @brief Filters points that lie on or near the robot's own collision geometry.
