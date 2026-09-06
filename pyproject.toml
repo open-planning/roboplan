@@ -180,7 +180,7 @@ yaml-cpp    = ">=0.8.0,<0.9"
 
 # Core dependencies
 eigen      = ">=3.4.0"
-libtoppra  = ">=0.6.4,<0.7"
+libtoppra  = ">=0.6.10,<0.7"
 pinocchio  = ">=4.1.0,<5"
 proxsuite = ">=0.7.3,<0.8"
 
