@@ -20,7 +20,7 @@
   <build_depend>python3-typing-extensions</build_depend>
 
   <depend>roboplan_common</depend>
-  <depend>roboplan</depend>
+  <depend>roboplan_core</depend>
   <depend>proxsuite</depend>
 
   <test_depend>ament_cmake_gmock</test_depend>

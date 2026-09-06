@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>roboplan_rrt</name>
+  <name>roboplan</name>
   <version>0.6.1</version>
-  <description>Rapidly-Exploring Random Tree (RRT) implementation for RoboPlan.</description>
+  <description>Metapackage for the RoboPlan motion-planning library.</description>
   <maintainer email="sebas.a.castro@gmail.com">Sebastian Castro</maintainer>
   <license>MIT</license>
 
@@ -12,20 +12,19 @@
   <url type="bugtracker">https://github.com/open-planning/roboplan/issues</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <build_depend>nanobind-dev</build_depend>
-  <build_depend>python3-dev</build_depend>
-  <build_depend>python3-typing-extensions</build_depend>
-
-  <depend>roboplan_common</depend>
-  <depend>roboplan_core</depend>
-
-  <test_depend>ament_cmake_gtest</test_depend>
-  <test_depend>ament_cmake_pytest</test_depend>
-  <test_depend>roboplan_example_models</test_depend>
+  <exec_depend>roboplan_cartesian_planning</exec_depend>
+  <exec_depend>roboplan_common</exec_depend>
+  <exec_depend>roboplan_core</exec_depend>
+  <exec_depend>roboplan_example_models</exec_depend>
+  <exec_depend>roboplan_examples</exec_depend>
+  <exec_depend>roboplan_oink</exec_depend>
+  <exec_depend>roboplan_rrt</exec_depend>
+  <exec_depend>roboplan_simple_ik</exec_depend>
+  <exec_depend>roboplan_toppra</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
+    <metapackage/>
   </export>
 </package>

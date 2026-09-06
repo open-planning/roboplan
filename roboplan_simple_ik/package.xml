@@ -19,7 +19,7 @@
   <build_depend>python3-typing-extensions</build_depend>
 
   <depend>roboplan_common</depend>
-  <depend>roboplan</depend>
+  <depend>roboplan_core</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
