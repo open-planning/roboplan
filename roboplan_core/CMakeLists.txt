@@ -20,13 +20,6 @@ find_package(pinocchio REQUIRED)
 find_package(console_bridge REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
-# pinocchio's coal (collision library) dependency lands as a directory-scoped
-# IMPORTED target on CMake < 3.24, invisible to sibling add_subdirectory()
-# packages in a superbuild. Promote it to global so they can link pinocchio.
-if(TARGET coal::coal)
-  set_target_properties(coal::coal PROPERTIES IMPORTED_GLOBAL TRUE)
-endif()
-
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
 # find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion

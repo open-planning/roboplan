@@ -49,6 +49,13 @@ if(BUILD_TESTING)
   enable_testing()
 endif()
 
+# Find pinocchio here, before any add_subdirectory(), so the side effects of
+# its config file reach every package to be consistent with the standalone builds.
+# That includes its IMPORTED targets: pinocchio's interface references coal::coal
+# via $<TARGET_PROPERTY:...>, which CMake resolves in the consuming target's
+# directory, so coal::coal must be visible to every sibling package.
+find_package(pinocchio REQUIRED)
+
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_common" "roboplan_common")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_example_models" "roboplan_example_models")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_core" "roboplan_core")
