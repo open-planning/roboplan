@@ -23,6 +23,6 @@ BINDINGS_MODULES = [
 
 @pytest.mark.parametrize("module", BINDINGS_MODULES)
 def test_import_bindings(module: str) -> None:
-    # Run in a fresh subprocess to ensure no cross contamination for dylb
+    # Run in a fresh subprocess to ensure no cross contamination for dylib
     # when importing modules that have transitive dependencies.
     subprocess.run([sys.executable, "-c", f"import {module}"], check=True)
