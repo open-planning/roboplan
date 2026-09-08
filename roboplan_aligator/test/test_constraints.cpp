@@ -30,7 +30,6 @@ using aligator_detail::ConstraintPair;
 using aligator_detail::PhaseSpace;
 using BoxConstraint = aligator::BoxConstraintTpl<double>;
 using testing::deterministicState;
-using testing::kTipFrame;
 using testing::makeSo101Scene;
 
 // The BoxConstraintTpl behind a pair's constraint set (for bound inspection).
@@ -141,31 +140,28 @@ TEST(ConstraintTest, WindowAttachesToInRangeStagesOnly) {
 
 TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
   auto scene = makeSo101Scene();
+  const int nq = ReducedGroupModel(*scene, "arm").nq();
 
-  // A fixed reach target (world<-tip): a translation the arm must work toward, so the endpoint
-  // requires nonzero torque. The horizon (200 stages @ 50 ms) is long enough that the reach stays
-  // feasible under a reduced torque budget, so the AL solve converges rather than stalling against
-  // an infeasible box.
-  Eigen::Matrix4d target = Eigen::Matrix4d::Identity();
-  target(0, 3) = 0.15;
-  target(2, 3) = 0.20;
+  // A fixed terminal configuration under any residual gravity: the arm must work toward it, so the
+  // trajectory requires nonzero torque. The horizon (200 stages @ 50 ms) is long enough that the
+  // reach stays feasible under a reduced torque budget, so the AL solve converges rather than
+  // stalling against an infeasible box.
+  const Eigen::VectorXd q_target = Eigen::VectorXd::Constant(nq, 0.3);
 
   const auto make_reach_opt = [&]() {
     TrajOptOptions options;
-    options.max_iters = 500;
+    options.max_iters = 1500;
     options.control_reg = 1e-4;
     TrajectoryOptimizer opt(scene, "arm", /*horizon=*/200, /*dt=*/0.05, options);
-    FramePoseCost pose;
-    pose.frame = kTipFrame;
-    pose.target = target;
-    pose.position_cost = Eigen::Vector3d::Constant(200.0);
-    pose.orientation_cost = Eigen::Vector3d::Constant(200.0);
-    opt.addCost(pose, StageWindow::terminal(), 1.0);
+    ConfigurationCost goal;
+    goal.q_target = q_target;
+    goal.weights = Eigen::VectorXd::Constant(opt.nv(), 100.0);
+    opt.addCost(goal, StageWindow::terminal(), 1.0);
     return opt;
   };
 
   // The unconstrained reach's peak torque is ~0.10 Nm; a 0.08 Nm cap sits strictly below it (so the
-  // bound is genuinely active) yet high enough that the reach stays feasible (AL violation ~6e-5).
+  // bound is genuinely active) yet high enough that the reach stays feasible (AL violation ~1e-4).
   const double tau = 0.08;
 
   auto opt_unc = make_reach_opt();
@@ -188,7 +184,7 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
   const double viol = res_c->max_constraint_violation;
   // Respect the box up to the reported violation (1e-6 = Eigen round-off, not a slackened bound).
   EXPECT_LE(peak_c, tau + viol + 1e-6) << "peak " << peak_c << " exceeds bound " << tau;
-  // AL residual below 1e-3 Nm: a clearly-feasible box (the solve reaches ~7e-5), not tautological.
+  // AL residual below 1e-3 Nm: a clearly-feasible box (the solve reaches ~1e-4), not tautological.
   EXPECT_LT(viol, 1e-3) << "max_constraint_violation " << viol;
   // Bound is genuinely active: the optimizer presses the peak torque up to the cap (0.9*tau
   // margin).

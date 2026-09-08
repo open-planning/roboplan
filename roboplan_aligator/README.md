@@ -8,8 +8,8 @@ set an initial state, add costs and constraints, `build()`, then `solve()`.
 
 Two ways to express costs/constraints:
 
-- **Spec-based** (common path): plain data structs — `CostSpec` (`FramePoseCost`,
-  `ConfigurationCost`, `VelocityCost`) and `ConstraintSpec`
+- **Spec-based** (common path): plain data structs — `CostSpec` (`ConfigurationCost`,
+  `VelocityCost`) and `ConstraintSpec`
   (`TorqueLimit`). `addCost` returns a `CostHandle` for hot-path target retargeting
   between solves.
 - **Direct aligator** (advanced, C++ only): subclass `aligator::CostAbstractTpl<double>` /
@@ -19,8 +19,7 @@ Two ways to express costs/constraints:
 The reduced model, phase space, and assembled aligator problem are exposed through
 `TrajectoryOptimizer::reducedGroupModel()`, `phaseSpace()`, and `problem()` for power users.
 
-Examples: `roboplan_examples/python/example_aligator_trajopt.py`,
-`roboplan_examples/python/example_aligator_mpc.py`.
+Examples: `roboplan_examples/python/example_aligator_trajopt.py`.
 
 ## Known gaps
 

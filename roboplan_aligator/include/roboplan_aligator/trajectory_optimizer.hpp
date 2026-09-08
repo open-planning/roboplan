@@ -42,7 +42,7 @@ public:
   int nq() const;
   int nv() const;
   int nx() const;
-  void setInitialState(const Eigen::VectorXd& q, const Eigen::VectorXd& v = Eigen::VectorXd());
+  void setInitialState(const Eigen::VectorXd& q);
 
   // Costs: spec-based (existing)
   CostHandle addCost(const CostSpec& cost, const StageWindow& window = StageWindow::all(),
@@ -65,9 +65,7 @@ public:
   void resetProblem();
 
   TrajOptSeed interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const;
-  TrajOptSeed shift(const TrajOptResult& result, int n_steps = 1) const;
   tl::expected<TrajOptResult, std::string> solve(const TrajOptSeed& seed);
-  tl::expected<TrajOptResult, std::string> solve(const TrajOptResult& previous);
 
   // Public accessors for advanced users
   const ReducedGroupModel& reducedGroupModel() const { return rgm_; }

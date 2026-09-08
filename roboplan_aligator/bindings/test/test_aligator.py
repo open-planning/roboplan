@@ -108,21 +108,6 @@ def test_interpolate_path_seed(scene: Scene) -> None:
     assert np.allclose(seed.xs[0][opt.nq() :], 0.0)
 
 
-def test_shift_repeats_last_knot(scene: Scene) -> None:
-    opt = make_optimizer(scene, horizon=8, max_iters=20)
-    cost = ConfigurationCost()
-    cost.q_target = np.full(opt.nq(), 0.2)
-    cost.weights = np.full(opt.nv(), 20.0)
-    opt.addCost(cost, timesteps=opt.horizon())
-    opt.build()
-    result = opt.solve(TrajOptSeed())
-    shifted = opt.shift(result, 1)
-    assert len(shifted.xs) == opt.horizon() + 1
-    # The tail holds the final knot (repeat-last convention).
-    assert np.allclose(shifted.xs[-1], result.xs[-1])
-    assert np.allclose(shifted.xs[0], result.xs[1])
-
-
 def test_reach_converges_and_is_deterministic(scene: Scene) -> None:
     def solve_reach() -> TrajOptResult:
         opt = make_optimizer(scene, horizon=40, dt=0.05, max_iters=200)
@@ -146,7 +131,7 @@ def test_reach_converges_and_is_deterministic(scene: Scene) -> None:
         assert np.max(np.abs(a - b)) < 1e-9
 
 
-def test_set_target_hot_path_and_solve_from_result(scene: Scene) -> None:
+def test_set_target_hot_path(scene: Scene) -> None:
     opt = make_optimizer(scene, horizon=30, dt=0.05, max_iters=200)
     cost = ConfigurationCost()
     cost.q_target = np.full(opt.nq(), 0.3)
@@ -156,8 +141,7 @@ def test_set_target_hot_path_and_solve_from_result(scene: Scene) -> None:
 
     first = opt.solve(TrajOptSeed())
     handle.setTarget(np.full(opt.nq(), -0.3))  # hot-path retarget
-    # solve(previous result) dispatch warm-starts from the first solution.
-    second = opt.solve(first)
+    second = opt.solve(TrajOptSeed())
     assert np.linalg.norm(second.xs[-1][:5] - (-0.3)) < np.linalg.norm(
         first.xs[-1][:5] - (-0.3)
     )

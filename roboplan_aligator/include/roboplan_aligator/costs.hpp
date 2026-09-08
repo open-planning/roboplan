@@ -7,26 +7,9 @@
 
 namespace roboplan {
 
-// A cost is a soft objective described in terms the user understands (frame names, targets,
-// per-DoF weights). Each is attached with `TrajectoryOptimizer::addCost(spec, window, weight)`,
-// which returns a CostHandle whose `setTarget` updates the target between solves.
-
-/// @brief Penalize the frame's SE3 placement error from a target pose.
-/// @details The 6-D error (3 translation, 3 rotation-log) is weighted per-axis by
-/// `position_cost` / `orientation_cost`.
-struct FramePoseCost {
-  /// @brief Name of the frame whose pose is penalized.
-  std::string frame;
-
-  /// @brief Target pose as a 4x4 homogeneous transform (world <- frame).
-  Eigen::Matrix4d target = Eigen::Matrix4d::Identity();
-
-  /// @brief Per-axis translation weights (x, y, z). Nonnegative.
-  Eigen::Vector3d position_cost = Eigen::Vector3d::Ones();
-
-  /// @brief Per-axis rotation-log weights (rx, ry, rz). Nonnegative.
-  Eigen::Vector3d orientation_cost = Eigen::Vector3d::Ones();
-};
+// A cost is a soft objective described in terms the user understands (per-DoF targets and
+// weights). Each is attached with `TrajectoryOptimizer::addCost(spec, window, weight)`, which
+// returns a CostHandle whose `setTarget` updates the target between solves.
 
 /// @brief Penalize deviation of the reduced-group configuration from a target.
 struct ConfigurationCost {
@@ -62,12 +45,7 @@ public:
   CostHandle(const CostHandle&) = delete;
   CostHandle& operator=(const CostHandle&) = delete;
 
-  /// @brief Sets a new target pose for a FramePoseCost handle (world <- frame, 4x4 homogeneous).
-  /// @throws std::logic_error if this handle was not returned for a FramePoseCost.
-  void setTarget(const Eigen::Matrix4d& target_pose);
-
   /// @brief Sets a new target vector for a ConfigurationCost (q) or VelocityCost (v) handle.
-  /// @throws std::logic_error if this handle is a FramePoseCost handle (use the Matrix4d overload).
   /// @throws std::invalid_argument if `target` has the wrong size for the cost.
   void setTarget(const Eigen::VectorXd& target);
 

@@ -89,16 +89,6 @@ void init_aligator(nb::module_& m) {
 
   // --- Costs (soft) ---------------------------------------------------------------------------
 
-  nb::class_<FramePoseCost>(m, "FramePoseCost",
-                            "Penalize the SE3 placement error of a frame from a target pose.")
-      .def(nb::init<>())
-      .def_rw("frame", &FramePoseCost::frame, "Name of the frame whose pose is penalized.")
-      .def_rw("target", &FramePoseCost::target, "Target pose as a 4x4 homogeneous transform.")
-      .def_rw("position_cost", &FramePoseCost::position_cost,
-              "Per-axis translation weights (x, y, z).")
-      .def_rw("orientation_cost", &FramePoseCost::orientation_cost,
-              "Per-axis rotation-log weights (rx, ry, rz).");
-
   nb::class_<ConfigurationCost>(
       m, "ConfigurationCost",
       "Penalize deviation of the reduced-group configuration from a target.")
@@ -119,13 +109,8 @@ void init_aligator(nb::module_& m) {
       "dangles if the optimizer is destroyed or resetProblem() is called.")
       .def(
           "setTarget",
-          [](CostHandle& self, const Eigen::Matrix4d& target_pose) { self.setTarget(target_pose); },
-          "target_pose"_a, "Set a new target pose (4x4) for a FramePoseCost handle.")
-      .def(
-          "setTarget",
           [](CostHandle& self, const Eigen::VectorXd& target) { self.setTarget(target); },
-          "target"_a,
-          "Set a new target vector for a ConfigurationCost/VelocityCost handle.");
+          "target"_a, "Set a new target vector for a ConfigurationCost/VelocityCost handle.");
 
   // --- Constraints (hard) ---------------------------------------------------------------------
 
@@ -183,19 +168,10 @@ void init_aligator(nb::module_& m) {
       .def("nv", &TrajectoryOptimizer::nv, "Reduced-model tangent size nv.")
       .def("nx", &TrajectoryOptimizer::nx, "State dimension nx = nq + nv.")
       .def("setInitialState", &TrajectoryOptimizer::setInitialState, "q"_a,
-           "v"_a = Eigen::VectorXd(),
-           "Set the fixed initial state x0 = [q; v] (hot-path; empty v means zero velocity).")
+           "Set the fixed initial configuration state x0 = [q; 0] (hot-path).")
       // addCost overloads: return a CostHandle whose setTarget mutates the in-problem residual.
       // Each overload accepts a concrete cost type and wraps it in CostSpec for the unified C++
       // addCost method.
-      .def(
-          "addCost",
-          [](TrajectoryOptimizer& self, const FramePoseCost& cost, const nb::object& timesteps,
-             double weight) {
-            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
-          },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0,
-          nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
       .def(
           "addCost",
           [](TrajectoryOptimizer& self, const ConfigurationCost& cost, const nb::object& timesteps,
@@ -238,20 +214,12 @@ void init_aligator(nb::module_& m) {
            "required).")
       .def("interpolatePath", &TrajectoryOptimizer::interpolatePath, "waypoints"_a,
            "Straight-line warm-start seed through reduced-group waypoints onto the horizon grid.")
-      .def("shift", &TrajectoryOptimizer::shift, "result"_a, "n_steps"_a = 1,
-           "Receding-horizon shift of a solved result into a warm-start seed for the next tick.")
       .def(
           "solve",
           [](TrajectoryOptimizer& self, const TrajOptSeed& seed) {
             return handle_expected(self.solve(seed));
           },
-          "seed"_a, "Run the ProxDDP solver from a warm-start seed (requires build()).")
-      .def(
-          "solve",
-          [](TrajectoryOptimizer& self, const TrajOptResult& previous) {
-            return handle_expected(self.solve(previous));
-          },
-          "result"_a, "Run the solver warm-started from a previous result (requires build()).");
+          "seed"_a, "Run the ProxDDP solver from a warm-start seed (requires build()).");
 }
 
 }  // namespace roboplan

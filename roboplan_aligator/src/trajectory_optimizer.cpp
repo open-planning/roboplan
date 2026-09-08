@@ -136,7 +136,7 @@ int TrajectoryOptimizer::nx() const { return rgm_.nq() + rgm_.nv(); }
 
 // --- Initial state ---------------------------------------------------------------------------
 
-void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q, const Eigen::VectorXd& v) {
+void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q) {
   const int nq = rgm_.nq();
   const int nv = rgm_.nv();
   if (q.size() != nq) {
@@ -144,15 +144,7 @@ void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q, const Eigen:
                                 std::to_string(q.size()) +
                                 ", expected reduced nq = " + std::to_string(nq) + ".");
   }
-  Eigen::VectorXd v_used = v;
-  if (v_used.size() == 0) {
-    v_used = Eigen::VectorXd::Zero(nv);
-  } else if (v_used.size() != nv) {
-    throw std::invalid_argument("TrajectoryOptimizer::setInitialState: v has size " +
-                                std::to_string(v.size()) +
-                                ", expected reduced nv = " + std::to_string(nv) + ".");
-  }
-  x0_ = stackState(q, v_used);
+  x0_ = stackState(q, Eigen::VectorXd::Zero(nv));
   // Updates the initial-condition constraint target in place (no rebuild, §3.4).
   problem_->setInitState(x0_);
 }
@@ -168,21 +160,13 @@ CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow&
         using T = std::decay_t<decltype(spec)>;
         auto handle = std::make_unique<CostHandle::Impl>();
 
-        if constexpr (std::is_same_v<T, FramePoseCost>) {
-          handle->kind = CostHandle::Impl::Kind::Pose;
-          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
-            handle->pose_setters.push_back(
-                aligator_detail::attachFramePoseCost(*stack, space_, rgm_, spec, weight));
-          }
-        } else if constexpr (std::is_same_v<T, ConfigurationCost>) {
-          handle->kind = CostHandle::Impl::Kind::Vector;
+        if constexpr (std::is_same_v<T, ConfigurationCost>) {
           handle->expected_size = rgm_.nq();
           for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
                 aligator_detail::attachConfigurationCost(*stack, space_, rgm_, spec, weight));
           }
         } else if constexpr (std::is_same_v<T, VelocityCost>) {
-          handle->kind = CostHandle::Impl::Kind::Vector;
           handle->expected_size = rgm_.nv();
           for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
@@ -345,13 +329,7 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   return out;
 }
 
-tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOptResult& previous) {
-  // Warm-start from a previous solution: its states/controls are already in the seed layout
-  // (xs size N+1, us size N). Dispatch to the seed overload (§3.6).
-  return solve(TrajOptSeed{.xs = previous.xs, .us = previous.us});
-}
-
-// --- Warm-start helpers (design §3.6) --------------------------------------------------------
+// --- Warm-start (design §3.6) -----------------------------------------------------------------
 
 TrajOptSeed
 TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const {
@@ -396,38 +374,6 @@ TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoin
     seed.xs.push_back(std::move(x));
   }
   seed.us.assign(static_cast<std::size_t>(horizon_), Eigen::VectorXd::Zero(nv));
-  return seed;
-}
-
-TrajOptSeed TrajectoryOptimizer::shift(const TrajOptResult& result, int n_steps) const {
-  const auto num_stages = static_cast<std::size_t>(horizon_);
-  if (n_steps < 0) {
-    throw std::invalid_argument("TrajectoryOptimizer::shift: n_steps must be >= 0, got " +
-                                std::to_string(n_steps) + ".");
-  }
-  if (result.xs.size() != num_stages + 1 || result.us.size() != num_stages) {
-    throw std::invalid_argument("TrajectoryOptimizer::shift: result has " +
-                                std::to_string(result.xs.size()) + " states / " +
-                                std::to_string(result.us.size()) + " controls, expected " +
-                                std::to_string(num_stages + 1) + " / " +
-                                std::to_string(num_stages) + " for this optimizer's horizon.");
-  }
-
-  // Advance the horizon by n_steps: drop the first n_steps knots and repeat the last state/control
-  // to refill the tail (the receding-horizon "hold" convention; maintainer decision, Prompt 9 —
-  // matches aligator's own cycleAppend, which duplicates the final knot). n_steps is clamped per
-  // index.
-  TrajOptSeed seed;
-  seed.xs.reserve(num_stages + 1);
-  for (std::size_t k = 0; k <= num_stages; ++k) {
-    const std::size_t src = std::min(k + static_cast<std::size_t>(n_steps), num_stages);
-    seed.xs.push_back(result.xs[src]);
-  }
-  seed.us.reserve(num_stages);
-  for (std::size_t k = 0; k < num_stages; ++k) {
-    const std::size_t src = std::min(k + static_cast<std::size_t>(n_steps), num_stages - 1);
-    seed.us.push_back(result.us[src]);
-  }
   return seed;
 }
 

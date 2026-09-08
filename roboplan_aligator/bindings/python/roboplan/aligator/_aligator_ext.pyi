@@ -67,39 +67,6 @@ class TrajOptOptions:
     @control_reg.setter
     def control_reg(self, arg: float, /) -> None: ...
 
-class FramePoseCost:
-    """Penalize the SE3 placement error of a frame from a target pose."""
-
-    def __init__(self) -> None: ...
-
-    @property
-    def frame(self) -> str:
-        """Name of the frame whose pose is penalized."""
-
-    @frame.setter
-    def frame(self, arg: str, /) -> None: ...
-
-    @property
-    def target(self) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
-        """Target pose as a 4x4 homogeneous transform."""
-
-    @target.setter
-    def target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], /) -> None: ...
-
-    @property
-    def position_cost(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
-        """Per-axis translation weights (x, y, z)."""
-
-    @position_cost.setter
-    def position_cost(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
-
-    @property
-    def orientation_cost(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
-        """Per-axis rotation-log weights (rx, ry, rz)."""
-
-    @orientation_cost.setter
-    def orientation_cost(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
-
 class ConfigurationCost:
     """Penalize deviation of the reduced-group configuration from a target."""
 
@@ -143,11 +110,6 @@ class CostHandle:
     Mutable handle to an attached cost, for target updates between solves. Returned by addCost; dangles if the optimizer is destroyed or resetProblem() is called.
     """
 
-    @overload
-    def setTarget(self, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> None:
-        """Set a new target pose (4x4) for a FramePoseCost handle."""
-
-    @overload
     def setTarget(self, target: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
         """Set a new target vector for a ConfigurationCost/VelocityCost handle."""
 
@@ -298,13 +260,8 @@ class TrajectoryOptimizer:
     def nx(self) -> int:
         """State dimension nx = nq + nv."""
 
-    def setInitialState(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], v: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] = ...) -> None:
-        """
-        Set the fixed initial state x0 = [q; v] (hot-path; empty v means zero velocity).
-        """
-
-    @overload
-    def addCost(self, cost: FramePoseCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
+    def setInitialState(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """Set the fixed initial configuration state x0 = [q; 0] (hot-path)."""
 
     @overload
     def addCost(self, cost: ConfigurationCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
@@ -333,15 +290,5 @@ class TrajectoryOptimizer:
         Straight-line warm-start seed through reduced-group waypoints onto the horizon grid.
         """
 
-    def shift(self, result: TrajOptResult, n_steps: int = 1) -> TrajOptSeed:
-        """
-        Receding-horizon shift of a solved result into a warm-start seed for the next tick.
-        """
-
-    @overload
     def solve(self, seed: TrajOptSeed) -> TrajOptResult:
         """Run the ProxDDP solver from a warm-start seed (requires build())."""
-
-    @overload
-    def solve(self, result: TrajOptResult) -> TrajOptResult:
-        """Run the solver warm-started from a previous result (requires build())."""

@@ -44,7 +44,7 @@ The two tools answer different questions and are often used together, not instea
      - Full rigid-body forward dynamics; enforces **torque** limits and returns the torque profile.
    * - Constraints
      - Box limits on the timing.
-     - Windowed costs and constraints: soft frame-pose/configuration/velocity costs and hard torque
+     - Windowed costs and constraints: soft configuration/velocity costs and hard torque
        limits, each attachable to a sub-window of the horizon.
    * - Output
      - A time-parameterized ``JointTrajectory`` (positions, velocities, accelerations, times).
@@ -52,8 +52,8 @@ The two tools answer different questions and are often used together, not instea
        ``JointTrajectory`` (positions + velocities + times).
    * - Online use
      - One-shot timing.
-     - Supports receding-horizon re-solving (``shift`` + ``solve(previous_result)``) for MPC-style
-       tracking of a moving target.
+     - One-shot solves; ``CostHandle::setTarget`` hot-path retargets for re-solving toward a new
+       target.
    * - Cost
      - Cheap and deterministic.
      - More expensive; an iterative nonlinear solve seeded from an initial guess.
@@ -77,8 +77,7 @@ Which should you use?
        out a jerky route, TOPP-RA has no lever to pull; that is a job for trajectory optimization.
    * - **roboplan_aligator**
      - You need the path itself reshaped: to honor **torque**/effort limits, to apply costs only over
-       a *window* of the motion, to get a torque profile as output, or to re-solve online against a
-       moving target (MPC).
+       a *window* of the motion, or to get a torque profile as output.
      - It is an iterative nonlinear solve — more expensive than TOPP-RA and dependent on a reasonable
        seed. See the limitations below before relying on it.
 
@@ -157,8 +156,7 @@ retiming step (TOPP-RA/TOTG/Ruckig).
 The practical upshot: reach for STOMP/CHOMP/TrajOpt (or their MoveIt 2 / Tesseract integrations) when
 you want a *kinematic* smoother/refiner over a cluttered scene — especially one where TrajOpt's
 continuous collision checking matters more than dynamic feasibility. Reach for ``roboplan_aligator``
-when you specifically need dynamic feasibility, a torque profile, hard windowed via-points, or
-receding-horizon MPC.
+when you specifically need dynamic feasibility or a torque profile.
 
 
 Limitations

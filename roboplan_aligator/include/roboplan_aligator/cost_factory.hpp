@@ -20,10 +20,6 @@ namespace aligator_detail {
 
 using CostStack = aligator::CostStackTpl<double>;
 
-std::function<void(const Eigen::Matrix4d&)>
-attachFramePoseCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                    const FramePoseCost& spec, double weight);
-
 std::function<void(const Eigen::VectorXd&)>
 attachConfigurationCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
                         const ConfigurationCost& spec, double weight);
@@ -35,11 +31,8 @@ attachVelocityCost(CostStack& stack, const PhaseSpace& space, const ReducedGroup
 }  // namespace aligator_detail
 
 struct CostHandle::Impl {
-  enum class Kind { Pose, Vector } kind = Kind::Vector;
-
   int expected_size = -1;
 
-  std::vector<std::function<void(const Eigen::Matrix4d&)>> pose_setters;
   std::vector<std::function<void(const Eigen::VectorXd&)>> vector_setters;
 };
 

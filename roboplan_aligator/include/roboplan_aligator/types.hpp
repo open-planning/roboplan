@@ -42,8 +42,8 @@ struct TrajOptOptions {
 
 /// @brief Warm-start for a solve: state and control guesses on the horizon grid.
 /// @details Reduced-group layout. `xs` are stacked states x = [q; v] (each size nq + nv); `us` are
-/// controls/torques (each size nv). Produced by `TrajectoryOptimizer::interpolatePath` / `::shift`,
-/// or hand-built. For an N-step horizon, `xs` has N + 1 entries and `us` has N.
+/// controls/torques (each size nv). Produced by `TrajectoryOptimizer::interpolatePath`, or
+/// hand-built. For an N-step horizon, `xs` has N + 1 entries and `us` has N.
 struct TrajOptSeed {
   /// @brief Per-knot state guesses x = [q; v], reduced-group layout (size N + 1).
   std::vector<Eigen::VectorXd> xs;

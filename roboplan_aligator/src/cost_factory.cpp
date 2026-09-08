@@ -4,10 +4,7 @@
 #include <string>
 #include <utility>
 
-#include <aligator/modelling/costs/quad-residual-cost.hpp>
 #include <aligator/modelling/costs/quad-state-cost.hpp>
-#include <aligator/modelling/multibody/frame-placement.hpp>
-#include <pinocchio/spatial/se3.hpp>
 
 #include <roboplan_aligator/reduced_group_model.hpp>
 
@@ -19,38 +16,11 @@ namespace {
 
 using ManifoldPoly = xyz::polymorphic<aligator::ManifoldAbstractTpl<double>>;
 using CostPoly = xyz::polymorphic<aligator::CostAbstractTpl<double>>;
-using StageFuncPoly = xyz::polymorphic<aligator::StageFunctionTpl<double>>;
 
-using QuadraticResidualCost = aligator::QuadraticResidualCostTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
-using FramePlacementResidual = aligator::FramePlacementResidualTpl<double>;
 using CostItem = CostStack::CostItem;
 
 }  // namespace
-
-std::function<void(const Eigen::Matrix4d&)>
-attachFramePoseCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                    const FramePoseCost& spec, double weight) {
-  const pinocchio::FrameIndex frame_id = roboplan::resolveFrame(rgm, spec.frame, "FramePoseCost");
-  const int ndx = space.ndx();
-  const int nu = rgm.nv();
-
-  // Per-axis 6x6 weight: translation block (log6 order: linear first) then rotation block.
-  Eigen::MatrixXd weights = Eigen::MatrixXd::Zero(6, 6);
-  weights.diagonal().head(3) = spec.position_cost;
-  weights.diagonal().tail(3) = spec.orientation_cost;
-
-  const pinocchio::SE3 target(spec.target);  // explicit SE3 ctor from a 4x4 homogeneous transform
-  FramePlacementResidual residual(ndx, nu, rgm.reducedModel(), target, frame_id);
-  QuadraticResidualCost cost(ManifoldPoly(space), StageFuncPoly(residual), weights);
-
-  CostItem& item = stack.addCost(CostPoly(cost), weight);
-  auto* stored = dynamic_cast<QuadraticResidualCost*>(&*item.first);
-  auto* residual_ptr = stored->getResidual<FramePlacementResidual>();
-  return [residual_ptr](const Eigen::Matrix4d& target_pose) {
-    residual_ptr->setReference(pinocchio::SE3(target_pose));
-  };
-}
 
 std::function<void(const Eigen::VectorXd&)>
 attachConfigurationCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
@@ -130,21 +100,11 @@ CostHandle::~CostHandle() = default;
 CostHandle::CostHandle(CostHandle&&) noexcept = default;
 CostHandle& CostHandle::operator=(CostHandle&&) noexcept = default;
 
-void CostHandle::setTarget(const Eigen::Matrix4d& target_pose) {
-  if (!impl_ || impl_->kind != Impl::Kind::Pose) {
-    throw std::logic_error(
-        "CostHandle::setTarget(Matrix4d): this handle is not a FramePoseCost handle.");
-  }
-  for (auto& setter : impl_->pose_setters) {
-    setter(target_pose);
-  }
-}
-
 void CostHandle::setTarget(const Eigen::VectorXd& target) {
-  if (!impl_ || impl_->kind != Impl::Kind::Vector) {
+  if (!impl_) {
     throw std::logic_error(
-        "CostHandle::setTarget(VectorXd): this handle is a FramePoseCost handle; use the Matrix4d "
-        "overload.");
+        "CostHandle::setTarget: this handle was default-constructed (no attached cost); setTarget "
+        "is meant for a handle returned by TrajectoryOptimizer::addCost.");
   }
   if (target.size() != impl_->expected_size) {
     throw std::invalid_argument("CostHandle::setTarget: target size " +
