@@ -253,13 +253,10 @@ def main(
             torque_limit.tau_max = np.full(opt.nv(), tau_max)
         opt.addConstraint(torque_limit)
 
-        # NOTE: roboplan_aligator's CollisionConstraint (robot-vs-static) is deliberately NOT
-        # attached here even though the scene has an obstacle. Adding it crashes opt.solve() with
-        # "std::invalid_argument: The index of the Frame is outside the bounds" -- a real bug in
-        # roboplan_aligator, reproduced with build()/interpolatePath() both succeeding and the
-        # crash isolated to solve(); not a misuse of the API. RRT still avoids the obstacle by
-        # construction (collision-free edges only) and TOPP-RA never moves the path geometry, so
-        # the obstacle is still honestly enforced for two of the three methods -- aligator's
+        # NOTE: hard collision constraints (self and robot-vs-static) are not part of this
+        # release's roboplan_aligator API. RRT still avoids the obstacle by construction
+        # (collision-free edges only) and TOPP-RA never moves the path geometry, so the
+        # obstacle is honestly enforced for two of the three methods here -- aligator's
         # reshaped trajectory is just not guaranteed to avoid it in this example.
         opt.build()
         t0 = time.time()

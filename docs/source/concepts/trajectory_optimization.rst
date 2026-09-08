@@ -4,7 +4,7 @@ Trajectory Optimization
 :doc:`trajectory_generation` covers *timing* a fixed geometric path with TOPP-RA.
 This page covers the other trajectory-generation tool in RoboPlan, ``roboplan_aligator``, which
 *optimizes* a trajectory: it may reshape the path itself, subject to the robot's forward dynamics,
-to satisfy torque limits, windowed costs, and hard via-point constraints.
+to satisfy torque limits and windowed costs.
 
 ``roboplan_aligator`` wraps the `aligator <https://github.com/Simple-Robotics/aligator>`_ trajectory
 optimizer (a proximal differential-dynamic-programming solver, ``SolverProxDDP``) around a Pinocchio
@@ -20,8 +20,8 @@ The two tools answer different questions and are often used together, not instea
 - **TOPP-RA asks:** *given this path, how fast can the robot follow it* under velocity and
   acceleration limits? The path geometry is an input and is never changed.
 - **Trajectory optimization asks:** *what trajectory* best trades off the objectives (reach this
-  pose, keep the tool level over the approach, arrive at rest) while respecting the robot's dynamics
-  and limits? The path geometry is an output — it is reshaped by the solve.
+  pose, arrive at rest) while respecting the robot's dynamics and limits? The path geometry is an
+  output — it is reshaped by the solve.
 
 .. list-table::
    :header-rows: 1
@@ -44,9 +44,8 @@ The two tools answer different questions and are often used together, not instea
      - Full rigid-body forward dynamics; enforces **torque** limits and returns the torque profile.
    * - Constraints
      - Box limits on the timing.
-     - Windowed costs and constraints: soft frame-pose/axis/configuration/velocity/effort costs and
-       hard position/velocity/torque/frame-pose and (self-)collision constraints, each attachable to
-       a sub-window of the horizon.
+     - Windowed costs and constraints: soft frame-pose/configuration/velocity costs and hard torque
+       limits, each attachable to a sub-window of the horizon.
    * - Output
      - A time-parameterized ``JointTrajectory`` (positions, velocities, accelerations, times).
      - States, velocities, and controls (torques); ``toRoboplan()`` converts to a
@@ -77,9 +76,9 @@ Which should you use?
      - It cannot change the path. If the timed trajectory exceeds a torque limit or you want to smooth
        out a jerky route, TOPP-RA has no lever to pull; that is a job for trajectory optimization.
    * - **roboplan_aligator**
-     - You need the path itself reshaped: to honor **torque**/effort limits, to pass through a hard
-       Cartesian via-point (a grasp), to apply costs only over a *window* of the motion, to get a
-       torque profile as output, or to re-solve online against a moving target (MPC).
+     - You need the path itself reshaped: to honor **torque**/effort limits, to apply costs only over
+       a *window* of the motion, to get a torque profile as output, or to re-solve online against a
+       moving target (MPC).
      - It is an iterative nonlinear solve — more expensive than TOPP-RA and dependent on a reasonable
        seed. See the limitations below before relying on it.
 
@@ -143,7 +142,7 @@ retiming step (TOPP-RA/TOTG/Ruckig).
      - Precomputed signed distance field; gradient-free, so non-differentiable costs are fine
      - Precomputed signed distance field; requires a differentiable cost and its gradient
      - Convex-convex signed distance, with continuous (swept) checking between waypoints
-     - Custom per-pair distance residual; pairs fixed at build time, enforced at stage knots only
+     - No collision handling in this version — it ships with the extended constraint set
    * - Hard constraints
      - Soft costs only
      - Soft costs, with metric-projected equality constraints
@@ -159,9 +158,7 @@ The practical upshot: reach for STOMP/CHOMP/TrajOpt (or their MoveIt 2 / Tessera
 you want a *kinematic* smoother/refiner over a cluttered scene — especially one where TrajOpt's
 continuous collision checking matters more than dynamic feasibility. Reach for ``roboplan_aligator``
 when you specifically need dynamic feasibility, a torque profile, hard windowed via-points, or
-receding-horizon MPC — and keep in mind that its collision handling (fixed pairs selected at build
-time, knot-only enforcement) is currently less battle-tested for tight, cluttered geometry than
-TrajOpt's purpose-built continuous-collision machinery.
+receding-horizon MPC.
 
 
 Limitations
@@ -172,9 +169,9 @@ reach for it:
 
 - **Fixed horizon and time step.** The number of stages ``N`` and the step ``dt`` are set at
   construction; the solver does not add stages or retime the grid.
-- **Constraints hold at the stage knots.** Costs and constraints are evaluated at the discrete stages.
-  Between two knots the trajectory can still stray — a collision constraint that holds at every knot
-  does not guarantee clearance *between* knots. Use a fine enough ``dt`` for the motion.
+- **Constraints and costs hold at the stage knots.** Costs and constraints are evaluated at the
+  discrete stages. Between two knots the trajectory can still stray, so behavior guaranteed at every
+  knot is not guaranteed *between* knots. Use a fine enough ``dt`` for the motion.
 - **Fixed-base groups only.** The optimized joint group is a fixed-base subset of the model; floating
   bases and contact dynamics are out of scope.
 - **Single seed.** A solve runs from one seed. If it does not converge, retrying from a different seed
@@ -220,7 +217,7 @@ Model parameter requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An imprecise mass matrix does not make the solver useless, but it is worth knowing what actually
-depends on it. Frame costs/constraints, joint/velocity limits, and collision constraints are all
+depends on it. Configuration and velocity costs are
 purely kinematic — they depend on the URDF's link and joint geometry, not its inertial parameters —
 so they are unaffected by inertial-parameter error. Only two things ride on the mass matrix being
 accurate: the torque profile's trustworthiness as a real command or feedforward signal, and whether

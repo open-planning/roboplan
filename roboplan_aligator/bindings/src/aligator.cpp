@@ -99,16 +99,6 @@ void init_aligator(nb::module_& m) {
       .def_rw("orientation_cost", &FramePoseCost::orientation_cost,
               "Per-axis rotation-log weights (rx, ry, rz).");
 
-  nb::class_<FrameAxisCost>(m, "FrameAxisCost",
-                            "Align a body-fixed axis with a world-target direction.")
-      .def(nb::init<>())
-      .def_rw("frame", &FrameAxisCost::frame, "Name of the frame carrying the body-fixed axis.")
-      .def_rw("axis_local", &FrameAxisCost::axis_local,
-              "The body-fixed axis, expressed in the frame.")
-      .def_rw("axis_world_target", &FrameAxisCost::axis_world_target,
-              "The desired world-space direction for the axis.")
-      .def_rw("weight", &FrameAxisCost::weight, "Scalar weight on the 3-vector residual.");
-
   nb::class_<ConfigurationCost>(
       m, "ConfigurationCost",
       "Penalize deviation of the reduced-group configuration from a target.")
@@ -116,12 +106,6 @@ void init_aligator(nb::module_& m) {
       .def_rw("q_target", &ConfigurationCost::q_target,
               "Target reduced-group configuration (size nq).")
       .def_rw("weights", &ConfigurationCost::weights, "Per-DoF tangent weights (size nv).");
-
-  nb::class_<ControlCost>(m, "ControlCost",
-                          "Penalize control (joint torque) deviation from a target.")
-      .def(nb::init<>())
-      .def_rw("weights", &ControlCost::weights, "Per-DoF control weights (size nv).")
-      .def_rw("u_target", &ControlCost::u_target, "Target control (size nv); empty means zero.");
 
   nb::class_<VelocityCost>(m, "VelocityCost",
                            "Penalize reduced-group velocity deviation from a target.")
@@ -141,25 +125,9 @@ void init_aligator(nb::module_& m) {
           "setTarget",
           [](CostHandle& self, const Eigen::VectorXd& target) { self.setTarget(target); },
           "target"_a,
-          "Set a new target vector for a ConfigurationCost/ControlCost/VelocityCost/FrameAxisCost "
-          "handle.");
+          "Set a new target vector for a ConfigurationCost/VelocityCost handle.");
 
   // --- Constraints (hard) ---------------------------------------------------------------------
-
-  nb::class_<PositionLimit>(
-      m, "PositionLimit", "Box limit on the reduced-group configuration (defaults from the model).")
-      .def(nb::init<>())
-      .def_rw("q_min", &PositionLimit::q_min,
-              "Lower position bound (size nq); empty means model default.")
-      .def_rw("q_max", &PositionLimit::q_max,
-              "Upper position bound (size nq); empty means model default.");
-
-  nb::class_<VelocityLimit>(
-      m, "VelocityLimit",
-      "Symmetric box limit on the reduced-group velocity (defaults from the model).")
-      .def(nb::init<>())
-      .def_rw("v_max", &VelocityLimit::v_max,
-              "Symmetric velocity bound (size nv); empty means model default.");
 
   nb::class_<TorqueLimit>(
       m, "TorqueLimit",
@@ -167,31 +135,6 @@ void init_aligator(nb::module_& m) {
       .def(nb::init<>())
       .def_rw("tau_max", &TorqueLimit::tau_max,
               "Symmetric torque bound (size nv); empty means model effort limits.");
-
-  nb::class_<FramePoseConstraint>(m, "FramePoseConstraint",
-                                  "Hard bound on a frame's SE3 placement error from a target pose.")
-      .def(nb::init<>())
-      .def_rw("frame", &FramePoseConstraint::frame, "Name of the frame whose pose is constrained.")
-      .def_rw("target", &FramePoseConstraint::target, "Target pose as a 4x4 homogeneous transform.")
-      .def_rw("tol_pos", &FramePoseConstraint::tol_pos,
-              "Allowed translation error half-width (metres).")
-      .def_rw("tol_rot", &FramePoseConstraint::tol_rot,
-              "Allowed rotation-log error half-width (radians).");
-
-  nb::class_<SelfCollisionConstraint>(m, "SelfCollisionConstraint",
-                                      "Keep the robot's articulated links clear of each other.")
-      .def(nb::init<>())
-      .def_rw("n_pairs", &SelfCollisionConstraint::n_pairs,
-              "Number of closest self-collision pairs to constrain (<= 0 tracks all).")
-      .def_rw("d_min", &SelfCollisionConstraint::d_min,
-              "Minimum allowed signed distance (metres).");
-
-  nb::class_<CollisionConstraint>(m, "CollisionConstraint",
-                                  "Keep the robot's articulated links clear of static geometry.")
-      .def(nb::init<>())
-      .def_rw("n_pairs", &CollisionConstraint::n_pairs,
-              "Number of closest robot-vs-static pairs to constrain (<= 0 tracks all).")
-      .def_rw("d_min", &CollisionConstraint::d_min, "Minimum allowed signed distance (metres).");
 
   // --- Seed / result --------------------------------------------------------------------------
 
@@ -255,28 +198,7 @@ void init_aligator(nb::module_& m) {
           nb::keep_alive<0, 1>())  // the CostHandle references the optimizer's in-problem residuals
       .def(
           "addCost",
-          [](TrajectoryOptimizer& self, const FrameAxisCost& cost, const nb::object& timesteps,
-             double weight) {
-            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
-          },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
-      .def(
-          "addCost",
           [](TrajectoryOptimizer& self, const ConfigurationCost& cost, const nb::object& timesteps,
-             double weight) {
-            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
-          },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
-      .def(
-          "addCost",
-          [](TrajectoryOptimizer& self, const ControlCost& cost, const nb::object& timesteps,
-             double weight) {
-            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
-          },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
-      .def(
-          "addCost",
-          [](TrajectoryOptimizer& self, const VelocityCost& cost, const nb::object& timesteps,
              double weight) {
             return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
           },
@@ -293,38 +215,7 @@ void init_aligator(nb::module_& m) {
       // ConstraintSpec for the unified C++ addConstraint method.
       .def(
           "addConstraint",
-          [](TrajectoryOptimizer& self, const PositionLimit& c, const nb::object& timesteps) {
-            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
-          },
-          "constraint"_a, "timesteps"_a = nb::none())
-      .def(
-          "addConstraint",
-          [](TrajectoryOptimizer& self, const VelocityLimit& c, const nb::object& timesteps) {
-            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
-          },
-          "constraint"_a, "timesteps"_a = nb::none())
-      .def(
-          "addConstraint",
           [](TrajectoryOptimizer& self, const TorqueLimit& c, const nb::object& timesteps) {
-            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
-          },
-          "constraint"_a, "timesteps"_a = nb::none())
-      .def(
-          "addConstraint",
-          [](TrajectoryOptimizer& self, const FramePoseConstraint& c, const nb::object& timesteps) {
-            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
-          },
-          "constraint"_a, "timesteps"_a = nb::none())
-      .def(
-          "addConstraint",
-          [](TrajectoryOptimizer& self, const SelfCollisionConstraint& c,
-             const nb::object& timesteps) {
-            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
-          },
-          "constraint"_a, "timesteps"_a = nb::none())
-      .def(
-          "addConstraint",
-          [](TrajectoryOptimizer& self, const CollisionConstraint& c, const nb::object& timesteps) {
             self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
           },
           "constraint"_a, "timesteps"_a = nb::none())

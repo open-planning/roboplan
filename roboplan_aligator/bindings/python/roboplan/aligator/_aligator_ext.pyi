@@ -100,39 +100,6 @@ class FramePoseCost:
     @orientation_cost.setter
     def orientation_cost(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
 
-class FrameAxisCost:
-    """Align a body-fixed axis with a world-target direction."""
-
-    def __init__(self) -> None: ...
-
-    @property
-    def frame(self) -> str:
-        """Name of the frame carrying the body-fixed axis."""
-
-    @frame.setter
-    def frame(self, arg: str, /) -> None: ...
-
-    @property
-    def axis_local(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
-        """The body-fixed axis, expressed in the frame."""
-
-    @axis_local.setter
-    def axis_local(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
-
-    @property
-    def axis_world_target(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
-        """The desired world-space direction for the axis."""
-
-    @axis_world_target.setter
-    def axis_world_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
-
-    @property
-    def weight(self) -> float:
-        """Scalar weight on the 3-vector residual."""
-
-    @weight.setter
-    def weight(self, arg: float, /) -> None: ...
-
 class ConfigurationCost:
     """Penalize deviation of the reduced-group configuration from a target."""
 
@@ -151,25 +118,6 @@ class ConfigurationCost:
 
     @weights.setter
     def weights(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
-
-class ControlCost:
-    """Penalize control (joint torque) deviation from a target."""
-
-    def __init__(self) -> None: ...
-
-    @property
-    def weights(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Per-DoF control weights (size nv)."""
-
-    @weights.setter
-    def weights(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
-
-    @property
-    def u_target(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Target control (size nv); empty means zero."""
-
-    @u_target.setter
-    def u_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
 class VelocityCost:
     """Penalize reduced-group velocity deviation from a target."""
@@ -201,44 +149,7 @@ class CostHandle:
 
     @overload
     def setTarget(self, target: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
-        """
-        Set a new target vector for a ConfigurationCost/ControlCost/VelocityCost/FrameAxisCost handle.
-        """
-
-class PositionLimit:
-    """
-    Box limit on the reduced-group configuration (defaults from the model).
-    """
-
-    def __init__(self) -> None: ...
-
-    @property
-    def q_min(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Lower position bound (size nq); empty means model default."""
-
-    @q_min.setter
-    def q_min(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
-
-    @property
-    def q_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Upper position bound (size nq); empty means model default."""
-
-    @q_max.setter
-    def q_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
-
-class VelocityLimit:
-    """
-    Symmetric box limit on the reduced-group velocity (defaults from the model).
-    """
-
-    def __init__(self) -> None: ...
-
-    @property
-    def v_max(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """Symmetric velocity bound (size nv); empty means model default."""
-
-    @v_max.setter
-    def v_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+        """Set a new target vector for a ConfigurationCost/VelocityCost handle."""
 
 class TorqueLimit:
     """
@@ -253,79 +164,6 @@ class TorqueLimit:
 
     @tau_max.setter
     def tau_max(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
-
-class FramePoseConstraint:
-    """Hard bound on a frame's SE3 placement error from a target pose."""
-
-    def __init__(self) -> None: ...
-
-    @property
-    def frame(self) -> str:
-        """Name of the frame whose pose is constrained."""
-
-    @frame.setter
-    def frame(self, arg: str, /) -> None: ...
-
-    @property
-    def target(self) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
-        """Target pose as a 4x4 homogeneous transform."""
-
-    @target.setter
-    def target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], /) -> None: ...
-
-    @property
-    def tol_pos(self) -> float:
-        """Allowed translation error half-width (metres)."""
-
-    @tol_pos.setter
-    def tol_pos(self, arg: float, /) -> None: ...
-
-    @property
-    def tol_rot(self) -> float:
-        """Allowed rotation-log error half-width (radians)."""
-
-    @tol_rot.setter
-    def tol_rot(self, arg: float, /) -> None: ...
-
-class SelfCollisionConstraint:
-    """Keep the robot's articulated links clear of each other."""
-
-    def __init__(self) -> None: ...
-
-    @property
-    def n_pairs(self) -> int:
-        """Number of closest self-collision pairs to constrain (<= 0 tracks all)."""
-
-    @n_pairs.setter
-    def n_pairs(self, arg: int, /) -> None: ...
-
-    @property
-    def d_min(self) -> float:
-        """Minimum allowed signed distance (metres)."""
-
-    @d_min.setter
-    def d_min(self, arg: float, /) -> None: ...
-
-class CollisionConstraint:
-    """Keep the robot's articulated links clear of static geometry."""
-
-    def __init__(self) -> None: ...
-
-    @property
-    def n_pairs(self) -> int:
-        """
-        Number of closest robot-vs-static pairs to constrain (<= 0 tracks all).
-        """
-
-    @n_pairs.setter
-    def n_pairs(self, arg: int, /) -> None: ...
-
-    @property
-    def d_min(self) -> float:
-        """Minimum allowed signed distance (metres)."""
-
-    @d_min.setter
-    def d_min(self, arg: float, /) -> None: ...
 
 class TrajOptSeed:
     """Warm-start states/controls on the horizon grid (reduced-group layout)."""
@@ -469,37 +307,13 @@ class TrajectoryOptimizer:
     def addCost(self, cost: FramePoseCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
 
     @overload
-    def addCost(self, cost: FrameAxisCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
-
-    @overload
     def addCost(self, cost: ConfigurationCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
-
-    @overload
-    def addCost(self, cost: ControlCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
-
-    @overload
-    def addCost(self, cost: VelocityCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
 
     @overload
     def addCost(self, cost: "xyz::polymorphic<aligator::CostAbstractTpl<double>, std::allocator<aligator::CostAbstractTpl<double> > >", timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
 
     @overload
-    def addConstraint(self, constraint: PositionLimit, timesteps: object | None = None) -> None: ...
-
-    @overload
-    def addConstraint(self, constraint: VelocityLimit, timesteps: object | None = None) -> None: ...
-
-    @overload
     def addConstraint(self, constraint: TorqueLimit, timesteps: object | None = None) -> None: ...
-
-    @overload
-    def addConstraint(self, constraint: FramePoseConstraint, timesteps: object | None = None) -> None: ...
-
-    @overload
-    def addConstraint(self, constraint: SelfCollisionConstraint, timesteps: object | None = None) -> None: ...
-
-    @overload
-    def addConstraint(self, constraint: CollisionConstraint, timesteps: object | None = None) -> None: ...
 
     @overload
     def addConstraint(self, residual: "xyz::polymorphic<aligator::StageFunctionTpl<double>, std::allocator<aligator::StageFunctionTpl<double> > >", set: "xyz::polymorphic<aligator::ConstraintSetTpl<double>, std::allocator<aligator::ConstraintSetTpl<double> > >", timesteps: object | None = None) -> None: ...

@@ -174,26 +174,12 @@ CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow&
             handle->pose_setters.push_back(
                 aligator_detail::attachFramePoseCost(*stack, space_, rgm_, spec, weight));
           }
-        } else if constexpr (std::is_same_v<T, FrameAxisCost>) {
-          handle->kind = CostHandle::Impl::Kind::Vector;
-          handle->expected_size = 3;
-          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
-            handle->vector_setters.push_back(
-                aligator_detail::attachFrameAxisCost(*stack, space_, rgm_, spec, weight));
-          }
         } else if constexpr (std::is_same_v<T, ConfigurationCost>) {
           handle->kind = CostHandle::Impl::Kind::Vector;
           handle->expected_size = rgm_.nq();
           for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
             handle->vector_setters.push_back(
                 aligator_detail::attachConfigurationCost(*stack, space_, rgm_, spec, weight));
-          }
-        } else if constexpr (std::is_same_v<T, ControlCost>) {
-          handle->kind = CostHandle::Impl::Kind::Vector;
-          handle->expected_size = rgm_.nv();
-          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
-            handle->vector_setters.push_back(
-                aligator_detail::attachControlCost(*stack, space_, rgm_, spec, weight));
           }
         } else if constexpr (std::is_same_v<T, VelocityCost>) {
           handle->kind = CostHandle::Impl::Kind::Vector;
@@ -229,13 +215,7 @@ void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint,
       [&](const auto& spec) {
         using T = std::decay_t<decltype(spec)>;
 
-        if constexpr (std::is_same_v<T, PositionLimit>) {
-          const auto pair = aligator_detail::buildPositionLimit(space_, rgm_, *scene_, spec);
-          attachConstraintPair(*problem_, pair, window, horizon_);
-        } else if constexpr (std::is_same_v<T, VelocityLimit>) {
-          const auto pair = aligator_detail::buildVelocityLimit(space_, rgm_, *scene_, spec);
-          attachConstraintPair(*problem_, pair, window, horizon_);
-        } else if constexpr (std::is_same_v<T, TorqueLimit>) {
+        if constexpr (std::is_same_v<T, TorqueLimit>) {
           if (window.isTerminal()) {
             throw std::invalid_argument(
                 "TrajectoryOptimizer::addConstraint: a TorqueLimit cannot target the Terminal "
@@ -243,21 +223,6 @@ void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint,
           }
           const auto pair = aligator_detail::buildTorqueLimit(space_, rgm_, spec);
           attachConstraintPair(*problem_, pair, window, horizon_);
-        } else if constexpr (std::is_same_v<T, FramePoseConstraint>) {
-          const auto pair = aligator_detail::buildFramePoseConstraint(space_, rgm_, spec);
-          attachConstraintPair(*problem_, pair, window, horizon_);
-        } else if constexpr (std::is_same_v<T, SelfCollisionConstraint>) {
-          const Eigen::VectorXd q_select = x0_.head(rgm_.nq());
-          for (const auto& pair :
-               aligator_detail::buildSelfCollisionConstraints(space_, rgm_, spec, q_select)) {
-            attachConstraintPair(*problem_, pair, window, horizon_);
-          }
-        } else if constexpr (std::is_same_v<T, CollisionConstraint>) {
-          const Eigen::VectorXd q_select = x0_.head(rgm_.nq());
-          for (const auto& pair :
-               aligator_detail::buildCollisionConstraints(space_, rgm_, spec, q_select)) {
-            attachConstraintPair(*problem_, pair, window, horizon_);
-          }
         }
       },
       constraint);

@@ -28,21 +28,6 @@ struct FramePoseCost {
   Eigen::Vector3d orientation_cost = Eigen::Vector3d::Ones();
 };
 
-/// @brief Align a body-fixed axis with a world-target direction.
-struct FrameAxisCost {
-  /// @brief Name of the frame carrying the body-fixed axis.
-  std::string frame;
-
-  /// @brief The body-fixed axis, expressed in the frame (typically a unit vector).
-  Eigen::Vector3d axis_local = Eigen::Vector3d::UnitZ();
-
-  /// @brief The desired world-space direction for `axis_local` (typically a unit vector).
-  Eigen::Vector3d axis_world_target = Eigen::Vector3d::UnitZ();
-
-  /// @brief Scalar weight on the residual. Nonnegative.
-  double weight = 1.0;
-};
-
 /// @brief Penalize deviation of the reduced-group configuration from a target.
 struct ConfigurationCost {
   /// @brief Target reduced-group configuration (size nq).
@@ -50,15 +35,6 @@ struct ConfigurationCost {
 
   /// @brief Per-DoF weights (size nv). Nonnegative.
   Eigen::VectorXd weights;
-};
-
-/// @brief Penalize control (joint torque) deviation from a target.
-struct ControlCost {
-  /// @brief Per-DoF control weights (size nv). Nonnegative.
-  Eigen::VectorXd weights;
-
-  /// @brief Target control (size nv); empty means zero.
-  Eigen::VectorXd u_target;
 };
 
 /// @brief Penalize reduced-group velocity deviation from a target.
@@ -90,8 +66,7 @@ public:
   /// @throws std::logic_error if this handle was not returned for a FramePoseCost.
   void setTarget(const Eigen::Matrix4d& target_pose);
 
-  /// @brief Sets a new target vector for a ConfigurationCost (q), ControlCost (u), VelocityCost
-  /// (v), or FrameAxisCost (world axis, size 3) handle.
+  /// @brief Sets a new target vector for a ConfigurationCost (q) or VelocityCost (v) handle.
   /// @throws std::logic_error if this handle is a FramePoseCost handle (use the Matrix4d overload).
   /// @throws std::invalid_argument if `target` has the wrong size for the cost.
   void setTarget(const Eigen::VectorXd& target);

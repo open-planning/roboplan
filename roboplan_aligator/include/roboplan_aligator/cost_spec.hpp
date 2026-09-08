@@ -10,6 +10,6 @@ namespace roboplan {
 /// @details Provides implicit conversion from each cost struct so that `addCost` accepts any of
 /// them directly (nanobind converts Python cost objects to CostSpec via these constructors).
 using CostSpec =
-    std::variant<FramePoseCost, FrameAxisCost, ConfigurationCost, ControlCost, VelocityCost>;
+    std::variant<FramePoseCost, ConfigurationCost, VelocityCost>;
 
 }  // namespace roboplan

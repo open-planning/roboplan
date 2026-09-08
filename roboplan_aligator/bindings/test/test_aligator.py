@@ -4,20 +4,13 @@ import numpy as np
 import pytest
 
 from roboplan.aligator import (
-    CollisionConstraint,
     ConfigurationCost,
-    ControlCost,
-    FrameAxisCost,
-    FramePoseConstraint,
     IntegratorType,
-    PositionLimit,
-    SelfCollisionConstraint,
     TorqueLimit,
     TrajectoryOptimizer,
     TrajOptOptions,
     TrajOptResult,
     TrajOptSeed,
-    VelocityLimit,
 )
 from roboplan.core import JointTrajectory, Scene
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
@@ -70,7 +63,8 @@ def test_timesteps_maps_to_stage_windows(scene: Scene) -> None:
     # None -> all stages, (a, b) -> range, int -> terminal (design §3.3). All three must attach
     # without error; an out-of-range range must raise.
     opt = make_optimizer(scene, horizon=10)
-    cost = ControlCost()
+    cost = ConfigurationCost()
+    cost.q_target = np.zeros(opt.nq())
     cost.weights = np.ones(opt.nv())
     opt.addCost(cost)  # timesteps=None -> all
     opt.addCost(cost, timesteps=(2, 6))  # range
@@ -81,7 +75,8 @@ def test_timesteps_maps_to_stage_windows(scene: Scene) -> None:
 
 def test_lifecycle_build_gate(scene: Scene) -> None:
     opt = make_optimizer(scene)
-    cost = ControlCost()
+    cost = ConfigurationCost()
+    cost.q_target = np.zeros(opt.nq())
     cost.weights = np.ones(opt.nv())
     opt.addCost(cost)
 
@@ -186,21 +181,9 @@ def test_result_trajectory_and_to_roboplan(scene: Scene) -> None:
 
 
 def test_constraint_specs_attach(scene: Scene) -> None:
-    # Every constraint spec is constructible and attaches through the public surface.
+    # The torque constraint spec is constructible and attaches through the public surface.
     opt = make_optimizer(scene, horizon=10, max_iters=5)
-    opt.addConstraint(PositionLimit())
-    opt.addConstraint(VelocityLimit())
-    opt.addConstraint(TorqueLimit())
-    reach = FramePoseConstraint()
-    reach.frame = "gripper_link"
-    reach.tol_pos = 0.05
-    reach.tol_rot = 0.2
-    opt.addConstraint(reach, timesteps=opt.horizon())
-    self_collision = SelfCollisionConstraint()
-    self_collision.n_pairs = 2
-    self_collision.d_min = 0.005
-    opt.addConstraint(self_collision)
-    opt.addConstraint(CollisionConstraint(), timesteps=opt.horizon())
+    opt.addConstraint(TorqueLimit())  # all stages
     opt.build()
     assert np.isfinite(opt.solve(TrajOptSeed()).max_constraint_violation)
 
@@ -210,21 +193,6 @@ def test_torque_limit_rejects_terminal(scene: Scene) -> None:
     # The terminal node has no control, so a torque box there is ill-defined.
     with pytest.raises(ValueError):
         opt.addConstraint(TorqueLimit(), timesteps=opt.horizon())
-
-
-def test_frame_axis_cost_attaches_and_retargets(scene: Scene) -> None:
-    # FrameAxisCost -> a handle whose vector setTarget(3) retargets the world axis (hot-path).
-    opt = make_optimizer(scene, horizon=10, max_iters=5)
-    axis = FrameAxisCost()
-    axis.frame = "gripper_link"
-    axis.axis_local = np.array([0.0, 0.0, 1.0])
-    axis.axis_world_target = np.array([1.0, 0.0, 0.0])
-    handle = opt.addCost(axis, timesteps=opt.horizon())
-    opt.build()
-    opt.solve(TrajOptSeed())
-    handle.setTarget(np.array([0.0, 1.0, 0.0]))  # 3-vector world axis
-    result = opt.solve(TrajOptSeed())  # solves after retarget
-    assert len(result.us) == opt.horizon()
 
 
 def test_cost_handle_keeps_optimizer_alive() -> None:

@@ -9,7 +9,6 @@
 #include <aligator/modelling/multibody/frame-placement.hpp>
 #include <pinocchio/spatial/se3.hpp>
 
-#include "frame_axis_residual.hpp"
 #include <roboplan_aligator/reduced_group_model.hpp>
 
 namespace roboplan {
@@ -24,7 +23,6 @@ using StageFuncPoly = xyz::polymorphic<aligator::StageFunctionTpl<double>>;
 
 using QuadraticResidualCost = aligator::QuadraticResidualCostTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
-using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
 using FramePlacementResidual = aligator::FramePlacementResidualTpl<double>;
 using CostItem = CostStack::CostItem;
 
@@ -51,26 +49,6 @@ attachFramePoseCost(CostStack& stack, const PhaseSpace& space, const ReducedGrou
   auto* residual_ptr = stored->getResidual<FramePlacementResidual>();
   return [residual_ptr](const Eigen::Matrix4d& target_pose) {
     residual_ptr->setReference(pinocchio::SE3(target_pose));
-  };
-}
-
-std::function<void(const Eigen::VectorXd&)>
-attachFrameAxisCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                    const FrameAxisCost& spec, double weight) {
-  const pinocchio::FrameIndex frame_id = roboplan::resolveFrame(rgm, spec.frame, "FrameAxisCost");
-  const int ndx = space.ndx();
-  const int nu = rgm.nv();
-
-  const Eigen::MatrixXd weights = spec.weight * Eigen::MatrixXd::Identity(3, 3);
-  FrameAxisResidual residual(ndx, nu, rgm.reducedModel(), frame_id, spec.axis_local,
-                             spec.axis_world_target);
-  QuadraticResidualCost cost(ManifoldPoly(space), StageFuncPoly(residual), weights);
-
-  CostItem& item = stack.addCost(CostPoly(cost), weight);
-  auto* stored = dynamic_cast<QuadraticResidualCost*>(&*item.first);
-  auto* residual_ptr = stored->getResidual<FrameAxisResidual>();
-  return [residual_ptr](const Eigen::VectorXd& axis_world) {
-    residual_ptr->setAxisWorldTarget(Eigen::Vector3d(axis_world));
   };
 }
 
@@ -140,30 +118,6 @@ attachVelocityCost(CostStack& stack, const PhaseSpace& space, const ReducedGroup
     new_target << q_neutral, v;
     stored->setTarget(new_target);
   };
-}
-
-std::function<void(const Eigen::VectorXd&)>
-attachControlCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                  const ControlCost& spec, double weight) {
-  const int nv = rgm.nv();
-  if (spec.weights.size() != nv) {
-    throw std::invalid_argument("ControlCost: weights size " + std::to_string(spec.weights.size()) +
-                                " != nv " + std::to_string(nv) + ".");
-  }
-  Eigen::VectorXd u_target = spec.u_target.size() == 0 ? Eigen::VectorXd::Zero(nv) : spec.u_target;
-  if (u_target.size() != nv) {
-    throw std::invalid_argument("ControlCost: u_target size " + std::to_string(u_target.size()) +
-                                " != nv " + std::to_string(nv) + ".");
-  }
-
-  Eigen::MatrixXd weights = Eigen::MatrixXd::Zero(nv, nv);
-  weights.diagonal() = spec.weights;
-
-  QuadraticControlCost cost(ManifoldPoly(space), nv, weights);  // zero target
-  CostItem& item = stack.addCost(CostPoly(cost), weight);
-  auto* stored = dynamic_cast<QuadraticControlCost*>(&*item.first);
-  stored->setTarget(u_target);  // set on the in-problem copy
-  return [stored](const Eigen::VectorXd& u) { stored->setTarget(u); };
 }
 
 }  // namespace aligator_detail

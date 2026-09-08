@@ -42,8 +42,8 @@ endforeach()
 # aligator::aligator target is created in the parent CMakeLists before this subdirectory is added).
 target_link_libraries(test_dynamics aligator::aligator)
 
-# test_costs builds aligator costs/residuals directly (through the internal cost_factory and
-# frame_axis_residual headers), so it likewise needs aligator's headers + symbols.
+# test_costs builds aligator costs/residuals directly (through the internal cost_factory header),
+# so it likewise needs aligator's headers + symbols.
 target_link_libraries(test_costs aligator::aligator)
 
 # test_constraints builds aligator residuals/constraint sets directly (through the internal

@@ -25,16 +25,8 @@ attachFramePoseCost(CostStack& stack, const PhaseSpace& space, const ReducedGrou
                     const FramePoseCost& spec, double weight);
 
 std::function<void(const Eigen::VectorXd&)>
-attachFrameAxisCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                    const FrameAxisCost& spec, double weight);
-
-std::function<void(const Eigen::VectorXd&)>
 attachConfigurationCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
                         const ConfigurationCost& spec, double weight);
-
-std::function<void(const Eigen::VectorXd&)>
-attachControlCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                  const ControlCost& spec, double weight);
 
 std::function<void(const Eigen::VectorXd&)>
 attachVelocityCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,

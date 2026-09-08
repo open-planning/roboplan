@@ -18,7 +18,6 @@
 #include <roboplan_aligator/trajectory_optimizer.hpp>
 #include <roboplan_aligator/types.hpp>
 
-#include "frame_axis_residual.hpp"
 #include "test_fd_util.hpp"
 #include "test_util.hpp"
 #include <roboplan_aligator/cost_factory.hpp>
@@ -114,22 +113,6 @@ TEST(CostTest, FramePoseCostGradientMatchesFD) {
   expectCostGradientMatchesFD(*cost, f.space, x, Eigen::VectorXd::Constant(f.nv(), 0.2));
 }
 
-TEST(CostTest, FrameAxisCostGradientMatchesFD) {
-  CostFixture f;
-  FrameAxisCost spec;
-  spec.frame = kTipFrame;
-  spec.axis_local = Eigen::Vector3d::UnitZ();
-  spec.axis_world_target = Eigen::Vector3d::UnitX();
-  spec.weight = 1.7;
-
-  CostStack stack(ManifoldPoly(f.space), f.nv());
-  aligator_detail::attachFrameAxisCost(stack, f.space, f.rgm, spec, 1.0);
-  auto* cost = stack.getComponent<CostAbstract>(std::size_t{0});
-  ASSERT_NE(cost, nullptr);
-  const Eigen::VectorXd x = deterministicState(f.space);
-  expectCostGradientMatchesFD(*cost, f.space, x, Eigen::VectorXd::Constant(f.nv(), 0.2));
-}
-
 TEST(CostTest, ConfigurationCostGradientMatchesFD) {
   CostFixture f;
   ConfigurationCost spec;
@@ -143,19 +126,6 @@ TEST(CostTest, ConfigurationCostGradientMatchesFD) {
   expectCostGradientMatchesFD(*cost, f.space, x, Eigen::VectorXd::Constant(f.nv(), 0.2));
 }
 
-TEST(CostTest, ControlCostGradientMatchesFD) {
-  CostFixture f;
-  ControlCost spec;
-  spec.weights = Eigen::VectorXd::LinSpaced(f.nv(), 1.0, 3.0);
-  spec.u_target = Eigen::VectorXd::Constant(f.nv(), 0.1);
-
-  CostStack stack(ManifoldPoly(f.space), f.nv());
-  aligator_detail::attachControlCost(stack, f.space, f.rgm, spec, 1.0);
-  auto* cost = stack.getComponent<CostAbstract>(std::size_t{0});
-  const Eigen::VectorXd x = deterministicState(f.space);
-  expectCostGradientMatchesFD(*cost, f.space, x, Eigen::VectorXd::Constant(f.nv(), 0.25));
-}
-
 TEST(CostTest, VelocityCostGradientMatchesFD) {
   CostFixture f;
   VelocityCost spec;
@@ -166,40 +136,6 @@ TEST(CostTest, VelocityCostGradientMatchesFD) {
   auto* cost = stack.getComponent<CostAbstract>(std::size_t{0});
   const Eigen::VectorXd x = deterministicState(f.space);
   expectCostGradientMatchesFD(*cost, f.space, x, Eigen::VectorXd::Constant(f.nv(), 0.2));
-}
-
-// The custom FrameAxis residual carries an analytic Jacobian; check it directly against FD.
-TEST(CostTest, FrameAxisResidualJacobianMatchesFD) {
-  CostFixture f;
-  const auto fid = f.rgm.frameId(kTipFrame);
-  ASSERT_TRUE(fid.has_value()) << fid.error();
-
-  aligator_detail::FrameAxisResidual residual(f.space.ndx(), f.nv(), f.rgm.reducedModel(), *fid,
-                                              Eigen::Vector3d::UnitZ(), Eigen::Vector3d::UnitX());
-  auto data = residual.createData();
-  const Eigen::VectorXd x = deterministicState(f.space);
-  residual.evaluate(x, *data);
-  residual.computeJacobians(x, *data);
-  const Eigen::MatrixXd jx = data->Jx_;  // 3 x ndx
-
-  const double eps = 1e-6;
-  const int ndx = f.space.ndx();
-  Eigen::MatrixXd jx_fd(3, ndx);
-  const auto value_at = [&](const Eigen::VectorXd& xx) {
-    auto d = residual.createData();
-    residual.evaluate(xx, *d);
-    return Eigen::Vector3d(d->value_);
-  };
-  for (int i = 0; i < ndx; ++i) {
-    Eigen::VectorXd dv = Eigen::VectorXd::Zero(ndx);
-    dv(i) = eps;
-    const Eigen::Vector3d rp = value_at(f.space.integrate(x, dv));
-    dv(i) = -eps;
-    const Eigen::Vector3d rm = value_at(f.space.integrate(x, dv));
-    jx_fd.col(i) = (rp - rm) / (2.0 * eps);
-  }
-  // 1e-5: central-difference accuracy on a smooth (FK) residual.
-  EXPECT_LT((jx - jx_fd).cwiseAbs().maxCoeff(), 1e-5);
 }
 
 // --- Mutable target (value-polymorphism caveat) ------------------------------------------------
@@ -324,7 +260,8 @@ TEST(CostTest, AddCostAfterBuildThrowsThenResetAllows) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
 
-  ControlCost cost;
+  ConfigurationCost cost;
+  cost.q_target = Eigen::VectorXd::Zero(opt.nq());
   cost.weights = Eigen::VectorXd::Ones(opt.nv());
   EXPECT_NO_THROW(opt.addCost(cost));
 
@@ -343,16 +280,17 @@ TEST(CostTest, CostHandleRejectsWrongTargetKind) {
   // Typed locals: the setTarget overloads (Matrix4d vs VectorXd) are unambiguous only for concrete
   // types, not raw Eigen expressions.
   const Eigen::Matrix4d identity_pose = Eigen::Matrix4d::Identity();
-  const Eigen::VectorXd control_target = Eigen::VectorXd::Zero(opt.nv());
+  const Eigen::VectorXd config_target = Eigen::VectorXd::Zero(opt.nv());
   const Eigen::VectorXd wrong_size = Eigen::VectorXd::Zero(opt.nv() + 1);
   const Eigen::VectorXd axis_target = Eigen::VectorXd::Zero(3);
 
-  ControlCost control;
-  control.weights = Eigen::VectorXd::Ones(opt.nv());
-  CostHandle vector_handle = opt.addCost(control);
+  ConfigurationCost config;
+  config.q_target = Eigen::VectorXd::Zero(opt.nq());
+  config.weights = Eigen::VectorXd::Ones(opt.nv());
+  CostHandle vector_handle = opt.addCost(config);
   EXPECT_THROW(vector_handle.setTarget(identity_pose), std::logic_error);
   EXPECT_THROW(vector_handle.setTarget(wrong_size), std::invalid_argument);
-  EXPECT_NO_THROW(vector_handle.setTarget(control_target));
+  EXPECT_NO_THROW(vector_handle.setTarget(config_target));
 
   FramePoseCost pose;
   pose.frame = kTipFrame;
