@@ -10,7 +10,8 @@ elseif(ament_cmake_FOUND)
   if(PYTHON_DESTINATION MATCHES "dist-packages")
     find_package(Python 3.8 COMPONENTS Interpreter REQUIRED)
     set(PYTHON_DESTINATION
-        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
+    )
   endif()
 elseif(DEFINED PYTHON_SITELIB)
   # cmeel installs Python files under its isolated prefix.
@@ -22,7 +23,7 @@ endif()
 
 # Make the helper available to nanobind stub generation in sibling packages.
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan_common"
-  DESTINATION "${CMAKE_BINARY_DIR}/pystage")
+     DESTINATION "${CMAKE_BINARY_DIR}/pystage")
 install(DIRECTORY python/roboplan_common DESTINATION "${PYTHON_DESTINATION}")
 
 if(ament_cmake_FOUND)

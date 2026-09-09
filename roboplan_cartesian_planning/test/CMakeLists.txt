@@ -11,14 +11,13 @@ target_link_libraries(
   roboplan_oink::roboplan_oink
   roboplan_toppra::roboplan_toppra
   roboplan_example_models::roboplan_example_models
-  GTest::gtest_main
-)
+  GTest::gtest_main)
 
 # If ament_gtest is detected, make the tests visible in ROS 2.
 find_package(ament_cmake_gtest QUIET)
-if ( ament_cmake_gtest_FOUND )
-    ament_add_gtest_test(test_cartesian_path_planner)
+if(ament_cmake_gtest_FOUND)
+  ament_add_gtest_test(test_cartesian_path_planner)
 else()
-    include(GoogleTest)
-    gtest_add_tests(TARGET test_cartesian_path_planner)
+  include(GoogleTest)
+  gtest_add_tests(TARGET test_cartesian_path_planner)
 endif()

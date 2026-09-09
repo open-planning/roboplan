@@ -56,6 +56,11 @@ repos:
       - id: clang-format
         files: \.(c|cpp|h|hpp)$
 
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.10
+    hooks:
+      - id: cmake-format
+
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:

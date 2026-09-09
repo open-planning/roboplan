@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(roboplan_core VERSION 0.6.1)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT
+                                             STREQUAL "MSVC")
   # clang-cl remaps plain -Wall to MSVC /Wall (clang's -Weverything); use the
   # /clang: prefix to pass the GNU-style flags through unchanged.
   add_compile_options(/clang:-Wall /clang:-Wextra /clang:-Wpedantic)
@@ -22,136 +23,109 @@ find_package(yaml-cpp REQUIRED)
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
-# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion
-# issues with symlink installs.
+# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite
+# recursion issues with symlink installs.
 find_package(ament_cmake QUIET)
 
 set(TARGETS_LIST roboplan)
 
 # Add tl_expected from source only if not found.
 find_package(tl_expected QUIET)
-if (NOT tl_expected_FOUND)
-    add_library(tl_expected INTERFACE)
-    target_include_directories(
-        tl_expected
-        INTERFACE
-            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:include>
-    )
-    list(APPEND TARGETS_LIST tl_expected)
+if(NOT tl_expected_FOUND)
+  add_library(tl_expected INTERFACE)
+  target_include_directories(
+    tl_expected INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+                          $<INSTALL_INTERFACE:include>)
+  list(APPEND TARGETS_LIST tl_expected)
 endif()
 
 # Add tinyxml2 from source only if not found.
 find_package(tinyxml2_vendor QUIET)
 find_package(TinyXML2 QUIET)
-if ( NOT tinyxml2_vendor_FOUND AND NOT TinyXML2_FOUND AND NOT TARGET tinyxml2::tinyxml2 )
-    add_library(tinyxml2
-        include/tinyxml2/tinyxml2.cpp
-        include/tinyxml2/tinyxml2.h)
-    add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
-    list(APPEND TARGETS_LIST tinyxml2)
+if(NOT tinyxml2_vendor_FOUND
+   AND NOT TinyXML2_FOUND
+   AND NOT TARGET tinyxml2::tinyxml2)
+  add_library(tinyxml2 include/tinyxml2/tinyxml2.cpp
+                       include/tinyxml2/tinyxml2.h)
+  add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+  list(APPEND TARGETS_LIST tinyxml2)
 endif()
 
 # Add roboplan libraries.
-add_library(roboplan SHARED
-    src/core/scene_context.cpp
-    src/core/path_utils.cpp
-    src/core/pose_utils.cpp
-    src/core/scene.cpp
-    src/core/scene_utils.cpp
-    src/core/types.cpp
-)
-target_include_directories(roboplan PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(roboplan
-    PUBLIC
-    Eigen3::Eigen
-    pinocchio::pinocchio
-    PRIVATE
-    tinyxml2::tinyxml2
-    console_bridge::console_bridge
-)
-if (yaml-cpp_VERSION VERSION_LESS "0.8")  # for Ubuntu 22.04
-    target_link_libraries(roboplan PRIVATE yaml-cpp)
+add_library(
+  roboplan SHARED
+  src/core/scene_context.cpp src/core/path_utils.cpp src/core/pose_utils.cpp
+  src/core/scene.cpp src/core/scene_utils.cpp src/core/types.cpp)
+target_include_directories(
+  roboplan PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                  $<INSTALL_INTERFACE:include>)
+target_link_libraries(
+  roboplan
+  PUBLIC Eigen3::Eigen pinocchio::pinocchio
+  PRIVATE tinyxml2::tinyxml2 console_bridge::console_bridge)
+if(yaml-cpp_VERSION VERSION_LESS "0.8") # for Ubuntu 22.04
+  target_link_libraries(roboplan PRIVATE yaml-cpp)
 else()
-    target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
+  target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
-# Alias so this works via add_subdirectory() too, not just installed find_package().
+# Alias so this works via add_subdirectory() too, not just installed
+# find_package().
 add_library(roboplan::roboplan ALIAS roboplan)
 
-add_library(roboplan_filters SHARED
-    src/filters/se3_low_pass_filter.cpp
-)
-target_include_directories(roboplan_filters PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(roboplan_filters
-    PUBLIC
-    Eigen3::Eigen
-    pinocchio::pinocchio
-)
+add_library(roboplan_filters SHARED src/filters/se3_low_pass_filter.cpp)
+target_include_directories(
+  roboplan_filters PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                          $<INSTALL_INTERFACE:include>)
+target_link_libraries(roboplan_filters PUBLIC Eigen3::Eigen
+                                              pinocchio::pinocchio)
 set_property(TARGET roboplan_filters PROPERTY CXX_STANDARD 20)
 add_library(roboplan::roboplan_filters ALIAS roboplan_filters)
 list(APPEND TARGETS_LIST roboplan_filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})
 install(
-  TARGETS
-  ${ROBOPLAN_TARGETS}
+  TARGETS ${ROBOPLAN_TARGETS}
   EXPORT roboplan-targets
   LIBRARY DESTINATION lib
-  INCLUDES DESTINATION include
-)
+  INCLUDES
+  DESTINATION include)
 
 # Install headers
 install(DIRECTORY include/ DESTINATION include)
 
 # Generate the package configuration file
-configure_file(
-    "cmake/roboplanConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake"
-    @ONLY
-)
+configure_file("cmake/roboplanConfig.cmake.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake" @ONLY)
 
 # Create and install the configuration files
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-    cmake/roboplanConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake
-    INSTALL_DESTINATION lib/cmake/roboplan
-)
+  cmake/roboplanConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake
+  INSTALL_DESTINATION lib/cmake/roboplan)
 write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/roboplanConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
-)
-install(
-    FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfigVersion.cmake"
-    DESTINATION
-        "lib/cmake/roboplan"
-)
+  ${CMAKE_CURRENT_BINARY_DIR}/roboplanConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfigVersion.cmake"
+        DESTINATION "lib/cmake/roboplan")
 
 # Install the headers and targets
-install(DIRECTORY
-            include/roboplan
-        DESTINATION lib/cmake/)
+install(DIRECTORY include/roboplan DESTINATION lib/cmake/)
 
-install(EXPORT roboplan-targets
-        FILE roboplanTargets.cmake
-        NAMESPACE roboplan::
-        DESTINATION lib/cmake/roboplan)
+install(
+  EXPORT roboplan-targets
+  FILE roboplanTargets.cmake
+  NAMESPACE roboplan::
+  DESTINATION lib/cmake/roboplan)
 
-install(TARGETS roboplan
-        EXPORT roboplan
-        LIBRARY DESTINATION lib
-        INCLUDES DESTINATION include
-        )
+install(
+  TARGETS roboplan
+  EXPORT roboplan
+  LIBRARY DESTINATION lib
+  INCLUDES
+  DESTINATION include)
 
 # Build the Python bindings by default (for the scikit-build wheel, colcon, and
 # pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
@@ -162,13 +136,13 @@ endif()
 
 # Add the unit tests, if enabled.
 option(BUILD_TESTING "" ON)
-if (BUILD_TESTING)
-    enable_testing()
-    add_subdirectory(test)
+if(BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(test)
 endif()
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.
-if ( ament_cmake_FOUND )
-    message(STATUS "ament_cmake found. Exporting for ROS 2.")
-    ament_package()
+if(ament_cmake_FOUND)
+  message(STATUS "ament_cmake found. Exporting for ROS 2.")
+  ament_package()
 endif()
