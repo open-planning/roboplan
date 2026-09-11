@@ -21,6 +21,7 @@ roboplan-toppra = { path = "../roboplan_toppra" }
 matplotlib = ">=3.10.5,<4"
 numpy = "*"
 plyfile = ">=1.1,<2"
+pycollada = ">=0.9.3,<0.10"
 pynput = ">=1.8.2,<2"
 roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
 roboplan-core = { path = "../roboplan" }
