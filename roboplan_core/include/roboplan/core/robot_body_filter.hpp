@@ -9,58 +9,49 @@
 
 namespace roboplan {
 
-// The transform type was renamed from Transform3f (hpp-fcl) to Transform3s (coal). Pick the
-// right one for whichever library the coal namespace resolves to (see geometry_wrappers.hpp).
-#if defined(__has_include) && __has_include(<coal/fwd.hh>)
-using CoalTransform = coal::Transform3s;
-#else
-using CoalTransform = coal::Transform3f;
-#endif
-
 /// @brief The test used by RobotBodyFilter to classify points near the robot geometry.
 enum class RobotBodyFilterMethod {
   /// Exact: after the broadphase AABB cull, each candidate point is checked with a Coal
-  /// narrowphase collision query (point vs. geometry, with the padding as the security margin).
-  /// Exact for every geometry type, including meshes, at the cost of one GJK/BVH query per
-  /// candidate point.
-  NARROWPHASE,
+  /// narrowphase collision query (point vs. padded geometry). This is exact for every geometry
+  /// type, including meshes, at the cost of one GJK/BVH query per candidate point.
+  Narrowphase,
   /// Conservative: after the broadphase AABB cull, each candidate point is checked against the
-  /// geometry's padded local AABB (an oriented box in world frame). Much faster since it is a
-  /// few arithmetic operations per candidate, but over-removes points near the corners of the
-  /// oriented boxes. The set of points it removes is always a superset of NARROWPHASE's.
-  PADDED_OBB,
+  /// geometry's padded oriented bounding box (OBB). This is much faster since it is a few
+  /// arithmetic operations per candidate, but over-removes points near the corners of the
+  /// oriented boxes. The set of points it removes is always a superset of Narrowphase's.
+  PaddedObb,
 };
 
 /// @brief Options struct for the robot body filter.
 struct RobotBodyFilterOptions {
   /// @brief Distance, in meters, around the robot's collision geometry within which points are
   /// considered part of the robot body. Must be non-negative.
-  double padding = 0.05;
+  double padding;
 
   /// @brief The classification test to use.
-  RobotBodyFilterMethod method = RobotBodyFilterMethod::NARROWPHASE;
+  RobotBodyFilterMethod method = RobotBodyFilterMethod::Narrowphase;
 
-  /// @brief Number of threads used to classify points, or 0 to use all hardware threads. The
-  /// points are split into blocks that the threads pull from a shared queue, so at most one
+  /// @brief Number of threads used to classify points, or 0 to use all hardware threads.
+  /// Points are split into blocks that the threads pull from a shared queue, so at most one
   /// thread per block is ever spawned and small clouds are processed serially either way.
   size_t num_threads = 0;
 };
 
 /// @brief Filters points that lie on or near the robot's own collision geometry.
 ///
-/// This is the usual "self filter" that removes the robot's body from a sensor point cloud (or
-/// the occupied cells of an octree) before the cloud is turned into a collision object, so that
-/// the robot does not see itself as an obstacle.
+/// This removes the robot's body from a sensor point cloud (or the occupied cells of an octree)
+/// so that the robot does not see itself as an obstacle when planning.
 ///
 /// Both methods share a broadphase stage that culls points against the padded world-frame AABB of
 /// every robot collision geometry at the query configuration; they differ only in the exactness
 /// (and cost) of the test run on the surviving candidates. See RobotBodyFilterMethod.
 ///
-/// @par Thread safety
-/// The filter owns private Pinocchio scratch over the Scene's immutable robot description, so
-/// distinct filters may run concurrently on one Scene, but a single filter must not be shared
-/// across threads. The robot geometry is snapshotted at construction; objects added to (or
-/// removed from) the scene afterwards do not affect it.
+/// @par Thread safety and lifetime
+/// The filter owns private Pinocchio scratch over the Scene's robot description, so distinct
+/// filters may run concurrently on one Scene, but a single filter must not be shared across
+/// threads. Only the robot's own collision geometry is filtered against, and it is copied at
+/// construction, so objects can be freely added to or removed from the scene without rebuilding
+/// the filter.
 class RobotBodyFilter {
 public:
   /// @brief Points are given as an N x 3 row-major matrix (one point per row, matching the
@@ -103,6 +94,9 @@ private:
   /// @brief The filter options.
   RobotBodyFilterOptions options_;
 
+  /// @brief The thread cap from the options, with 0 resolved to the hardware thread count.
+  size_t max_threads_;
+
   /// @brief A snapshot of the robot's own collision geometries (the ones loaded from the URDF,
   /// excluding objects added to the scene), so later scene edits cannot invalidate the filter.
   pinocchio::GeometryModel robot_geom_model_;
@@ -113,22 +107,10 @@ private:
   /// @brief Private geometry scratch holding the world placements of robot_geom_model_.
   pinocchio::GeometryData robot_geom_data_;
 
-  /// @brief Per-geometry scratch recomputed by computeMask() at each query configuration.
-  struct GeometryScratch {
-    /// @brief World-frame rotation and translation of the geometry.
-    Eigen::Matrix3d rotation;
-    Eigen::Vector3d translation;
-    /// @brief Center and half extents of the geometry's local AABB, in the geometry frame.
-    Eigen::Vector3d local_center;
-    Eigen::Vector3d local_half_extents;
-    /// @brief World-frame AABB of the placed geometry, already padded by the configured padding.
-    Eigen::Vector3d aabb_min;
-    Eigen::Vector3d aabb_max;
-    /// @brief The underlying Coal geometry and its placement, for narrowphase queries.
-    const coal::CollisionGeometry* geometry;
-    CoalTransform transform;
-  };
-  std::vector<GeometryScratch> geom_scratch_;
+  /// @brief One Coal collision object per geometry in robot_geom_model_, placed by computeMask()
+  /// at the query configuration. Provides the world-frame AABB for the broadphase cull and the
+  /// geometry and transform for the narrowphase and OBB tests.
+  std::vector<coal::CollisionObject> collision_objects_;
 };
 
 }  // namespace roboplan

@@ -60,7 +60,7 @@ TEST(RobotBodyFilterTest, NegativePaddingThrows) {
 TEST(RobotBodyFilterTest, NarrowphaseMatchesExactSphereDistance) {
   auto scene = makeBallScene();
   RobotBodyFilter filter(
-      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::NARROWPHASE});
+      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::Narrowphase});
 
   // The padded body is the ball of radius 0.1 + 0.05 = 0.15 around the origin.
   RobotBodyFilter::PointMatrix points(4, 3);
@@ -79,7 +79,7 @@ TEST(RobotBodyFilterTest, NarrowphaseMatchesExactSphereDistance) {
 TEST(RobotBodyFilterTest, PaddedObbOverRemovesCorners) {
   auto scene = makeBallScene();
   RobotBodyFilter filter(
-      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::PADDED_OBB});
+      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::PaddedObb});
 
   // The padded OBB is the box of half extent 0.15 around the origin.
   RobotBodyFilter::PointMatrix points(3, 3);
@@ -96,7 +96,7 @@ TEST(RobotBodyFilterTest, PaddedObbOverRemovesCorners) {
 TEST(RobotBodyFilterTest, ExtraPaddingIsAppliedPerPoint) {
   auto scene = makeBallScene();
   RobotBodyFilter filter(
-      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::NARROWPHASE});
+      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::Narrowphase});
 
   // Both points are 0.1 outside the ball surface, past the 0.05 padding; only the one granted
   // 0.1 of extra padding is classified as part of the body.
@@ -114,7 +114,7 @@ TEST(RobotBodyFilterTest, ExtraPaddingIsAppliedPerPoint) {
 TEST(RobotBodyFilterTest, FilterPointsKeepsUnmaskedRowsInOrder) {
   auto scene = makeBallScene();
   RobotBodyFilter filter(
-      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::NARROWPHASE});
+      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::Narrowphase});
 
   RobotBodyFilter::PointMatrix points(3, 3);
   points.row(0) << 0.5, 0.0, 0.0;
@@ -130,9 +130,9 @@ TEST(RobotBodyFilterTest, FilterPointsKeepsUnmaskedRowsInOrder) {
 TEST(RobotBodyFilterTest, PaddedObbMaskIsSupersetOfNarrowphase) {
   auto scene = makeUr5Scene();
   RobotBodyFilter narrowphase_filter(
-      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::NARROWPHASE});
+      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::Narrowphase});
   RobotBodyFilter obb_filter(
-      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::PADDED_OBB});
+      scene, RobotBodyFilterOptions{.padding = 0.05, .method = RobotBodyFilterMethod::PaddedObb});
 
   // Random points in a box around the robot at a fixed seed.
   std::mt19937 rng(42);
@@ -149,7 +149,7 @@ TEST(RobotBodyFilterTest, PaddedObbMaskIsSupersetOfNarrowphase) {
   EXPECT_GT(narrowphase_mask.count(), 0);
   for (Eigen::Index i = 0; i < points.rows(); ++i) {
     if (narrowphase_mask(i)) {
-      EXPECT_TRUE(obb_mask(i)) << "point " << i << " removed by NARROWPHASE but not PADDED_OBB";
+      EXPECT_TRUE(obb_mask(i)) << "point " << i << " removed by Narrowphase but not PaddedObb";
     }
   }
 }
@@ -175,8 +175,7 @@ TEST(RobotBodyFilterTest, MultiThreadedMaskMatchesSerial) {
   extra_padding.tail(kNumNear).setConstant(0.02);
 
   const auto q = scene->getCurrentJointPositions();
-  for (const auto method :
-       {RobotBodyFilterMethod::NARROWPHASE, RobotBodyFilterMethod::PADDED_OBB}) {
+  for (const auto method : {RobotBodyFilterMethod::Narrowphase, RobotBodyFilterMethod::PaddedObb}) {
     RobotBodyFilter serial_filter(
         scene, RobotBodyFilterOptions{.padding = 0.05, .method = method, .num_threads = 1});
     RobotBodyFilter threaded_filter(

@@ -14,13 +14,21 @@
 // Mirror the coal/hpp-fcl include guard used in geometry_wrappers.hpp.
 #if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/collision.h>
-#include <coal/shape/geometric_shapes.h>
 #else
 #include <hpp/fcl/collision.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
 #endif
 
 namespace roboplan {
+
+namespace {
+
+/// @brief Number of points each worker thread claims at a time from the shared block counter.
+constexpr Eigen::Index kBlockSize = 256;
+
+/// @brief Minimum number of points per thread before an extra thread is worth spawning.
+constexpr Eigen::Index kMinPointsPerThread = 8192;
+
+}  // namespace
 
 RobotBodyFilter::RobotBodyFilter(const std::shared_ptr<Scene>& scene,
                                  const RobotBodyFilterOptions& options)
@@ -29,20 +37,18 @@ RobotBodyFilter::RobotBodyFilter(const std::shared_ptr<Scene>& scene,
     throw std::invalid_argument("RobotBodyFilter padding must be non-negative, got " +
                                 std::to_string(options_.padding) + ".");
   }
+  max_threads_ = (options_.num_threads == 0) ? std::max(1u, std::thread::hardware_concurrency())
+                                             : options_.num_threads;
 
-  // Snapshot the robot's own geometries into a private geometry model. The Coal geometry
-  // pointers are shared with the scene, but the model structure (and thus the scratch shaped
-  // from it) stays valid even if objects are later added to or removed from the scene.
+  // Snapshot the robot's own geometries so later scene edits cannot invalidate the filter. The
+  // collision objects compute each geometry's local AABB on construction.
   const auto& collision_model = scene_->getCollisionModel();
   for (const auto robot_geom_id : scene_->getRobotCollisionGeometryIds()) {
     const auto& geom_obj = collision_model.geometryObjects[robot_geom_id];
-    // Make sure the local AABB used by both the broadphase cull and the OBB test is available.
-    geom_obj.geometry->computeLocalAABB();
     robot_geom_model_.addGeometryObject(geom_obj);
+    collision_objects_.emplace_back(geom_obj.geometry);
   }
-
   robot_geom_data_ = pinocchio::GeometryData(robot_geom_model_);
-  geom_scratch_.resize(robot_geom_model_.ngeoms);
 }
 
 RobotBodyFilter::Mask
@@ -59,69 +65,48 @@ RobotBodyFilter::computeMask(const Eigen::VectorXd& q, const Eigen::Ref<const Po
   pinocchio::updateGeometryPlacements(scene_->getModel(), data_, robot_geom_model_,
                                       robot_geom_data_, q);
 
-  // Per-geometry setup: world placements and padded world-frame AABBs. The AABB of a rotated
-  // box with half extents h is |R| * h, expanded here by the scalar padding; any per-point
-  // extra padding is applied at test time instead.
-  const double padding = options_.padding;
-  for (size_t g = 0; g < robot_geom_model_.ngeoms; ++g) {
-    auto& scratch = geom_scratch_[g];
+  // Place the collision objects at the query configuration and refresh their world-frame AABBs.
+  for (size_t g = 0; g < collision_objects_.size(); ++g) {
     const auto& oMg = robot_geom_data_.oMg[g];
-    const auto& geom = *robot_geom_model_.geometryObjects[g].geometry;
-
-    scratch.rotation = oMg.rotation();
-    scratch.translation = oMg.translation();
-    scratch.local_center = geom.aabb_local.center();
-    scratch.local_half_extents = 0.5 * (geom.aabb_local.max_ - geom.aabb_local.min_);
-
-    const Eigen::Vector3d world_center =
-        scratch.rotation * scratch.local_center + scratch.translation;
-    const Eigen::Vector3d world_half_extents =
-        scratch.rotation.cwiseAbs() * scratch.local_half_extents +
-        Eigen::Vector3d::Constant(padding);
-    scratch.aabb_min = world_center - world_half_extents;
-    scratch.aabb_max = world_center + world_half_extents;
-
-    scratch.geometry = &geom;
-    scratch.transform = CoalTransform(scratch.rotation, scratch.translation);
+    collision_objects_[g].setTransform(oMg.rotation(), oMg.translation());
+    collision_objects_[g].computeAABB();
   }
 
-  const bool use_narrowphase = (options_.method == RobotBodyFilterMethod::NARROWPHASE);
+  const bool use_narrowphase = (options_.method == RobotBodyFilterMethod::Narrowphase);
   const coal::Sphere point_geom(0.0);
-
   Mask mask = Mask::Constant(num_points, false);
 
-  // Classifies the points in [begin, end). Each worker owns its request so the per-point
-  // security margin can be set without sharing state; the geometries and their placements are
-  // read-only for the duration of the query, and each point writes only its own mask entry.
-  const auto classify_block = [&](const Eigen::Index begin, const Eigen::Index end,
-                                  coal::CollisionRequest& request) {
+  // Classifies the points in [begin, end). The collision objects are read-only for the duration
+  // of the query and each point writes only its own mask entry, so blocks can run concurrently.
+  const auto classify_block = [&](const Eigen::Index begin, const Eigen::Index end) {
+    coal::CollisionRequest request;
     for (Eigen::Index i = begin; i < end; ++i) {
       const Eigen::Vector3d point = points.row(i);
-      const double extra = extra_padding ? (*extra_padding)(i) : 0.0;
+      const double margin = options_.padding + (extra_padding ? (*extra_padding)(i) : 0.0);
 
-      for (const auto& scratch : geom_scratch_) {
-        // Broadphase: skip geometries whose padded world AABB does not contain the point.
-        if (((point - scratch.aabb_min).array() < -extra).any() ||
-            ((point - scratch.aabb_max).array() > extra).any()) {
+      for (const auto& object : collision_objects_) {
+        // Broadphase: skip geometries whose world AABB, grown by the margin, misses the point.
+        const auto& aabb = object.getAABB();
+        if (((point - aabb.min_).array() < -margin).any() ||
+            ((point - aabb.max_).array() > margin).any()) {
           continue;
         }
 
         bool near_body;
         if (use_narrowphase) {
           // Exact point-vs-geometry query: a zero-radius sphere collides when it is within the
-          // security margin of the geometry surface, i.e. within the padding distance.
-          request.security_margin = padding + extra;
+          // security margin of the geometry surface.
+          request.security_margin = margin;
           coal::CollisionResult result;
-          coal::collide(&point_geom, CoalTransform(point), scratch.geometry, scratch.transform,
-                        request, result);
+          coal::collide(&point_geom, CoalTransform(point), object.collisionGeometry().get(),
+                        object.getTransform(), request, result);
           near_body = result.isCollision();
         } else {
-          // Conservative point-in-padded-OBB test in the geometry's local frame.
-          const Eigen::Vector3d local_point =
-              scratch.rotation.transpose() * (point - scratch.translation);
-          near_body = ((local_point - scratch.local_center).cwiseAbs().array() <=
-                       scratch.local_half_extents.array() + (padding + extra))
-                          .all();
+          // Conservative test against the local AABB, grown by the margin, in the geometry frame.
+          const auto& local_aabb = object.collisionGeometry()->aabb_local;
+          const Eigen::Vector3d local_point = object.getTransform().inverseTransform(point);
+          near_body = ((local_point - local_aabb.min_).array() >= -margin).all() &&
+                      ((local_point - local_aabb.max_).array() <= margin).all();
         }
 
         if (near_body) {
@@ -135,20 +120,11 @@ RobotBodyFilter::computeMask(const Eigen::VectorXd& q, const Eigen::Ref<const Po
   // Points are handed out in small fixed-size blocks from a shared counter, so threads that land
   // on stretches of cheap (culled) points simply take more blocks than those doing narrowphase
   // work, even when the points on the robot are clustered together in the cloud (as they are in
-  // a sensor scan). Spawning a thread costs on the order of the time it takes to classify a few
-  // thousand culled points, so the thread count is also capped to keep small clouds serial.
-  constexpr Eigen::Index kBlockSize = 256;
-  constexpr Eigen::Index kMinPointsPerThread = 8192;
-  const size_t max_threads = (options_.num_threads == 0)
-                                 ? std::max(1u, std::thread::hardware_concurrency())
-                                 : options_.num_threads;
-  const size_t num_threads = std::min<size_t>(
-      max_threads,
-      static_cast<size_t>(std::max<Eigen::Index>(1, num_points / kMinPointsPerThread)));
-
+  // a sensor scan). The thread count is also capped to keep small clouds serial.
+  const size_t num_threads =
+      std::min<size_t>(max_threads_, std::max<Eigen::Index>(1, num_points / kMinPointsPerThread));
   if (num_threads <= 1) {
-    coal::CollisionRequest request;
-    classify_block(0, num_points, request);
+    classify_block(0, num_points);
     return mask;
   }
 
@@ -157,21 +133,16 @@ RobotBodyFilter::computeMask(const Eigen::VectorXd& q, const Eigen::Ref<const Po
   std::mutex error_mutex;
   const auto worker = [&]() {
     try {
-      coal::CollisionRequest request;
-      while (true) {
-        const auto begin = next_begin.fetch_add(kBlockSize, std::memory_order_relaxed);
-        if (begin >= num_points) {
-          break;
-        }
-        classify_block(begin, std::min(begin + kBlockSize, num_points), request);
+      for (auto begin = next_begin.fetch_add(kBlockSize); begin < num_points;
+           begin = next_begin.fetch_add(kBlockSize)) {
+        classify_block(begin, std::min(begin + kBlockSize, num_points));
       }
     } catch (...) {
       const std::lock_guard<std::mutex> lock(error_mutex);
       if (!worker_error) {
         worker_error = std::current_exception();
       }
-      // Drain the remaining blocks so the other workers stop promptly.
-      next_begin.store(num_points, std::memory_order_relaxed);
+      next_begin.store(num_points);  // Drain the remaining blocks so the other workers stop.
     }
   };
 

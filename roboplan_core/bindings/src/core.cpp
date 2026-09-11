@@ -459,45 +459,71 @@ void init_core_robot_body_filter(nanobind::module_& m) {
   nanobind::enum_<RobotBodyFilterMethod>(
       m, "RobotBodyFilterMethod",
       "The test used by RobotBodyFilter to classify points near the robot geometry.")
-      .value("NARROWPHASE", RobotBodyFilterMethod::NARROWPHASE,
-             "Exact Coal narrowphase query (point vs. geometry with the padding as security "
-             "margin) after the broadphase AABB cull.")
-      .value("PADDED_OBB", RobotBodyFilterMethod::PADDED_OBB,
-             "Conservative point-in-padded-OBB test after the broadphase AABB cull. Faster, but "
-             "over-removes points near the corners of the oriented boxes.");
+      .value("Narrowphase", RobotBodyFilterMethod::Narrowphase,
+             "Exact: after the broadphase AABB cull, each candidate point is checked with a Coal "
+             "narrowphase collision query (point vs. padded geometry). This is exact for every "
+             "geometry type, including meshes, at the cost of one GJK/BVH query per candidate "
+             "point.")
+      .value("PaddedObb", RobotBodyFilterMethod::PaddedObb,
+             "Conservative: after the broadphase AABB cull, each candidate point is checked "
+             "against the geometry's padded oriented bounding box (OBB). This is much faster "
+             "since it is a few arithmetic operations per candidate, but over-removes points "
+             "near the corners of the oriented boxes. The set of points it removes is always a "
+             "superset of Narrowphase's.");
 
   nanobind::class_<RobotBodyFilterOptions>(m, "RobotBodyFilterOptions",
                                            "Options struct for the robot body filter.")
-      .def(nanobind::init<double, RobotBodyFilterMethod, size_t>(), "padding"_a = 0.05,
-           "method"_a = RobotBodyFilterMethod::NARROWPHASE, "num_threads"_a = 0)
+      .def(nanobind::init<double, RobotBodyFilterMethod, size_t>(), "padding"_a,
+           "method"_a = RobotBodyFilterMethod::Narrowphase, "num_threads"_a = 0)
       .def_rw("padding", &RobotBodyFilterOptions::padding,
               "Distance, in meters, around the robot's collision geometry within which points "
-              "are considered part of the robot body.")
+              "are considered part of the robot body. Must be non-negative.")
       .def_rw("method", &RobotBodyFilterOptions::method, "The classification test to use.")
       .def_rw("num_threads", &RobotBodyFilterOptions::num_threads,
               "Number of threads used to classify points, or 0 to use all hardware threads. "
-              "Small clouds are processed serially regardless.");
+              "Points are split into blocks that the threads pull from a shared queue, so at "
+              "most one thread per block is ever spawned and small clouds are processed serially "
+              "either way.");
 
   nanobind::class_<RobotBodyFilter>(
       m, "RobotBodyFilter",
-      "Filters points that lie on or near the robot's own collision geometry (self filtering), "
-      "e.g. to remove the robot body from a sensor point cloud before turning it into an "
-      "octree obstacle.\n\n"
-      "The robot geometry is snapshotted at construction; objects added to the scene afterwards "
-      "are not filtered against. The filter owns private scratch, so it is safe to use distinct "
-      "filters concurrently on one Scene, but a single filter must not be shared across threads.")
+      "Filters points that lie on or near the robot's own collision geometry.\n\n"
+      "This is the usual \"self filter\" that removes the robot's body from a sensor point cloud "
+      "(or the occupied cells of an octree) before the cloud is turned into a collision object, "
+      "so that the robot does not see itself as an obstacle.\n\n"
+      "Both methods share a broadphase stage that culls points against the padded world-frame "
+      "AABB of every robot collision geometry at the query configuration; they differ only in "
+      "the exactness (and cost) of the test run on the surviving candidates. See "
+      "RobotBodyFilterMethod.\n\n"
+      "Thread safety and lifetime: the filter owns private Pinocchio scratch over the Scene's "
+      "robot description, so distinct filters may run concurrently on one Scene, but a single "
+      "filter must not be shared across threads. Only the robot's own collision geometry is "
+      "filtered against, and it is copied at construction, so objects can be freely added to or "
+      "removed from the scene without rebuilding the filter.")
       .def(nanobind::init<const std::shared_ptr<Scene>&, const RobotBodyFilterOptions&>(),
-           "scene"_a, "options"_a)
+           "scene"_a, "options"_a,
+           "Constructs a filter over the scene's current robot collision geometry.")
       .def("computeMask", &RobotBodyFilter::computeMask,
            nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Returns a boolean mask over the (N x 3) points; true marks a point within the padded "
-           "robot body at configuration q. extra_padding optionally adds a per-point padding, "
-           "e.g. the half-diagonals of octree cells.",
+           "Classifies each point against the padded robot geometry at a joint configuration.\n\n"
+           "`q` is the joint configuration at which to place the robot (size model.nq) and "
+           "`points` are the points to classify, one per row of an N x 3 array, in world frame. "
+           "`extra_padding` is an optional per-point padding, in meters, added to the configured "
+           "padding; useful when the points stand in for finite-sized cells (e.g. octree "
+           "leaves), in which case passing each cell's half-diagonal keeps the test "
+           "conservative.\n\n"
+           "Returns a mask sized to the number of points; true marks a point within the padded "
+           "body.",
            "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
       .def("filterPoints", &RobotBodyFilter::filterPoints,
            nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Returns only the rows of the (N x 3) points that lie outside the padded robot body "
-           "at configuration q.",
+           "Returns only the points outside the padded robot body at a joint configuration.\n\n"
+           "`q` is the joint configuration at which to place the robot (size model.nq) and "
+           "`points` are the points to filter, one per row of an N x 3 array, in world frame. "
+           "`extra_padding` is an optional per-point padding, in meters, added to the configured "
+           "padding.\n\n"
+           "Returns the rows of `points` whose computeMask() entry is false, in their original "
+           "order.",
            "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
       .def("getOptions", &RobotBodyFilter::getOptions, "The filter options.");
 }

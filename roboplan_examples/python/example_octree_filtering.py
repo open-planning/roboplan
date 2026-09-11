@@ -4,19 +4,14 @@
 Demonstrates filtering the robot's own body out of a point cloud before turning it into
 an octree collision object.
 
-The example uses the same environment point cloud as the octree RRT demo, but additionally
-scatters points on the Franka robot itself at its current pose, the way a depth camera
-looking at the workspace would also see the robot. Without filtering, those points become
-occupied voxels on the robot body and the current pose is immediately in collision, so no
-planning is possible. The RobotBodyFilter removes them, and the example then repeatedly
+The example scatters points on the Franka robot itself at its current pose, the way a depth
+camera looking at the workspace would also see the robot. Without filtering, those points
+become occupied voxels on the robot body and the current pose is immediately in collision,
+so no planning is possible. The RobotBodyFilter removes them, and the example then repeatedly
 plans RRT paths to random collision-free goals, refreshing the simulated point cloud and
 the filtered octree at every pose the robot stops at.
 
-The viewer shows the world as the point cloud itself: kept points in turquoise and the
-points removed by the filter in red. The octree built from the kept points is added to the
-scene only as the collision object the RRT plans against.
-
-The filter method (exact NARROWPHASE or the faster, conservative PADDED_OBB) is selected
+The filter method (exact Narrowphase or the faster, conservative PaddedObb) is selected
 with --method, and each cycle prints its timing.
 """
 
@@ -55,11 +50,8 @@ from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOp
 from roboplan.visualization import visualizeJointTrajectory
 
 
-OCTREE_NAME = "filtered_octree"
-
-
 def main(
-    method: RobotBodyFilterMethod = RobotBodyFilterMethod.NARROWPHASE,
+    method: RobotBodyFilterMethod = RobotBodyFilterMethod.Narrowphase,
     padding: float = 0.08,
     num_robot_points: int = 2000,
     robot_point_noise_std: float = 0.005,
@@ -114,26 +106,28 @@ def main(
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=open_browser, loadModel=True, host=host, port=port)
 
-    # The static environment cloud from the octree RRT demo. The robot's own sensor shadow is
-    # re-simulated at every pose the robot stops at.
+    # The static environment cloud from the octree RRT demo.
     env_points = load_point_cloud(
         ROBOPLAN_MODELS_DIR / "pointclouds" / "example_point_cloud.ply"
     )
     print(f"Environment point cloud: {len(env_points)} points")
 
-    # The filter snapshots only the robot's own geometry, so the octree being swapped in and
-    # out of the scene below does not invalidate it.
+    # Swapping the octree in and out of the scene below does not invalidate the filter.
     body_filter = RobotBodyFilter(
         scene, RobotBodyFilterOptions(padding=padding, method=method)
     )
 
+    # Each plan() call snapshots the scene, so one planner sees every octree swap.
+    rrt = RRT(
+        scene,
+        RRTOptions(
+            group_name=group_name,
+            max_planning_time=max_planning_time,
+            rrt_connect=True,
+        ),
+    )
     toppra = PathParameterizerTOPPRA(scene, group_name)
     traj_dt = 0.01
-    rrt_options = RRTOptions(
-        group_name=group_name,
-        max_planning_time=max_planning_time,
-        rrt_connect=True,
-    )
 
     q_current = get_home_configuration(scene, model_data)
     scene.setJointPositions(q_current)
@@ -163,49 +157,42 @@ def main(
         )
 
         # Rebuild the collision octree from the kept points and swap it into the scene. The
-        # viewer instead shows the cloud itself: kept points in turquoise, removed in red.
+        # viewer shows the cloud itself instead: kept points in turquoise, removed points in red.
         filtered_octree = coal.makeOctree(cloud[~mask], voxel_resolution)
         if plan_idx > 0:
-            scene.removeGeometry(OCTREE_NAME)
+            scene.removeGeometry("filtered_octree")
         scene.addOcTreeGeometry(
-            OCTREE_NAME,
+            "filtered_octree",
             "universe",
             OcTree(filtered_octree.toBoxes(), voxel_resolution),
             np.eye(4),
             np.array([0.251, 0.878, 0.816, 1.0]),
         )
-        viz.viewer.scene.add_point_cloud(
-            "/environment_points",
-            points=cloud[~mask],
-            colors=(64, 224, 208),
-            point_size=0.005,
-        )
-        viz.viewer.scene.add_point_cloud(
-            "/removed_points",
-            points=cloud[mask],
-            colors=(255, 60, 60),
-            point_size=0.005,
-        )
+        for name, layer_mask, color in [
+            ("/kept_points", ~mask, (64, 224, 208)),
+            ("/removed_points", mask, (255, 60, 60)),
+        ]:
+            viz.viewer.scene.add_point_cloud(
+                name, points=cloud[layer_mask], colors=color, point_size=0.005
+            )
 
-        # Plan to a random collision-free goal through the fresh octree. The RRT is rebuilt
-        # because swapping the octree changed the scene's collision geometry.
-        rrt = RRT(scene, rrt_options)
-        rrt.setRngSeed(rng_seed + plan_idx)
-
+        # Plan to a random collision-free goal through the fresh octree, drawing a new goal
+        # if planning fails.
         start = JointConfiguration()
         start.positions = q_current[group_info.q_indices]
         goal = JointConfiguration()
-        goal.positions = scene.randomCollisionFreePositions()[group_info.q_indices]
-
-        t_start = time.time()
-        try:
-            path = rrt.plan(start, goal)
-        except RuntimeError as e:
-            print(f"Planning failed ({e}); retrying with a new goal.")
-            continue
+        rrt.setRngSeed(rng_seed + plan_idx)
+        while True:
+            goal.positions = scene.randomCollisionFreePositions()[group_info.q_indices]
+            t_start = time.perf_counter()
+            try:
+                path = rrt.plan(start, goal)
+                break
+            except RuntimeError as e:
+                print(f"Planning failed ({e}); retrying with a new goal.")
         print(
             f"Found a path with {len(path.positions)} waypoints "
-            f"in {time.time() - t_start:.3f} s"
+            f"in {time.perf_counter() - t_start:.3f} s"
         )
 
         # Time-parameterize, visualize, and animate the trajectory.

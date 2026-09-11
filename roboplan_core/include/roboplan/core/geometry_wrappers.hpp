@@ -8,15 +8,25 @@
 // declaring `namespace coal = hpp::fcl;` ourselves.
 #if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/BVH/BVH_model.h>
+#include <coal/collision_object.h>
 #include <coal/mesh_loader/loader.h>
 #include <coal/octree.h>
 #include <coal/shape/geometric_shapes.h>
+namespace roboplan {
+/// @brief The Coal rigid transform type (renamed from Transform3f to Transform3s in coal).
+using CoalTransform = coal::Transform3s;
+}  // namespace roboplan
 #else
 #include <hpp/fcl/BVH/BVH_model.h>
+#include <hpp/fcl/collision_object.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/octree.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
 namespace coal = hpp::fcl;
+namespace roboplan {
+/// @brief The Coal rigid transform type (renamed from Transform3f to Transform3s in coal).
+using CoalTransform = coal::Transform3f;
+}  // namespace roboplan
 #endif
 
 namespace roboplan {

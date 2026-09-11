@@ -57,7 +57,7 @@ POINTS = np.array(
 def test_narrowphase_mask(ball_scene):
     body_filter = RobotBodyFilter(
         ball_scene,
-        RobotBodyFilterOptions(padding=0.05, method=RobotBodyFilterMethod.NARROWPHASE),
+        RobotBodyFilterOptions(padding=0.05, method=RobotBodyFilterMethod.Narrowphase),
     )
     mask = body_filter.computeMask(np.empty(0), POINTS)
     assert mask.dtype == bool
@@ -67,7 +67,7 @@ def test_narrowphase_mask(ball_scene):
 def test_padded_obb_mask_over_removes_corners(ball_scene):
     body_filter = RobotBodyFilter(
         ball_scene,
-        RobotBodyFilterOptions(padding=0.05, method=RobotBodyFilterMethod.PADDED_OBB),
+        RobotBodyFilterOptions(padding=0.05, method=RobotBodyFilterMethod.PaddedObb),
     )
     mask = body_filter.computeMask(np.empty(0), POINTS)
     assert np.array_equal(mask, [True, True, False])

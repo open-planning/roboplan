@@ -708,25 +708,25 @@ class RobotBodyFilterMethod(enum.Enum):
     The test used by RobotBodyFilter to classify points near the robot geometry.
     """
 
-    NARROWPHASE = 0
+    Narrowphase = 0
     """
-    Exact Coal narrowphase query (point vs. geometry with the padding as security margin) after the broadphase AABB cull.
+    Exact: after the broadphase AABB cull, each candidate point is checked with a Coal narrowphase collision query (point vs. padded geometry). This is exact for every geometry type, including meshes, at the cost of one GJK/BVH query per candidate point.
     """
 
-    PADDED_OBB = 1
+    PaddedObb = 1
     """
-    Conservative point-in-padded-OBB test after the broadphase AABB cull. Faster, but over-removes points near the corners of the oriented boxes.
+    Conservative: after the broadphase AABB cull, each candidate point is checked against the geometry's padded oriented bounding box (OBB). This is much faster since it is a few arithmetic operations per candidate, but over-removes points near the corners of the oriented boxes. The set of points it removes is always a superset of Narrowphase's.
     """
 
 class RobotBodyFilterOptions:
     """Options struct for the robot body filter."""
 
-    def __init__(self, padding: float = 0.05, method: RobotBodyFilterMethod = RobotBodyFilterMethod.NARROWPHASE, num_threads: int = 0) -> None: ...
+    def __init__(self, padding: float, method: RobotBodyFilterMethod = RobotBodyFilterMethod.Narrowphase, num_threads: int = 0) -> None: ...
 
     @property
     def padding(self) -> float:
         """
-        Distance, in meters, around the robot's collision geometry within which points are considered part of the robot body.
+        Distance, in meters, around the robot's collision geometry within which points are considered part of the robot body. Must be non-negative.
         """
 
     @padding.setter
@@ -742,7 +742,7 @@ class RobotBodyFilterOptions:
     @property
     def num_threads(self) -> int:
         """
-        Number of threads used to classify points, or 0 to use all hardware threads. Small clouds are processed serially regardless.
+        Number of threads used to classify points, or 0 to use all hardware threads. Points are split into blocks that the threads pull from a shared queue, so at most one thread per block is ever spawned and small clouds are processed serially either way.
         """
 
     @num_threads.setter
@@ -750,21 +750,34 @@ class RobotBodyFilterOptions:
 
 class RobotBodyFilter:
     """
-    Filters points that lie on or near the robot's own collision geometry (self filtering), e.g. to remove the robot body from a sensor point cloud before turning it into an octree obstacle.
+    Filters points that lie on or near the robot's own collision geometry.
 
-    The robot geometry is snapshotted at construction; objects added to the scene afterwards are not filtered against. The filter owns private scratch, so it is safe to use distinct filters concurrently on one Scene, but a single filter must not be shared across threads.
+    This is the usual "self filter" that removes the robot's body from a sensor point cloud (or the occupied cells of an octree) before the cloud is turned into a collision object, so that the robot does not see itself as an obstacle.
+
+    Both methods share a broadphase stage that culls points against the padded world-frame AABB of every robot collision geometry at the query configuration; they differ only in the exactness (and cost) of the test run on the surviving candidates. See RobotBodyFilterMethod.
+
+    Thread safety and lifetime: the filter owns private Pinocchio scratch over the Scene's robot description, so distinct filters may run concurrently on one Scene, but a single filter must not be shared across threads. Only the robot's own collision geometry is filtered against, and it is copied at construction, so objects can be freely added to or removed from the scene without rebuilding the filter.
     """
 
-    def __init__(self, scene: Scene, options: RobotBodyFilterOptions) -> None: ...
+    def __init__(self, scene: Scene, options: RobotBodyFilterOptions) -> None:
+        """Constructs a filter over the scene's current robot collision geometry."""
 
     def computeMask(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], points: Annotated[NDArray[numpy.float64], dict(shape=(None, 3), writable=False)], extra_padding: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.bool_], dict(shape=(None,), order='C')]:
         """
-        Returns a boolean mask over the (N x 3) points; true marks a point within the padded robot body at configuration q. extra_padding optionally adds a per-point padding, e.g. the half-diagonals of octree cells.
+        Classifies each point against the padded robot geometry at a joint configuration.
+
+        `q` is the joint configuration at which to place the robot (size model.nq) and `points` are the points to classify, one per row of an N x 3 array, in world frame. `extra_padding` is an optional per-point padding, in meters, added to the configured padding; useful when the points stand in for finite-sized cells (e.g. octree leaves), in which case passing each cell's half-diagonal keeps the test conservative.
+
+        Returns a mask sized to the number of points; true marks a point within the padded body.
         """
 
     def filterPoints(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], points: Annotated[NDArray[numpy.float64], dict(shape=(None, 3), writable=False)], extra_padding: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.float64], dict(shape=(None, 3), order='C')]:
         """
-        Returns only the rows of the (N x 3) points that lie outside the padded robot body at configuration q.
+        Returns only the points outside the padded robot body at a joint configuration.
+
+        `q` is the joint configuration at which to place the robot (size model.nq) and `points` are the points to filter, one per row of an N x 3 array, in world frame. `extra_padding` is an optional per-point padding, in meters, added to the configured padding.
+
+        Returns the rows of `points` whose computeMask() entry is false, in their original order.
         """
 
     def getOptions(self) -> RobotBodyFilterOptions:
