@@ -237,6 +237,13 @@ build = { cmd = ["colcon", "build", "--cmake-args", "-DBUILD_TESTING=ON"] }
 test = { cmd = ["colcon", "test"] }
 test-result = { cmd = ["colcon", "test-result", "--verbose"] }
 
+# SIP on macOS will strip environment variables from subprocesses, which can
+# cause issues with rpath's for installed packages when building with colcon.
+# To ensure this is tested we manually strip DYLD_LIBRARY_PATH when running
+# tests on macOS to mimic SIP behavior when running in CI.
+[tool.pixi.feature.ros.target.osx.tasks]
+test = { cmd = ["env", "-u", "DYLD_LIBRARY_PATH", "colcon", "test"] }
+
 ###################
 ## ROS 2 Rolling ##
 ###################
