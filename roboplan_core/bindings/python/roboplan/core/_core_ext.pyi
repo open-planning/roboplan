@@ -752,7 +752,7 @@ class RobotBodyFilter:
     """
     Filters points that lie on or near the robot's own collision geometry.
 
-    This is the usual "self filter" that removes the robot's body from a sensor point cloud (or the occupied cells of an octree) before the cloud is turned into a collision object, so that the robot does not see itself as an obstacle.
+    This removes the robot's body from a sensor point cloud (or the occupied cells of an octree) so that the robot does not see itself as an obstacle when planning.
 
     Both methods share a broadphase stage that culls points against the padded world-frame AABB of every robot collision geometry at the query configuration; they differ only in the exactness (and cost) of the test run on the surviving candidates. See RobotBodyFilterMethod.
 
@@ -765,19 +765,11 @@ class RobotBodyFilter:
     def computeMask(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], points: Annotated[NDArray[numpy.float64], dict(shape=(None, 3), writable=False)], extra_padding: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.bool_], dict(shape=(None,), order='C')]:
         """
         Classifies each point against the padded robot geometry at a joint configuration.
-
-        `q` is the joint configuration at which to place the robot (size model.nq) and `points` are the points to classify, one per row of an N x 3 array, in world frame. `extra_padding` is an optional per-point padding, in meters, added to the configured padding; useful when the points stand in for finite-sized cells (e.g. octree leaves), in which case passing each cell's half-diagonal keeps the test conservative.
-
-        Returns a mask sized to the number of points; true marks a point within the padded body.
         """
 
     def filterPoints(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], points: Annotated[NDArray[numpy.float64], dict(shape=(None, 3), writable=False)], extra_padding: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.float64], dict(shape=(None, 3), order='C')]:
         """
         Returns only the points outside the padded robot body at a joint configuration.
-
-        `q` is the joint configuration at which to place the robot (size model.nq) and `points` are the points to filter, one per row of an N x 3 array, in world frame. `extra_padding` is an optional per-point padding, in meters, added to the configured padding.
-
-        Returns the rows of `points` whose computeMask() entry is false, in their original order.
         """
 
     def getOptions(self) -> RobotBodyFilterOptions:

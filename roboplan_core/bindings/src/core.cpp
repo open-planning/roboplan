@@ -488,9 +488,8 @@ void init_core_robot_body_filter(nanobind::module_& m) {
   nanobind::class_<RobotBodyFilter>(
       m, "RobotBodyFilter",
       "Filters points that lie on or near the robot's own collision geometry.\n\n"
-      "This is the usual \"self filter\" that removes the robot's body from a sensor point cloud "
-      "(or the occupied cells of an octree) before the cloud is turned into a collision object, "
-      "so that the robot does not see itself as an obstacle.\n\n"
+      "This removes the robot's body from a sensor point cloud (or the occupied cells of an "
+      "octree) so that the robot does not see itself as an obstacle when planning.\n\n"
       "Both methods share a broadphase stage that culls points against the padded world-frame "
       "AABB of every robot collision geometry at the query configuration; they differ only in "
       "the exactness (and cost) of the test run on the surviving candidates. See "
@@ -505,26 +504,12 @@ void init_core_robot_body_filter(nanobind::module_& m) {
            "Constructs a filter over the scene's current robot collision geometry.")
       .def("computeMask", &RobotBodyFilter::computeMask,
            nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Classifies each point against the padded robot geometry at a joint configuration.\n\n"
-           "`q` is the joint configuration at which to place the robot (size model.nq) and "
-           "`points` are the points to classify, one per row of an N x 3 array, in world frame. "
-           "`extra_padding` is an optional per-point padding, in meters, added to the configured "
-           "padding; useful when the points stand in for finite-sized cells (e.g. octree "
-           "leaves), in which case passing each cell's half-diagonal keeps the test "
-           "conservative.\n\n"
-           "Returns a mask sized to the number of points; true marks a point within the padded "
-           "body.",
+           "Classifies each point against the padded robot geometry at a joint configuration.",
            "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
       .def("filterPoints", &RobotBodyFilter::filterPoints,
            nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Returns only the points outside the padded robot body at a joint configuration.\n\n"
-           "`q` is the joint configuration at which to place the robot (size model.nq) and "
-           "`points` are the points to filter, one per row of an N x 3 array, in world frame. "
-           "`extra_padding` is an optional per-point padding, in meters, added to the configured "
-           "padding.\n\n"
-           "Returns the rows of `points` whose computeMask() entry is false, in their original "
-           "order.",
-           "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
+           "Returns only the points outside the padded robot body at a joint configuration.", "q"_a,
+           "points"_a, "extra_padding"_a = std::nullopt)
       .def("getOptions", &RobotBodyFilter::getOptions, "The filter options.");
 }
 
