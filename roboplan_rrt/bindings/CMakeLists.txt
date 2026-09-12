@@ -33,7 +33,7 @@ target_include_directories(_rrt_ext PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(_rrt_ext
                            PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _rrt_ext PROPERTY CXX_STANDARD 20)
-target_link_libraries(_rrt_ext PRIVATE roboplan_rrt roboplan::roboplan)
+target_link_libraries(_rrt_ext PRIVATE roboplan_rrt)
 
 # Resolve the Python install destination per build context:
 #

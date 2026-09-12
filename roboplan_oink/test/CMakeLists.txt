@@ -11,59 +11,62 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(test_oink test_oink.cpp)
 set_property(TARGET test_oink PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_oink roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_oink PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                    roboplan_example_models::roboplan_example_models)
 
 # Build FrameTask unit tests
 add_executable(test_frame_task tasks/test_frame_task.cpp)
 set_property(TARGET test_frame_task PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_frame_task roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_frame_task PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                          roboplan_example_models::roboplan_example_models)
 
 # Build ConfigurationTask unit tests
 add_executable(test_configuration_task tasks/test_configuration_task.cpp)
 set_property(TARGET test_configuration_task PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_configuration_task roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_configuration_task
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # Build VelocityLimit unit tests
 add_executable(test_velocity_limit constraints/test_velocity_limit.cpp)
 set_property(TARGET test_velocity_limit PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_velocity_limit roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_velocity_limit PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                              roboplan_example_models::roboplan_example_models)
 
 # Build PositionLimit unit tests
 add_executable(test_position_limit constraints/test_position_limit.cpp)
 set_property(TARGET test_position_limit PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_position_limit roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_position_limit PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                              roboplan_example_models::roboplan_example_models)
 
 # Build AccelerationLimit unit tests
 add_executable(test_acceleration_limit constraints/test_acceleration_limit.cpp)
 set_property(TARGET test_acceleration_limit PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_acceleration_limit roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_acceleration_limit
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # Build PositionBarrier unit tests
 add_executable(test_position_barrier barriers/test_position_barrier.cpp)
 set_property(TARGET test_position_barrier PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_position_barrier roboplan::roboplan roboplan_oink GTest::gmock_main
-  GTest::gtest_main roboplan_example_models::roboplan_example_models)
+  test_position_barrier
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # Build SelfCollisionBarrier unit tests
 add_executable(test_self_collision_barrier
                barriers/test_self_collision_barrier.cpp)
 set_property(TARGET test_self_collision_barrier PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_self_collision_barrier roboplan::roboplan roboplan_oink
-  GTest::gmock_main GTest::gtest_main
-  roboplan_example_models::roboplan_example_models)
+  test_self_collision_barrier
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # If ament_gtest is detected, make the tests visible in ROS 2.
 find_package(ament_cmake_gtest QUIET)

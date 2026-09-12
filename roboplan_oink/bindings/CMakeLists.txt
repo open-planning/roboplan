@@ -35,7 +35,7 @@ target_include_directories(_optimal_ik_ext
 target_compile_definitions(_optimal_ik_ext
                            PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _optimal_ik_ext PROPERTY CXX_STANDARD 20)
-target_link_libraries(_optimal_ik_ext PRIVATE roboplan_oink roboplan::roboplan)
+target_link_libraries(_optimal_ik_ext PRIVATE roboplan_oink)
 
 # Resolve the Python install destination per build context:
 #

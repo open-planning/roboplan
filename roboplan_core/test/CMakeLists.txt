@@ -6,21 +6,24 @@ endif()
 # Build tests
 add_executable(test_types test_types.cpp)
 set_property(TARGET test_types PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_types roboplan GTest::gtest_main)
+target_link_libraries(test_types PRIVATE roboplan GTest::gtest_main)
 
 add_executable(test_scene test_scene.cpp)
 set_property(TARGET test_scene PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_scene roboplan GTest::gmock_main GTest::gtest_main
-                      roboplan_example_models::roboplan_example_models)
+target_link_libraries(
+  test_scene PRIVATE roboplan GTest::gmock_main GTest::gtest_main
+                     roboplan_example_models::roboplan_example_models)
 
 add_executable(test_joints test_joints.cpp)
 set_property(TARGET test_joints PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_joints roboplan GTest::gmock_main GTest::gtest_main)
+target_link_libraries(test_joints PRIVATE roboplan GTest::gmock_main
+                                          GTest::gtest_main)
 
 add_executable(test_path_utils test_path_utils.cpp)
 set_property(TARGET test_path_utils PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_path_utils roboplan GTest::gtest_main
-                      roboplan_example_models::roboplan_example_models)
+target_link_libraries(
+  test_path_utils PRIVATE roboplan GTest::gtest_main
+                          roboplan_example_models::roboplan_example_models)
 
 add_executable(test_robot_body_filter test_robot_body_filter.cpp)
 set_property(TARGET test_robot_body_filter PROPERTY CXX_STANDARD 20)
@@ -29,17 +32,19 @@ target_link_libraries(test_robot_body_filter roboplan GTest::gtest_main
 
 add_executable(test_scene_context test_scene_context.cpp)
 set_property(TARGET test_scene_context PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_scene_context roboplan GTest::gtest_main
-                      roboplan_example_models::roboplan_example_models)
+target_link_libraries(
+  test_scene_context PRIVATE roboplan GTest::gtest_main
+                             roboplan_example_models::roboplan_example_models)
 
 add_executable(test_se3_low_pass_filter test_se3_low_pass_filter.cpp)
 set_property(TARGET test_se3_low_pass_filter PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_se3_low_pass_filter roboplan_filters
-                      GTest::gtest_main)
+target_link_libraries(test_se3_low_pass_filter PRIVATE roboplan
+                                                       GTest::gtest_main)
 
 add_executable(test_urdf_extended_limits test_urdf_extended_limits.cpp)
 set_property(TARGET test_urdf_extended_limits PROPERTY CXX_STANDARD 20)
-target_link_libraries(test_urdf_extended_limits roboplan GTest::gtest_main)
+target_link_libraries(test_urdf_extended_limits PRIVATE roboplan
+                                                        GTest::gtest_main)
 
 # TODO: Define tests as a variable
 

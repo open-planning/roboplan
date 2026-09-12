@@ -60,13 +60,15 @@ add_library(
   src/core/robot_body_filter.cpp
   src/core/scene.cpp
   src/core/scene_utils.cpp
-  src/core/types.cpp)
+  src/core/types.cpp
+  src/filters/se3_low_pass_filter.cpp)
 target_include_directories(
   roboplan PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                   $<INSTALL_INTERFACE:include>)
 target_link_libraries(
   roboplan
-  PUBLIC Eigen3::Eigen pinocchio::pinocchio
+  INTERFACE Eigen3::Eigen
+  PUBLIC pinocchio::pinocchio
   PRIVATE tinyxml2::tinyxml2 console_bridge::console_bridge)
 if(yaml-cpp_VERSION VERSION_LESS "0.8") # for Ubuntu 22.04
   target_link_libraries(roboplan PRIVATE yaml-cpp)
@@ -77,16 +79,6 @@ set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 # Alias so this works via add_subdirectory() too, not just installed
 # find_package().
 add_library(roboplan::roboplan ALIAS roboplan)
-
-add_library(roboplan_filters SHARED src/filters/se3_low_pass_filter.cpp)
-target_include_directories(
-  roboplan_filters PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                          $<INSTALL_INTERFACE:include>)
-target_link_libraries(roboplan_filters PUBLIC Eigen3::Eigen
-                                              pinocchio::pinocchio)
-set_property(TARGET roboplan_filters PROPERTY CXX_STANDARD 20)
-add_library(roboplan::roboplan_filters ALIAS roboplan_filters)
-list(APPEND TARGETS_LIST roboplan_filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})
 install(

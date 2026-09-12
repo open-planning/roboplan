@@ -7,13 +7,8 @@ endif()
 add_executable(test_cartesian_path_planner test_cartesian_path_planner.cpp)
 set_property(TARGET test_cartesian_path_planner PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_cartesian_path_planner
-  roboplan_cartesian_planning
-  roboplan::roboplan
-  roboplan_oink::roboplan_oink
-  roboplan_toppra::roboplan_toppra
-  roboplan_example_models::roboplan_example_models
-  GTest::gtest_main)
+  test_cartesian_path_planner roboplan_cartesian_planning
+  roboplan_example_models::roboplan_example_models GTest::gtest_main)
 
 # If ament_gtest is detected, make the tests visible in ROS 2.
 find_package(ament_cmake_gtest QUIET)

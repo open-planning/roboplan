@@ -7,7 +7,7 @@ endif()
 add_executable(test_simple_ik test_simple_ik.cpp)
 set_property(TARGET test_simple_ik PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_simple_ik roboplan_simple_ik roboplan::roboplan
+  test_simple_ik roboplan_simple_ik
   roboplan_example_models::roboplan_example_models GTest::gtest_main)
 
 # If ament_gtest is detected, make the tests visible in ROS 2.

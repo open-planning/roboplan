@@ -35,7 +35,7 @@ target_include_directories(_toppra_ext
 target_compile_definitions(_toppra_ext
                            PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _toppra_ext PROPERTY CXX_STANDARD 20)
-target_link_libraries(_toppra_ext PRIVATE roboplan_toppra roboplan::roboplan)
+target_link_libraries(_toppra_ext PRIVATE roboplan_toppra)
 
 # Resolve the Python install destination per build context:
 #

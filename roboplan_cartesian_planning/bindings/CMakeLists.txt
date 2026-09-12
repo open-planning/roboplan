@@ -39,8 +39,8 @@ target_compile_definitions(_cartesian_ext
 set_property(TARGET _cartesian_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   _cartesian_ext
-  PRIVATE roboplan_cartesian_planning roboplan::roboplan
-          roboplan_oink::roboplan_oink roboplan_toppra::roboplan_toppra)
+  PRIVATE roboplan_cartesian_planning roboplan_oink::roboplan_oink
+          roboplan_toppra::roboplan_toppra)
 
 # Resolve the Python install destination per build context:
 #

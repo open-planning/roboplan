@@ -97,7 +97,7 @@ target_include_directories(_filters_ext
 target_compile_definitions(_filters_ext
                            PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
-target_link_libraries(_filters_ext PRIVATE roboplan_filters)
+target_link_libraries(_filters_ext PRIVATE roboplan)
 
 # Ensure the extension can find workspace dylibs via @rpath on macOS, as it
 # seems that SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will

@@ -84,7 +84,6 @@ if(DEFINED ENV{CMEEL_BUILD})
     target IN
     ITEMS roboplan_example_models
           roboplan
-          roboplan_filters
           roboplan_simple_ik
           roboplan_oink
           roboplan_rrt

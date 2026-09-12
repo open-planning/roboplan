@@ -7,8 +7,9 @@ endif()
 add_executable(test_toppra test_toppra.cpp)
 set_property(TARGET test_toppra PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_toppra roboplan_toppra roboplan::roboplan
-  roboplan_example_models::roboplan_example_models GTest::gtest_main)
+  test_toppra
+  PRIVATE roboplan_toppra roboplan_example_models::roboplan_example_models
+          GTest::gtest_main)
 
 # TODO: Define tests as a variable
 
