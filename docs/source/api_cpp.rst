@@ -37,6 +37,12 @@ TOPP-RA
 .. autodoxygenindex::
     :project: roboplan_toppra
 
+Aligator
+--------
+
+.. autodoxygenindex::
+    :project: roboplan_aligator
+
 Cartesian Planning
 ------------------
 

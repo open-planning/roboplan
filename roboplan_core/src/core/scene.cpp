@@ -649,6 +649,30 @@ tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::st
   return it->second;
 }
 
+tl::expected<std::vector<std::string>, std::string>
+Scene::getLockedJointNames(const std::string& name) const {
+  const auto maybe_group_info = getJointGroupInfo(name);
+  if (!maybe_group_info) {
+    return tl::make_unexpected("Failed to get locked joint names: " + maybe_group_info.error());
+  }
+  const auto& joint_names = maybe_group_info.value().joint_names;
+
+  // A joint is "locked" if it is a movable (nq > 0) joint of the model that is not in the group.
+  // Membership is decided by name (authoritative), so mimic joints (nq == 0, but present in the
+  // model and in the group's joint_names) are correctly treated as not requiring locking.
+  std::vector<bool> in_group(static_cast<std::size_t>(model_.njoints), false);
+  for (const auto& joint_name : joint_names) {
+    in_group[model_.getJointId(joint_name)] = true;
+  }
+  std::vector<std::string> locked_joint_names;
+  for (pinocchio::JointIndex j = 1; j < static_cast<pinocchio::JointIndex>(model_.njoints); ++j) {
+    if (model_.joints[j].nq() > 0 && !in_group[j]) {
+      locked_joint_names.push_back(model_.names[j]);
+    }
+  }
+  return locked_joint_names;
+}
+
 Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
   std::vector<int> q_indices;
   for (const auto& joint_name : joint_names) {

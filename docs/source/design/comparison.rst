@@ -98,7 +98,8 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - Via OMPL wrapper
      - ~60 planners, including asymptotically optimal and constrained (manifold) planning
    * - Optimization-based planning
-     - Not yet
+     - ``roboplan_aligator``: dynamics-aware trajectory optimization (proximal DDP over full
+       rigid-body dynamics, with torque limits and a torque profile as output)
      - CHOMP, STOMP
      - TrajOpt, TrajOpt-IFOPT
      - None (sampling-based only)
@@ -152,7 +153,7 @@ Which Tool Should You Use?
      - Keep in mind...
    * - **RoboPlan**
      - You want a lean, code-first library for manipulator IK, planning, and trajectory generation that works in C++ or Python, with or without ROS.
-     - Pre-1.0 with breaking changes and an intentionally small algorithm surface; no optimization-based planners, perception pipeline, or online execution layer (yet!).
+     - Pre-1.0 with breaking changes and an intentionally small algorithm surface; no perception pipeline or online execution layer (yet!).
    * - MoveIt 2
      - You are building a ROS 2 system and want a batteries-included stack: GUI setup, perception, execution, and swappable planner/IK plugins without recompiling.
      - Requires ROS 2. Behavior is spread across many YAML/SRDF/launch files, and the abstract plugin interfaces can make debugging and customization harder. Open-source features and maintenance have slowed recently.

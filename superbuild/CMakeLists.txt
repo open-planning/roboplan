@@ -58,6 +58,8 @@ add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_common"
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_example_models"
                  "roboplan_example_models")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_core" "roboplan_core")
+add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_aligator"
+                 "roboplan_aligator")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_simple_ik"
                  "roboplan_simple_ik")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_oink" "roboplan_oink")

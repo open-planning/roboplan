@@ -98,6 +98,18 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   EXPECT_THAT(arm_group_info.link_names, ::testing::UnorderedElementsAre("link2", "link3"));
 }
 
+TEST_F(RoboPlanJointTest, GetLockedJointNames) {
+  // The arm group spans revolute_joint (and mimic_joint, which has no DoF of its own), so the only
+  // movable joint excluded from the group is continuous_joint.
+  const auto locked = scene->getLockedJointNames("arm").value();
+  EXPECT_EQ(locked, (std::vector<std::string>{"continuous_joint"}));
+  // The default group spans the whole movable model, so nothing is locked.
+  const auto all_locked = scene->getLockedJointNames("").value();
+  EXPECT_TRUE(all_locked.empty());
+  // An unknown group is a recoverable error, not a throw.
+  EXPECT_FALSE(scene->getLockedJointNames("does_not_exist").has_value());
+}
+
 TEST_F(RoboPlanJointTest, JointGroupLinksFromChainAndExplicitLinks) {
   // A chain group should pull in every link along the chain, and an explicit <link> element
   // should be added on top of the links derived from the group's joints.
