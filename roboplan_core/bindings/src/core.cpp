@@ -9,6 +9,7 @@
 
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/pose_utils.hpp>
+#include <roboplan/core/robot_body_filter.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/scene_utils.hpp>
@@ -320,6 +321,9 @@ void init_core_scene(nanobind::module_& m) {
            "Removes a geometry from the scene.", "name"_a)
       .def("getCollisionGeometryIDs", unwrap_expected(&Scene::getCollisionGeometryIds),
            "Gets a list of collision geometry IDs corresponding to a specified body.", "body"_a)
+      .def("getRobotCollisionGeometryIds", &Scene::getRobotCollisionGeometryIds,
+           "Gets the collision geometry IDs belonging to the robot model itself (excluding "
+           "objects added to the scene).")
       .def("setCollisions", unwrap_expected(&Scene::setCollisions),
            "Sets the allowable collisions for a pair of bodies in the model.", "body1"_a, "body2"_a,
            "enable"_a)
@@ -453,6 +457,64 @@ void init_core_scene_utils(nanobind::module_& m) {
   m.def("expandContinuousJointPositions", unwrap_expected(&expandContinuousJointPositions),
         "Expands a joint position vector's continuous joints from downstream algorithms.",
         "scene"_a, "group_name"_a, "q_orig"_a);
+}
+
+void init_core_robot_body_filter(nanobind::module_& m) {
+  nanobind::enum_<RobotBodyFilterMethod>(
+      m, "RobotBodyFilterMethod",
+      "The test used by RobotBodyFilter to classify points near the robot geometry.")
+      .value("Narrowphase", RobotBodyFilterMethod::Narrowphase,
+             "Exact: after the broadphase AABB cull, each candidate point is checked with a Coal "
+             "narrowphase collision query (point vs. padded geometry). This is exact for every "
+             "geometry type, including meshes, at the cost of one GJK/BVH query per candidate "
+             "point.")
+      .value("PaddedObb", RobotBodyFilterMethod::PaddedObb,
+             "Conservative: after the broadphase AABB cull, each candidate point is checked "
+             "against the geometry's padded oriented bounding box (OBB). This is much faster "
+             "since it is a few arithmetic operations per candidate, but over-removes points "
+             "near the corners of the oriented boxes. The set of points it removes is always a "
+             "superset of Narrowphase's.");
+
+  nanobind::class_<RobotBodyFilterOptions>(m, "RobotBodyFilterOptions",
+                                           "Options struct for the robot body filter.")
+      .def(nanobind::init<double, RobotBodyFilterMethod, size_t>(), "padding"_a,
+           "method"_a = RobotBodyFilterMethod::Narrowphase, "num_threads"_a = 0)
+      .def_rw("padding", &RobotBodyFilterOptions::padding,
+              "Distance, in meters, around the robot's collision geometry within which points "
+              "are considered part of the robot body. Must be non-negative.")
+      .def_rw("method", &RobotBodyFilterOptions::method, "The classification test to use.")
+      .def_rw("num_threads", &RobotBodyFilterOptions::num_threads,
+              "Number of threads used to classify points, or 0 to use all hardware threads. "
+              "Points are split into blocks that the threads pull from a shared queue, so at "
+              "most one thread per block is ever spawned and small clouds are processed serially "
+              "either way.");
+
+  nanobind::class_<RobotBodyFilter>(
+      m, "RobotBodyFilter",
+      "Filters points that lie on or near the robot's own collision geometry.\n\n"
+      "This removes the robot's body from a sensor point cloud (or the occupied cells of an "
+      "octree) so that the robot does not see itself as an obstacle when planning.\n\n"
+      "Both methods share a broadphase stage that culls points against the padded world-frame "
+      "AABB of every robot collision geometry at the query configuration; they differ only in "
+      "the exactness (and cost) of the test run on the surviving candidates. See "
+      "RobotBodyFilterMethod.\n\n"
+      "Thread safety and lifetime: the filter owns private Pinocchio scratch over the Scene's "
+      "robot description, so distinct filters may run concurrently on one Scene, but a single "
+      "filter must not be shared across threads. Only the robot's own collision geometry is "
+      "filtered against, and it is copied at construction, so objects can be freely added to or "
+      "removed from the scene without rebuilding the filter.")
+      .def(nanobind::init<const std::shared_ptr<Scene>&, const RobotBodyFilterOptions&>(),
+           "scene"_a, "options"_a,
+           "Constructs a filter over the scene's current robot collision geometry.")
+      .def("computeMask", &RobotBodyFilter::computeMask,
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Classifies each point against the padded robot geometry at a joint configuration.",
+           "q"_a, "points"_a, "extra_padding"_a = std::nullopt)
+      .def("filterPoints", &RobotBodyFilter::filterPoints,
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Returns only the points outside the padded robot body at a joint configuration.", "q"_a,
+           "points"_a, "extra_padding"_a = std::nullopt)
+      .def("getOptions", &RobotBodyFilter::getOptions, "The filter options.");
 }
 
 }  // namespace roboplan

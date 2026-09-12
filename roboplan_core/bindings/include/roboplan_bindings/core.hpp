@@ -28,4 +28,8 @@ void init_core_pose_utils(nanobind::module_& m);
 /// @param m The nanobind core module.
 void init_core_scene_utils(nanobind::module_& m);
 
+/// @brief Initializes Python bindings for the robot body (self) filter.
+/// @param m The nanobind core module.
+void init_core_robot_body_filter(nanobind::module_& m);
+
 }  // namespace roboplan
