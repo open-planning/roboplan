@@ -1,0 +1,56 @@
+name: "Build and Test ROS"
+
+on:
+  workflow_call: {}
+
+jobs:
+  ros_build_and_test:
+    name: ${{ matrix.ros_distro }} - Build, test ${{ matrix.generate_python_stubs == 'ON' && 'with' || 'without' }} Python stubs
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: humble
+            generate_python_stubs: "OFF"
+          - ros_distro: jazzy
+            generate_python_stubs: "ON"
+          - ros_distro: kilted
+            generate_python_stubs: "ON"
+          - ros_distro: lyrical
+            generate_python_stubs: "ON"
+          - ros_distro: rolling
+            generate_python_stubs: "ON"
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Sanitize tag name
+        id: sanitize_tag
+        run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          TAG="${BRANCH//\//-}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: .docker/ros/Dockerfile
+          tags: roboplan_ros:${{ steps.sanitize_tag.outputs.tag }}
+          build-args: |
+            ROS_DISTRO=${{ matrix.ros_distro }}
+            GENERATE_PYTHON_STUBS=${{ matrix.generate_python_stubs }}
+          push: false
+          load: true
+          cache-from: type=gha,scope=ros-${{ matrix.ros_distro }}
+          cache-to: type=gha,mode=max,scope=ros-${{ matrix.ros_distro }}
+      - name: Run tests
+        run: |
+          docker run --rm \
+            roboplan_ros:${{ steps.sanitize_tag.outputs.tag }} \
+            /bin/bash -c './src/roboplan/scripts/run_tests.bash'

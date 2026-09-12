@@ -1,6 +1,8 @@
 **/__pycache__
 **/build/
 **/install/
+**/log/
+.sccache/
 
 .claude
 .vscode
@@ -12,6 +14,7 @@
 # Python packaging artifacts
 dist/
 wheelhouse/
+*.conda
 
 # Benchmarking results
 pytest_benchmarks.json

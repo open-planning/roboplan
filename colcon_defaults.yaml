@@ -1,0 +1,12 @@
+build:
+  symlink-install: false
+  mixin:
+    - build-testing-on
+    - compile-commands
+    - rel-with-deb-info
+    - sccache
+  event-handlers:
+    - console_direct+
+test:
+  event-handlers:
+    - console_direct+

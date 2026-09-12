@@ -24,7 +24,7 @@ The best way of making sure the stubs are up to date is by using Pixi:
 
 ::
 
-    pixi run -e ci build_all
+    pixi run -e ci install
 
 This uses the ``ci`` environment in our Pixi project to ensure that the build is done via copy, not symbolic link mechanism.
 

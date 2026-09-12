@@ -94,16 +94,16 @@ Once set up, you can run the ``pixi`` tasks as follows.
 ::
 
     # Build all packages, including Python bindings
-    pixi run build_all
+    pixi run build
 
     # Install all packages
-    pixi run install_all
+    pixi run install
 
-    # This will only build the package (You must have built the dependencies first)
+    # This will only build one package (and its dependencies)
     pixi run build PACKAGE_NAME
 
-    # This will only install the package
-    pixi run install PACKAGE_NAME
+All packages share a single build tree (``build/``), configured in one shot, so there is no separate
+"install one package" operation -- ``pixi run install`` always installs everything.
 
 After building all the packages, you can use the Pixi shell to run specific examples.
 
@@ -142,6 +142,9 @@ Build with compilation time report
 
     pixi run build_timetrace PACKAGE_NAME
 
+``PACKAGE_NAME`` is optional for ``build``/``build_asan``/``build_timetrace``/``test`` above; omit it to build or test
+every package.
+
 ---
 
 
@@ -151,6 +154,36 @@ ROS 2 (colcon)
 **Supported platforms:** `Supported platforms <https://reps.openrobotics.org/rep-2000/#support-tiers>`_ for your ROS distro.
 
 If you are using `ROS 2 <https://docs.ros.org/>`_, you can build RoboPlan with the ``colcon`` build system.
+
+With Pixi
+^^^^^^^^^
+
+**Supported platforms:** Linux, macOS, Windows
+
+The Pixi workflow also provides ROS dependencies through `RoboStack <https://robostack.github.io/>`_, with no system install required.
+Each supported distro is its own Pixi environment: ``rolling``, ``lyrical``, ``kilted``, ``jazzy``, ``humble``.
+
+Use the following to build and execute with ``colcon``.
+
+::
+
+    # One-time colcon mixin setup
+    pixi run -e kilted setup
+
+    # Build and test
+    pixi run -e kilted build
+    pixi run -e kilted test
+    pixi run -e kilted test-result
+
+    # Or run an example from an interactive shell
+    pixi shell -e kilted
+    source install/setup.bash
+    ros2 run roboplan_examples example_scene
+
+Substitute ``kilted`` for whichever distro you want to target.
+
+Directly
+^^^^^^^^
 
 For this workflow, you should clone the repo to a valid ROS 2 workspace.
 

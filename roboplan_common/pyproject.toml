@@ -1,0 +1,26 @@
+[build-system]
+requires = ["cmeel[build] >=0.56"]
+build-backend = "cmeel.build"
+
+[project]
+name = "roboplan-common"
+version = "0.6.1"
+description = "Shared runtime support for RoboPlan Python packages."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10,<3.15"
+authors = [{ name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" }]
+classifiers = ["License :: OSI Approved :: MIT License"]
+
+[project.urls]
+Homepage = "https://github.com/open-planning/roboplan"
+
+[tool.pixi.package]
+publish = true
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-cmake", version = "*" }
+
+[tool.cmeel]
+run-tests = false
+has-binaries = false

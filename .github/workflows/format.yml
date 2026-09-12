@@ -1,14 +1,7 @@
 name: format
 
 on:
-  # Run action on certain pull request events
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-
-# Ensures that only one workflow runs at a time for this branch
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call: {}
 
 jobs:
   pre-commit:
