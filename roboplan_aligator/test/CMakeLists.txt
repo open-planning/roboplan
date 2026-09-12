@@ -1,12 +1,14 @@
 find_package(GTest REQUIRED)
-find_package(roboplan_example_models REQUIRED)
+if(NOT TARGET roboplan_example_models::roboplan_example_models)
+  find_package(roboplan_example_models REQUIRED)
+endif()
 
 # Each entry is a test executable built from test_<name>.cpp. The ReducedGroupModel test needs
 # the internal src/ detail header on its include path (that header is intentionally not
 # installed).
 set(ROBOPLAN_ALIGATOR_TESTS
     test_reduced_group_model
-    test_types
+    test_aligator_types
     test_dynamics
     test_trajectory_optimizer
     test_costs

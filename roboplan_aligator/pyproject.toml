@@ -25,3 +25,23 @@ build-dir = "build/{wheel_tag}"
 cmake.define.BUILD_PYTHON_BINDINGS = "ON"
 cmake.define.BUILD_TESTING = "OFF"
 # PEP 420 namespace package: no top-level roboplan/__init__.py is shipped.
+
+[tool.pixi.package]
+publish = true
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-cmake", version = "*" }
+config = { extra-args = ["-DBUILD_PYTHON_BINDINGS=ON", "-DGENERATE_PYTHON_STUBS=OFF", "-DBUILD_TESTING=OFF"]}
+
+# Conda package "host dependencies"; dependencies required at both build-time and run-time.
+# aligator itself is intentionally NOT listed here: roboplan_aligator is pinned to a specific
+# post-release aligator commit (see API_NOTES.md), so find_package(aligator CONFIG) must keep
+# missing in the pixi env and fall through to CMakeLists.txt's FetchContent pin.
+[tool.pixi.package.host-dependencies]
+roboplan-core = { path = "../roboplan_core" }
+python = { workspace = true }
+nanobind = { workspace = true }
+gtest = { workspace = true }
+
+[tool.pixi.package.run-exports.weak]
+roboplan-aligator = { pin-subpackage = true }

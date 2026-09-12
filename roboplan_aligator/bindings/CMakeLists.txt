@@ -44,20 +44,45 @@ target_link_libraries(_aligator_ext PRIVATE
 )
 
 # Resolve the Python install destination per build context:
-#   - colcon (ament): the site-packages dir (relative to the package's install
-#     prefix) that colcon's PYTHONPATH hook adds. We set this directly rather
-#     than via ament_get_python_install_dir(), which returns
-#     lib/python3/dist-packages on Debian-based ROS -- a path the hook omits.
-#   - scikit-build wheel: the wheel root (".").
-#   - plain CMake into a prefix (pixi/conda, the Docker images): the
-#     interpreter's site-packages (absolute), so the package is importable.
+#
+# * colcon (ament): the dir (relative to the package's install prefix) that
+#   colcon's PYTHONPATH hook adds. Use ament_get_python_install_dir() so the
+#   layout matches on Windows (Lib/site-packages), falling back to site-packages
+#   on Debian-based ROS, where ament returns lib/python3/dist-packages -- a path
+#   the hook omits.
+# * scikit-build wheel: the wheel root (".").
+# * cmeel: Python_SITELIB if pure Python or just headers, Python_SITEARCH if
+#   package contains arch-specific binaries.
+# * plain CMake into a prefix (pixi/conda, the Docker images): the interpreter's
+#   site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
-  set(PYTHON_DESTINATION
-      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+  ament_get_python_install_dir(_ament_python_dir)
+  if(_ament_python_dir MATCHES "dist-packages")
+    set(PYTHON_DESTINATION
+        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
+    )
+  else()
+    set(PYTHON_DESTINATION "${_ament_python_dir}")
+  endif()
 elseif(SKBUILD)
   set(PYTHON_DESTINATION ".")
+elseif(DEFINED PYTHON_SITELIB)
+  set(PYTHON_DESTINATION "${PYTHON_SITELIB}")
 else()
-  set(PYTHON_DESTINATION "${Python_SITEARCH}")
+  # TO_CMAKE_PATH converts Windows backslashes, which would otherwise become
+  # invalid escape sequences in the generated cmake_install.cmake.
+  file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
+endif()
+
+# Ensure the extension can find workspace dylibs via @rpath on macOS, as it
+# seems that SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will
+# break stub generation.
+if(APPLE)
+  file(RELATIVE_PATH _ext_to_lib
+       "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/aligator"
+       "${CMAKE_INSTALL_PREFIX}/lib")
+  set_target_properties(_aligator_ext
+                        PROPERTIES INSTALL_RPATH "@loader_path/${_ext_to_lib}")
 endif()
 
 install(TARGETS _aligator_ext
@@ -67,22 +92,50 @@ install(TARGETS _aligator_ext
 # and shipped by the python install below. Stub generation imports the module,
 # which imports roboplan.core, so roboplan-core must be importable at build time
 # (it is, via site-packages in the wheel/colcon build). Older nanobind versions
-# (from rosdep on some distros) do not provide nanobind_add_stub.
-option(GENERATE_PYTHON_STUBS "Generate .pyi stubs for the Python bindings" ON)
+# (from rosdep on some distros) do not provide nanobind_add_stub. Default OFF on
+# Windows: stub generation imports the extension from the build tree, where the
+# DLLs it depends on are not yet on the loader search path. The committed stubs
+# are generated on Unix.
+if(WIN32)
+  set(generate_stubs_default OFF)
+else()
+  set(generate_stubs_default ON)
+endif()
+option(GENERATE_PYTHON_STUBS "Generate .pyi stubs for the Python bindings"
+       ${generate_stubs_default})
 if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
   message(WARNING
     "Skipping Python stub generation: the installed nanobind version does not "
     "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
+  # roboplan.aligator imports roboplan.core; use the staged copy if a sibling
+  # build already produced one.
+  set(_extra_stub_python_path)
+  set(_extra_stub_depends)
+  if(TARGET _core_ext)
+    list(APPEND _extra_stub_python_path "${CMAKE_BINARY_DIR}/pystage")
+    list(APPEND _extra_stub_depends _core_ext)
+  endif()
   nanobind_add_stub(
     _aligator_ext_stub
     MODULE _aligator_ext
     OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/_aligator_ext.pyi"
     MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/py.typed"
     PYTHON_PATH "$<TARGET_FILE_DIR:_aligator_ext>"
+    ${_extra_stub_python_path}
     DEPENDS _aligator_ext
+    ${_extra_stub_depends}
   )
+
+  # Stage this extension under pystage/, so downstream packages can import
+  # roboplan.aligator during their own stub generation.
+  set_target_properties(
+    _aligator_ext
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+               "${CMAKE_BINARY_DIR}/pystage/roboplan/aligator")
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/__init__.py"
+       DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/aligator")
 endif()
 
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")

@@ -15,7 +15,9 @@ option(BUILD_TESTING_ALIGATOR "" ${BUILD_TESTING})
 include(FetchContent)
 
 # Find dependencies.
-find_package(roboplan REQUIRED)
+if(NOT TARGET roboplan::roboplan)
+  find_package(roboplan REQUIRED)
+endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
