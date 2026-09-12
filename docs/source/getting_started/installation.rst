@@ -155,6 +155,36 @@ ROS 2 (colcon)
 
 If you are using `ROS 2 <https://docs.ros.org/>`_, you can build RoboPlan with the ``colcon`` build system.
 
+With Pixi
+^^^^^^^^^
+
+**Supported platforms:** Linux, macOS, Windows
+
+The Pixi workflow also provides ROS dependencies through `RoboStack <https://robostack.github.io/>`_, with no system install required.
+Each supported distro is its own Pixi environment: ``rolling``, ``lyrical``, ``kilted``, ``jazzy``, ``humble``.
+
+Use the following to build and execute with ``colcon``.
+
+::
+
+    # One-time colcon mixin setup
+    pixi run -e kilted setup
+
+    # Build and test
+    pixi run -e kilted build
+    pixi run -e kilted test
+    pixi run -e kilted test-result
+
+    # Or run an example from an interactive shell
+    pixi shell -e kilted
+    source install/setup.bash
+    ros2 run roboplan_examples example_scene
+
+Substitute ``kilted`` for whichever distro you want to target.
+
+Directly
+^^^^^^^^
+
 For this workflow, you should clone the repo to a valid ROS 2 workspace.
 
 ::

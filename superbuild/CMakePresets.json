@@ -24,7 +24,7 @@
       "name": "pixi",
       "inherits": "default",
       "displayName": "Pixi-managed toolchain",
-      "description": "Adds the compiler/linker/build-cache settings pixi sets via ../pixi.toml's [activation.env]. Requires 'pixi run' (only place these env vars are set). Not used by colcon, conda-forge, or per-package wheels.",
+      "description": "Adds the compiler/linker/build-cache settings pixi sets via ../pyproject.toml's [activation.env]. Requires 'pixi run' (only place these env vars are set). Not used by colcon, conda-forge, or per-package wheels.",
       "cacheVariables": {
         "CMAKE_INSTALL_PREFIX": "$env{CMAKE_INSTALL_PREFIX}",
         "CMAKE_BUILD_TYPE": "$env{CMAKE_BUILD_TYPE}",

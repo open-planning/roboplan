@@ -1,0 +1,72 @@
+name: "Pixi Build and Test"
+
+on:
+  workflow_call: {}
+
+jobs:
+  pixi_build_and_test:
+    name: ${{ matrix.os }} - Build, test${{ matrix.clang_tidy && ', clang-tidy' || '' }}
+    timeout-minutes: 30
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cache-key: ubuntu-22.04
+            clang_tidy: false
+          - os: ubuntu-24.04
+            cache-key: ubuntu-24.04
+            clang_tidy: false
+          - os: ubuntu-26.04
+            cache-key: ubuntu-26.04
+            clang_tidy: true
+          - os: macos-14
+            cache-key: macos-arm64
+            clang_tidy: false
+          - os: windows-latest
+            cache-key: windows
+            clang_tidy: false
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # On Windows, bash stops at the first failing command,
+        # and the stub check step below uses bash syntax.
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ${{ matrix.cache-key }}-sccache-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            ${{ matrix.cache-key }}-sccache-main
+            ${{ matrix.cache-key }}-sccache
+      - uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          frozen: true
+          manifest-path: pyproject.toml
+      - name: Build and test
+        run: |
+          pixi run -e ci install
+          pixi run -e ci test_all
+      - name: Run clang-tidy
+        if: matrix.clang_tidy
+        run: pixi run -e ci clang-tidy
+      - name: Check bindings stub files
+        run: |
+          if ! git diff --exit-code --shortstat -- '*.pyi'; then
+            echo "::error::The .pyi stub files are out of sync with the source code. Make sure to rebuild the Python bindings without symlink builds using 'pixi run -e ci install' and commit the changes."
+            echo "Git Diff:"
+            git diff -- '*.pyi'
+            exit 1
+          fi
+          echo "✅ .pyi stub files look good!"

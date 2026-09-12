@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(roboplan_rrt VERSION 0.6.1)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT
+                                             STREQUAL "MSVC")
   # clang-cl remaps plain -Wall to MSVC /Wall (clang's -Weverything); use the
   # /clang: prefix to pass the GNU-style flags through unchanged.
   add_compile_options(/clang:-Wall /clang:-Wextra /clang:-Wpedantic)
@@ -15,81 +16,70 @@ if(WIN32)
 endif()
 
 # Find dependencies.
-find_package(roboplan REQUIRED)
+if(NOT TARGET roboplan::roboplan)
+  find_package(roboplan REQUIRED)
+endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
-# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite recursion
-# issues with symlink installs.
+# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite
+# recursion issues with symlink installs.
 find_package(ament_cmake QUIET)
 
 # Add libraries
-add_library(roboplan_rrt SHARED
-    src/constraints.cpp
-    src/rrt.cpp
-)
-target_include_directories(roboplan_rrt PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
+add_library(roboplan_rrt SHARED src/constraints.cpp src/rrt.cpp)
+target_include_directories(
+  roboplan_rrt PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                      $<INSTALL_INTERFACE:include>)
 set_property(TARGET roboplan_rrt PROPERTY CXX_STANDARD 20)
 target_link_libraries(roboplan_rrt roboplan::roboplan)
-# Alias so this works via add_subdirectory() too, not just installed find_package().
+# Alias so this works via add_subdirectory() too, not just installed
+# find_package().
 add_library(roboplan_rrt::roboplan_rrt ALIAS roboplan_rrt)
 
 install(
-  TARGETS
-  roboplan_rrt
+  TARGETS roboplan_rrt
   EXPORT roboplan_rrt-targets
   LIBRARY DESTINATION lib
-  INCLUDES DESTINATION include
-)
+  INCLUDES
+  DESTINATION include)
 
 # Install headers
 install(DIRECTORY include/ DESTINATION include)
 
 # Generate the package configuration file
-configure_file(
-    "cmake/roboplan_rrtConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfig.cmake"
-    @ONLY
-)
+configure_file("cmake/roboplan_rrtConfig.cmake.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfig.cmake" @ONLY)
 
 # Create and install the configuration files
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-    cmake/roboplan_rrtConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfig.cmake
-    INSTALL_DESTINATION lib/cmake/roboplan_rrt
-)
+  cmake/roboplan_rrtConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfig.cmake
+  INSTALL_DESTINATION lib/cmake/roboplan_rrt)
 write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
-)
-install(
-    FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfigVersion.cmake"
-    DESTINATION
-        "lib/cmake/roboplan_rrt"
-)
+  ${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfig.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/roboplan_rrtConfigVersion.cmake"
+        DESTINATION "lib/cmake/roboplan_rrt")
 
 # Install the headers and targets
-install(DIRECTORY
-            include/roboplan_rrt
-        DESTINATION lib/cmake/)
+install(DIRECTORY include/roboplan_rrt DESTINATION lib/cmake/)
 
-install(EXPORT roboplan_rrt-targets
-        FILE roboplan_rrtTargets.cmake
-        NAMESPACE roboplan_rrt::
-        DESTINATION lib/cmake/roboplan_rrt)
+install(
+  EXPORT roboplan_rrt-targets
+  FILE roboplan_rrtTargets.cmake
+  NAMESPACE roboplan_rrt::
+  DESTINATION lib/cmake/roboplan_rrt)
 
-install(TARGETS roboplan_rrt
-        EXPORT roboplan_rrt
-        LIBRARY DESTINATION lib
-        INCLUDES DESTINATION include
-        )
+install(
+  TARGETS roboplan_rrt
+  EXPORT roboplan_rrt
+  LIBRARY DESTINATION lib
+  INCLUDES
+  DESTINATION include)
 
 # Build the Python bindings by default (for the scikit-build wheel, colcon, and
 # pixi). Override with -DBUILD_PYTHON_BINDINGS=OFF for a pure C++ build.
@@ -100,13 +90,13 @@ endif()
 
 # Add the unit tests, if enabled.
 option(BUILD_TESTING "" ON)
-if (BUILD_TESTING)
-    enable_testing()
-    add_subdirectory(test)
+if(BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(test)
 endif()
 
 # If ament_cmake is detected, export the package to be visible in ROS 2.
-if ( ament_cmake_FOUND )
-    message(STATUS "ament_cmake found. Exporting for ROS 2.")
-    ament_package()
+if(ament_cmake_FOUND)
+  message(STATUS "ament_cmake found. Exporting for ROS 2.")
+  ament_package()
 endif()

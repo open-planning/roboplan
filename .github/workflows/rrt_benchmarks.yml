@@ -1,0 +1,35 @@
+name: RRT Benchmarks
+
+on:
+  workflow_call: {}
+
+jobs:
+  rrt_benchmarks:
+    name: Benchmark RRT
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ubuntu-24.04-benchmarks-sccache-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            ubuntu-24.04-benchmarks-sccache-main
+            ubuntu-24.04-benchmarks-sccache
+      - uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          frozen: true
+          manifest-path: pyproject.toml
+      - name: Build
+        run: pixi run -e default install
+      - name: Run RRT benchmarks
+        run: pixi run -e default test_benchmarks

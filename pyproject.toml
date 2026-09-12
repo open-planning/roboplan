@@ -1,54 +1,298 @@
-[build-system]
-requires = [
-    "scikit-build-core >=0.10",
-    "setuptools-scm >=8",
-    "cmeel-eigen[build]",
-    "cmeel-yaml-cpp[build]",
-    "libpinocchio[build] == 4.1.0",
-    "nanobind >=1.3.2",
-    "patchelf; platform_system == 'Linux'",
-]
-build-backend = "scikit_build_core.build"
+[tool.pixi.workspace]
+channels  = ["conda-forge"]
+preview = ["pixi-build"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64", "win-64"]
 
-[project]
-name = "roboplan"
-dynamic = ["version"]
-description = "Modern robot motion planning library based on Pinocchio."
-readme = "README.md"
-requires-python = ">=3.10,<3.15"
-authors = [
-    { name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" },
-    { name = "Erik Holum", email = "eholum@gmail.com" },
-    { name = "Sebastian Jahr", email = "sebastian.jahr@tuta.io" },
-]
-classifiers = [
-    "License :: OSI Approved :: MIT License",
-]
-dependencies = [
-    "matplotlib",
-    "numpy",
-    "pin >=4.1.0, <4.2",
-]
+[tool.pixi.activation.env]
+CMAKE_INSTALL_PREFIX = "$CONDA_PREFIX"
+LD_LIBRARY_PATH      = "$CONDA_PREFIX/lib"
+ASAN_OPTIONS         = "symbolize=1:print_stacktrace=1"
+ASAN_SYMBOLIZER_PATH = "$CONDA_PREFIX/bin/llvm-symbolizer"
+ROBOPLAN_C_COMPILER  = "clang"
+ROBOPLAN_CXX_COMPILER = "clang++"
+ROBOPLAN_LINKER_FLAG = " "
+ROBOPLAN_EXTRA_CMAKE_ARGS = " "
 
-[project.urls]
-Homepage = "https://github.com/open-planning/roboplan"
+[tool.pixi.target.linux.activation.env]
+ROBOPLAN_LINKER_FLAG = "-fuse-ld=mold"
 
-[tool.scikit-build]
-minimum-version = "build-system.requires"
-metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
-build-dir = "build/{wheel_tag}"
-cmake.source-dir = "packaging/python"
-cmake.define.BUILD_PYTHON_BINDINGS = "ON"
-cmake.define.BUILD_TESTING = "OFF"
-cmake.define.GENERATE_PYTHON_STUBS = "OFF"
-cmake.define.CMAKE_POLICY_VERSION_MINIMUM = "3.5"
-cmake.define.CMAKE_CXX_STANDARD = "17"
-cmake.define.CMAKE_CXX_STANDARD_REQUIRED = "ON"
-cmake.define.CMAKE_INSTALL_LIBDIR = "lib"
-cmake.define.CMAKE_INSTALL_RPATH = "$ORIGIN/../../lib"
-cmake.define.CMAKE_INSTALL_RPATH_USE_LINK_PATH = "FALSE"
+[tool.pixi.feature.local.activation.env]
+CMAKE_INSTALL_MODE   = "SYMLINK"
+CMAKE_BUILD_TYPE     = "RelWithDebInfo"
 
-[tool.scikit-build.sdist]
-exclude = [".omo/**"]
+[tool.pixi.feature.ci.activation.env]
+CMAKE_INSTALL_MODE   = "COPY"
+CMAKE_BUILD_TYPE     = "Debug"
 
-[tool.setuptools_scm]
+# Debug builds on Windows link the debug MSVC runtime, which is ABI
+# incompatible with the release runtime used by the conda-forge binaries.
+[tool.pixi.feature.ci.target.win.activation.env]
+CMAKE_BUILD_TYPE = "RelWithDebInfo"
+
+# Windows activation scripts expand %VAR% instead of $VAR.
+[tool.pixi.target.win.activation.env]
+CMAKE_INSTALL_PREFIX = "%CONDA_PREFIX%"
+# Use the MSVC-compatible clang driver: conda-forge packages are built with
+# MSVC and export MSVC-style flags that the GNU-style clang++ driver rejects.
+ROBOPLAN_C_COMPILER  = "clang-cl"
+ROBOPLAN_CXX_COMPILER = "clang-cl"
+ROBOPLAN_LINKER_FLAG = " "
+ROBOPLAN_EXTRA_CMAKE_ARGS = "-DCMAKE_LINKER=lld-link"
+# The Windows Clang toolchain activates the MSVC build environment, which
+# selects platform and toolset values for Visual Studio generators. Ninja
+# accepts neither setting.
+CMAKE_GENERATOR_PLATFORM = ""
+CMAKE_GENERATOR_TOOLSET = ""
+
+# Symlink creation in Windows requires developer mode or admin privileges.
+[tool.pixi.feature.local.target.win.activation.env]
+CMAKE_INSTALL_MODE = "COPY"
+
+[tool.pixi.tasks]
+# Configures the whole superbuild in one shared build tree, using the
+# 'pixi' preset (superbuild/CMakePresets.json) for compiler/linker/build-cache
+# settings. cxx_flags/extra_flags are for one-off variant builds (see
+# build_asan/build_timetrace below); leave default for a normal configure.
+configure = { cmd = "cmake -S superbuild --preset pixi {{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }} {{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }} {{ extra_flags }} $ROBOPLAN_EXTRA_CMAKE_ARGS", args = [
+  { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
+] }
+
+# Builds everything by default. Pass a package name to build just that
+# package (library, tests, bindings) and its deps, e.g. `pixi run build
+# roboplan_rrt` -- maps to Ninja's per-directory `<dir>/all` target.
+build = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
+  { task = "configure", args = [
+    "{{ cxx_flags }}",
+    "{{ extra_flags }}",
+  ] },
+], args = [
+  { arg = "package_name", default = "" },
+  { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
+] }
+
+# Installs every package into $CONDA_PREFIX. Always installs everything --
+# one shared install tree, no meaningful "install just one package".
+install = { cmd = "cmake --install build", depends-on = [
+  { task = "build", args = [
+    "",
+    "{{ cxx_flags }}",
+    "{{ extra_flags }}",
+  ] },
+], args = [
+  { arg = "cxx_flags", default = "" },
+  { arg = "extra_flags", default = "" },
+] }
+
+build_asan = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
+  { task = "configure", args = [
+    "-fsanitize=address",
+    "-DGENERATE_PYTHON_STUBS=OFF",
+  ] },
+], args = [
+  { arg = "package_name", default = "" },
+] }
+# https://clang.llvm.org/docs/analyzer/developer-docs/PerformanceInvestigation.html#performance-analysis-using-ftime-trace
+build_timetrace = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
+  { task = "configure", args = [
+    "-ftime-trace",
+    "",
+  ] },
+], args = [
+  { arg = "package_name", default = "" },
+] }
+
+# Pass a package name to run just that package's tests, e.g.
+# `pixi run test roboplan_rrt` -- scopes --test-dir to its build subdir.
+test = { cmd = "ctest -V --test-dir build{{ '/' + package_name if package_name }}", args = [
+  { arg = "package_name", default = "" },
+], env = { GTEST_COLOR = "YES" } }
+
+test_py  = { cmd = "python -m pytest --capture=no */bindings/test roboplan_examples/test" }
+test_all = { depends-on = ["test_py", "test"] }
+test_benchmarks = { cmd = "python -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json" }
+
+# Clang-tidy against the superbuild's single compile_commands.json. Pass a
+# package name to scope to just that package's sources.
+clang-tidy = { cmd = "run-clang-tidy -p build -quiet \"^$PIXI_PROJECT_ROOT/{{ package_name + '/' if package_name }}[^.]\"", args = [
+  { arg = "package_name", default = "" },
+] }
+
+clang-tidy-fix = { cmd = "run-clang-tidy -p build -fix -quiet \"^$PIXI_PROJECT_ROOT/{{ package_name + '/' if package_name }}[^.]\"", args = [
+  { arg = "package_name", default = "" },
+] }
+
+# The following are toolchains that are shared between the superbuild and the
+# ROS environments defined below.
+[tool.pixi.feature.toolchain.dependencies]
+clang-tools = ">=19.1.7,<20"
+cmake       = ">=3.30.5,<4"
+ninja       = ">=1.12.1,<2"
+clangxx     = ">=19.1.7,<20"
+lld         = ">=19.1.2,<20"
+sccache     = ">=0.16.0,<0.17"
+# Sanitizer deps, also target-overridden for Windows below.
+llvm-tools  = ">=19.1.7,<20"
+compiler-rt = ">=19.1.7,<20"
+
+# The MSVC STL on current GitHub Windows runners requires clang >= 20, so use a
+# newer LLVM toolchain than on the Unix platforms.
+[tool.pixi.feature.toolchain.target.win.dependencies]
+clang-tools = ">=22.1.8,<23"
+clangxx     = ">=22.1.8,<23"
+compiler-rt = ">=22.1.8,<23"
+lld         = ">=22.1.8,<23"
+llvm-tools  = ">=22.1.8,<23"
+
+# Shared version pins between packages
+[tool.pixi.workspace.dependencies]
+# Python bindings dependencies
+
+# Setting Python to `*` allows the various ROS distros to pull in whatever
+# Python they want without us having to maintain multiple pins in the
+# downstream Pixi packages
+python            = "*"
+nanobind          = ">=2.8.0,<3"
+numpy             = "*"
+
+# Test dependencies
+gtest = ">=1.17.0,<2"
+
+# Python test dependencies
+
+# Newer pytest breaks ROS's launch_testing plugin's hookimpl signature.
+pytest = "<9.1.0"
+pytest-benchmark = ">=5.1.0,<6"
+
+[tool.pixi.target.linux.dependencies]
+gxx         = ">=11,<12"
+gcc         = ">=11,<12"
+libstdcxx   = ">=15.1.0,<16"
+mold        = ">=2.40.2,<3"
+
+[tool.pixi.feature.lint.dependencies]
+pre-commit = ">=4.1.0,<5"
+
+[tool.pixi.dev]
+roboplan = { path = "roboplan" }
+roboplan-common = { path = "roboplan_common" }
+roboplan-core = { path = "roboplan_core" }
+roboplan-example-models = { path = "roboplan_example_models" }
+roboplan-oink = { path = "roboplan_oink" }
+roboplan-rrt = { path = "roboplan_rrt" }
+roboplan-simple-ik = { path = "roboplan_simple_ik" }
+roboplan-toppra = { path = "roboplan_toppra" }
+roboplan-cartesian-planning = { path = "roboplan_cartesian_planning" }
+roboplan-examples = { path = "roboplan_examples" }
+
+[tool.pixi.feature.lint.tasks]
+lint = "pre-commit run --all-files"
+
+[tool.pixi.environments]
+default = { features = ["local", "toolchain"] }
+ci = { features = ["ci", "toolchain"] }
+lint = { features = ["lint"], no-default-feature = true }
+
+# ROS 2 environments
+rolling = { features = ["ros", "toolchain", "rolling"]}
+lyrical = { features = ["ros", "toolchain", "lyrical"]}
+kilted = { features = ["ros", "toolchain", "kilted"]}
+jazzy = { features = ["ros", "toolchain", "jazzy"]}
+humble = { features = ["ros", "toolchain", "humble"]}
+
+[tool.pixi.feature.ros.dependencies]
+colcon-common-extensions = ">=0.3.0,<0.4"
+colcon-mixin = ">=0.2.3,<0.3"
+
+[tool.pixi.feature.ros.target.unix.activation.env]
+# Prioritize pixi installed packages
+CMAKE_PREFIX_PATH = "${CONDA_PREFIX}:${CMAKE_PREFIX_PATH}"
+# Ensures the linker knows where to look for conda managed packages
+LIBRARY_PATH = "${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+LD_LIBRARY_PATH = "${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+LDFLAGS = "-L${CONDA_PREFIX}/lib -Wl,-rpath,${CONDA_PREFIX}/lib"
+
+[tool.pixi.feature.ros.target.linux.dependencies]
+mold = ">=2.40.2,<3"
+
+# Use the MSVC-compatible clang driver: conda-forge packages are built with
+# MSVC and export MSVC-style flags that the GNU-style clang++ driver rejects.
+[tool.pixi.feature.ros.target.win.tasks]
+build = { cmd = [
+  "colcon", "build", "--cmake-args",
+  "-DBUILD_TESTING=ON",
+  "-GNinja",
+  "-DCMAKE_C_COMPILER=clang-cl",
+  "-DCMAKE_CXX_COMPILER=clang-cl",
+  "-DCMAKE_LINKER=lld-link",
+  "-DPython3_EXECUTABLE=$CONDA_PREFIX/python.exe",  # conda envs ship no python3.exe on Windows
+] }
+
+# ROS Environment targets.
+# These will bypass the super build and test roboplan using colcon directly.
+[tool.pixi.feature.ros.tasks]
+setup = "colcon mixin add default https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml || true && colcon mixin update default"
+build = { cmd = ["colcon", "build", "--cmake-args", "-DBUILD_TESTING=ON"] }
+test = { cmd = ["colcon", "test"] }
+test-result = { cmd = ["colcon", "test-result", "--verbose"] }
+
+###################
+## ROS 2 Rolling ##
+###################
+[tool.pixi.feature.rolling]
+channels = ["https://prefix.dev/robostack-rolling"]
+
+[tool.pixi.feature.rolling.dependencies]
+ros-rolling-ros-core = "*"
+
+[tool.pixi.feature.rolling.activation.env]
+ROS_DISTRO = "rolling"
+
+###################
+## ROS 2 Lyrical ##
+###################
+[tool.pixi.feature.lyrical]
+channels = ["https://prefix.dev/robostack-lyrical"]
+
+[tool.pixi.feature.lyrical.dependencies]
+ros-lyrical-ros-core = "*"
+
+[tool.pixi.feature.lyrical.activation.env]
+ROS_DISTRO = "lyrical"
+
+##################
+## ROS 2 Kilted ##
+##################
+[tool.pixi.feature.kilted]
+channels = ["https://prefix.dev/robostack-kilted"]
+
+[tool.pixi.feature.kilted.dependencies]
+ros-kilted-ros-core = "*"
+
+[tool.pixi.feature.kilted.activation.env]
+ROS_DISTRO = "kilted"
+
+#################
+## ROS 2 Jazzy ##
+#################
+[tool.pixi.feature.jazzy]
+channels = ["https://prefix.dev/robostack-jazzy"]
+
+[tool.pixi.feature.jazzy.dependencies]
+ros-jazzy-ros-core = "*"
+
+[tool.pixi.feature.jazzy.activation.env]
+ROS_DISTRO = "jazzy"
+
+##################
+## ROS 2 Humble ##
+##################
+[tool.pixi.feature.humble]
+channels = ["https://prefix.dev/robostack-humble"]
+
+[tool.pixi.feature.humble.dependencies]
+ros-humble-ros-core = "*"
+
+[tool.pixi.feature.humble.activation.env]
+ROS_DISTRO = "humble"

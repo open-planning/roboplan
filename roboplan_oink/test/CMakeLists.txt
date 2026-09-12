@@ -1,124 +1,92 @@
 find_package(GTest REQUIRED)
-find_package(roboplan_example_models REQUIRED)
+if(NOT TARGET roboplan_example_models::roboplan_example_models)
+  find_package(roboplan_example_models REQUIRED)
+endif()
 
-# Shared test-only helpers (test_utils.hpp), included by the tests in the subdirectories below.
+# Shared test-only helpers (test_utils.hpp), included by the tests in the
+# subdirectories below.
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # Build Oink integration tests
 add_executable(test_oink test_oink.cpp)
 set_property(TARGET test_oink PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_oink
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  test_oink PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                    roboplan_example_models::roboplan_example_models)
 
 # Build FrameTask unit tests
 add_executable(test_frame_task tasks/test_frame_task.cpp)
 set_property(TARGET test_frame_task PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_frame_task
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  test_frame_task PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                          roboplan_example_models::roboplan_example_models)
 
 # Build ConfigurationTask unit tests
 add_executable(test_configuration_task tasks/test_configuration_task.cpp)
 set_property(TARGET test_configuration_task PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_configuration_task
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # Build VelocityLimit unit tests
 add_executable(test_velocity_limit constraints/test_velocity_limit.cpp)
 set_property(TARGET test_velocity_limit PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_velocity_limit
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  test_velocity_limit PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                              roboplan_example_models::roboplan_example_models)
 
 # Build PositionLimit unit tests
 add_executable(test_position_limit constraints/test_position_limit.cpp)
 set_property(TARGET test_position_limit PROPERTY CXX_STANDARD 20)
 target_link_libraries(
-  test_position_limit
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  test_position_limit PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                              roboplan_example_models::roboplan_example_models)
 
 # Build AccelerationLimit unit tests
 add_executable(test_acceleration_limit constraints/test_acceleration_limit.cpp)
 set_property(TARGET test_acceleration_limit PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_acceleration_limit
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # Build PositionBarrier unit tests
 add_executable(test_position_barrier barriers/test_position_barrier.cpp)
 set_property(TARGET test_position_barrier PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_position_barrier
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # Build SelfCollisionBarrier unit tests
-add_executable(test_self_collision_barrier barriers/test_self_collision_barrier.cpp)
+add_executable(test_self_collision_barrier
+               barriers/test_self_collision_barrier.cpp)
 set_property(TARGET test_self_collision_barrier PROPERTY CXX_STANDARD 20)
 target_link_libraries(
   test_self_collision_barrier
-  roboplan::roboplan
-  roboplan_oink
-  GTest::gmock_main
-  GTest::gtest_main
-  roboplan_example_models::roboplan_example_models
-)
+  PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+          roboplan_example_models::roboplan_example_models)
 
 # If ament_gtest is detected, make the tests visible in ROS 2.
 find_package(ament_cmake_gtest QUIET)
-if ( ament_cmake_gtest_FOUND )
-    ament_add_gtest_test(test_oink)
-    ament_add_gtest_test(test_frame_task)
-    ament_add_gtest_test(test_configuration_task)
-    ament_add_gtest_test(test_velocity_limit)
-    ament_add_gtest_test(test_position_limit)
-    ament_add_gtest_test(test_acceleration_limit)
-    ament_add_gtest_test(test_position_barrier)
-    ament_add_gtest_test(test_self_collision_barrier)
+if(ament_cmake_gtest_FOUND)
+  ament_add_gtest_test(test_oink)
+  ament_add_gtest_test(test_frame_task)
+  ament_add_gtest_test(test_configuration_task)
+  ament_add_gtest_test(test_velocity_limit)
+  ament_add_gtest_test(test_position_limit)
+  ament_add_gtest_test(test_acceleration_limit)
+  ament_add_gtest_test(test_position_barrier)
+  ament_add_gtest_test(test_self_collision_barrier)
 else()
-    include(GoogleTest)
-    gtest_add_tests(TARGET test_oink)
-    gtest_add_tests(TARGET test_frame_task)
-    gtest_add_tests(TARGET test_configuration_task)
-    gtest_add_tests(TARGET test_position_limit)
-    gtest_add_tests(TARGET test_velocity_limit)
-    gtest_add_tests(TARGET test_acceleration_limit)
-    gtest_add_tests(TARGET test_position_barrier)
-    gtest_add_tests(TARGET test_self_collision_barrier)
+  include(GoogleTest)
+  gtest_add_tests(TARGET test_oink)
+  gtest_add_tests(TARGET test_frame_task)
+  gtest_add_tests(TARGET test_configuration_task)
+  gtest_add_tests(TARGET test_position_limit)
+  gtest_add_tests(TARGET test_velocity_limit)
+  gtest_add_tests(TARGET test_acceleration_limit)
+  gtest_add_tests(TARGET test_position_barrier)
+  gtest_add_tests(TARGET test_self_collision_barrier)
 endif()
