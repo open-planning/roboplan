@@ -66,19 +66,35 @@ void init_aligator(nb::module_& m) {
       .value("SemiImplicitEuler", IntegratorType::SemiImplicitEuler)
       .value("RK2", IntegratorType::RK2);
 
+  nb::enum_<aligator::LQSolverChoice>(m, "LQSolverChoice", "Riccati backend for the LQ subproblem.")
+      .value("Serial", aligator::LQSolverChoice::SERIAL)
+      .value("Parallel", aligator::LQSolverChoice::PARALLEL)
+      .value("StagedDense", aligator::LQSolverChoice::STAGEDENSE);
+
+  nb::enum_<aligator::RolloutType>(m, "RolloutType", "Forward-pass rollout used during the solve.")
+      .value("Linear", aligator::RolloutType::LINEAR)
+      .value("NonLinear", aligator::RolloutType::NONLINEAR);
+
   nb::class_<TrajOptOptions>(m, "TrajOptOptions",
                              "Options controlling the ProxDDP trajectory optimizer.")
       .def(nb::init<>())
       .def(
           "__init__",
           [](TrajOptOptions* self, int max_iters, double tol, double mu_init,
-             IntegratorType integrator, bool verbose, double control_reg, bool record_history) {
-            new (self) TrajOptOptions{max_iters,   tol,      mu_init,        integrator,
-                                      verbose,     control_reg, record_history};
+             IntegratorType integrator, bool verbose, double control_reg, bool record_history,
+             aligator::LQSolverChoice linear_solver_choice, int num_threads,
+             aligator::RolloutType rollout_type) {
+            new (self) TrajOptOptions{max_iters,   tol,
+                                      mu_init,     integrator,
+                                      verbose,     control_reg,
+                                      record_history, linear_solver_choice,
+                                      num_threads, rollout_type};
           },
           "max_iters"_a = 100, "tol"_a = 1e-4, "mu_init"_a = 1e-2,
           "integrator"_a = IntegratorType::SemiImplicitEuler, "verbose"_a = false,
-          "control_reg"_a = 1e-3, "record_history"_a = false)
+          "control_reg"_a = 1e-3, "record_history"_a = false,
+          "linear_solver_choice"_a = aligator::LQSolverChoice::SERIAL, "num_threads"_a = 1,
+          "rollout_type"_a = aligator::RolloutType::LINEAR)
       .def_rw("max_iters", &TrajOptOptions::max_iters, "Maximum ProxDDP outer iterations.")
       .def_rw("tol", &TrajOptOptions::tol, "Convergence tolerance.")
       .def_rw("mu_init", &TrajOptOptions::mu_init, "Augmented-Lagrangian penalty initialization.")
@@ -89,7 +105,13 @@ void init_aligator(nb::module_& m) {
               "Weight of the default quadratic control regularization (0 disables it).")
       .def_rw("record_history", &TrajOptOptions::record_history,
               "Record per-iteration diagnostics into TrajOptResult.history (0 overhead when "
-              "false).");
+              "false).")
+      .def_rw("linear_solver_choice", &TrajOptOptions::linear_solver_choice,
+              "Riccati backend for the LQ subproblem; consumed once, in build().")
+      .def_rw("num_threads", &TrajOptOptions::num_threads,
+              "Thread count for the Parallel backend; consumed once, in build().")
+      .def_rw("rollout_type", &TrajOptOptions::rollout_type,
+              "Forward-pass rollout; consumed once, in build().");
 
   nb::class_<TrajOptIterate>(m, "TrajOptIterate", "One recorded ProxDDP iteration.")
       .def(nb::init<>())

@@ -14,6 +14,22 @@ class IntegratorType(enum.Enum):
 
     RK2 = 1
 
+class LQSolverChoice(enum.Enum):
+    """Riccati backend for the LQ subproblem."""
+
+    Serial = 0
+
+    Parallel = 1
+
+    StagedDense = 2
+
+class RolloutType(enum.Enum):
+    """Forward-pass rollout used during the solve."""
+
+    Linear = 0
+
+    NonLinear = 1
+
 class TrajOptOptions:
     """Options controlling the ProxDDP trajectory optimizer."""
 
@@ -21,7 +37,7 @@ class TrajOptOptions:
     def __init__(self) -> None: ...
 
     @overload
-    def __init__(self, max_iters: int = 100, tol: float = 0.0001, mu_init: float = 0.01, integrator: IntegratorType = IntegratorType.SemiImplicitEuler, verbose: bool = False, control_reg: float = 0.001, record_history: bool = False) -> None: ...
+    def __init__(self, max_iters: int = 100, tol: float = 0.0001, mu_init: float = 0.01, integrator: IntegratorType = IntegratorType.SemiImplicitEuler, verbose: bool = False, control_reg: float = 0.001, record_history: bool = False, linear_solver_choice: LQSolverChoice = LQSolverChoice.Serial, num_threads: int = 1, rollout_type: RolloutType = RolloutType.Linear) -> None: ...
 
     @property
     def max_iters(self) -> int:
@@ -75,6 +91,27 @@ class TrajOptOptions:
 
     @record_history.setter
     def record_history(self, arg: bool, /) -> None: ...
+
+    @property
+    def linear_solver_choice(self) -> LQSolverChoice:
+        """Riccati backend for the LQ subproblem; consumed once, in build()."""
+
+    @linear_solver_choice.setter
+    def linear_solver_choice(self, arg: LQSolverChoice, /) -> None: ...
+
+    @property
+    def num_threads(self) -> int:
+        """Thread count for the Parallel backend; consumed once, in build()."""
+
+    @num_threads.setter
+    def num_threads(self, arg: int, /) -> None: ...
+
+    @property
+    def rollout_type(self) -> RolloutType:
+        """Forward-pass rollout; consumed once, in build()."""
+
+    @rollout_type.setter
+    def rollout_type(self, arg: RolloutType, /) -> None: ...
 
 class TrajOptIterate:
     """One recorded ProxDDP iteration."""

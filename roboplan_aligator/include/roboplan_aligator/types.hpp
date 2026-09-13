@@ -5,6 +5,9 @@
 
 #include <Eigen/Dense>
 
+#include <aligator/core/enums.hpp>                      // aligator::RolloutType
+#include <aligator/solvers/proxddp/solver-proxddp.hpp>  // aligator::LQSolverChoice
+
 #include <roboplan/core/types.hpp>
 
 namespace roboplan {
@@ -42,6 +45,23 @@ struct TrajOptOptions {
   /// @brief Record per-iteration diagnostics into `TrajOptResult::history` (off by default: costs
   /// one push_back per tracked quantity per ProxDDP iteration).
   bool record_history = false;
+
+  /// @brief Riccati backend for the LQ subproblem. Unlike `tol`/`mu_init`/`max_iters`/`verbose`
+  /// (re-applied on every `solve()`), this is consumed once, inside `build()`, to construct the
+  /// solver's internal linear-solver object -- it has no effect if changed after construction.
+  /// `Parallel` requires aligator to have been compiled with OpenMP support; if not, `build()`
+  /// throws. `Parallel` is also incompatible with `rollout_type = NonLinear` (`build()` throws for
+  /// that combination too).
+  aligator::LQSolverChoice linear_solver_choice = aligator::LQSolverChoice::SERIAL;
+
+  /// @brief Thread count for the parallel Riccati backend (`linear_solver_choice = Parallel`);
+  /// unused otherwise. Consumed once, inside `build()`.
+  int num_threads = 1;
+
+  /// @brief Forward-pass rollout used during the solve: `Linear` (default) or `Nonlinear` (full
+  /// dynamics re-integration). Consumed once, inside `build()` (see `linear_solver_choice`).
+  /// Incompatible with `linear_solver_choice = Parallel` (see above).
+  aligator::RolloutType rollout_type = aligator::RolloutType::LINEAR;
 };
 
 /// @brief One recorded ProxDDP iteration, populated only when `TrajOptOptions::record_history` is

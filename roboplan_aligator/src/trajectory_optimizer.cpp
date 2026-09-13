@@ -251,6 +251,15 @@ void TrajectoryOptimizer::build() {
   if (locked_) {
     return;  // idempotent: already built (setup() run, problem structure frozen).
   }
+  // linear_solver_choice/rollout_type_ are read by setup() itself to construct the solver's
+  // internal linear-solver object (and to check their compatibility -- Parallel + Nonlinear
+  // throws), so they must be set before setup(), not in solve() like tol/mu_init/max_iters/verbose
+  // (API_NOTES.md Prompt 14). setNumThreads() must likewise precede setup() per aligator's own
+  // documented warning.
+  solver_.setNumThreads(static_cast<std::size_t>(options_.num_threads));
+  solver_.linear_solver_choice = options_.linear_solver_choice;
+  solver_.rollout_type_ = options_.rollout_type;
+
   // Allocate the solver workspace for the assembled problem and freeze it: no more addCost /
   // addConstraint / resetProblem until resetProblem() unlocks (lifecycle §3.4). Deferred to here
   // (not the ctor) so every cost/constraint added is part of the structure setup() allocates for.

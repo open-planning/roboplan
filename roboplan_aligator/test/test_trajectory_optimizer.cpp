@@ -136,6 +136,52 @@ TEST(TrajectoryOptimizerTest, HistoryEmptyWhenNotRecorded) {
   EXPECT_TRUE(result->history.empty());
 }
 
+// linear_solver_choice/num_threads/rollout_type are consumed once in build() (API_NOTES.md
+// Prompt 14); these tests exercise the compatible and incompatible combinations.
+
+TEST(TrajectoryOptimizerTest, NonlinearRolloutWithSerialSolverConverges) {
+  TrajOptOptions options;
+  options.max_iters = 100;
+  options.control_reg = 1e-2;
+  options.rollout_type = aligator::RolloutType::NONLINEAR;  // SERIAL (default) supports this.
+
+  TrajectoryOptimizer opt(makeSo101Scene(), "arm", /*horizon=*/10, /*dt=*/0.02, options);
+  opt.build();
+  const auto result = opt.solve(TrajOptSeed{});
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_TRUE(result->converged);
+}
+
+TEST(TrajectoryOptimizerTest, ParallelSolverRejectsNonlinearRollout) {
+  TrajOptOptions options;
+  options.linear_solver_choice = aligator::LQSolverChoice::PARALLEL;
+  options.rollout_type = aligator::RolloutType::NONLINEAR;
+
+  TrajectoryOptimizer opt(makeSo101Scene(), "arm", /*horizon=*/10, /*dt=*/0.02, options);
+  // Throws either for the Parallel+Nonlinear incompatibility, or (if this aligator build lacks
+  // OpenMP support) for Parallel itself -- both are setup()-time invariant violations, so either
+  // reason is an acceptable, deterministic outcome for this test.
+  EXPECT_THROW(opt.build(), std::exception);
+}
+
+TEST(TrajectoryOptimizerTest, ParallelLinearSolverWithCustomThreadsSolves) {
+  TrajOptOptions options;
+  options.max_iters = 100;
+  options.control_reg = 1e-2;
+  options.linear_solver_choice = aligator::LQSolverChoice::PARALLEL;
+  options.num_threads = 2;
+
+  TrajectoryOptimizer opt(makeSo101Scene(), "arm", /*horizon=*/10, /*dt=*/0.02, options);
+  try {
+    opt.build();
+  } catch (const std::exception& e) {
+    GTEST_SKIP() << "Parallel Riccati solver unavailable in this aligator build: " << e.what();
+  }
+  const auto result = opt.solve(TrajOptSeed{});
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_TRUE(result->converged);
+}
+
 TEST(TrajectoryOptimizerTest, SolveRejectsWrongSeedSize) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
