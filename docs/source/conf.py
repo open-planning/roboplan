@@ -108,22 +108,22 @@ if shutil.which("doxygen") is None:
         file=sys.stderr,
     )
 
-for project, package_dir in breathe_package_dirs.items():
+for breathe_project, package_dir in breathe_package_dirs.items():
     package_root = Path(os.path.abspath(f"../../{package_dir}"))
     docs_dir = package_root / "docs"
     if not (docs_dir / "Doxyfile").exists():
         raise FileNotFoundError(
-            f"Missing Doxyfile for breathe project '{project}': {docs_dir}"
+            f"Missing Doxyfile for breathe project '{breathe_project}': {docs_dir}"
         )
 
     # Generate Doxygen XML and add it to the breathe projects.
     if shutil.which("doxygen") is not None:
         subprocess.check_call("rm -rf html/ xml/ && doxygen", cwd=docs_dir, shell=True)
-    breathe_projects[project] = (docs_dir / "xml").as_posix()
+    breathe_projects[breathe_project] = (docs_dir / "xml").as_posix()
 
     # Add the package files to the breathe projects sources list.
-    package_path = package_root / "include" / project
-    breathe_projects_source[project] = (
+    package_path = package_root / "include" / breathe_project
+    breathe_projects_source[breathe_project] = (
         package_path.as_posix(),
         [f for f in package_path.rglob("*.hpp")],
     )
