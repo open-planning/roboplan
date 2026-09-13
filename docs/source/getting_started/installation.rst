@@ -68,7 +68,9 @@ We recommend creating a Python virtual environment for isolation.
     source roboplan/bin/activate
     pip3 install roboplan
 
-The ``roboplan`` package on PyPi is a pure-Python metapackage that depends on one wheel per package in this repository (``roboplan-core``, ``roboplan-rrt``, etc.).
+For each package in this repository, you can also ``pip install`` just the wheel you need (e.g., ``roboplan-core``, ``roboplan-rrt``), and its RoboPlan dependencies come along automatically.
+The ``roboplan`` package itself is a pure-Python metapackage that pins every package to one exact version, so upgrade them together rather than mixing versions.
+
 These wheels are built with ``cibuildwheel`` by an automated CI job that runs on every new tagged version of RoboPlan.
 Each package directory is its own `cmeel <https://github.com/cmake-wheel/cmeel>`_ project with its own ``pyproject.toml``;
 refer to the `superbuild README <https://github.com/open-planning/roboplan/blob/main/superbuild/README.md>`_ for how to build and test the wheels locally.
