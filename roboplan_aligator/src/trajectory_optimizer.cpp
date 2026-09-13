@@ -34,7 +34,7 @@ Eigen::VectorXd stackState(const Eigen::VectorXd& q, const Eigen::VectorXd& v) {
 }
 
 // The in-problem CostStacks a window targets: each in-range stage's cost sum, or the terminal cost.
-// Returned as pointers into the assembled problem so attached costs mutate its final home (§3.5).
+// Returned as pointers into the assembled problem so attached costs mutate its final home.
 std::vector<aligator_detail::CostStack*>
 resolveTargetStacks(aligator_detail::Problem& problem, const StageWindow& window, int horizon) {
   const auto as_stack = [](aligator::CostAbstractTpl<double>& cost) {
@@ -67,7 +67,7 @@ void requireUnlocked(bool locked) {
 
 // Attaches a built (residual, box) constraint pair to every in-range stage of `window`, or to the
 // terminal node. Both StageModel::addConstraint and TrajOptProblem::addTerminalConstraint deep-copy
-// (pushBack), so one built pair is reused across the whole window (API_NOTES.md, Prompt 7).
+// (pushBack), so one built pair is reused across the whole window.
 void attachConstraintPair(aligator_detail::Problem& problem,
                           const aligator_detail::ConstraintPair& pair, const StageWindow& window,
                           int horizon) {
@@ -172,11 +172,11 @@ void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q) {
                                 ", expected reduced nq = " + std::to_string(nq) + ".");
   }
   x0_ = stackState(q, Eigen::VectorXd::Zero(nv));
-  // Updates the initial-condition constraint target in place (no rebuild, §3.4).
+  // Updates the initial-condition constraint target in place (no rebuild).
   problem_->setInitState(x0_);
 }
 
-// --- Costs (design §4.3) ---------------------------------------------------------------------
+// --- Costs -------------------------------------------------------------------------------------
 
 CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow& window,
                                         double weight) {
@@ -216,7 +216,7 @@ CostHandle TrajectoryOptimizer::addCost(xyz::polymorphic<aligator::CostAbstractT
   return CostHandle(std::make_unique<CostHandle::Impl>());
 }
 
-// --- Constraints (design §4.4) ---------------------------------------------------------------
+// --- Constraints ---------------------------------------------------------------------------
 
 void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint,
                                         const StageWindow& window) {
@@ -253,16 +253,15 @@ void TrajectoryOptimizer::build() {
   }
   // linear_solver_choice/rollout_type_ are read by setup() itself to construct the solver's
   // internal linear-solver object (and to check their compatibility -- Parallel + Nonlinear
-  // throws), so they must be set before setup(), not in solve() like tol/mu_init/max_iters/verbose
-  // (API_NOTES.md Prompt 14). setNumThreads() must likewise precede setup() per aligator's own
-  // documented warning.
+  // throws), so they must be set before setup(), not in solve() like tol/mu_init/max_iters/verbose.
+  // setNumThreads() must likewise precede setup() per aligator's own documented warning.
   solver_.setNumThreads(static_cast<std::size_t>(options_.num_threads));
   solver_.linear_solver_choice = options_.linear_solver_choice;
   solver_.rollout_type_ = options_.rollout_type;
 
   // Allocate the solver workspace for the assembled problem and freeze it: no more addCost /
-  // addConstraint / resetProblem until resetProblem() unlocks (lifecycle §3.4). Deferred to here
-  // (not the ctor) so every cost/constraint added is part of the structure setup() allocates for.
+  // addConstraint / resetProblem until resetProblem() unlocks. Deferred to here (not the ctor) so
+  // every cost/constraint added is part of the structure setup() allocates for.
   solver_.setup(*problem_);
   locked_ = true;
 }
@@ -281,8 +280,8 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   const int nx = rgm_.nq() + rgm_.nv();
   const int nu = rgm_.nv();
 
-  // The problem must be finalized (build()) before it can be solved (maintainer decision, Prompt 9:
-  // solve does not auto-build). A missing build() is a recoverable per-call misuse, not a throw.
+  // The problem must be finalized (build()) before it can be solved: solve() does not auto-build.
+  // A missing build() is a recoverable per-call misuse, not a throw.
   if (!locked_) {
     return tl::make_unexpected(
         "TrajectoryOptimizer::solve: the problem has not been built; call build() first (add all "
@@ -320,10 +319,10 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
     }
   }
 
-  // Apply options by direct public-field assignment before the run (maintainer decision, Prompt 5):
-  // honours §3.4's "max_iters/tol editable between solves without a rebuild". mu_init_ is consumed
-  // by run() (setAlmPenalty(mu_init_), solver-proxddp.hxx:460), not by setup(), so assigning it
-  // here means every solve honours the current options.mu_init.
+  // Apply options by direct public-field assignment before the run: max_iters/tol/mu_init/verbose
+  // are editable between solves without a rebuild. mu_init_ is consumed by run()
+  // (setAlmPenalty(mu_init_), solver-proxddp.hxx:460), not by setup(), so assigning it here means
+  // every solve honours the current options.mu_init.
   solver_.target_tol_ = options_.tol;
   solver_.mu_init_ = options_.mu_init;
   solver_.max_iters = static_cast<std::size_t>(options_.max_iters);
@@ -355,7 +354,7 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   out.max_constraint_violation = res.prim_infeas;
   out.xs = res.xs;
   out.us = res.us;
-  out.controls = res.us;  // actuation B = I, so the applied torque equals the control (§3.2).
+  out.controls = res.us;  // actuation B = I, so the applied torque equals the control.
 
   // Semantic views: split each state x = [q; v] and sample times k*dt. Positions use nq, velocities
   // use nv (never assume nq == nv, numerics rule) even though nu == nv here for actuation B = I.
@@ -382,7 +381,7 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   return out;
 }
 
-// --- Warm-start (design §3.6) -----------------------------------------------------------------
+// --- Warm-start ----------------------------------------------------------------------------
 
 TrajOptSeed
 TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const {
@@ -403,8 +402,8 @@ TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoin
 
   // Straight-line joint interpolation onto the N+1 grid, Lie-group-aware on the REDUCED model
   // (pinocchio::interpolate; Scene::interpolate is bound to the full model, so it cannot target the
-  // reduced sub-model — API_NOTES §3.6). Multiple waypoints form a piecewise-linear path evenly
-  // parameterized over [0, 1]; velocities and controls are zero (design §3.6).
+  // reduced sub-model). Multiple waypoints form a piecewise-linear path evenly parameterized over
+  // [0, 1]; velocities and controls are zero.
   const pinocchio::Model& model = rgm_.reducedModel();
   const int num_segments = static_cast<int>(waypoints.size()) - 1;
 

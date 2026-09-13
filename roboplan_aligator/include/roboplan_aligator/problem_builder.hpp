@@ -13,7 +13,7 @@
 
 namespace roboplan::aligator_detail {
 
-/// @brief Reduced-model state space: x = [q; v], nx = nq + nv, ndx = 2*nv (§3.2).
+/// @brief Reduced-model state space: x = [q; v], nx = nq + nv, ndx = 2*nv.
 using PhaseSpace = aligator::MultibodyPhaseSpace<double>;
 
 /// @brief Discretized (integrated) dynamics as the explicit-dynamics base, so both integrator
@@ -26,14 +26,14 @@ using Problem = aligator::TrajOptProblemTpl<double>;
 /// @brief Builds the reduced-model phase space from a reduced pinocchio model (copies the model).
 PhaseSpace makePhaseSpace(const pinocchio::Model& reduced_model);
 
-/// @brief Builds the discretized free-space multibody dynamics (ABA, actuation B = I so nu = nv,
-/// §3.2), integrated with `type` at step `dt`.
+/// @brief Builds the discretized free-space multibody dynamics (ABA, actuation B = I so nu = nv),
+/// integrated with `type` at step `dt`.
 /// @param space The reduced-model phase space (copied into the continuous dynamics).
 /// @param type Which integrator discretizes the continuous dynamics.
 /// @param dt Time step in seconds (must be > 0).
 DiscreteDynamics makeDiscreteDynamics(const PhaseSpace& space, IntegratorType type, double dt);
 
-/// @brief Assembles the problem shell (design §3.2): `horizon` identical stages, each an empty
+/// @brief Assembles the problem shell: `horizon` identical stages, each an empty
 /// cost sum plus the default quadratic control-regularization cost (weight `options.control_reg`,
 /// target u = 0; skipped when `control_reg <= 0`), the discretized dynamics, an initial-condition
 /// constraint at `x0`, and an empty terminal-cost placeholder.

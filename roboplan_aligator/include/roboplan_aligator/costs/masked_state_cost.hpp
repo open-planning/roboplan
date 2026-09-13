@@ -20,8 +20,8 @@ using CostStack = aligator::CostStackTpl<double>;
 /// configuration-tangent block [0, nv) when `mask_configuration_block` is true, else the
 /// velocity-tangent block [nv, ndx)), constructs the cost with `target` (size nq+nv) as its
 /// initial full state target, inserts it into `stack` with weight `cost_weight`, recovers the
-/// stored copy via `dynamic_cast` (insertion into a `CostStack` copies -- see
-/// docs/aligator_structure.md §3), and returns a `setTarget`-style closure that rewrites only the
+/// stored copy via `dynamic_cast` (insertion into a `CostStack` copies), and returns a
+/// `setTarget`-style closure that rewrites only the
 /// masked block of the target while holding the other block fixed at its value in `target`:
 /// - `mask_configuration_block == true`: the closure expects a size-`nq` vector and rewrites the
 ///   target's head(nq), keeping tail(nv) fixed at `target.tail(nv)`.

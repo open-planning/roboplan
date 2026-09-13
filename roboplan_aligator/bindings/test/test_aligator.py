@@ -1,4 +1,4 @@
-"""Unit tests for the roboplan_aligator Python bindings (design doc §4)."""
+"""Unit tests for the roboplan_aligator Python bindings."""
 
 import numpy as np
 import pytest
@@ -60,8 +60,8 @@ def test_options_defaults_and_fields() -> None:
 
 
 def test_timesteps_maps_to_stage_windows(scene: Scene) -> None:
-    # None -> all stages, (a, b) -> range, int -> terminal (design §3.3). All three must attach
-    # without error; an out-of-range range must raise.
+    # None -> all stages, (a, b) -> range, int -> terminal. All three must attach without error;
+    # an out-of-range range must raise.
     opt = make_optimizer(scene, horizon=10)
     cost = ConfigurationCost()
     cost.q_target = np.zeros(opt.nq())

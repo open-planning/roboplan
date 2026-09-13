@@ -56,12 +56,12 @@ public:
 
   /// @brief The scene's current group configuration on the reduced model (size nq()).
   const Eigen::VectorXd& q0() const { return q0_; }
-  /// @brief Default reduced-model velocity: zero (design §3.1), size nv().
+  /// @brief Default reduced-model velocity: zero, size nv().
   const Eigen::VectorXd& v0() const { return v0_; }
 
   /// @brief Full-model velocity (Jacobian column) indices of the group's DoF, read verbatim
   /// from Scene::getJointGroupInfo (not re-derived). Size nv(). Used for collision-Jacobian
-  /// column selection (§5): full-model columns -> reduced tangent/control indices.
+  /// column selection: full-model columns -> reduced tangent/control indices.
   const Eigen::VectorXi& vIndices() const { return v_indices_; }
 
   /// @brief Names of the non-group joints locked into the reduced model, in ascending

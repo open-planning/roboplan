@@ -35,3 +35,8 @@ Examples: `roboplan_examples/python/example_aligator_trajopt.py`.
 - **aligator is a build-time requirement.** It is resolved via `find_package(aligator)` with a
   FetchContent fallback pinned to a specific commit; it is linked PUBLIC and is part of the
   exported link interface.
+
+## Acknowledgments
+
+Built on [aligator](https://github.com/Simple-Robotics/aligator), the proximal-DDP trajectory
+optimization library developed by Simple-Robotics / LAAS-CNRS.

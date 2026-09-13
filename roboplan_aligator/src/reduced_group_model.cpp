@@ -69,14 +69,14 @@ ReducedGroupModel::ReducedGroupModel(const Scene& scene, const std::string& grou
   // Reduce both the kinematic model and the collision geometry, locking the non-group joints at
   // the scene's current full configuration (model.nq layout). Locked joints become FIXED_JOINT
   // frames; joint/geometry order is preserved but frames are re-ordered (hence frameId() below
-  // re-resolves by name). See API_NOTES.md.
+  // re-resolves by name).
   const Eigen::VectorXd& reference_configuration = scene.getCurrentJointPositions();
   pinocchio::buildReducedModel(full_model_, full_collision_model_, joints_to_lock,
                                reference_configuration, reduced_model_, reduced_collision_model_);
 
   // Reduced q0 by joint-name remap out of the full reference configuration (storage layout
   // remapFullToReduced; order-robust, does not rely on preserved joint ordering). v0 defaults to
-  // zero (design §3.1).
+  // zero.
   q0_ = remapFullToReduced(reference_configuration, full_model_, reduced_model_, /*tangent=*/false);
   v0_ = Eigen::VectorXd::Zero(reduced_model_.nv);
 
@@ -87,7 +87,7 @@ ReducedGroupModel::ReducedGroupModel(const Scene& scene, const std::string& grou
 tl::expected<pinocchio::FrameIndex, std::string>
 ReducedGroupModel::frameId(const std::string& frame_name) const {
   // getFrameId returns frames.size() (a valid-looking index) when the frame is absent, so guard
-  // with existFrame first (API_NOTES.md).
+  // with existFrame first.
   if (!reduced_model_.existFrame(frame_name)) {
     return tl::make_unexpected("Frame '" + frame_name +
                                "' not found in the reduced model for group '" + group_name_ + "'.");

@@ -39,12 +39,12 @@ ConstraintPair buildTorqueLimit(const PhaseSpace& space, const ReducedGroupModel
   const int ndx = space.ndx();
   checkUserBoundSize(spec.tau_max, nv, "TorqueLimit tau_max");
 
-  // Default from the reduced model's effort field (no Scene effort accessor exists; design §4.4).
+  // Default from the reduced model's effort field (no Scene effort accessor exists).
   Eigen::VectorXd lower = rgm.reducedModel().lowerEffortLimit;
   Eigen::VectorXd upper = rgm.reducedModel().upperEffortLimit;
 
   // A non-finite or zero model effort limit means "unactuated / unspecified" -> treat as unbounded
-  // (±inf), never a zero-torque clamp (decision P7).
+  // (±inf), never a zero-torque clamp.
   for (int i = 0; i < nv; ++i) {
     if (!std::isfinite(upper[i]) || upper[i] == 0.0) {
       upper[i] = kInfinity;

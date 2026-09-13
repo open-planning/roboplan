@@ -93,9 +93,9 @@ TEST(TrajectoryOptimizerTest, SolvesControlRegShellAndReturnsPopulatedResult) {
   }
 }
 
-// TrajOptOptions::record_history wraps aligator's own HistoryCallbackTpl (API_NOTES.md Prompt 13):
-// each recorded iterate should correspond 1:1 with a ProxDDP iteration, and a second solve() on the
-// same built problem must not accumulate history from the first.
+// TrajOptOptions::record_history wraps aligator's own HistoryCallbackTpl: each recorded iterate
+// should correspond 1:1 with a ProxDDP iteration, and a second solve() on the same built problem
+// must not accumulate history from the first.
 TEST(TrajectoryOptimizerTest, RecordHistoryPopulatesPerIterationDiagnosticsWithoutAccumulating) {
   TrajOptOptions options;
   options.max_iters = 100;
@@ -109,7 +109,7 @@ TEST(TrajectoryOptimizerTest, RecordHistoryPopulatesPerIterationDiagnosticsWitho
   ASSERT_TRUE(result.has_value()) << result.error();
   ASSERT_FALSE(result->history.empty());
   // invokeCallbacks() fires exactly once per accepted ProxDDP iteration (solver-proxddp.hxx:695),
-  // in lockstep with num_iters -- see API_NOTES.md Prompt 13 for the source-level argument.
+  // in lockstep with num_iters.
   EXPECT_EQ(result->history.size(), static_cast<std::size_t>(result->iterations));
   for (std::size_t k = 0; k < result->history.size(); ++k) {
     EXPECT_EQ(result->history[k].iteration, static_cast<int>(k));
@@ -136,8 +136,8 @@ TEST(TrajectoryOptimizerTest, HistoryEmptyWhenNotRecorded) {
   EXPECT_TRUE(result->history.empty());
 }
 
-// linear_solver_choice/num_threads/rollout_type are consumed once in build() (API_NOTES.md
-// Prompt 14); these tests exercise the compatible and incompatible combinations.
+// linear_solver_choice/num_threads/rollout_type are consumed once in build(); these tests
+// exercise the compatible and incompatible combinations.
 
 TEST(TrajectoryOptimizerTest, NonlinearRolloutWithSerialSolverConverges) {
   TrajOptOptions options;
