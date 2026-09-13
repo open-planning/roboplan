@@ -358,3 +358,12 @@ def test_mimics() -> None:
     q[2] = 1.0
     T1 = test_scene.forwardKinematics(q, "link3")
     assert not np.allclose(T0, T1)
+
+
+def test_locked_joint_names() -> None:
+    test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
+    # The "arm" group spans revolute_joint (and mimic_joint, which has no DoF of its own), so the
+    # only movable joint excluded from the group is continuous_joint.
+    assert test_scene.getLockedJointNames("arm") == ["continuous_joint"]
+    # The default "" group spans the whole movable model, so nothing is locked.
+    assert test_scene.getLockedJointNames("") == []

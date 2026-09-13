@@ -178,6 +178,7 @@ pre-commit = ">=4.1.0,<5"
 roboplan = { path = "roboplan" }
 roboplan-common = { path = "roboplan_common" }
 roboplan-core = { path = "roboplan_core" }
+roboplan-aligator = { path = "roboplan_aligator" }
 roboplan-example-models = { path = "roboplan_example_models" }
 roboplan-oink = { path = "roboplan_oink" }
 roboplan-rrt = { path = "roboplan_rrt" }
