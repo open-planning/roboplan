@@ -31,7 +31,7 @@ We recommend creating your own environment for isolation, installing all the lib
 
 ::
 
-    conda create -n roboplan -c conda-forge roboplan-all-python
+    conda create -n roboplan -c conda-forge roboplan-python
     conda activate roboplan
 
 In your new environment, you can import the ``roboplan`` Python bindings.
@@ -48,15 +48,15 @@ For example, if you cloned the repo to a ``roboplan`` subfolder:
 
     python roboplan/roboplan_examples/python/example_ik.py
 
-For each package in this repository, you can use conda to install either a C++ only library (e.g., ``libroboplan-simple-ik``) or a library with Python bindings (e.g., ``roboplan-simple-ik-python``).
-We also provide convenient metapackages (``libroboplan-all`` and ``roboplan-all-python``) containing all the libraries.
+For each package in this repository, you can use conda to install either a C++ only library (e.g., ``libroboplan-core``, ``libroboplan-simple-ik``) or a library with Python bindings (e.g., ``roboplan-core-python``, ``roboplan-simple-ik-python``).
+We also provide convenient metapackages (``libroboplan`` and ``roboplan-python``) containing all the libraries.
 
 ---
 
 PyPi (Experimental)
 ~~~~~~~~~~~~~~~~~~~
 
-**Supported platforms:** Linux, macOS
+**Supported platforms:** Linux (x86_64 and aarch64), macOS (Apple Silicon)
 
 You can also ``pip install roboplan`` to get all the Python bindings as one package.
 
@@ -68,8 +68,10 @@ We recommend creating a Python virtual environment for isolation.
     source roboplan/bin/activate
     pip3 install roboplan
 
-These PyPi wheels are packaged from an automated CI job that occurs on a new tagged version of RoboPlan.
-The code that performs this building can be found in the ``packaging`` subfolder of this repository.
+The ``roboplan`` package on PyPi is a pure-Python metapackage that depends on one wheel per package in this repository (``roboplan-core``, ``roboplan-rrt``, etc.).
+These wheels are built with ``cibuildwheel`` by an automated CI job that runs on every new tagged version of RoboPlan.
+Each package directory is its own `cmeel <https://github.com/cmake-wheel/cmeel>`_ project with its own ``pyproject.toml``;
+refer to the `superbuild README <https://github.com/open-planning/roboplan/blob/main/superbuild/README.md>`_ for how to build and test the wheels locally.
 
 
 ---
@@ -94,16 +96,21 @@ Once set up, you can run the ``pixi`` tasks as follows.
 ::
 
     # Build all packages, including Python bindings
-    pixi run build
+    pixi run -e default build
 
     # Install all packages
-    pixi run install
+    pixi run -e default install
 
     # This will only build one package (and its dependencies)
-    pixi run build PACKAGE_NAME
+    pixi run -e default build PACKAGE_NAME
+
+.. note::
+
+   The ``-e default`` (``--environment default``) flag is required for the ``build``, ``install``, and ``test`` tasks.
+   The :ref:`ROS 2 Pixi environments <ros2-with-pixi>` define tasks with the same names, so Pixi refuses to guess which environment you mean.
 
 All packages share a single build tree (``build/``), configured in one shot, so there is no separate
-"install one package" operation -- ``pixi run install`` always installs everything.
+"install one package" operation -- ``pixi run -e default install`` always installs everything.
 
 After building all the packages, you can use the Pixi shell to run specific examples.
 
@@ -118,11 +125,14 @@ To run the unit tests:
 
 ::
 
-    # Test all packages
-    pixi run test_all
+    # Test all packages (C++ and Python)
+    pixi run -e default test_all
 
-    # Test a specific package
-    pixi run test PACKAGE_NAME
+    # Test a specific package (C++ tests only)
+    pixi run -e default test PACKAGE_NAME
+
+    # Run only the Python tests
+    pixi run test_py
 
 To lint the code:
 
@@ -134,13 +144,13 @@ Build with AddressSanitizer (ASan)
 
 ::
 
-    pixi run build_asan PACKAGE_NAME
+    pixi run -e default build_asan PACKAGE_NAME
 
 Build with compilation time report
 
 ::
 
-    pixi run build_timetrace PACKAGE_NAME
+    pixi run -e default build_timetrace PACKAGE_NAME
 
 ``PACKAGE_NAME`` is optional for ``build``/``build_asan``/``build_timetrace``/``test`` above; omit it to build or test
 every package.
@@ -154,6 +164,8 @@ ROS 2 (colcon)
 **Supported platforms:** `Supported platforms <https://reps.openrobotics.org/rep-2000/#support-tiers>`_ for your ROS distro.
 
 If you are using `ROS 2 <https://docs.ros.org/>`_, you can build RoboPlan with the ``colcon`` build system.
+
+.. _ros2-with-pixi:
 
 With Pixi
 ^^^^^^^^^
@@ -191,7 +203,7 @@ For this workflow, you should clone the repo to a valid ROS 2 workspace.
 
     mkdir -p ~/roboplan_ws/src
     cd ~/roboplan_ws/src
-    git clone --recursive https://github.com/open-planning/roboplan.git
+    git clone https://github.com/open-planning/roboplan.git
 
 Source your favorite ROS distro and build the workspace.
 
@@ -222,7 +234,7 @@ To run the unit tests, you can simply use ``colcon``:
 ::
 
     colcon test
-    colcon test --packages-select roboplan --event-handlers console_direct+
+    colcon test --packages-select roboplan_core --event-handlers console_direct+
 
 ---
 
