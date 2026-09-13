@@ -18,7 +18,7 @@ The rest of this page shows various ways of getting started with RoboPlan.
 Pre-built
 ---------
 
-RoboPlan is available via `PyPi <https://pypi.org/>`_ and `conda-forge <https://conda-forge.org/>`_ for easy installation.
+RoboPlan is available via `conda-forge <https://conda-forge.org/>`_, `PyPi <https://pypi.org/>`_, and as ROS 2 packages for easy installation.
 
 Conda (recommended)
 ~~~~~~~~~~~~~~~~~~~
@@ -72,6 +72,22 @@ The ``roboplan`` package on PyPi is a pure-Python metapackage that depends on on
 These wheels are built with ``cibuildwheel`` by an automated CI job that runs on every new tagged version of RoboPlan.
 Each package directory is its own `cmeel <https://github.com/cmake-wheel/cmeel>`_ project with its own ``pyproject.toml``;
 refer to the `superbuild README <https://github.com/open-planning/roboplan/blob/main/superbuild/README.md>`_ for how to build and test the wheels locally.
+
+---
+
+ROS 2 (Work In Progress)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Supported platforms:** `Supported platforms <https://reps.openrobotics.org/rep-2000/#support-tiers>`_ for your ROS distro.
+
+RoboPlan is also released as a set of ROS 2 packages, named ``ros-<distro>-roboplan-<package>`` (for example, ``ros-jazzy-roboplan-rrt``).
+You can install them through either of the standard ROS channels:
+
+- The `ROS buildfarm <https://index.ros.org/r/roboplan/>`_, e.g., ``apt install ros-jazzy-roboplan-rrt`` alongside a system ROS install.
+- `RoboStack <https://robostack.github.io/>`_, which provides the same packages through Conda.
+
+These releases are still being rolled out, so not every package is available on every distro yet.
+Note that the ROS buildfarm packages will not be available for ROS 2 Humble due to a ``nanobind`` limitation; use RoboStack or a from-source build instead.
 
 
 ---
