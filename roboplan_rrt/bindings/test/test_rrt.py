@@ -7,15 +7,20 @@ from pathlib import Path
 import numpy as np
 import pinocchio as pin
 import pytest
-
-from roboplan.core import JointConfiguration, Scene, computePathLength
+from roboplan.core import (
+    JointConfiguration,
+    Scene,
+    UrdfSceneDescription,
+    loadUrdfSceneDescription,
+    computePathLength,
+)
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
 from roboplan.rrt import (
+    RRT,
     ConstraintProjector,
     ConstraintProjectorOptions,
     PoseConstraint,
     RRTOptions,
-    RRT,
 )
 
 
@@ -26,7 +31,9 @@ def test_scene() -> Scene:
     srdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.srdf"
     package_paths = [get_package_share_dir()]
 
-    return Scene("test_scene", urdf_path, srdf_path, package_paths)
+    return Scene(
+        "test_scene", loadUrdfSceneDescription(urdf_path, srdf_path), package_paths
+    )
 
 
 def test_plan(test_scene: Scene) -> None:

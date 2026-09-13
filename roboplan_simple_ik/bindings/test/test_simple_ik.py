@@ -4,10 +4,16 @@ Unit tests for the simple IK solver in RoboPlan.
 
 import numpy as np
 import pytest
-
-from roboplan.core import Box, CartesianConfiguration, JointConfiguration, Scene
+from roboplan.core import (
+    Box,
+    CartesianConfiguration,
+    JointConfiguration,
+    Scene,
+    UrdfSceneDescription,
+    loadUrdfSceneDescription,
+)
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
-from roboplan.simple_ik import SimpleIkOptions, SimpleIk
+from roboplan.simple_ik import SimpleIk, SimpleIkOptions
 
 GROUP_NAME = "arm"
 BASE_FRAME = "base"
@@ -25,7 +31,9 @@ def test_scene() -> Scene:
     srdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.srdf"
     package_paths = [get_package_share_dir()]
 
-    return Scene("test_scene", urdf_path, srdf_path, package_paths)
+    return Scene(
+        "test_scene", loadUrdfSceneDescription(urdf_path, srdf_path), package_paths
+    )
 
 
 def reachable_goal(scene: Scene) -> CartesianConfiguration:

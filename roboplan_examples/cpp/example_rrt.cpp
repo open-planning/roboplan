@@ -18,8 +18,9 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
   const auto yaml_config_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
-  auto scene = std::make_shared<Scene>("example_rrt_scene", urdf_path, srdf_path, package_paths,
-                                       yaml_config_path);
+  auto scene =
+      std::make_shared<Scene>("example_rrt_scene", loadUrdfSceneDescription(urdf_path, srdf_path),
+                              package_paths, yaml_config_path);
 
   // Set up the RRT
   RRTOptions options;

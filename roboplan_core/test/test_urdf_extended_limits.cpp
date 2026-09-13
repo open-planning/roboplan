@@ -118,7 +118,7 @@ namespace roboplan {
 // All extended limits explicitly set
 // ──────────────────────────────────────────────────────────────
 TEST(UrdfExtendedLimits, AllLimitsSet) {
-  Scene scene("test", kUrdfAllLimits, kSrdf);
+  Scene scene("test", UrdfSceneDescription{.urdf_xml = kUrdfAllLimits, .srdf_xml = kSrdf});
 
   const auto info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 5.0, kTolerance);
@@ -129,7 +129,7 @@ TEST(UrdfExtendedLimits, AllLimitsSet) {
 // Only acceleration set; jerk should stay unlimited
 // ──────────────────────────────────────────────────────────────
 TEST(UrdfExtendedLimits, AccelerationOnlyJerkUnlimited) {
-  Scene scene("test", kUrdfAccelOnly, kSrdf);
+  Scene scene("test", UrdfSceneDescription{.urdf_xml = kUrdfAccelOnly, .srdf_xml = kSrdf});
 
   const auto info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 5.0, kTolerance);
@@ -140,7 +140,7 @@ TEST(UrdfExtendedLimits, AccelerationOnlyJerkUnlimited) {
 // No extended attributes — both should stay unlimited
 // ──────────────────────────────────────────────────────────────
 TEST(UrdfExtendedLimits, NoExtendedLimitsStayUnlimited) {
-  Scene scene("test", kUrdfNoExtendedLimits, kSrdf);
+  Scene scene("test", UrdfSceneDescription{.urdf_xml = kUrdfNoExtendedLimits, .srdf_xml = kSrdf});
 
   const auto info = scene.getJointInfo("joint1").value();
   EXPECT_DOUBLE_EQ(info.limits.max_acceleration[0], kUnlimited);
@@ -160,7 +160,8 @@ TEST(UrdfExtendedLimits, YamlOverridesUrdf) {
       << "    max_jerk: [100.0]\n";
   }
 
-  Scene scene("test", kUrdfForYamlOverride, kSrdf, {}, tmp_yaml);
+  Scene scene("test", UrdfSceneDescription{.urdf_xml = kUrdfForYamlOverride, .srdf_xml = kSrdf}, {},
+              tmp_yaml);
 
   const auto info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 10.0, kTolerance);
@@ -173,7 +174,7 @@ TEST(UrdfExtendedLimits, YamlOverridesUrdf) {
 // Mimic joint inherits scaled limits
 // ──────────────────────────────────────────────────────────────
 TEST(UrdfExtendedLimits, MimicJointInheritsScaledLimits) {
-  Scene scene("test", kUrdfWithMimic, kSrdfWithMimic);
+  Scene scene("test", UrdfSceneDescription{.urdf_xml = kUrdfWithMimic, .srdf_xml = kSrdfWithMimic});
 
   const auto joint1_info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(joint1_info.limits.max_acceleration[0], 6.0, kTolerance);

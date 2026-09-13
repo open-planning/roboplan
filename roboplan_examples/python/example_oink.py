@@ -12,7 +12,11 @@ from pinocchio.visualize import ViserVisualizer
 
 from common import get_model_data
 from roboplan.filters import SE3LowPassFilter
-from roboplan.core import Scene, CartesianConfiguration
+from roboplan.core import (
+    Scene,
+    UrdfSceneDescription,
+    CartesianConfiguration,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.optimal_ik import (
     AccelerationLimit,
@@ -80,15 +84,12 @@ def main(
 
     package_paths = [get_package_share_dir()]
 
-    # Pre-process with xacro. This is not necessary for raw URDFs.
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
-    # Specify argument names to distinguish overloaded Scene constructors from python.
     scene = Scene(
         "oink_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
+        UrdfSceneDescription(urdf_xml, srdf_xml),
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
@@ -110,10 +111,16 @@ def main(
     # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
-        model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
+        model_pin,
+        str(model_data.urdf_path),
+        pin.GeometryType.COLLISION,
+        package_dirs=package_paths,
     )
     visual_model = pin.buildGeomFromUrdfString(
-        model_pin, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
+        model_pin,
+        str(model_data.urdf_path),
+        pin.GeometryType.VISUAL,
+        package_dirs=package_paths,
     )
 
     viz = ViserVisualizer(model_pin, collision_model, visual_model)

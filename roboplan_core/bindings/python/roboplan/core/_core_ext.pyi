@@ -395,14 +395,38 @@ class OcTree:
 
     def __init__(self, boxes: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]], resolution: float) -> None: ...
 
+class UrdfSceneDescription:
+    """URDF robot description and SRDF planning configuration documents."""
+
+    def __init__(self, urdf_xml: str, srdf_xml: str) -> None: ...
+
+    @property
+    def urdf_xml(self) -> str: ...
+
+    @urdf_xml.setter
+    def urdf_xml(self, arg: str, /) -> None: ...
+
+    @property
+    def srdf_xml(self) -> str: ...
+
+    @srdf_xml.setter
+    def srdf_xml(self, arg: str, /) -> None: ...
+
+def loadUrdfSceneDescription(urdf_path: str | os.PathLike, srdf_path: str | os.PathLike) -> UrdfSceneDescription: ...
+
+class PinocchioSceneDescription:
+    """Prebuilt Pinocchio model and collision geometry."""
+
+def loadMjcfModel(mjcf_path: str | os.PathLike) -> PinocchioSceneDescription: ...
+
 class Scene:
     """Primary scene representation for planning and control."""
 
     @overload
-    def __init__(self, name: str, urdf_path: str | os.PathLike, srdf_path: str | os.PathLike, package_paths: Sequence[str | os.PathLike] = [], yaml_config_path: str | os.PathLike = ...) -> None: ...
+    def __init__(self, name: str, description: UrdfSceneDescription, package_paths: Sequence[str | os.PathLike] = [], yaml_config_path: str | os.PathLike = ...) -> None: ...
 
     @overload
-    def __init__(self, name: str, urdf: str, srdf: str, package_paths: Sequence[str | os.PathLike] = [], yaml_config_path: str | os.PathLike = ...) -> None: ...
+    def __init__(self, name: str, description: PinocchioSceneDescription, yaml_config_path: str | os.PathLike = ...) -> None: ...
 
     def getName(self) -> str:
         """Gets the scene's name."""

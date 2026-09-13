@@ -181,21 +181,27 @@ void init_core_geometry_wrappers(nanobind::module_& m) {
 }
 
 void init_core_scene(nanobind::module_& m) {
+  nanobind::class_<UrdfSceneDescription>(
+      m, "UrdfSceneDescription",
+      "URDF robot description and SRDF planning configuration documents.")
+      .def(nanobind::init<const std::string&, const std::string&>(), "urdf_xml"_a, "srdf_xml"_a)
+      .def_rw("urdf_xml", &UrdfSceneDescription::urdf_xml)
+      .def_rw("srdf_xml", &UrdfSceneDescription::srdf_xml);
+  m.def("loadUrdfSceneDescription", &loadUrdfSceneDescription, "urdf_path"_a, "srdf_path"_a);
+
+  nanobind::class_<PinocchioSceneDescription>(m, "PinocchioSceneDescription",
+                                              "Prebuilt Pinocchio model and collision geometry.");
+  m.def("loadMjcfModel", &loadMjcfModel, "mjcf_path"_a);
+
   nanobind::class_<Scene>(m, "Scene", "Primary scene representation for planning and control.")
-      .def(nanobind::init<const std::string&, const std::filesystem::path&,
-                          const std::filesystem::path&, const std::vector<std::filesystem::path>&,
-                          const std::filesystem::path&>(),
-           "name"_a, "urdf_path"_a, "srdf_path"_a,
-           "package_paths"_a = std::vector<std::filesystem::path>(),
-           "yaml_config_path"_a = std::filesystem::path())
-      // There's an ambiguity issue due to file paths vs strings in python. So to use this
-      // constructor you MUST specify argument names to clarify to the bindings that you are passing
-      // pre-processed string, and not filepaths.
       .def(
-          nanobind::init<const std::string&, const std::string&, const std::string&,
+          nanobind::init<const std::string&, const UrdfSceneDescription&,
                          const std::vector<std::filesystem::path>&, const std::filesystem::path&>(),
-          "name"_a, "urdf"_a, "srdf"_a, "package_paths"_a = std::vector<std::filesystem::path>(),
+          "name"_a, "description"_a, "package_paths"_a = std::vector<std::filesystem::path>(),
           "yaml_config_path"_a = std::filesystem::path())
+      .def(nanobind::init<const std::string&, const PinocchioSceneDescription&,
+                          const std::filesystem::path&>(),
+           "name"_a, "description"_a, "yaml_config_path"_a = std::filesystem::path())
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
            "Gets the scene's actuated joint names (non-mimic joints only).")

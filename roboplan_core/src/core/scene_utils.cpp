@@ -65,7 +65,7 @@ createFrameMap(const pinocchio::Model& model) {
 
 std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinocchio::Model& model,
                                                                      const std::string& srdf) {
-  std::unordered_map<std::string, JointGroupInfo> joint_group_map;
+  auto joint_group_map = createDefaultJointGroupInfo(model);
 
   // Parse the document with TinyXML2.
   tinyxml2::XMLDocument doc;
@@ -238,29 +238,28 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     joint_group_map[name] = group_info;
   }
 
-  // Create a default empty group with all the indices.
+  return joint_group_map;
+}
+
+std::unordered_map<std::string, JointGroupInfo>
+createDefaultJointGroupInfo(const pinocchio::Model& model) {
   std::vector<size_t> all_joint_indices(model.njoints - 1);
   std::iota(all_joint_indices.begin(), all_joint_indices.end(), 0);
 
-  // It is possible for a robot to have continuous joints that are not in any group. So check
-  // again to be sure.
-  bool default_group_has_continuous_dofs = false;
-  size_t default_group_num_continuous_dofs = 0;
+  bool has_continuous_dofs = false;
+  size_t num_continuous_dofs = 0;
   for (size_t jid = 1; jid < static_cast<size_t>(model.njoints); ++jid) {
     const auto& joint = model.joints.at(jid);
     auto it = kPinocchioJointTypeMap.find(joint.shortname());
     if (it == kPinocchioJointTypeMap.end()) {
       throw std::runtime_error("Unsupported Pinocchio joint type: '" + joint.shortname() + "'");
     }
-    const auto joint_type = it->second;
-
-    if (joint_type == JointType::CONTINUOUS || joint_type == JointType::PLANAR) {
-      default_group_has_continuous_dofs = true;
-      default_group_num_continuous_dofs += 1;
+    if (it->second == JointType::CONTINUOUS || it->second == JointType::PLANAR) {
+      has_continuous_dofs = true;
+      num_continuous_dofs += 1;
     }
   }
 
-  // The default group contains every link (body frame) in the model.
   std::vector<std::string> all_link_names;
   all_link_names.reserve(model.nframes);
   for (const auto& frame : model.frames) {
@@ -269,16 +268,15 @@ std::unordered_map<std::string, JointGroupInfo> createJointGroupInfo(const pinoc
     }
   }
 
-  joint_group_map[""] = JointGroupInfo{
-      .joint_names = std::vector<std::string>(model.names.begin() + 1, model.names.end()),
-      .joint_indices = std::move(all_joint_indices),
-      .link_names = std::move(all_link_names),
-      .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
-      .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1),
-      .has_continuous_dofs = default_group_has_continuous_dofs,
-      .nq_collapsed = static_cast<size_t>(model.nq) - default_group_num_continuous_dofs};
-
-  return joint_group_map;
+  return {
+      {"", JointGroupInfo{.joint_names =
+                              std::vector<std::string>(model.names.begin() + 1, model.names.end()),
+                          .joint_indices = std::move(all_joint_indices),
+                          .link_names = std::move(all_link_names),
+                          .q_indices = Eigen::VectorXi::LinSpaced(model.nq, 0, model.nq - 1),
+                          .v_indices = Eigen::VectorXi::LinSpaced(model.nv, 0, model.nv - 1),
+                          .has_continuous_dofs = has_continuous_dofs,
+                          .nq_collapsed = static_cast<size_t>(model.nq) - num_continuous_dofs}}};
 }
 
 tl::expected<Eigen::VectorXd, std::string>
