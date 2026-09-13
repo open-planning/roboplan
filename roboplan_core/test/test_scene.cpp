@@ -658,8 +658,7 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
 
 // so101's "arm" group (shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll) is a
 // strict subset of the full model, which also has a "gripper" joint outside the group — needed to
-// exercise toFullJointVelocities' non-group-DOF-is-zero behavior (RoboPlanSceneTest's ur5_gripper
-// "arm" group spans the whole model, so it cannot distinguish group from non-group entries).
+// exercise toFullJointVelocities' non-group-DOF-is-zero behavior.
 class RoboPlanSceneSo101Test : public ::testing::Test {
 protected:
   void SetUp() override {

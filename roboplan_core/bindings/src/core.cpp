@@ -221,6 +221,10 @@ void init_core_scene(nanobind::module_& m) {
            nanobind::overload_cast<const std::string&, const Eigen::VectorXd&>(
                &Scene::toFullJointPositions, nanobind::const_),
            "Converts partial joint positions to full joint positions.", "group_name"_a, "q"_a)
+      .def("toFullJointVelocities",
+           nanobind::overload_cast<const std::string&, const Eigen::VectorXd&>(
+               &Scene::toFullJointVelocities, nanobind::const_),
+           "Converts partial joint velocities to full joint velocities.", "group_name"_a, "v"_a)
       .def("interpolate", &Scene::interpolate, "Interpolates between two joint configurations.",
            "q_start"_a, "q_end"_a, "fraction"_a)
       .def("integrate", &Scene::integrate,

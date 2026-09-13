@@ -442,6 +442,9 @@ class Scene:
     def toFullJointPositions(self, group_name: str, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Converts partial joint positions to full joint positions."""
 
+    def toFullJointVelocities(self, group_name: str, v: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """Converts partial joint velocities to full joint velocities."""
+
     def interpolate(self, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], fraction: float) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Interpolates between two joint configurations."""
 
