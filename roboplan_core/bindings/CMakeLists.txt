@@ -99,28 +99,20 @@ target_compile_definitions(_filters_ext
 set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_filters_ext PRIVATE roboplan)
 
-# Ensure the extension can find the roboplan libraries relative to itself. On
-# macOS this is always needed, as SIP strips DYLD_LIBRARY_PATH from subprocesses
-# and breaks stub generation. In cmeel wheel builds it is needed on every
-# platform, since nothing else puts cmeel.prefix/lib on the loader search path
-# at runtime.
-if(APPLE OR DEFINED ENV{CMEEL_BUILD})
-  if(APPLE)
-    set(_rpath_origin "@loader_path")
-  else()
-    set(_rpath_origin "$ORIGIN")
-  endif()
+# Ensure the extension can find workspace dylibs via @rpath on macOS, as it
+# seems that SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will
+# break stub generation.
+if(APPLE)
   file(RELATIVE_PATH _ext_to_lib_core
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/core"
        "${CMAKE_INSTALL_PREFIX}/lib")
-  set_target_properties(
-    _core_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib_core}")
+  set_target_properties(_core_ext PROPERTIES INSTALL_RPATH
+                                             "@loader_path/${_ext_to_lib_core}")
   file(RELATIVE_PATH _ext_to_lib_filters
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/filters"
        "${CMAKE_INSTALL_PREFIX}/lib")
   set_target_properties(
-    _filters_ext PROPERTIES INSTALL_RPATH
-                            "${_rpath_origin}/${_ext_to_lib_filters}")
+    _filters_ext PROPERTIES INSTALL_RPATH "@loader_path/${_ext_to_lib_filters}")
 endif()
 
 install(TARGETS _core_ext

@@ -89,16 +89,6 @@ target_link_libraries(
   PUBLIC roboplan::roboplan
   PRIVATE proxsuite::proxsuite)
 set_property(TARGET roboplan_oink PROPERTY CXX_STANDARD 20)
-# In cmeel wheel builds, every roboplan library and its dependencies (pinocchio
-# etc.) are installed to the same lib/ directory, so have the library look next
-# to itself for them at runtime.
-if(DEFINED ENV{CMEEL_BUILD})
-  if(APPLE)
-    set_target_properties(roboplan_oink PROPERTIES INSTALL_RPATH "@loader_path")
-  else()
-    set_target_properties(roboplan_oink PROPERTIES INSTALL_RPATH "$ORIGIN")
-  endif()
-endif()
 # Alias so this works via add_subdirectory() too, not just installed
 # find_package().
 add_library(roboplan_oink::roboplan_oink ALIAS roboplan_oink)
