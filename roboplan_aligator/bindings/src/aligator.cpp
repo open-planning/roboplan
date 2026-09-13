@@ -72,12 +72,13 @@ void init_aligator(nb::module_& m) {
       .def(
           "__init__",
           [](TrajOptOptions* self, int max_iters, double tol, double mu_init,
-             IntegratorType integrator, bool verbose, double control_reg) {
-            new (self) TrajOptOptions{max_iters, tol, mu_init, integrator, verbose, control_reg};
+             IntegratorType integrator, bool verbose, double control_reg, bool record_history) {
+            new (self) TrajOptOptions{max_iters,   tol,      mu_init,        integrator,
+                                      verbose,     control_reg, record_history};
           },
           "max_iters"_a = 100, "tol"_a = 1e-4, "mu_init"_a = 1e-2,
           "integrator"_a = IntegratorType::SemiImplicitEuler, "verbose"_a = false,
-          "control_reg"_a = 1e-3)
+          "control_reg"_a = 1e-3, "record_history"_a = false)
       .def_rw("max_iters", &TrajOptOptions::max_iters, "Maximum ProxDDP outer iterations.")
       .def_rw("tol", &TrajOptOptions::tol, "Convergence tolerance.")
       .def_rw("mu_init", &TrajOptOptions::mu_init, "Augmented-Lagrangian penalty initialization.")
@@ -85,7 +86,19 @@ void init_aligator(nb::module_& m) {
       .def_rw("verbose", &TrajOptOptions::verbose,
               "Whether the solver prints per-iteration progress.")
       .def_rw("control_reg", &TrajOptOptions::control_reg,
-              "Weight of the default quadratic control regularization (0 disables it).");
+              "Weight of the default quadratic control regularization (0 disables it).")
+      .def_rw("record_history", &TrajOptOptions::record_history,
+              "Record per-iteration diagnostics into TrajOptResult.history (0 overhead when "
+              "false).");
+
+  nb::class_<TrajOptIterate>(m, "TrajOptIterate", "One recorded ProxDDP iteration.")
+      .def(nb::init<>())
+      .def_rw("iteration", &TrajOptIterate::iteration, "Iteration index within the solve (0-based).")
+      .def_rw("cost", &TrajOptIterate::cost, "Total trajectory cost at this iteration.")
+      .def_rw("prim_infeas", &TrajOptIterate::prim_infeas,
+              "Primal infeasibility (constraint violation) at this iteration.")
+      .def_rw("dual_infeas", &TrajOptIterate::dual_infeas,
+              "Dual infeasibility (stationarity residual) at this iteration.");
 
   // --- Costs (soft) ---------------------------------------------------------------------------
 
@@ -150,6 +163,9 @@ void init_aligator(nb::module_& m) {
       .def_rw("controls", &TrajOptResult::controls,
               "Joint-torque profile (size N); equals us for B = I.")
       .def_rw("trajectory", &TrajOptResult::trajectory, "Optimized state trajectory sampled at dt.")
+      .def_rw("history", &TrajOptResult::history,
+              "Per-iteration diagnostics from this solve; empty unless "
+              "TrajOptOptions.record_history was set.")
       .def("toRoboplan", &TrajOptResult::toRoboplan, "scene"_a, "group_name"_a,
            "Convert the optimized trajectory to a full-model roboplan.JointTrajectory (positions + "
            "times; velocities/accelerations empty; torques dropped).");

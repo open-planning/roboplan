@@ -21,7 +21,7 @@ class TrajOptOptions:
     def __init__(self) -> None: ...
 
     @overload
-    def __init__(self, max_iters: int = 100, tol: float = 0.0001, mu_init: float = 0.01, integrator: IntegratorType = IntegratorType.SemiImplicitEuler, verbose: bool = False, control_reg: float = 0.001) -> None: ...
+    def __init__(self, max_iters: int = 100, tol: float = 0.0001, mu_init: float = 0.01, integrator: IntegratorType = IntegratorType.SemiImplicitEuler, verbose: bool = False, control_reg: float = 0.001, record_history: bool = False) -> None: ...
 
     @property
     def max_iters(self) -> int:
@@ -66,6 +66,48 @@ class TrajOptOptions:
 
     @control_reg.setter
     def control_reg(self, arg: float, /) -> None: ...
+
+    @property
+    def record_history(self) -> bool:
+        """
+        Record per-iteration diagnostics into TrajOptResult.history (0 overhead when false).
+        """
+
+    @record_history.setter
+    def record_history(self, arg: bool, /) -> None: ...
+
+class TrajOptIterate:
+    """One recorded ProxDDP iteration."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def iteration(self) -> int:
+        """Iteration index within the solve (0-based)."""
+
+    @iteration.setter
+    def iteration(self, arg: int, /) -> None: ...
+
+    @property
+    def cost(self) -> float:
+        """Total trajectory cost at this iteration."""
+
+    @cost.setter
+    def cost(self, arg: float, /) -> None: ...
+
+    @property
+    def prim_infeas(self) -> float:
+        """Primal infeasibility (constraint violation) at this iteration."""
+
+    @prim_infeas.setter
+    def prim_infeas(self, arg: float, /) -> None: ...
+
+    @property
+    def dual_infeas(self) -> float:
+        """Dual infeasibility (stationarity residual) at this iteration."""
+
+    @dual_infeas.setter
+    def dual_infeas(self, arg: float, /) -> None: ...
 
 class ConfigurationCost:
     """Penalize deviation of the reduced-group configuration from a target."""
@@ -232,6 +274,15 @@ class TrajOptResult:
 
     @trajectory.setter
     def trajectory(self, arg: TrajOptTrajectory, /) -> None: ...
+
+    @property
+    def history(self) -> list[TrajOptIterate]:
+        """
+        Per-iteration diagnostics from this solve; empty unless TrajOptOptions.record_history was set.
+        """
+
+    @history.setter
+    def history(self, arg: Sequence[TrajOptIterate], /) -> None: ...
 
     def toRoboplan(self, scene: roboplan.core._core_ext.Scene, group_name: str) -> roboplan.core._core_ext.JointTrajectory:
         """

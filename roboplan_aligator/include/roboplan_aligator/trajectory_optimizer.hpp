@@ -2,14 +2,17 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <Eigen/Dense>
 #include <tl/expected.hpp>
 
+#include <aligator/core/callback-base.hpp>
 #include <aligator/core/constraint-set.hpp>
 #include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/function-abstract.hpp>
+#include <aligator/core/history-callback.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 #include <aligator/modelling/spaces/multibody.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
@@ -67,6 +70,12 @@ public:
   TrajOptSeed interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const;
   tl::expected<TrajOptResult, std::string> solve(const TrajOptSeed& seed);
 
+  // Tier 2 diagnostics (advanced, C++ only): register a raw aligator callback directly on the
+  // solver (e.g. a custom logger). Not exposed to Python (aligator's Python bindings are not
+  // built); see TrajOptOptions::record_history for the Python-visible diagnostics path.
+  void registerCallback(std::string_view name,
+                        std::shared_ptr<aligator::CallbackBaseTpl<double>> callback);
+
   // Public accessors for advanced users
   const ReducedGroupModel& reducedGroupModel() const { return rgm_; }
   const aligator_detail::PhaseSpace& phaseSpace() const { return space_; }
@@ -85,6 +94,12 @@ private:
   std::unique_ptr<aligator_detail::Problem> problem_;
   aligator::SolverProxDDPTpl<double> solver_;
   bool locked_ = false;
+
+  // Tier 1 diagnostics: wraps aligator's own HistoryCallbackTpl (bound to `solver_`), registered
+  // only when options_.record_history is set. Never moved across TrajectoryOptimizer instances
+  // (it holds a raw pointer to `solver_` internally) -- reconstructed fresh after every move.
+  std::shared_ptr<aligator::HistoryCallbackTpl<double>> history_callback_;
+  void registerHistoryCallbackIfRequested();
 };
 
 }  // namespace roboplan

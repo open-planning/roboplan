@@ -104,7 +104,9 @@ TrajectoryOptimizer::TrajectoryOptimizer(std::shared_ptr<Scene> scene, std::stri
       group_name_(std::move(group_name)), horizon_(horizon), dt_(dt), options_(options),
       rgm_(*scene_, group_name_), space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
       x0_(stackState(rgm_.q0(), rgm_.v0())),
-      problem_(aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_)) {}
+      problem_(aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_)) {
+  registerHistoryCallbackIfRequested();
+}
 
 TrajectoryOptimizer::~TrajectoryOptimizer() = default;
 
@@ -113,7 +115,12 @@ TrajectoryOptimizer::TrajectoryOptimizer(TrajectoryOptimizer&& other) noexcept
       horizon_(other.horizon_), dt_(other.dt_), options_(other.options_),
       rgm_(*scene_, group_name_), space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
       x0_(std::move(other.x0_)), problem_(std::move(other.problem_)),
-      solver_(std::move(other.solver_)), locked_(other.locked_) {}
+      solver_(std::move(other.solver_)), locked_(other.locked_) {
+  // history_callback_ is intentionally NOT moved from `other`: HistoryCallbackTpl stores a raw
+  // pointer to the solver it was constructed against, which would otherwise reference the
+  // moved-from `other.solver_`. Reconstruct fresh, bound to this->solver_.
+  registerHistoryCallbackIfRequested();
+}
 
 // rgm_ (and the space_ derived from it) hold references into the originating scene and cannot be
 // moved or reassigned, so move assignment reconstructs the members in place from the moved-from
@@ -124,6 +131,26 @@ TrajectoryOptimizer& TrajectoryOptimizer::operator=(TrajectoryOptimizer&& other)
     new (this) TrajectoryOptimizer(std::move(other));
   }
   return *this;
+}
+
+// --- Diagnostics (Tier 1: history; Tier 2: raw callback registration) -----------------------
+
+void TrajectoryOptimizer::registerHistoryCallbackIfRequested() {
+  if (!options_.record_history) {
+    return;
+  }
+  // store_pd_vars=false: we only read values_/prim_infeas/dual_infeas, not the (expensive) xs/us
+  // history. store_values_=true: populates `values` (cost) in lockstep with prim_infeas/dual_infeas
+  // on every invokeCallbacks() call (aligator core/history-callback.hxx:15-20), so the three
+  // vectors are always the same length.
+  history_callback_ = std::make_shared<aligator::HistoryCallbackTpl<double>>(
+      &solver_, /*store_pd_vars=*/false, /*store_values=*/true);
+  solver_.registerCallback("roboplan_history", history_callback_);
+}
+
+void TrajectoryOptimizer::registerCallback(
+    std::string_view name, std::shared_ptr<aligator::CallbackBaseTpl<double>> callback) {
+  solver_.registerCallback(name, std::move(callback));
 }
 
 // --- Introspection ---------------------------------------------------------------------------
@@ -294,6 +321,14 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   solver_.verbose_ =
       options_.verbose ? aligator::VerboseLevel::VERBOSE : aligator::VerboseLevel::QUIET;
 
+  // Clear any history from a previous solve() on this same built problem: TrajOptResult::history
+  // reflects only the solve about to run, not an accumulation across repeated solves.
+  if (history_callback_) {
+    history_callback_->values.clear();
+    history_callback_->prim_infeas.clear();
+    history_callback_->dual_infeas.clear();
+  }
+
   bool converged = false;
   try {
     converged = solver_.run(*problem_, seed.xs, seed.us);
@@ -324,6 +359,15 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
     out.trajectory.times.push_back(static_cast<double>(k) * dt_);
     out.trajectory.positions.emplace_back(res.xs[k].head(nq));
     out.trajectory.velocities.emplace_back(res.xs[k].segment(nq, nv));
+  }
+
+  if (history_callback_) {
+    const auto& cb = *history_callback_;
+    out.history.reserve(cb.values.size());
+    for (std::size_t k = 0; k < cb.values.size(); ++k) {
+      out.history.push_back(TrajOptIterate{static_cast<int>(k), cb.values[k], cb.prim_infeas[k],
+                                           cb.dual_infeas[k]});
+    }
   }
 
   return out;

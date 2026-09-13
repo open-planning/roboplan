@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -90,6 +91,49 @@ TEST(TrajectoryOptimizerTest, SolvesControlRegShellAndReturnsPopulatedResult) {
   for (std::size_t k = 0; k < result->us.size(); ++k) {
     EXPECT_LT((result2->us[k] - result->us[k]).cwiseAbs().maxCoeff(), determinism_tol);
   }
+}
+
+// TrajOptOptions::record_history wraps aligator's own HistoryCallbackTpl (API_NOTES.md Prompt 13):
+// each recorded iterate should correspond 1:1 with a ProxDDP iteration, and a second solve() on the
+// same built problem must not accumulate history from the first.
+TEST(TrajectoryOptimizerTest, RecordHistoryPopulatesPerIterationDiagnosticsWithoutAccumulating) {
+  TrajOptOptions options;
+  options.max_iters = 100;
+  options.control_reg = 1e-2;
+  options.record_history = true;
+
+  TrajectoryOptimizer opt(makeSo101Scene(), "arm", /*horizon=*/10, /*dt=*/0.02, options);
+  opt.build();
+
+  const auto result = opt.solve(TrajOptSeed{});
+  ASSERT_TRUE(result.has_value()) << result.error();
+  ASSERT_FALSE(result->history.empty());
+  // invokeCallbacks() fires exactly once per accepted ProxDDP iteration (solver-proxddp.hxx:695),
+  // in lockstep with num_iters -- see API_NOTES.md Prompt 13 for the source-level argument.
+  EXPECT_EQ(result->history.size(), static_cast<std::size_t>(result->iterations));
+  for (std::size_t k = 0; k < result->history.size(); ++k) {
+    EXPECT_EQ(result->history[k].iteration, static_cast<int>(k));
+    EXPECT_TRUE(std::isfinite(result->history[k].cost));
+    EXPECT_GE(result->history[k].prim_infeas, 0.0);
+    EXPECT_GE(result->history[k].dual_infeas, 0.0);
+  }
+
+  const auto result2 = opt.solve(TrajOptSeed{});
+  ASSERT_TRUE(result2.has_value()) << result2.error();
+  EXPECT_EQ(result2->history.size(), static_cast<std::size_t>(result2->iterations));
+}
+
+TEST(TrajectoryOptimizerTest, HistoryEmptyWhenNotRecorded) {
+  TrajOptOptions options;
+  options.max_iters = 100;
+  options.control_reg = 1e-2;
+  // record_history defaults to false.
+
+  TrajectoryOptimizer opt(makeSo101Scene(), "arm", /*horizon=*/10, /*dt=*/0.02, options);
+  opt.build();
+  const auto result = opt.solve(TrajOptSeed{});
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_TRUE(result->history.empty());
 }
 
 TEST(TrajectoryOptimizerTest, SolveRejectsWrongSeedSize) {

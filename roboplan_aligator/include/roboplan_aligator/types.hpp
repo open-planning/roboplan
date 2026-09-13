@@ -38,6 +38,26 @@ struct TrajOptOptions {
 
   /// @brief Weight of the default quadratic control (torque) regularization cost. 0 disables it.
   double control_reg = 1e-3;
+
+  /// @brief Record per-iteration diagnostics into `TrajOptResult::history` (off by default: costs
+  /// one push_back per tracked quantity per ProxDDP iteration).
+  bool record_history = false;
+};
+
+/// @brief One recorded ProxDDP iteration, populated only when `TrajOptOptions::record_history` is
+/// set. Reflects the most recent `solve()` call only (history is cleared before every solve).
+struct TrajOptIterate {
+  /// @brief Iteration index within the solve (0-based).
+  int iteration = 0;
+
+  /// @brief Total trajectory cost at this iteration.
+  double cost = 0.0;
+
+  /// @brief Primal infeasibility (constraint violation) at this iteration.
+  double prim_infeas = 0.0;
+
+  /// @brief Dual infeasibility (stationarity residual) at this iteration.
+  double dual_infeas = 0.0;
 };
 
 /// @brief Warm-start for a solve: state and control guesses on the horizon grid.
@@ -94,6 +114,10 @@ struct TrajOptResult {
 
   /// @brief Optimized state trajectory sampled at `dt`, reduced-group layout.
   TrajOptTrajectory trajectory;
+
+  /// @brief Per-iteration diagnostics from this solve; empty unless
+  /// `TrajOptOptions::record_history` was set.
+  std::vector<TrajOptIterate> history;
 
   /// @brief Converts the optimized trajectory to a full-model roboplan::JointTrajectory.
   /// @details Maps reduced-group positions/velocities to full-model layout (non-group DoF zero).
