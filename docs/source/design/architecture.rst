@@ -96,9 +96,10 @@ Each C++ package ships its own Python bindings, exposed as a submodule of the ``
    * - Package
      - Python module
      - Role
-   * - ``roboplan``
+   * - ``roboplan_core``
      - ``roboplan.core``, ``roboplan.filters``
      - ``Scene``, standard data types, collision checking, sampling, path utilities, and signal filters.
+       Also home to the pure-Python ``roboplan.visualization`` and ``roboplan.interpolation`` modules described below.
    * - ``roboplan_simple_ik``
      - ``roboplan.simple_ik``
      - Damped least-squares inverse kinematics (:doc:`SimpleIK </concepts/inverse_kinematics>`).
@@ -120,6 +121,12 @@ Each C++ package ships its own Python bindings, exposed as a submodule of the ``
    * - ``roboplan_examples``
      - (scripts only)
      - Runnable C++ and Python examples.
+   * - ``roboplan_common``
+     - ``roboplan_common``
+     - Internal build and runtime support shared by the packages above (CMake macros, Python install helpers); not part of the public API.
+   * - ``roboplan``
+     - (metapackage)
+     - Pure-Python metapackage that depends on every package above, so that ``pip install roboplan`` pulls in all of the bindings.
 
 
 The core package
@@ -154,7 +161,7 @@ A ``SceneContext`` carries the configuration an algorithm is working at, which i
 
 A context borrows the scene's collision geometry and sizes its own scratch from it when built.
 Adding or removing geometry, or changing collision pairs, leaves that scratch stale: the collision queries report the mismatch rather than answering against geometry they were not sized for, while kinematics and sampling are unaffected.
-Algorithms can build a context per call pick up the change automatically, or hold one for their lifetime and refresh it as needed.
+Algorithms can build a context per call to pick up the change automatically, or hold one for their lifetime and refresh it as needed.
 Moving an existing geometry with ``updateGeometryPlacement`` does not invalidate anything.
 
 The core package also provides post-processing utilities that operate on paths, such as :doc:`path shortcutting </concepts/path_shortcutting>` and uniform resampling.

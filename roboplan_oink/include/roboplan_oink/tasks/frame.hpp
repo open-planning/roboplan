@@ -66,10 +66,16 @@ struct FrameTask : public Task {
   FrameTask(const Oink& oink, const Scene& scene, const CartesianConfiguration& target_pose,
             const FrameTaskOptions& options = {});
 
-  /// @brief Computes the SE(3) error between target and current frame pose.
+  /// @brief Computes the 6D pose error between the target and the current frame pose.
   ///
-  /// The error is computed as the logarithm of the relative transform:
-  ///     error = log_6(T_frame_to_world^{-1} * T_target_to_world)
+  /// The error is expressed in world-aligned coordinates, split into a position and a
+  /// rotation part:
+  ///     e_pos = p_target - p_frame
+  ///     e_rot = R_frame * log_3(R_frame^T * R_target)
+  ///
+  /// Each part is then softly saturated to `max_position_error` / `max_rotation_error`
+  /// (when finite) using e_max * tanh(||e|| / e_max) * e / ||e||, which bounds the step
+  /// requested from the QP and keeps the CBF linearization valid.
   ///
   /// Results are stored in error_container.
   ///
@@ -79,15 +85,15 @@ struct FrameTask : public Task {
 
   /// @brief Computes the task Jacobian for the frame tracking task.
   ///
-  /// The task Jacobian J(q) ∈ ℝ^(6 × n_v) is the derivative of the task
-  /// error e(q) ∈ ℝ^6 with respect to the configuration q. The formula is:
+  /// The task Jacobian J(q) ∈ ℝ^(6 × n_v) is the negated frame Jacobian of the tracked
+  /// frame, expressed in LOCAL_WORLD_ALIGNED coordinates so that it matches the error
+  /// convention of computeError():
   ///
-  ///     J(q) = -Jlog_6(T_frame_to_target) * J_frame(q)
+  ///     J(q) = -J_frame(q)
   ///
-  /// Where:
-  /// - T_frame_to_target: Transform from current frame to target
-  /// - J_frame(q): Frame Jacobian (expressed in frame coordinates)
-  /// - Jlog_6: Pinocchio's logarithmic Jacobian
+  /// When a base frame is set, the relative Jacobian of the frame with respect to that base
+  /// is used instead, so that the base frame's own motion through the joints is accounted for.
+  /// The negation ensures the QP formulation (min ||J Δq + α e||²) moves toward the target.
   ///
   /// Results are stored in jacobian_container.
   ///

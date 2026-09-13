@@ -223,12 +223,12 @@ class CartesianPathPlanner:
     def plan(self, path: roboplan.core._core_ext.CartesianPath, q_start: roboplan.core._core_ext.JointConfiguration) -> roboplan.core._core_ext.JointTrajectory:
         """Plans a joint trajectory that traces the provided Cartesian path."""
 
-    def compute_peak_limit_ratios(self, trajectory: roboplan.core._core_ext.JointTrajectory) -> tuple[float, float]:
+    def computePeakLimitRatios(self, trajectory: roboplan.core._core_ext.JointTrajectory) -> tuple[float, float]:
         """
         Computes the (peak velocity / limit, peak acceleration / limit) ratios over a trajectory. Values <= 1.0 mean the respective joint limits are respected.
         """
 
-    def compute_achieved_path_length(self, trajectory: roboplan.core._core_ext.JointTrajectory, path: roboplan.core._core_ext.CartesianPath) -> float:
+    def computeAchievedPathLength(self, trajectory: roboplan.core._core_ext.JointTrajectory, path: roboplan.core._core_ext.CartesianPath) -> float:
         """
         Computes the achieved Cartesian path length (m) traced by the path's tip frames.
         """

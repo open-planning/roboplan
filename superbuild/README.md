@@ -1,6 +1,7 @@
 # RoboPlan superbuild and Python packaging
 
-This directory is RoboPlan's shared CMake entry point for development: it configures every package in one build tree so `pixi run build`, `pixi run install`, and `pixi run test` run once instead of once per package.
+This directory is RoboPlan's shared CMake entry point for development.
+It configures every package in one build tree so `pixi run -e default build`, `pixi run -e default install`, and `pixi run -e default test` run once instead of once per package.
 
 PyPI wheels do **not** use the superbuild. Each package directory (`roboplan_core`, `roboplan_rrt`, ...) is its own `cmeel.build` project with its own `pyproject.toml`, and the `roboplan` directory holds a pure-Python metapackage that depends on all of them. Downstream packages pin their siblings to an exact version (for example `roboplan-core ==0.6.1`) as both build and runtime requirements, so a local build has to be done in dependency order against a local wheelhouse.
 

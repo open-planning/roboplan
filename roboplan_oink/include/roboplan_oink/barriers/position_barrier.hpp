@@ -65,10 +65,10 @@ struct PositionBarrier : public Barrier {
   ///   - h_lower_i = p_i(q) - p_min_i  (for min bounds on enabled axes)
   ///   - h_upper_i = p_max_i - p_i(q)  (for max bounds on enabled axes)
   ///
-  /// Also computes right-hand side bounds using the saturating class-K function:
-  ///   rhs_i = dt * gamma * h_i / (1 + |h_i|) - safety_margin
-  ///
-  /// Results are stored in the inherited `barrier_values` and `barrier_rhs` vectors.
+  /// Results are stored in the inherited `barrier_values` vector. The QP right-hand side is
+  /// formed afterwards by Barrier::formatQpInequalities() using the saturating class-K
+  /// function with the safety margin applied as a shift:
+  ///   rhs_i = gamma * (h_i - safety_margin) / (1 + |h_i - safety_margin|)
   ///
   /// @param context The context supplying the configuration and the collision scratch to write.
   /// @return Expected void on success, or error message if frame is not found.

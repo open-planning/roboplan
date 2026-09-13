@@ -48,6 +48,7 @@ If you are making changes that you think could affect the examples, we also reco
 To generate the documentation on your end, ``cd`` to the ``docs`` subfolder of the repository.
 
 First, install the requirements (we recommend using a virtual environment).
+The C++ API docs are extracted with `Doxygen <https://www.doxygen.nl/>`_, which is not a Python package, so install it separately (e.g., ``apt install doxygen``, ``brew install doxygen``, or ``conda install doxygen``).
 
 ::
 
