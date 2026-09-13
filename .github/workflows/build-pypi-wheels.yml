@@ -199,13 +199,11 @@ jobs:
         env:
           CIBW_BEFORE_TEST_LINUX: >-
             pip install --find-links /host${{ github.workspace }}/wheelhouse
-            roboplan==${{ needs.check_version.outputs.version }}
             roboplan-example-models==${{ needs.check_version.outputs.version }}
             roboplan-rrt==${{ needs.check_version.outputs.version }}
             roboplan-simple-ik==${{ needs.check_version.outputs.version }}
           CIBW_BEFORE_TEST_MACOS: >-
             pip install --find-links ${{ github.workspace }}/wheelhouse
-            roboplan==${{ needs.check_version.outputs.version }}
             roboplan-example-models==${{ needs.check_version.outputs.version }}
             roboplan-rrt==${{ needs.check_version.outputs.version }}
             roboplan-simple-ik==${{ needs.check_version.outputs.version }}
