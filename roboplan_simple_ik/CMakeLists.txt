@@ -34,6 +34,17 @@ target_include_directories(
          $<INSTALL_INTERFACE:include>)
 target_link_libraries(roboplan_simple_ik roboplan::roboplan)
 set_property(TARGET roboplan_simple_ik PROPERTY CXX_STANDARD 20)
+# In cmeel wheel builds, every roboplan library and its dependencies (pinocchio
+# etc.) are installed to the same lib/ directory, so have the library look next
+# to itself for them at runtime.
+if(DEFINED ENV{CMEEL_BUILD})
+  if(APPLE)
+    set_target_properties(roboplan_simple_ik PROPERTIES INSTALL_RPATH
+                                                        "@loader_path")
+  else()
+    set_target_properties(roboplan_simple_ik PROPERTIES INSTALL_RPATH "$ORIGIN")
+  endif()
+endif()
 # Alias so this works via add_subdirectory() too, not just installed
 # find_package().
 add_library(roboplan_simple_ik::roboplan_simple_ik ALIAS roboplan_simple_ik)

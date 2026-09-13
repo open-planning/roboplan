@@ -114,7 +114,7 @@ jobs:
   build_wheels:
     name: Build ${{ matrix.name }} wheels
     runs-on: ${{ matrix.os }}
-    needs: [build_common_wheels, build_metapackage]
+    needs: [check_version, build_common_wheels, build_metapackage]
     strategy:
       fail-fast: false
       matrix:
@@ -199,10 +199,16 @@ jobs:
         env:
           CIBW_BEFORE_TEST_LINUX: >-
             pip install --find-links /host${{ github.workspace }}/wheelhouse
-            roboplan roboplan-example-models roboplan-rrt roboplan-simple-ik
+            roboplan==${{ needs.check_version.outputs.version }}
+            roboplan-example-models==${{ needs.check_version.outputs.version }}
+            roboplan-rrt==${{ needs.check_version.outputs.version }}
+            roboplan-simple-ik==${{ needs.check_version.outputs.version }}
           CIBW_BEFORE_TEST_MACOS: >-
             pip install --find-links ${{ github.workspace }}/wheelhouse
-            roboplan roboplan-example-models roboplan-rrt roboplan-simple-ik
+            roboplan==${{ needs.check_version.outputs.version }}
+            roboplan-example-models==${{ needs.check_version.outputs.version }}
+            roboplan-rrt==${{ needs.check_version.outputs.version }}
+            roboplan-simple-ik==${{ needs.check_version.outputs.version }}
           CIBW_TEST_COMMAND: >-
             python -c "import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;

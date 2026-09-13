@@ -64,15 +64,23 @@ else()
   file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
 endif()
 
-# Ensure the extension can find workspace dylibs via @rpath on macOS, as it
-# seems that SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will
-# break stub generation.
-if(APPLE)
+# Ensure the extension can find the roboplan libraries relative to itself. On
+# macOS this is always needed, as SIP strips DYLD_LIBRARY_PATH from subprocesses
+# and breaks stub generation. In cmeel wheel builds it is needed on every
+# platform, since nothing else puts cmeel.prefix/lib on the loader search path
+# at runtime.
+if(APPLE OR DEFINED ENV{CMEEL_BUILD})
+  if(APPLE)
+    set(_rpath_origin "@loader_path")
+  else()
+    set(_rpath_origin "$ORIGIN")
+  endif()
   file(RELATIVE_PATH _ext_to_lib
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/example_models"
        "${CMAKE_INSTALL_PREFIX}/lib")
-  set_target_properties(_example_models_ext
-                        PROPERTIES INSTALL_RPATH "@loader_path/${_ext_to_lib}")
+  set_target_properties(
+    _example_models_ext PROPERTIES INSTALL_RPATH
+                                   "${_rpath_origin}/${_ext_to_lib}")
 endif()
 
 install(TARGETS _example_models_ext
