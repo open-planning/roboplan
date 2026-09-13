@@ -59,18 +59,18 @@ def test_options_defaults_and_fields() -> None:
     assert options.control_reg == 0.0
 
 
-def test_timesteps_maps_to_stage_windows(scene: Scene) -> None:
-    # None -> all stages, (a, b) -> range, int -> terminal. All three must attach without error;
-    # an out-of-range range must raise.
+def test_cost_targeting_global_stage_terminal(scene: Scene) -> None:
+    # addCost (every stage), addStageCost (exactly one stage), addTerminalCost (terminal node)
+    # must all attach without error; an out-of-range stage index must raise.
     opt = make_optimizer(scene, horizon=10)
     cost = ConfigurationCost()
     cost.q_target = np.zeros(opt.nq())
     cost.weights = np.ones(opt.nv())
-    opt.addCost(cost)  # timesteps=None -> all
-    opt.addCost(cost, timesteps=(2, 6))  # range
-    opt.addCost(cost, timesteps=opt.horizon())  # int -> terminal
+    opt.addCost(cost)  # every stage
+    opt.addStageCost(2, cost)  # exactly stage 2
+    opt.addTerminalCost(cost)  # terminal node
     with pytest.raises(ValueError):
-        opt.addCost(cost, timesteps=(0, 999))  # end past the horizon
+        opt.addStageCost(999, cost)  # out of range
 
 
 def test_lifecycle_build_gate(scene: Scene) -> None:
@@ -114,7 +114,7 @@ def test_reach_converges_and_is_deterministic(scene: Scene) -> None:
         cost = ConfigurationCost()
         cost.q_target = np.full(opt.nq(), 0.3)
         cost.weights = np.full(opt.nv(), 100.0)
-        opt.addCost(cost, timesteps=opt.horizon())
+        opt.addTerminalCost(cost)
         opt.build()
         return opt.solve(TrajOptSeed())
 
@@ -131,17 +131,24 @@ def test_reach_converges_and_is_deterministic(scene: Scene) -> None:
         assert np.max(np.abs(a - b)) < 1e-9
 
 
-def test_set_target_hot_path(scene: Scene) -> None:
+def test_retargeting_requires_rebuild(scene: Scene) -> None:
+    # There is no post-build mutation (aligator copies costs into stages by value, and this
+    # package does not keep a handle into that copy): retargeting means resetProblem(), re-adding
+    # with the new value, and build() again.
     opt = make_optimizer(scene, horizon=30, dt=0.05, max_iters=200)
     cost = ConfigurationCost()
     cost.q_target = np.full(opt.nq(), 0.3)
     cost.weights = np.full(opt.nv(), 100.0)
-    handle = opt.addCost(cost, timesteps=opt.horizon())
+    opt.addTerminalCost(cost)
     opt.build()
-
     first = opt.solve(TrajOptSeed())
-    handle.setTarget(np.full(opt.nq(), -0.3))  # hot-path retarget
+
+    opt.resetProblem()
+    cost.q_target = np.full(opt.nq(), -0.3)
+    opt.addTerminalCost(cost)
+    opt.build()
     second = opt.solve(TrajOptSeed())
+
     assert np.linalg.norm(second.xs[-1][:5] - (-0.3)) < np.linalg.norm(
         first.xs[-1][:5] - (-0.3)
     )
@@ -176,27 +183,4 @@ def test_torque_limit_rejects_terminal(scene: Scene) -> None:
     opt = make_optimizer(scene, horizon=8)
     # The terminal node has no control, so a torque box there is ill-defined.
     with pytest.raises(ValueError):
-        opt.addConstraint(TorqueLimit(), timesteps=opt.horizon())
-
-
-def test_cost_handle_keeps_optimizer_alive() -> None:
-    # A CostHandle references the optimizer's in-problem residuals; keep_alive must keep the
-    # optimizer alive so setTarget on a handle from a temporary optimizer does not use-after-free.
-    import gc
-
-    models_dir = get_package_models_dir()
-    local_scene = Scene(
-        "ka_scene",
-        models_dir / "so101_robot_model" / "so101.urdf",
-        models_dir / "so101_robot_model" / "so101.srdf",
-        [get_package_share_dir()],
-    )
-    cost = ConfigurationCost()
-    cost.q_target = np.zeros(5)
-    cost.weights = np.ones(5)
-    # The optimizer is a temporary; only the handle is kept.
-    handle = TrajectoryOptimizer(local_scene, GROUP_NAME, 8, 0.05).addCost(
-        cost, timesteps=8
-    )
-    gc.collect()
-    handle.setTarget(np.zeros(5))  # must not crash (keep_alive<0, 1>)
+        opt.addTerminalConstraint(TorqueLimit())

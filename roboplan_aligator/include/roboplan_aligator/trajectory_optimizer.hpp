@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -13,13 +15,13 @@
 #include <aligator/core/cost-abstract.hpp>
 #include <aligator/core/function-abstract.hpp>
 #include <aligator/core/history-callback.hpp>
+#include <aligator/core/stage-model.hpp>
 #include <aligator/core/traj-opt-problem.hpp>
 #include <aligator/modelling/spaces/multibody.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <aligator/third-party/polymorphic_cxx14.h>
 
 #include <roboplan_aligator/constraint_spec.hpp>
-#include <roboplan_aligator/cost_handle.hpp>
 #include <roboplan_aligator/cost_spec.hpp>
 #include <roboplan_aligator/problem_builder.hpp>
 #include <roboplan_aligator/reduced_group_model.hpp>
@@ -33,12 +35,36 @@ class Scene;
 /// free-space multibody model.
 ///
 /// Usage: construct for a scene and joint group, add costs/constraints, `build()`, then `solve()`
-/// from a warm-start seed. Costs may be retargeted between solves via the `CostHandle` returned by
-/// `addCost`; constraints are fixed once added and require `resetProblem()` to change.
+/// from a warm-start seed. Each stage is assembled fully, once, inside `build()` -- mirroring
+/// aligator's own `addStage` loop -- so there is no post-build mutation: retargeting a cost means
+/// `resetProblem()`, re-adding it with the new value, and
+/// `build()` again.
+///
+/// Three ways to describe what goes on a stage, all consumed once at `build()`:
+/// - Spec-based (`addCost`/`addConstraint` + their `*Stage`/`*Terminal` variants, Python + C++):
+///   plain structs (`ConfigurationCost`, `VelocityCost`, `TorqueLimit`) translated internally into
+///   aligator costs/residuals. The only path Python has (aligator's `xyz::polymorphic` types are
+///   not nanobind-bindable).
+/// - Direct-aligator (same method names, overloaded on a raw `xyz::polymorphic` aligator cost or
+///   (residual, set) pair, C++ only): inserted into a stage roboplan still assembles.
+/// - Stage authorship (`setStageFactory`, C++ only): the caller builds the entire `StageModel` for
+///   each index themselves, with aligator's own API, no roboplan translation involved. Mutually
+///   exclusive with the two tiers above (global/per-stage add* calls) for the lifetime of one
+///   built problem, since a caller-authored stage and a roboplan-assembled stage cannot compose.
 class TrajectoryOptimizer {
 public:
+  /// @brief A caller-provided per-index stage builder for the stage-authorship path.
+  /// @details Called once per index (0 <= index < horizon()) inside `build()`, mirroring
+  /// aligator's own `for (i = 0; i < nsteps; ++i) problem.addStage(makeStage(i))` idiom
+  /// (external/aligator/tests/mpc-cycle.cpp). `dynamics` is the optimizer's own discretized
+  /// dynamics (built once, shared across stages) so the caller does not need to re-derive it from
+  /// `phaseSpace()`/`integrator()`/`dt()` to match the configured default -- though nothing
+  /// prevents supplying different dynamics per stage if the factory ignores this argument.
+  using StageFactory = std::function<xyz::polymorphic<aligator::StageModelTpl<double>>(
+      int index, const aligator_detail::DiscreteDynamics& dynamics)>;
+
   /// @brief Constructs the optimizer: builds the reduced model for `group_name` and the empty
-  /// problem shell (dynamics + default control regularization, no user costs/constraints yet).
+  /// problem shell (no stages, no user costs/constraints yet).
   /// @param scene The scene to optimize in. Must not be null; retained for the optimizer's
   /// lifetime.
   /// @param group_name The joint group to plan for (fixed-base only).
@@ -63,6 +89,8 @@ public:
   int horizon() const;
   /// @brief Time step, in seconds.
   double dt() const;
+  /// @brief The configured dynamics integrator (see `TrajOptOptions::integrator`).
+  IntegratorType integrator() const;
   /// @brief Reduced-model configuration size nq.
   int nq() const;
   /// @brief Reduced-model tangent size nv.
@@ -76,44 +104,68 @@ public:
   /// @throws std::invalid_argument if `q` does not have size nq.
   void setInitialState(const Eigen::VectorXd& q);
 
-  /// @brief Attaches a cost from a concrete spec type (`ConfigurationCost`, `VelocityCost`, ...).
-  /// @param cost The cost specification.
-  /// @param window The stages the cost applies to. Defaults to every stage.
-  /// @param weight Scalar weight multiplying the cost.
-  /// @return A handle whose `setTarget` retargets this cost between solves.
-  /// @throws std::logic_error if called after `build()` (before a subsequent `resetProblem()`).
-  CostHandle addCost(const CostSpec& cost, const StageWindow& window = StageWindow::all(),
-                     double weight = 1.0);
+  // --- Costs: spec-based (Python + C++) --------------------------------------------------------
 
-  /// @brief Attaches a user-supplied aligator cost directly, bypassing the spec/factory path.
-  /// @details Advanced, C++-only: not exposed to Python bindings. Returns a default (no-op)
-  /// `CostHandle`, since a custom cost has no roboplan-known target to retarget.
-  /// @param cost The aligator cost to attach.
-  /// @param window The stages the cost applies to. Defaults to every stage.
-  /// @param weight Scalar weight multiplying the cost.
-  /// @throws std::logic_error if called after `build()` (before a subsequent `resetProblem()`).
-  CostHandle addCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
-                     const StageWindow& window = StageWindow::all(), double weight = 1.0);
+  /// @brief Attaches a cost from a concrete spec type to every stage.
+  /// @throws std::logic_error if called after `build()`, or if `setStageFactory` was called.
+  void addCost(const CostSpec& cost, double weight = 1.0);
+  /// @brief Attaches a cost from a concrete spec type to exactly stage `stage`.
+  /// @throws std::invalid_argument if `stage` is out of `[0, horizon())`.
+  /// @throws std::logic_error if called after `build()`, or if `setStageFactory` was called.
+  void addStageCost(int stage, const CostSpec& cost, double weight = 1.0);
+  /// @brief Attaches a cost from a concrete spec type to the terminal node.
+  /// @throws std::logic_error if called after `build()`.
+  void addTerminalCost(const CostSpec& cost, double weight = 1.0);
 
-  /// @brief Attaches a constraint from a concrete spec type (`TorqueLimit`, ...).
-  /// @param constraint The constraint specification.
-  /// @param window The stages the constraint applies to. Defaults to every stage.
-  /// @throws std::invalid_argument if the constraint type does not support `window` (e.g. a
-  /// `TorqueLimit` on the terminal node, which has no control).
-  /// @throws std::logic_error if called after `build()` (before a subsequent `resetProblem()`).
-  void addConstraint(const ConstraintSpec& constraint,
-                     const StageWindow& window = StageWindow::all());
+  // --- Costs: direct aligator (advanced, C++ only) ---------------------------------------------
 
-  /// @brief Attaches a user-supplied aligator (residual, constraint set) pair directly, bypassing
-  /// the spec/factory path.
+  /// @brief Attaches a user-supplied aligator cost to every stage, bypassing the spec/factory path.
   /// @details Advanced, C++-only: not exposed to Python bindings.
-  /// @param residual The stage residual function.
-  /// @param set The constraint set the residual is checked against.
-  /// @param window The stages the constraint applies to. Defaults to every stage.
-  /// @throws std::logic_error if called after `build()` (before a subsequent `resetProblem()`).
+  void addCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost, double weight = 1.0);
+  /// @brief Attaches a user-supplied aligator cost to exactly stage `stage`.
+  void addStageCost(int stage, xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+                    double weight = 1.0);
+  /// @brief Attaches a user-supplied aligator cost to the terminal node.
+  void addTerminalCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+                       double weight = 1.0);
+
+  // --- Constraints: spec-based (Python + C++) --------------------------------------------------
+
+  /// @brief Attaches a constraint from a concrete spec type to every stage.
+  /// @throws std::invalid_argument if the constraint type does not support this target (e.g. a
+  /// `TorqueLimit` on the terminal node, which has no control).
+  /// @throws std::logic_error if called after `build()`, or if `setStageFactory` was called.
+  void addConstraint(const ConstraintSpec& constraint);
+  /// @brief Attaches a constraint from a concrete spec type to exactly stage `stage`.
+  void addStageConstraint(int stage, const ConstraintSpec& constraint);
+  /// @brief Attaches a constraint from a concrete spec type to the terminal node.
+  void addTerminalConstraint(const ConstraintSpec& constraint);
+
+  // --- Constraints: direct aligator (advanced, C++ only) ----------------------------------------
+
+  /// @brief Attaches a user-supplied aligator (residual, constraint set) pair to every stage.
+  /// @details Advanced, C++-only: not exposed to Python bindings.
   void addConstraint(xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
-                     xyz::polymorphic<aligator::ConstraintSetTpl<double>> set,
-                     const StageWindow& window = StageWindow::all());
+                     xyz::polymorphic<aligator::ConstraintSetTpl<double>> set);
+  /// @brief Attaches a user-supplied (residual, constraint set) pair to exactly stage `stage`.
+  void addStageConstraint(int stage, xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
+                          xyz::polymorphic<aligator::ConstraintSetTpl<double>> set);
+  /// @brief Attaches a user-supplied (residual, constraint set) pair to the terminal node.
+  void addTerminalConstraint(xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
+                             xyz::polymorphic<aligator::ConstraintSetTpl<double>> set);
+
+  // --- Stage authorship (advanced, C++ only) ----------------------------------------------------
+
+  /// @brief Supplies a per-index stage factory: `build()` calls it once per index instead of
+  /// assembling stages from the spec/direct entries above, mirroring aligator's own `addStage`
+  /// loop with no roboplan translation in the way.
+  /// @details Advanced, C++-only: not exposed to Python bindings. Terminal cost/constraint entries
+  /// (`addTerminalCost`/`addTerminalConstraint`, either tier) still apply on top of a stage
+  /// factory -- aligator itself keeps the terminal cost as a field separate from `stages_`, so
+  /// stage authorship and terminal-node authorship are independent.
+  /// @throws std::logic_error if any global/per-stage `addCost`/`addConstraint` entry was already
+  /// added (the two mechanisms are mutually exclusive), or if called after `build()`.
+  void setStageFactory(StageFactory factory);
 
   /// @brief Finalizes the problem: allocates the solver workspace and freezes the structure.
   /// @details Idempotent — a second call while already built is a no-op. Required before `solve()`.
@@ -121,8 +173,8 @@ public:
   void build();
 
   /// @brief Rebuilds the empty problem shell, re-enabling `addCost`/`addConstraint`.
-  /// @details Any outstanding `CostHandle` dangles afterward (its residual pointers referenced the
-  /// discarded problem). A fresh `build()` is required before the next `solve()`.
+  /// @details Discards all previously-added cost/constraint entries and any stage factory. A fresh
+  /// `build()` is required before the next `solve()`.
   void resetProblem();
 
   /// @brief Builds a straight-line warm-start seed through reduced-group waypoints.
@@ -159,6 +211,22 @@ public:
   const aligator_detail::Problem& problem() const { return *problem_; }
 
 private:
+  struct CostEntry {
+    CostSpec spec;
+    double weight;
+  };
+  struct DirectCostEntry {
+    xyz::polymorphic<aligator::CostAbstractTpl<double>> cost;
+    double weight;
+  };
+  struct ConstraintEntry {
+    ConstraintSpec spec;
+  };
+  struct DirectConstraintEntry {
+    xyz::polymorphic<aligator::StageFunctionTpl<double>> func;
+    xyz::polymorphic<aligator::ConstraintSetTpl<double>> set;
+  };
+
   std::shared_ptr<Scene> scene_;
   std::string group_name_;
   int horizon_;
@@ -170,6 +238,26 @@ private:
   std::unique_ptr<aligator_detail::Problem> problem_;
   aligator::SolverProxDDPTpl<double> solver_;
   bool locked_ = false;
+
+  // Plan state: consumed once, inside build(). Cleared by resetProblem().
+  std::vector<CostEntry> global_costs_;
+  std::vector<DirectCostEntry> global_direct_costs_;
+  std::map<int, std::vector<CostEntry>> stage_costs_;
+  std::map<int, std::vector<DirectCostEntry>> stage_direct_costs_;
+  std::vector<CostEntry> terminal_costs_;
+  std::vector<DirectCostEntry> terminal_direct_costs_;
+  std::vector<ConstraintEntry> global_constraints_;
+  std::vector<DirectConstraintEntry> global_direct_constraints_;
+  std::map<int, std::vector<ConstraintEntry>> stage_constraints_;
+  std::map<int, std::vector<DirectConstraintEntry>> stage_direct_constraints_;
+  std::vector<ConstraintEntry> terminal_constraints_;
+  std::vector<DirectConstraintEntry> terminal_direct_constraints_;
+  StageFactory stage_factory_;
+
+  bool hasStagePlan() const;
+  void requireNoStageFactory() const;
+  void requireNoStagePlan() const;
+  void requireValidStageIndex(int stage) const;
 
   // Tier 1 diagnostics: wraps aligator's own HistoryCallbackTpl (bound to `solver_`), registered
   // only when options_.record_history is set. Never moved across TrajectoryOptimizer instances

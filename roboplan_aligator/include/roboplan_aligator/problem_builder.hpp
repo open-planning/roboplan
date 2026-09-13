@@ -33,18 +33,17 @@ PhaseSpace makePhaseSpace(const pinocchio::Model& reduced_model);
 /// @param dt Time step in seconds (must be > 0).
 DiscreteDynamics makeDiscreteDynamics(const PhaseSpace& space, IntegratorType type, double dt);
 
-/// @brief Assembles the problem shell: `horizon` identical stages, each an empty
-/// cost sum plus the default quadratic control-regularization cost (weight `options.control_reg`,
-/// target u = 0; skipped when `control_reg <= 0`), the discretized dynamics, an initial-condition
-/// constraint at `x0`, and an empty terminal-cost placeholder.
+/// @brief Builds an empty problem shell: no stages yet, an initial-condition constraint at `x0`,
+/// and an empty terminal-cost placeholder. Mirrors aligator's own "no pre-allocated stages"
+/// constructor (`TrajOptProblemTpl(x0, nu, space, term_cost)`) -- stages are added one at a time,
+/// fully formed, via `Problem::addStage` (see `TrajectoryOptimizer::build()`), not built eagerly
+/// here and decorated afterward.
 /// @param space The reduced-model phase space.
 /// @param x0 The fixed initial state [q0; v0] (size nx).
-/// @param horizon Number of stages N (must be > 0).
-/// @param dt Time step in seconds (must be > 0).
-/// @param options Discretization/regularization options.
-/// @return The assembled problem on the heap (returned by unique_ptr so callers need not rely on
-/// TrajOptProblemTpl movability).
-std::unique_ptr<Problem> buildProblemShell(const PhaseSpace& space, const Eigen::VectorXd& x0,
-                                           int horizon, double dt, const TrajOptOptions& options);
+/// @param nu Control dimension (= nv for the fully-actuated group).
+/// @return The assembled (stage-less) problem on the heap (returned by unique_ptr so callers need
+/// not rely on TrajOptProblemTpl movability).
+std::unique_ptr<Problem> buildEmptyProblem(const PhaseSpace& space, const Eigen::VectorXd& x0,
+                                           int nu);
 
 }  // namespace roboplan::aligator_detail

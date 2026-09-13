@@ -10,9 +10,11 @@
 #include <algorithm>  // std::min
 #include <variant>
 
-#include <aligator/fwd.hpp>                             // VerboseLevel
-#include <aligator/solvers/proxddp/solver-proxddp.hpp>  // SolverProxDDPTpl
-#include <pinocchio/algorithm/joint-configuration.hpp>  // pinocchio::interpolate
+#include <aligator/fwd.hpp>                              // VerboseLevel
+#include <aligator/modelling/costs/quad-state-cost.hpp>  // QuadraticControlCostTpl
+#include <aligator/modelling/costs/sum-of-costs.hpp>     // CostStackTpl
+#include <aligator/solvers/proxddp/solver-proxddp.hpp>   // SolverProxDDPTpl
+#include <pinocchio/algorithm/joint-configuration.hpp>   // pinocchio::interpolate
 
 #include <roboplan/core/scene.hpp>
 
@@ -25,34 +27,17 @@ namespace roboplan {
 
 namespace {
 
+using aligator_detail::CostStack;
+using StageModel = aligator::StageModelTpl<double>;
+using ManifoldPoly = xyz::polymorphic<aligator::ManifoldAbstractTpl<double>>;
+using CostPoly = xyz::polymorphic<aligator::CostAbstractTpl<double>>;
+
 // Stack a reduced [q; v] into a single state vector x (size nq + nv), matching aligator's
 // MultibodyPhaseSpace layout (q first, then v).
 Eigen::VectorXd stackState(const Eigen::VectorXd& q, const Eigen::VectorXd& v) {
   Eigen::VectorXd x(q.size() + v.size());
   x << q, v;
   return x;
-}
-
-// The in-problem CostStacks a window targets: each in-range stage's cost sum, or the terminal cost.
-// Returned as pointers into the assembled problem so attached costs mutate its final home.
-std::vector<aligator_detail::CostStack*>
-resolveTargetStacks(aligator_detail::Problem& problem, const StageWindow& window, int horizon) {
-  const auto as_stack = [](aligator::CostAbstractTpl<double>& cost) {
-    auto* stack = dynamic_cast<aligator_detail::CostStack*>(&cost);
-    if (stack == nullptr) {
-      throw std::logic_error("TrajectoryOptimizer::addCost: in-problem cost is not a CostStack.");
-    }
-    return stack;
-  };
-  std::vector<aligator_detail::CostStack*> stacks;
-  if (window.isTerminal()) {
-    stacks.push_back(as_stack(*problem.term_cost_));
-  } else {
-    for (const int k : window.resolveStages(horizon)) {
-      stacks.push_back(as_stack(*problem.stages_[static_cast<std::size_t>(k)]->cost_));
-    }
-  }
-  return stacks;
 }
 
 // Lifecycle guard: costs and constraints may only be added before build() (or after
@@ -65,19 +50,43 @@ void requireUnlocked(bool locked) {
   }
 }
 
-// Attaches a built (residual, box) constraint pair to every in-range stage of `window`, or to the
-// terminal node. Both StageModel::addConstraint and TrajOptProblem::addTerminalConstraint deep-copy
-// (pushBack), so one built pair is reused across the whole window.
-void attachConstraintPair(aligator_detail::Problem& problem,
-                          const aligator_detail::ConstraintPair& pair, const StageWindow& window,
-                          int horizon) {
-  if (window.isTerminal()) {
-    problem.addTerminalConstraint(pair.func, pair.set);
-  } else {
-    for (const int k : window.resolveStages(horizon)) {
-      problem.stages_[static_cast<std::size_t>(k)]->addConstraint(pair.func, pair.set);
-    }
-  }
+// Dispatches a CostSpec to the matching factory: builds the concrete aligator cost and
+// inserts it into `stack` once, at stage-assembly time.
+void applyCostSpec(CostStack& stack, const aligator_detail::PhaseSpace& space,
+                   const ReducedGroupModel& rgm, const CostSpec& spec, double weight) {
+  std::visit(
+      [&](const auto& s) {
+        using T = std::decay_t<decltype(s)>;
+        if constexpr (std::is_same_v<T, ConfigurationCost>) {
+          aligator_detail::attachConfigurationCost(stack, space, rgm, s, weight);
+        } else if constexpr (std::is_same_v<T, VelocityCost>) {
+          aligator_detail::attachVelocityCost(stack, space, rgm, s, weight);
+        }
+      },
+      spec);
+}
+
+// Dispatches a ConstraintSpec to the matching factory, building the (residual, set) pair.
+// `is_terminal` lets the factory reject targets it does not support (e.g. TorqueLimit at the
+// terminal node, which has no control) at the call site, not deferred to build().
+aligator_detail::ConstraintPair buildConstraintPair(const aligator_detail::PhaseSpace& space,
+                                                    const ReducedGroupModel& rgm,
+                                                    const ConstraintSpec& spec, bool is_terminal) {
+  return std::visit(
+      [&](const auto& s) -> aligator_detail::ConstraintPair {
+        using T = std::decay_t<decltype(s)>;
+        if constexpr (std::is_same_v<T, TorqueLimit>) {
+          if (is_terminal) {
+            throw std::invalid_argument(
+                "TrajectoryOptimizer::addTerminalConstraint: a TorqueLimit cannot target the "
+                "terminal node; the terminal node has no control.");
+          }
+          return aligator_detail::buildTorqueLimit(space, rgm, s);
+        }
+        // Unreachable: ConstraintSpec is a closed variant, all alternatives handled above.
+        throw std::logic_error("buildConstraintPair: unhandled ConstraintSpec alternative.");
+      },
+      spec);
 }
 
 }  // namespace
@@ -104,7 +113,7 @@ TrajectoryOptimizer::TrajectoryOptimizer(std::shared_ptr<Scene> scene, std::stri
       group_name_(std::move(group_name)), horizon_(horizon), dt_(dt), options_(options),
       rgm_(*scene_, group_name_), space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
       x0_(stackState(rgm_.q0(), rgm_.v0())),
-      problem_(aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_)) {
+      problem_(aligator_detail::buildEmptyProblem(space_, x0_, rgm_.nv())) {
   registerHistoryCallbackIfRequested();
 }
 
@@ -115,7 +124,20 @@ TrajectoryOptimizer::TrajectoryOptimizer(TrajectoryOptimizer&& other) noexcept
       horizon_(other.horizon_), dt_(other.dt_), options_(other.options_),
       rgm_(*scene_, group_name_), space_(aligator_detail::makePhaseSpace(rgm_.reducedModel())),
       x0_(std::move(other.x0_)), problem_(std::move(other.problem_)),
-      solver_(std::move(other.solver_)), locked_(other.locked_) {
+      solver_(std::move(other.solver_)), locked_(other.locked_),
+      global_costs_(std::move(other.global_costs_)),
+      global_direct_costs_(std::move(other.global_direct_costs_)),
+      stage_costs_(std::move(other.stage_costs_)),
+      stage_direct_costs_(std::move(other.stage_direct_costs_)),
+      terminal_costs_(std::move(other.terminal_costs_)),
+      terminal_direct_costs_(std::move(other.terminal_direct_costs_)),
+      global_constraints_(std::move(other.global_constraints_)),
+      global_direct_constraints_(std::move(other.global_direct_constraints_)),
+      stage_constraints_(std::move(other.stage_constraints_)),
+      stage_direct_constraints_(std::move(other.stage_direct_constraints_)),
+      terminal_constraints_(std::move(other.terminal_constraints_)),
+      terminal_direct_constraints_(std::move(other.terminal_direct_constraints_)),
+      stage_factory_(std::move(other.stage_factory_)) {
   // history_callback_ is intentionally NOT moved from `other`: HistoryCallbackTpl stores a raw
   // pointer to the solver it was constructed against, which would otherwise reference the
   // moved-from `other.solver_`. Reconstruct fresh, bound to this->solver_.
@@ -157,6 +179,7 @@ void TrajectoryOptimizer::registerCallback(
 
 int TrajectoryOptimizer::horizon() const { return horizon_; }
 double TrajectoryOptimizer::dt() const { return dt_; }
+IntegratorType TrajectoryOptimizer::integrator() const { return options_.integrator; }
 int TrajectoryOptimizer::nq() const { return rgm_.nq(); }
 int TrajectoryOptimizer::nv() const { return rgm_.nv(); }
 int TrajectoryOptimizer::nx() const { return rgm_.nq() + rgm_.nv(); }
@@ -172,80 +195,148 @@ void TrajectoryOptimizer::setInitialState(const Eigen::VectorXd& q) {
                                 ", expected reduced nq = " + std::to_string(nq) + ".");
   }
   x0_ = stackState(q, Eigen::VectorXd::Zero(nv));
-  // Updates the initial-condition constraint target in place (no rebuild).
+  // Updates the initial-condition constraint target in place (no rebuild) -- a genuinely
+  // aligator-native mutation (Problem::setInitState, traj-opt-problem.hpp:175-181), used the same
+  // way in aligator's own MPC loop (external/aligator/tests/mpc-cycle.cpp:197).
   problem_->setInitState(x0_);
 }
 
-// --- Costs -------------------------------------------------------------------------------------
+// --- Lifecycle guards --------------------------------------------------------------------------
 
-CostHandle TrajectoryOptimizer::addCost(const CostSpec& cost, const StageWindow& window,
-                                        double weight) {
-  requireUnlocked(locked_);
-
-  return std::visit(
-      [&](const auto& spec) -> CostHandle {
-        using T = std::decay_t<decltype(spec)>;
-        auto handle = std::make_unique<CostHandle::Impl>();
-
-        if constexpr (std::is_same_v<T, ConfigurationCost>) {
-          handle->expected_size = rgm_.nq();
-          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
-            handle->vector_setters.push_back(
-                aligator_detail::attachConfigurationCost(*stack, space_, rgm_, spec, weight));
-          }
-        } else if constexpr (std::is_same_v<T, VelocityCost>) {
-          handle->expected_size = rgm_.nv();
-          for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
-            handle->vector_setters.push_back(
-                aligator_detail::attachVelocityCost(*stack, space_, rgm_, spec, weight));
-          }
-        }
-
-        return CostHandle(std::move(handle));
-      },
-      cost);
+bool TrajectoryOptimizer::hasStagePlan() const {
+  return !global_costs_.empty() || !global_direct_costs_.empty() || !stage_costs_.empty() ||
+         !stage_direct_costs_.empty() || !global_constraints_.empty() ||
+         !global_direct_constraints_.empty() || !stage_constraints_.empty() ||
+         !stage_direct_constraints_.empty();
 }
 
-CostHandle TrajectoryOptimizer::addCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
-                                        const StageWindow& window, double weight) {
-  requireUnlocked(locked_);
-  for (auto* stack : resolveTargetStacks(*problem_, window, horizon_)) {
-    stack->addCost(std::move(cost), weight);
+void TrajectoryOptimizer::requireNoStageFactory() const {
+  if (stage_factory_) {
+    throw std::logic_error(
+        "TrajectoryOptimizer: a stage factory was set via setStageFactory(); global/per-stage "
+        "addCost/addConstraint calls are mutually exclusive with it on the same instance.");
   }
-  // Return a default handle (no target setters for custom costs).
-  return CostHandle(std::make_unique<CostHandle::Impl>());
 }
 
-// --- Constraints ---------------------------------------------------------------------------
+void TrajectoryOptimizer::requireNoStagePlan() const {
+  if (hasStagePlan()) {
+    throw std::logic_error(
+        "TrajectoryOptimizer::setStageFactory: global/per-stage addCost/addConstraint entries "
+        "were already added; the two mechanisms are mutually exclusive on the same instance.");
+  }
+}
 
-void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint,
-                                        const StageWindow& window) {
+void TrajectoryOptimizer::requireValidStageIndex(int stage) const {
+  if (stage < 0 || stage >= horizon_) {
+    throw std::invalid_argument("TrajectoryOptimizer: stage index " + std::to_string(stage) +
+                                " is out of range [0, " + std::to_string(horizon_) + ").");
+  }
+}
+
+// --- Costs: spec-based -------------------------------------------------------------------------
+
+void TrajectoryOptimizer::addCost(const CostSpec& cost, double weight) {
   requireUnlocked(locked_);
-
-  std::visit(
-      [&](const auto& spec) {
-        using T = std::decay_t<decltype(spec)>;
-
-        if constexpr (std::is_same_v<T, TorqueLimit>) {
-          if (window.isTerminal()) {
-            throw std::invalid_argument(
-                "TrajectoryOptimizer::addConstraint: a TorqueLimit cannot target the Terminal "
-                "window; the terminal node has no control.");
-          }
-          const auto pair = aligator_detail::buildTorqueLimit(space_, rgm_, spec);
-          attachConstraintPair(*problem_, pair, window, horizon_);
-        }
-      },
-      constraint);
+  requireNoStageFactory();
+  global_costs_.push_back({cost, weight});
 }
+
+void TrajectoryOptimizer::addStageCost(int stage, const CostSpec& cost, double weight) {
+  requireUnlocked(locked_);
+  requireNoStageFactory();
+  requireValidStageIndex(stage);
+  stage_costs_[stage].push_back({cost, weight});
+}
+
+void TrajectoryOptimizer::addTerminalCost(const CostSpec& cost, double weight) {
+  requireUnlocked(locked_);
+  terminal_costs_.push_back({cost, weight});
+}
+
+// --- Costs: direct aligator ----------------------------------------------------------------
+
+void TrajectoryOptimizer::addCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+                                  double weight) {
+  requireUnlocked(locked_);
+  requireNoStageFactory();
+  global_direct_costs_.push_back({std::move(cost), weight});
+}
+
+void TrajectoryOptimizer::addStageCost(int stage,
+                                       xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+                                       double weight) {
+  requireUnlocked(locked_);
+  requireNoStageFactory();
+  requireValidStageIndex(stage);
+  stage_direct_costs_[stage].push_back({std::move(cost), weight});
+}
+
+void TrajectoryOptimizer::addTerminalCost(xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
+                                          double weight) {
+  requireUnlocked(locked_);
+  terminal_direct_costs_.push_back({std::move(cost), weight});
+}
+
+// --- Constraints: spec-based -------------------------------------------------------------------
+
+void TrajectoryOptimizer::addConstraint(const ConstraintSpec& constraint) {
+  requireUnlocked(locked_);
+  requireNoStageFactory();
+  // Validate immediately (e.g. a wrong-size bound) rather than deferring to build().
+  (void)buildConstraintPair(space_, rgm_, constraint, /*is_terminal=*/false);
+  global_constraints_.push_back({constraint});
+}
+
+void TrajectoryOptimizer::addStageConstraint(int stage, const ConstraintSpec& constraint) {
+  requireUnlocked(locked_);
+  requireNoStageFactory();
+  requireValidStageIndex(stage);
+  (void)buildConstraintPair(space_, rgm_, constraint, /*is_terminal=*/false);
+  stage_constraints_[stage].push_back({constraint});
+}
+
+void TrajectoryOptimizer::addTerminalConstraint(const ConstraintSpec& constraint) {
+  requireUnlocked(locked_);
+  // Validate immediately (e.g. TorqueLimit at the terminal node) rather than deferring to build().
+  (void)buildConstraintPair(space_, rgm_, constraint, /*is_terminal=*/true);
+  terminal_constraints_.push_back({constraint});
+}
+
+// --- Constraints: direct aligator --------------------------------------------------------------
 
 void TrajectoryOptimizer::addConstraint(
     xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
-    xyz::polymorphic<aligator::ConstraintSetTpl<double>> set, const StageWindow& window) {
+    xyz::polymorphic<aligator::ConstraintSetTpl<double>> set) {
   requireUnlocked(locked_);
-  const aligator_detail::ConstraintPair pair{std::move(residual), std::move(set)};
-  attachConstraintPair(*problem_, pair, window, horizon_);
+  requireNoStageFactory();
+  global_direct_constraints_.push_back({std::move(residual), std::move(set)});
 }
+
+void TrajectoryOptimizer::addStageConstraint(
+    int stage, xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
+    xyz::polymorphic<aligator::ConstraintSetTpl<double>> set) {
+  requireUnlocked(locked_);
+  requireNoStageFactory();
+  requireValidStageIndex(stage);
+  stage_direct_constraints_[stage].push_back({std::move(residual), std::move(set)});
+}
+
+void TrajectoryOptimizer::addTerminalConstraint(
+    xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
+    xyz::polymorphic<aligator::ConstraintSetTpl<double>> set) {
+  requireUnlocked(locked_);
+  terminal_direct_constraints_.push_back({std::move(residual), std::move(set)});
+}
+
+// --- Stage authorship ----------------------------------------------------------------------
+
+void TrajectoryOptimizer::setStageFactory(StageFactory factory) {
+  requireUnlocked(locked_);
+  requireNoStagePlan();
+  stage_factory_ = std::move(factory);
+}
+
+// --- Build / reset -------------------------------------------------------------------------
 
 void TrajectoryOptimizer::build() {
   if (locked_) {
@@ -259,17 +350,114 @@ void TrajectoryOptimizer::build() {
   solver_.linear_solver_choice = options_.linear_solver_choice;
   solver_.rollout_type_ = options_.rollout_type;
 
+  const int nu = rgm_.nv();
+  const ManifoldPoly space_poly(space_);
+  aligator_detail::DiscreteDynamics dynamics =
+      aligator_detail::makeDiscreteDynamics(space_, options_.integrator, dt_);
+
+  if (stage_factory_) {
+    for (int k = 0; k < horizon_; ++k) {
+      problem_->addStage(stage_factory_(k, dynamics));
+    }
+  } else {
+    const bool add_control_reg = options_.control_reg > 0.0;
+    const Eigen::MatrixXd control_weights =
+        add_control_reg ? Eigen::MatrixXd(options_.control_reg * Eigen::MatrixXd::Identity(nu, nu))
+                        : Eigen::MatrixXd();
+
+    for (int k = 0; k < horizon_; ++k) {
+      CostStack stack(space_poly, nu);
+      if (add_control_reg) {
+        stack.addCost(
+            CostPoly(aligator::QuadraticControlCostTpl<double>(space_poly, nu, control_weights)),
+            1.0);
+      }
+      for (const auto& e : global_costs_) {
+        applyCostSpec(stack, space_, rgm_, e.spec, e.weight);
+      }
+      for (const auto& e : global_direct_costs_) {
+        stack.addCost(e.cost, e.weight);
+      }
+      if (auto it = stage_costs_.find(k); it != stage_costs_.end()) {
+        for (const auto& e : it->second) {
+          applyCostSpec(stack, space_, rgm_, e.spec, e.weight);
+        }
+      }
+      if (auto it = stage_direct_costs_.find(k); it != stage_direct_costs_.end()) {
+        for (const auto& e : it->second) {
+          stack.addCost(e.cost, e.weight);
+        }
+      }
+
+      StageModel stage(CostPoly(stack), dynamics);
+
+      for (const auto& e : global_constraints_) {
+        const auto pair = buildConstraintPair(space_, rgm_, e.spec, /*is_terminal=*/false);
+        stage.addConstraint(pair.func, pair.set);
+      }
+      for (const auto& e : global_direct_constraints_) {
+        stage.addConstraint(e.func, e.set);
+      }
+      if (auto it = stage_constraints_.find(k); it != stage_constraints_.end()) {
+        for (const auto& e : it->second) {
+          const auto pair = buildConstraintPair(space_, rgm_, e.spec, /*is_terminal=*/false);
+          stage.addConstraint(pair.func, pair.set);
+        }
+      }
+      if (auto it = stage_direct_constraints_.find(k); it != stage_direct_constraints_.end()) {
+        for (const auto& e : it->second) {
+          stage.addConstraint(e.func, e.set);
+        }
+      }
+
+      problem_->addStage(stage);
+    }
+  }
+
+  // Terminal cost/constraint: always from the spec/direct entries (independent of stage_factory_
+  // -- aligator itself keeps term_cost_/term_cstrs_ as fields separate from stages_). A plain
+  // wholesale field assignment, matching aligator's own idiom for updating the terminal cost
+  // (external/aligator/tests/mpc-cycle.cpp: `problem.term_cost_ = makeCost(...)`).
+  CostStack term_stack(space_poly, nu);
+  for (const auto& e : terminal_costs_) {
+    applyCostSpec(term_stack, space_, rgm_, e.spec, e.weight);
+  }
+  for (const auto& e : terminal_direct_costs_) {
+    term_stack.addCost(e.cost, e.weight);
+  }
+  problem_->term_cost_ = CostPoly(term_stack);
+
+  problem_->removeTerminalConstraints();
+  for (const auto& e : terminal_constraints_) {
+    const auto pair = buildConstraintPair(space_, rgm_, e.spec, /*is_terminal=*/true);
+    problem_->addTerminalConstraint(pair.func, pair.set);
+  }
+  for (const auto& e : terminal_direct_constraints_) {
+    problem_->addTerminalConstraint(e.func, e.set);
+  }
+
   // Allocate the solver workspace for the assembled problem and freeze it: no more addCost /
-  // addConstraint / resetProblem until resetProblem() unlocks. Deferred to here (not the ctor) so
-  // every cost/constraint added is part of the structure setup() allocates for.
+  // addConstraint / setStageFactory / resetProblem until resetProblem() unlocks.
   solver_.setup(*problem_);
   locked_ = true;
 }
 
 void TrajectoryOptimizer::resetProblem() {
-  // Rebuild the empty shell (default control regularization only). Any outstanding CostHandle now
-  // dangles (its residual pointers referenced the discarded problem). build() is required again.
-  problem_ = aligator_detail::buildProblemShell(space_, x0_, horizon_, dt_, options_);
+  // Rebuild the empty shell (no stages, no terminal cost/constraint content) and discard the plan.
+  problem_ = aligator_detail::buildEmptyProblem(space_, x0_, rgm_.nv());
+  global_costs_.clear();
+  global_direct_costs_.clear();
+  stage_costs_.clear();
+  stage_direct_costs_.clear();
+  terminal_costs_.clear();
+  terminal_direct_costs_.clear();
+  global_constraints_.clear();
+  global_direct_constraints_.clear();
+  stage_constraints_.clear();
+  stage_direct_constraints_.clear();
+  terminal_constraints_.clear();
+  terminal_direct_constraints_.clear();
+  stage_factory_ = nullptr;
   locked_ = false;
 }
 
@@ -280,7 +468,7 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
   const int nx = rgm_.nq() + rgm_.nv();
   const int nu = rgm_.nv();
 
-  // The problem must be finalized (build()) before it can be solved: solve() does not auto-build.
+  // The problem must be finalized (build()) before it can be solved -- solve() does not auto-build.
   // A missing build() is a recoverable per-call misuse, not a throw.
   if (!locked_) {
     return tl::make_unexpected(
@@ -319,8 +507,8 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
     }
   }
 
-  // Apply options by direct public-field assignment before the run: max_iters/tol/mu_init/verbose
-  // are editable between solves without a rebuild. mu_init_ is consumed by run()
+  // Apply options by direct public-field assignment before the run: max_iters/tol/verbose are
+  // editable between solves without a rebuild. mu_init_ is consumed by run()
   // (setAlmPenalty(mu_init_), solver-proxddp.hxx:460), not by setup(), so assigning it here means
   // every solve honours the current options.mu_init.
   solver_.target_tol_ = options_.tol;
@@ -373,15 +561,15 @@ tl::expected<TrajOptResult, std::string> TrajectoryOptimizer::solve(const TrajOp
     const auto& cb = *history_callback_;
     out.history.reserve(cb.values.size());
     for (std::size_t k = 0; k < cb.values.size(); ++k) {
-      out.history.push_back(TrajOptIterate{static_cast<int>(k), cb.values[k], cb.prim_infeas[k],
-                                           cb.dual_infeas[k]});
+      out.history.push_back(
+          TrajOptIterate{static_cast<int>(k), cb.values[k], cb.prim_infeas[k], cb.dual_infeas[k]});
     }
   }
 
   return out;
 }
 
-// --- Warm-start ----------------------------------------------------------------------------
+// --- Warm-start --------------------------------------------------------------------------------
 
 TrajOptSeed
 TrajectoryOptimizer::interpolatePath(const std::vector<Eigen::VectorXd>& waypoints) const {

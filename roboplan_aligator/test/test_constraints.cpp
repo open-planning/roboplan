@@ -109,29 +109,20 @@ TEST(ConstraintTest, UserBoundClampsToModel) {
       1e-12);
 }
 
-// --- Windowing: a constraint attaches only to in-range stages ---------------------------------
+// --- Stage targeting: a constraint attaches to exactly one stage -------------------------------
 
-TEST(ConstraintTest, WindowAttachesToInRangeStagesOnly) {
-  ConstraintFixture f;
+TEST(ConstraintTest, StageConstraintAttachesToExactlyOneStage) {
+  auto scene = makeSo101Scene();
   const int horizon = 6;
-  Eigen::VectorXd x0(f.nq() + f.nv());
-  x0 << f.rgm.q0(), f.rgm.v0();
-  auto problem =
-      aligator_detail::buildProblemShell(f.space, x0, horizon, /*dt=*/0.02, TrajOptOptions{});
+  TrajectoryOptimizer opt(scene, "arm", horizon, /*dt=*/0.02);
 
-  // The shell has no stage constraints yet (only cost + dynamics + the problem-level init cond).
-  for (int k = 0; k < horizon; ++k) {
-    ASSERT_EQ(problem->stages_[static_cast<std::size_t>(k)]->numConstraints(), 0u);
-  }
+  TorqueLimit limit;
+  opt.addStageConstraint(2, limit);
+  opt.build();
 
-  const auto pair = aligator_detail::buildTorqueLimit(f.space, f.rgm, TorqueLimit{});
-  const StageWindow window = StageWindow::range(1, 4);  // stages 1, 2, 3 (half-open)
-  for (const int k : window.resolveStages(horizon)) {
-    problem->stages_[static_cast<std::size_t>(k)]->addConstraint(pair.func, pair.set);
-  }
   for (int k = 0; k < horizon; ++k) {
-    const std::size_t expected = (k >= 1 && k < 4) ? 1u : 0u;
-    EXPECT_EQ(problem->stages_[static_cast<std::size_t>(k)]->numConstraints(), expected)
+    const std::size_t expected = (k == 2) ? 1u : 0u;
+    EXPECT_EQ(opt.problem().stages_[static_cast<std::size_t>(k)]->numConstraints(), expected)
         << "stage " << k;
   }
 }
@@ -156,7 +147,7 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
     ConfigurationCost goal;
     goal.q_target = q_target;
     goal.weights = Eigen::VectorXd::Constant(opt.nv(), 100.0);
-    opt.addCost(goal, StageWindow::terminal(), 1.0);
+    opt.addTerminalCost(goal, 1.0);
     return opt;
   };
 
@@ -209,12 +200,12 @@ TEST(ConstraintTest, TorqueConstrainedSolveRespectsBound) {
 
 // --- Guards -----------------------------------------------------------------------------------
 
-TEST(ConstraintTest, TorqueLimitRejectsTerminalWindow) {
+TEST(ConstraintTest, TorqueLimitRejectsAddTerminalConstraint) {
   auto scene = makeSo101Scene();
   TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
   TorqueLimit limit;
   // The terminal node has no control, so a control-box constraint there is ill-defined.
-  EXPECT_THROW(opt.addConstraint(limit, StageWindow::terminal()), std::invalid_argument);
+  EXPECT_THROW(opt.addTerminalConstraint(limit), std::invalid_argument);
 }
 
 TEST(ConstraintTest, WrongSizeBoundThrows) {

@@ -16,32 +16,27 @@ if(ament_cmake_FOUND)
   find_package(ament_cmake_python REQUIRED)
 else()
   set(AMENT_BUILD FALSE)
-  find_package(Python
-    REQUIRED COMPONENTS Interpreter Development.Module
+  find_package(
+    Python REQUIRED
+    COMPONENTS Interpreter Development.Module
     OPTIONAL_COMPONENTS Development.SABIModule)
 endif()
 
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
-nanobind_add_module(
-  _aligator_ext
-  STABLE_ABI
-  NB_STATIC
-  src/aligator_ext.cpp
-  src/aligator.cpp
-)
-target_include_directories(_aligator_ext PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_compile_definitions(_aligator_ext PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
+nanobind_add_module(_aligator_ext STABLE_ABI NB_STATIC src/aligator_ext.cpp
+                    src/aligator.cpp)
+target_include_directories(_aligator_ext
+                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_definitions(_aligator_ext
+                           PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _aligator_ext PROPERTY CXX_STANDARD 20)
-target_link_libraries(_aligator_ext PRIVATE
-  roboplan_aligator
-  roboplan::roboplan
-)
+target_link_libraries(_aligator_ext PRIVATE roboplan_aligator
+                                            roboplan::roboplan)
 
 # Resolve the Python install destination per build context:
 #
@@ -81,12 +76,12 @@ if(APPLE)
   file(RELATIVE_PATH _ext_to_lib
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/aligator"
        "${CMAKE_INSTALL_PREFIX}/lib")
-  set_target_properties(_aligator_ext
-                        PROPERTIES INSTALL_RPATH "@loader_path/${_ext_to_lib}")
+  set_target_properties(_aligator_ext PROPERTIES INSTALL_RPATH
+                                                 "@loader_path/${_ext_to_lib}")
 endif()
 
 install(TARGETS _aligator_ext
-  LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/aligator")
+        LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/aligator")
 
 # Generate Python type stubs (.pyi) into the source tree so they are versioned
 # and shipped by the python install below. Stub generation imports the module,
@@ -104,9 +99,10 @@ endif()
 option(GENERATE_PYTHON_STUBS "Generate .pyi stubs for the Python bindings"
        ${generate_stubs_default})
 if(GENERATE_PYTHON_STUBS AND NOT COMMAND nanobind_add_stub)
-  message(WARNING
-    "Skipping Python stub generation: the installed nanobind version does not "
-    "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
+  message(
+    WARNING
+      "Skipping Python stub generation: the installed nanobind version does not "
+      "provide nanobind_add_stub. Upgrade nanobind to generate stubs.")
 endif()
 if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
   # roboplan.aligator imports roboplan.core; use the staged copy if a sibling
@@ -119,21 +115,24 @@ if(GENERATE_PYTHON_STUBS AND COMMAND nanobind_add_stub)
   endif()
   nanobind_add_stub(
     _aligator_ext_stub
-    MODULE _aligator_ext
-    OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/_aligator_ext.pyi"
-    MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/py.typed"
-    PYTHON_PATH "$<TARGET_FILE_DIR:_aligator_ext>"
+    MODULE
+    _aligator_ext
+    OUTPUT
+    "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/_aligator_ext.pyi"
+    MARKER_FILE
+    "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/py.typed"
+    PYTHON_PATH
+    "$<TARGET_FILE_DIR:_aligator_ext>"
     ${_extra_stub_python_path}
-    DEPENDS _aligator_ext
-    ${_extra_stub_depends}
-  )
+    DEPENDS
+    _aligator_ext
+    ${_extra_stub_depends})
 
   # Stage this extension under pystage/, so downstream packages can import
   # roboplan.aligator during their own stub generation.
   set_target_properties(
-    _aligator_ext
-    PROPERTIES LIBRARY_OUTPUT_DIRECTORY
-               "${CMAKE_BINARY_DIR}/pystage/roboplan/aligator")
+    _aligator_ext PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+                             "${CMAKE_BINARY_DIR}/pystage/roboplan/aligator")
   file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/python/roboplan/aligator/__init__.py"
        DESTINATION "${CMAKE_BINARY_DIR}/pystage/roboplan/aligator")
 endif()

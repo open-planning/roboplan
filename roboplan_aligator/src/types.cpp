@@ -1,6 +1,5 @@
 #include <roboplan_aligator/types.hpp>
 
-#include <stdexcept>
 #include <string>
 
 #include <roboplan/core/scene.hpp>
@@ -39,63 +38,6 @@ JointTrajectory TrajOptResult::toRoboplan(const Scene& scene, const std::string&
   // Accelerations are intentionally left empty: not a ProxDDP output. Torques are likewise
   // dropped here — JointTrajectory has no torque field — and stay on TrajOptResult's `controls`.
   return jt;
-}
-
-// --- StageWindow -----------------------------------------------------------------------------
-
-StageWindow StageWindow::all() { return StageWindow(Kind::All, 0, 0); }
-
-StageWindow StageWindow::range(int begin, int end) {
-  if (begin < 0) {
-    throw std::invalid_argument("StageWindow::range: begin must be >= 0, got " +
-                                std::to_string(begin) + ".");
-  }
-  if (end <= begin) {
-    // Half-open [begin, end): end == begin is empty, end < begin is inverted. Both are invalid.
-    throw std::invalid_argument(
-        "StageWindow::range: range is half-open [begin, end) and must be non-empty, so end must "
-        "be > begin; got begin=" +
-        std::to_string(begin) + ", end=" + std::to_string(end) + ".");
-  }
-  return StageWindow(Kind::Range, begin, end);
-}
-
-StageWindow StageWindow::terminal() { return StageWindow(Kind::Terminal, 0, 0); }
-
-std::vector<int> StageWindow::resolveStages(int horizon) const {
-  if (horizon <= 0) {
-    throw std::invalid_argument("StageWindow::resolveStages: horizon (number of stages) must be "
-                                "strictly positive, got " +
-                                std::to_string(horizon) + ".");
-  }
-
-  switch (kind_) {
-  case Kind::All: {
-    std::vector<int> stages(static_cast<std::size_t>(horizon));
-    for (int i = 0; i < horizon; ++i) {
-      stages[static_cast<std::size_t>(i)] = i;
-    }
-    return stages;
-  }
-  case Kind::Terminal:
-    // Attaches to the terminal node, not to any stage.
-    return {};
-  case Kind::Range: {
-    if (end_ > horizon) {
-      throw std::invalid_argument(
-          "StageWindow::resolveStages: range end must be <= horizon (half-open [begin, end), "
-          "end <= N); got end=" +
-          std::to_string(end_) + ", horizon=" + std::to_string(horizon) + ".");
-    }
-    std::vector<int> stages(static_cast<std::size_t>(end_ - begin_));
-    for (int i = begin_; i < end_; ++i) {
-      stages[static_cast<std::size_t>(i - begin_)] = i;
-    }
-    return stages;
-  }
-  }
-  // Unreachable: all Kind values are handled above.
-  throw std::logic_error("StageWindow::resolveStages: unhandled StageWindow::Kind.");
 }
 
 }  // namespace roboplan

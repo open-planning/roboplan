@@ -1,11 +1,6 @@
 #include <roboplan_aligator/problem_builder.hpp>
 
-#include <utility>
-#include <vector>
-
-#include <aligator/core/stage-model.hpp>                 // StageModelTpl
-#include <aligator/modelling/costs/quad-state-cost.hpp>  // QuadraticControlCostTpl
-#include <aligator/modelling/costs/sum-of-costs.hpp>     // CostStackTpl
+#include <aligator/modelling/costs/sum-of-costs.hpp>  // CostStackTpl
 #include <aligator/modelling/dynamics/integrator-rk2.hpp>
 #include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
 #include <aligator/modelling/dynamics/multibody-free-fwd.hpp>
@@ -21,8 +16,6 @@ using CostPoly = xyz::polymorphic<aligator::CostAbstractTpl<double>>;
 using ODEPoly = xyz::polymorphic<aligator::dynamics::ODEAbstractTpl<double>>;
 
 using CostStack = aligator::CostStackTpl<double>;
-using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
-using StageModel = aligator::StageModelTpl<double>;
 using MultibodyFreeFwdDynamics = aligator::dynamics::MultibodyFreeFwdDynamicsTpl<double>;
 using IntegratorSemiImplEuler = aligator::dynamics::IntegratorSemiImplEulerTpl<double>;
 using IntegratorRK2 = aligator::dynamics::IntegratorRK2Tpl<double>;
@@ -51,43 +44,19 @@ DiscreteDynamics makeDiscreteDynamics(const PhaseSpace& space, IntegratorType ty
   return {IntegratorSemiImplEuler(ode, dt)};
 }
 
-std::unique_ptr<Problem> buildProblemShell(const PhaseSpace& space, const Eigen::VectorXd& x0,
-                                           int horizon, double dt, const TrajOptOptions& options) {
-  ManifoldPoly space_poly = space;     // erased state manifold, copied by value
-  const int nu = space.getModel().nv;  // fully-actuated: nu = nv
+std::unique_ptr<Problem> buildEmptyProblem(const PhaseSpace& space, const Eigen::VectorXd& x0,
+                                           int nu) {
+  ManifoldPoly space_poly = space;  // erased state manifold, copied by value
 
-  // Terminal cost placeholder: an empty cost sum on the state space (costs arrive in later
-  // prompts).
+  // Terminal cost placeholder: an empty cost sum on the state space. TrajectoryOptimizer::build()
+  // replaces this wholesale once the terminal cost entries are known (aligator's own idiom for
+  // updating term_cost_ -- a plain field assignment, e.g. external/aligator/tests/mpc-cycle.cpp).
   CostPoly term_cost = CostStack(space_poly, nu);
 
   // The x0 + nu + space + term_cost ctor auto-builds the initial-condition (StateError) equality
-  // constraint into the problem's init_constraint_ (traj-opt-problem.hpp:151-154).
-  auto problem = std::make_unique<Problem>(x0, nu, space_poly, term_cost);
-
-  // One representative discretized-dynamics model; addStage deep-copies whatever it is handed, so
-  // every stage gets an independent copy.
-  DiscreteDynamics dynamics = makeDiscreteDynamics(space, options.integrator, dt);
-
-  // Default quadratic control regularization: cost = 1/2 * control_reg * ||u||^2 (target u = 0).
-  // Building the empty problem-shell as a truly zero-cost problem is degenerate for ProxDDP (the
-  // control Hessian would be singular), so this baseline term makes the shell a well-posed
-  // minimum-effort problem. control_reg <= 0 disables it.
-  const bool add_control_reg = options.control_reg > 0.0;
-  const Eigen::MatrixXd control_weights =
-      add_control_reg ? Eigen::MatrixXd(options.control_reg * Eigen::MatrixXd::Identity(nu, nu))
-                      : Eigen::MatrixXd();
-
-  for (int k = 0; k < horizon; ++k) {
-    CostStack stage_cost(space_poly, nu);  // empty cost sum
-    if (add_control_reg) {
-      CostPoly u_reg = QuadraticControlCost(space_poly, nu, control_weights);
-      stage_cost.addCost(u_reg, 1.0);
-    }
-    StageModel stage(CostPoly(stage_cost), dynamics);
-    problem->addStage(stage);
-  }
-
-  return problem;
+  // constraint into the problem's init_constraint_, and starts with an EMPTY stages_ list --
+  // stages are added one at a time, fully formed, via addStage (traj-opt-problem.hpp:152-154,163).
+  return std::make_unique<Problem>(x0, nu, space_poly, term_cost);
 }
 
 }  // namespace roboplan::aligator_detail

@@ -1,8 +1,6 @@
 #include <nanobind/nanobind.h>
 
-#include <stdexcept>
 #include <string>
-#include <vector>
 
 #include <nanobind/eigen/dense.h>
 #include <nanobind/stl/shared_ptr.h>
@@ -19,7 +17,6 @@
 
 #include <roboplan_aligator/constraint_spec.hpp>
 #include <roboplan_aligator/constraints/torque_limit.hpp>
-#include <roboplan_aligator/cost_handle.hpp>
 #include <roboplan_aligator/cost_spec.hpp>
 #include <roboplan_aligator/costs/configuration_cost.hpp>
 #include <roboplan_aligator/costs/velocity_cost.hpp>
@@ -33,32 +30,6 @@ namespace roboplan {
 
 namespace nb = nanobind;
 using namespace nanobind::literals;
-
-namespace {
-
-// Maps the Python `timesteps` convenience to a StageWindow: `None` -> all stages; an
-// `(begin, end)` tuple -> the half-open range; an int -> the terminal node.
-StageWindow windowFromTimesteps(const nb::object& timesteps) {
-  if (timesteps.is_none()) {
-    return StageWindow::all();
-  }
-  if (nb::isinstance<nb::tuple>(timesteps)) {
-    const auto range = nb::cast<nb::tuple>(timesteps);
-    if (range.size() != 2) {
-      throw std::invalid_argument(
-          "timesteps: a tuple must be (begin, end) for a half-open stage range.");
-    }
-    return StageWindow::range(nb::cast<int>(range[0]), nb::cast<int>(range[1]));
-  }
-  if (nb::isinstance<nb::int_>(timesteps)) {
-    return StageWindow::terminal();
-  }
-  throw std::invalid_argument(
-      "timesteps must be None (all stages), an (begin, end) tuple (a stage range), or an int (the "
-      "terminal node).");
-}
-
-}  // namespace
 
 void init_aligator(nb::module_& m) {
   // --- Options + integrator -------------------------------------------------------------------
@@ -140,15 +111,6 @@ void init_aligator(nb::module_& m) {
       .def_rw("weights", &VelocityCost::weights, "Per-DoF velocity weights (size nv).")
       .def_rw("v_target", &VelocityCost::v_target, "Target velocity (size nv); empty means zero.");
 
-  nb::class_<CostHandle>(
-      m, "CostHandle",
-      "Mutable handle to an attached cost, for target updates between solves. Returned by addCost; "
-      "dangles if the optimizer is destroyed or resetProblem() is called.")
-      .def(
-          "setTarget",
-          [](CostHandle& self, const Eigen::VectorXd& target) { self.setTarget(target); },
-          "target"_a, "Set a new target vector for a ConfigurationCost/VelocityCost handle.");
-
   // --- Constraints (hard) ---------------------------------------------------------------------
 
   nb::class_<TorqueLimit>(
@@ -204,47 +166,70 @@ void init_aligator(nb::module_& m) {
            "group_name"_a, "horizon"_a, "dt"_a, "options"_a = TrajOptOptions{})
       .def("horizon", &TrajectoryOptimizer::horizon, "Number of stages N.")
       .def("dt", &TrajectoryOptimizer::dt, "Time step dt, in seconds.")
+      .def("integrator", &TrajectoryOptimizer::integrator, "The configured dynamics integrator.")
       .def("nq", &TrajectoryOptimizer::nq, "Reduced-model configuration size nq.")
       .def("nv", &TrajectoryOptimizer::nv, "Reduced-model tangent size nv.")
       .def("nx", &TrajectoryOptimizer::nx, "State dimension nx = nq + nv.")
       .def("setInitialState", &TrajectoryOptimizer::setInitialState, "q"_a,
            "Set the fixed initial configuration state x0 = [q; 0] (hot-path).")
-      // addCost overloads: return a CostHandle whose setTarget mutates the in-problem residual.
-      // Each overload accepts a concrete cost type and wraps it in CostSpec for the unified C++
-      // addCost method.
+      // addCost/addStageCost/addTerminalCost: each overload accepts a concrete cost type and
+      // wraps it in CostSpec for the unified C++ method. Consumed once, inside build() -- there is
+      // no post-build retargeting; call resetProblem() + re-add + build() to change a target.
       .def(
           "addCost",
-          [](TrajectoryOptimizer& self, const ConfigurationCost& cost, const nb::object& timesteps,
-             double weight) {
-            return self.addCost(CostSpec(cost), windowFromTimesteps(timesteps), weight);
+          [](TrajectoryOptimizer& self, const ConfigurationCost& cost, double weight) {
+            self.addCost(CostSpec(cost), weight);
           },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
-      // addCost: direct aligator cost abstract (advanced)
+          "cost"_a, "weight"_a = 1.0, "Attach a cost to every stage.")
       .def(
           "addCost",
-          [](TrajectoryOptimizer& self, xyz::polymorphic<aligator::CostAbstractTpl<double>> cost,
-             const nb::object& timesteps, double weight) {
-            return self.addCost(std::move(cost), windowFromTimesteps(timesteps), weight);
+          [](TrajectoryOptimizer& self, const VelocityCost& cost, double weight) {
+            self.addCost(CostSpec(cost), weight);
           },
-          "cost"_a, "timesteps"_a = nb::none(), "weight"_a = 1.0, nb::keep_alive<0, 1>())
-      // addConstraint overloads: each accepts a concrete constraint type and wraps it in
-      // ConstraintSpec for the unified C++ addConstraint method.
+          "cost"_a, "weight"_a = 1.0, "Attach a cost to every stage.")
+      .def(
+          "addStageCost",
+          [](TrajectoryOptimizer& self, int stage, const ConfigurationCost& cost, double weight) {
+            self.addStageCost(stage, CostSpec(cost), weight);
+          },
+          "stage"_a, "cost"_a, "weight"_a = 1.0, "Attach a cost to exactly stage `stage`.")
+      .def(
+          "addStageCost",
+          [](TrajectoryOptimizer& self, int stage, const VelocityCost& cost, double weight) {
+            self.addStageCost(stage, CostSpec(cost), weight);
+          },
+          "stage"_a, "cost"_a, "weight"_a = 1.0, "Attach a cost to exactly stage `stage`.")
+      .def(
+          "addTerminalCost",
+          [](TrajectoryOptimizer& self, const ConfigurationCost& cost, double weight) {
+            self.addTerminalCost(CostSpec(cost), weight);
+          },
+          "cost"_a, "weight"_a = 1.0, "Attach a cost to the terminal node.")
+      .def(
+          "addTerminalCost",
+          [](TrajectoryOptimizer& self, const VelocityCost& cost, double weight) {
+            self.addTerminalCost(CostSpec(cost), weight);
+          },
+          "cost"_a, "weight"_a = 1.0, "Attach a cost to the terminal node.")
+      // addConstraint/addStageConstraint/addTerminalConstraint: same pattern for constraint specs.
       .def(
           "addConstraint",
-          [](TrajectoryOptimizer& self, const TorqueLimit& c, const nb::object& timesteps) {
-            self.addConstraint(ConstraintSpec(c), windowFromTimesteps(timesteps));
+          [](TrajectoryOptimizer& self, const TorqueLimit& c) {
+            self.addConstraint(ConstraintSpec(c));
           },
-          "constraint"_a, "timesteps"_a = nb::none())
-      // addConstraint: direct aligator (residual, set) pair (advanced)
+          "constraint"_a, "Attach a constraint to every stage.")
       .def(
-          "addConstraint",
-          [](TrajectoryOptimizer& self,
-             xyz::polymorphic<aligator::StageFunctionTpl<double>> residual,
-             xyz::polymorphic<aligator::ConstraintSetTpl<double>> set,
-             const nb::object& timesteps) {
-            self.addConstraint(std::move(residual), std::move(set), windowFromTimesteps(timesteps));
+          "addStageConstraint",
+          [](TrajectoryOptimizer& self, int stage, const TorqueLimit& c) {
+            self.addStageConstraint(stage, ConstraintSpec(c));
           },
-          "residual"_a, "set"_a, "timesteps"_a = nb::none())
+          "stage"_a, "constraint"_a, "Attach a constraint to exactly stage `stage`.")
+      .def(
+          "addTerminalConstraint",
+          [](TrajectoryOptimizer& self, const TorqueLimit& c) {
+            self.addTerminalConstraint(ConstraintSpec(c));
+          },
+          "constraint"_a, "Attach a constraint to the terminal node.")
       .def(
           "build", &TrajectoryOptimizer::build,
           "Finalize the problem (allocate the solver workspace and freeze the structure); required "

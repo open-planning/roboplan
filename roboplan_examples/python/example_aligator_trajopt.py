@@ -235,12 +235,12 @@ def main(
         target = al.ConfigurationCost()
         target.q_target = np.asarray(goal.positions)
         target.weights = np.full(opt.nv(), 500.0)
-        opt.addCost(target, timesteps=opt.horizon())
+        opt.addTerminalCost(target)
         # Arrive at rest and damp velocity along the horizon for dynamic feasibility (without
         # this, a pure terminal reach settles on a dynamically-inconsistent swing-through).
         settle = al.VelocityCost()
         settle.weights = np.full(opt.nv(), 20.0)
-        opt.addCost(settle, timesteps=opt.horizon())
+        opt.addTerminalCost(settle)
         damping = al.VelocityCost()
         damping.weights = np.full(opt.nv(), 1.0)
         opt.addCost(damping)

@@ -8,9 +8,8 @@
 
 namespace roboplan::aligator_detail {
 
-std::function<void(const Eigen::VectorXd&)>
-attachVelocityCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                   const VelocityCost& spec, double weight) {
+void attachVelocityCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
+                        const VelocityCost& spec, double weight) {
   const int nq = rgm.nq();
   const int nv = rgm.nv();
   if (spec.weights.size() != nv) {
@@ -30,8 +29,8 @@ attachVelocityCost(CostStack& stack, const PhaseSpace& space, const ReducedGroup
   Eigen::VectorXd target(nq + nv);
   target << q_neutral, v_target;
 
-  return attachMaskedStateCost(stack, space, nq, nv, target, spec.weights,
-                               /*mask_configuration_block=*/false, weight);
+  attachMaskedStateCost(stack, space, nv, target, spec.weights,
+                        /*mask_configuration_block=*/false, weight);
 }
 
 }  // namespace roboplan::aligator_detail

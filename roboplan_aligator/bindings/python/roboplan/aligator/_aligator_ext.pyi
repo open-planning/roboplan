@@ -184,14 +184,6 @@ class VelocityCost:
     @v_target.setter
     def v_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
-class CostHandle:
-    """
-    Mutable handle to an attached cost, for target updates between solves. Returned by addCost; dangles if the optimizer is destroyed or resetProblem() is called.
-    """
-
-    def setTarget(self, target: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
-        """Set a new target vector for a ConfigurationCost/VelocityCost handle."""
-
 class TorqueLimit:
     """
     Symmetric box limit on the control torque (defaults from the model effort).
@@ -339,6 +331,9 @@ class TrajectoryOptimizer:
     def dt(self) -> float:
         """Time step dt, in seconds."""
 
+    def integrator(self) -> IntegratorType:
+        """The configured dynamics integrator."""
+
     def nq(self) -> int:
         """Reduced-model configuration size nq."""
 
@@ -352,16 +347,34 @@ class TrajectoryOptimizer:
         """Set the fixed initial configuration state x0 = [q; 0] (hot-path)."""
 
     @overload
-    def addCost(self, cost: ConfigurationCost, timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
+    def addCost(self, cost: ConfigurationCost, weight: float = 1.0) -> None: ...
 
     @overload
-    def addCost(self, cost: "xyz::polymorphic<aligator::CostAbstractTpl<double>, std::allocator<aligator::CostAbstractTpl<double> > >", timesteps: object | None = None, weight: float = 1.0) -> CostHandle: ...
+    def addCost(self, cost: VelocityCost, weight: float = 1.0) -> None:
+        """Attach a cost to every stage."""
 
     @overload
-    def addConstraint(self, constraint: TorqueLimit, timesteps: object | None = None) -> None: ...
+    def addStageCost(self, stage: int, cost: ConfigurationCost, weight: float = 1.0) -> None: ...
 
     @overload
-    def addConstraint(self, residual: "xyz::polymorphic<aligator::StageFunctionTpl<double>, std::allocator<aligator::StageFunctionTpl<double> > >", set: "xyz::polymorphic<aligator::ConstraintSetTpl<double>, std::allocator<aligator::ConstraintSetTpl<double> > >", timesteps: object | None = None) -> None: ...
+    def addStageCost(self, stage: int, cost: VelocityCost, weight: float = 1.0) -> None:
+        """Attach a cost to exactly stage `stage`."""
+
+    @overload
+    def addTerminalCost(self, cost: ConfigurationCost, weight: float = 1.0) -> None: ...
+
+    @overload
+    def addTerminalCost(self, cost: VelocityCost, weight: float = 1.0) -> None:
+        """Attach a cost to the terminal node."""
+
+    def addConstraint(self, constraint: TorqueLimit) -> None:
+        """Attach a constraint to every stage."""
+
+    def addStageConstraint(self, stage: int, constraint: TorqueLimit) -> None:
+        """Attach a constraint to exactly stage `stage`."""
+
+    def addTerminalConstraint(self, constraint: TorqueLimit) -> None:
+        """Attach a constraint to the terminal node."""
 
     def build(self) -> None:
         """

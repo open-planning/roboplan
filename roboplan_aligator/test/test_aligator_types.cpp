@@ -21,53 +21,6 @@ using testing::makeSo101Scene;
 
 }  // namespace
 
-// --- StageWindow: half-open validation --------------------------------------------------------
-
-TEST(StageWindowTest, AllResolvesToEveryStage) {
-  const StageWindow w = StageWindow::all();
-  EXPECT_EQ(w.kind(), StageWindow::Kind::All);
-  EXPECT_FALSE(w.isTerminal());
-  EXPECT_EQ(w.resolveStages(5), (std::vector<int>{0, 1, 2, 3, 4}));
-  EXPECT_EQ(w.resolveStages(1), (std::vector<int>{0}));
-}
-
-TEST(StageWindowTest, RangeIsHalfOpen) {
-  const StageWindow w = StageWindow::range(1, 4);
-  EXPECT_EQ(w.kind(), StageWindow::Kind::Range);
-  EXPECT_FALSE(w.isTerminal());
-  // [1, 4) excludes the upper bound: stages 1, 2, 3 — the documented half-open convention.
-  EXPECT_EQ(w.resolveStages(5), (std::vector<int>{1, 2, 3}));
-  EXPECT_EQ(StageWindow::range(2, 3).resolveStages(5), (std::vector<int>{2}));  // single stage
-  EXPECT_EQ(StageWindow::range(0, 5).resolveStages(5), (std::vector<int>{0, 1, 2, 3, 4}));  // full
-}
-
-TEST(StageWindowTest, TerminalAttachesToNoStage) {
-  const StageWindow w = StageWindow::terminal();
-  EXPECT_EQ(w.kind(), StageWindow::Kind::Terminal);
-  EXPECT_TRUE(w.isTerminal());
-  // Terminal targets the terminal node, so it resolves to an empty stage list.
-  EXPECT_TRUE(w.resolveStages(5).empty());
-}
-
-TEST(StageWindowTest, InvalidRangeConstructionThrows) {
-  // Negative begin / empty range (end == begin) / inverted range (end < begin).
-  EXPECT_THROW(StageWindow::range(-1, 3), std::invalid_argument);
-  EXPECT_THROW(StageWindow::range(2, 2), std::invalid_argument);
-  EXPECT_THROW(StageWindow::range(4, 2), std::invalid_argument);
-}
-
-TEST(StageWindowTest, ResolveRejectsOutOfHorizonRange) {
-  // end > horizon violates b <= N (begin at/after horizon is caught the same way).
-  EXPECT_THROW(StageWindow::range(2, 6).resolveStages(5), std::invalid_argument);
-  EXPECT_THROW(StageWindow::range(5, 7).resolveStages(5), std::invalid_argument);
-}
-
-TEST(StageWindowTest, ResolveRejectsNonPositiveHorizon) {
-  EXPECT_THROW(StageWindow::all().resolveStages(0), std::invalid_argument);
-  EXPECT_THROW(StageWindow::all().resolveStages(-3), std::invalid_argument);
-  EXPECT_THROW(StageWindow::terminal().resolveStages(0), std::invalid_argument);
-}
-
 // --- TrajOptResult::toRoboplan round-trip -----------------------------------------------------
 
 TEST(TrajOptResultTest, ToRoboplanExpandsReducedPositionsToFullLayout) {

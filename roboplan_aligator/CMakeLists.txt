@@ -87,7 +87,6 @@ add_library(
   src/reduced_group_model.cpp
   src/types.cpp
   src/problem_builder.cpp
-  src/cost_factory.cpp
   src/costs/masked_state_cost.cpp
   src/costs/configuration_cost.cpp
   src/costs/velocity_cost.cpp

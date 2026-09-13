@@ -5,11 +5,11 @@
 
 #include <Eigen/Dense>
 
+#include <aligator/modelling/costs/quad-state-cost.hpp>
 #include <aligator/modelling/costs/sum-of-costs.hpp>
 
 #include <roboplan/core/scene.hpp>
 
-#include <roboplan_aligator/cost_handle.hpp>
 #include <roboplan_aligator/costs/configuration_cost.hpp>
 #include <roboplan_aligator/costs/velocity_cost.hpp>
 #include <roboplan_aligator/trajectory_optimizer.hpp>
@@ -28,6 +28,7 @@ using aligator_detail::CostStack;
 using aligator_detail::PhaseSpace;
 using ManifoldPoly = xyz::polymorphic<aligator::ManifoldAbstractTpl<double>>;
 using CostAbstract = aligator::CostAbstractTpl<double>;
+using CostPoly = xyz::polymorphic<aligator::CostAbstractTpl<double>>;
 using testing::deterministicState;
 using testing::makeSo101Scene;
 
@@ -108,12 +109,12 @@ TEST(CostTest, VelocityCostGradientMatchesFD) {
   expectCostGradientMatchesFD(*cost, f.space, x, Eigen::VectorXd::Constant(f.nv(), 0.2));
 }
 
-// --- Mutable target (value-polymorphism caveat) ------------------------------------------------
+// --- Retargeting: no post-build mutation, resetProblem() + re-add + build() instead ------------
 
-// setTarget must mutate the residual living INSIDE the problem: solve to q_a, retarget to q_b,
-// re-solve, and the second result must approach q_b. Vector-target costs (ConfigurationCost) reach
-// their in-problem residual through QuadraticStateCost::setTarget.
-TEST(CostTest, SetTargetMutatesVectorCostResidual) {
+// Aligator copies costs into stages by value (xyz::polymorphic<T>); this package does not keep a
+// handle into that copy. Retargeting a cost means rebuilding: solve to q_a, resetProblem(),
+// re-add with q_b, build() again, and the second result must approach q_b.
+TEST(CostTest, RetargetingRequiresRebuild) {
   auto scene = makeSo101Scene();
   const int nq = ReducedGroupModel(*scene, "arm").nq();
 
@@ -124,27 +125,32 @@ TEST(CostTest, SetTargetMutatesVectorCostResidual) {
   const Eigen::VectorXd q_a = Eigen::VectorXd::Constant(nq, 0.3);
   const Eigen::VectorXd q_b = Eigen::VectorXd::Constant(nq, -0.3);
 
-  ConfigurationCost config;
-  config.q_target = q_a;
-  config.weights = Eigen::VectorXd::Constant(nq, 100.0);
-  CostHandle handle = opt.addCost(config, StageWindow::terminal(), 1.0);
+  ConfigurationCost config_a;
+  config_a.q_target = q_a;
+  config_a.weights = Eigen::VectorXd::Constant(nq, 100.0);
+  opt.addTerminalCost(config_a, 1.0);
 
   opt.build();
   const auto res_a = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(res_a.has_value()) << res_a.error();
   const Eigen::VectorXd q_reached_a = res_a->xs.back().head(nq);
 
-  handle.setTarget(q_b);  // hot-path retarget of the in-problem state-error residual
+  opt.resetProblem();
+  ConfigurationCost config_b;
+  config_b.q_target = q_b;
+  config_b.weights = Eigen::VectorXd::Constant(nq, 100.0);
+  opt.addTerminalCost(config_b, 1.0);
+  opt.build();
   const auto res_b = opt.solve(TrajOptSeed{});
   ASSERT_TRUE(res_b.has_value()) << res_b.error();
   const Eigen::VectorXd q_reached_b = res_b->xs.back().head(nq);
 
-  // After retargeting to q_b, the terminal configuration is nearer q_b than the q_a-solve was.
+  // After rebuilding with q_b, the terminal configuration is nearer q_b than the q_a-solve was.
   EXPECT_LT((q_reached_b - q_b).norm(), (q_reached_a - q_b).norm());
   EXPECT_LT((q_reached_b - q_b).norm(), 0.1) << "terminal config did not track the new target";
 }
 
-// --- Lifecycle + handle guards ----------------------------------------------------------------
+// --- Lifecycle guards ----------------------------------------------------------------
 
 TEST(CostTest, AddCostAfterBuildThrowsThenResetAllows) {
   auto scene = makeSo101Scene();
@@ -163,19 +169,77 @@ TEST(CostTest, AddCostAfterBuildThrowsThenResetAllows) {
   EXPECT_NO_THROW(opt.addCost(cost));  // legal again (a fresh build() is required to solve)
 }
 
-TEST(CostTest, CostHandleRejectsWrongTargetSize) {
+TEST(CostTest, StageCostAttachesToExactlyOneStage) {
   auto scene = makeSo101Scene();
-  TrajectoryOptimizer opt(scene, "arm", /*horizon=*/8, /*dt=*/0.02);
+  const int horizon = 6;
+  TrajOptOptions options;
+  options.control_reg = 0.0;  // isolate the stage cost: no implicit control-reg term to count
+  TrajectoryOptimizer opt(scene, "arm", horizon, /*dt=*/0.02, options);
 
-  const Eigen::VectorXd config_target = Eigen::VectorXd::Zero(opt.nv());
-  const Eigen::VectorXd wrong_size = Eigen::VectorXd::Zero(opt.nv() + 1);
+  ConfigurationCost cost;
+  cost.q_target = Eigen::VectorXd::Zero(opt.nq());
+  cost.weights = Eigen::VectorXd::Ones(opt.nv());
+  opt.addStageCost(2, cost);
+  opt.build();
 
-  ConfigurationCost config;
-  config.q_target = Eigen::VectorXd::Zero(opt.nq());
-  config.weights = Eigen::VectorXd::Ones(opt.nv());
-  CostHandle vector_handle = opt.addCost(config);
-  EXPECT_THROW(vector_handle.setTarget(wrong_size), std::invalid_argument);
-  EXPECT_NO_THROW(vector_handle.setTarget(config_target));
+  for (int k = 0; k < horizon; ++k) {
+    const auto& stack = static_cast<const aligator_detail::CostStack&>(
+        *opt.problem().stages_[static_cast<std::size_t>(k)]->cost_);
+    const std::size_t expected = (k == 2) ? 1u : 0u;
+    EXPECT_EQ(stack.components_.size(), expected) << "stage " << k;
+  }
+}
+
+TEST(CostTest, StageFactoryBuildsAndSolves) {
+  auto scene = makeSo101Scene();
+  const int horizon = 10;
+  TrajectoryOptimizer opt(scene, "arm", horizon, /*dt=*/0.02);
+  const int nq = opt.nq();
+  const int nv = opt.nv();
+  const Eigen::VectorXd q_goal = Eigen::VectorXd::Constant(nq, 0.2);
+
+  opt.setStageFactory([&](int index, const aligator_detail::DiscreteDynamics& dynamics) {
+    aligator_detail::CostStack stack(ManifoldPoly(opt.phaseSpace()), nv);
+    if (index == horizon - 1) {
+      Eigen::VectorXd target = Eigen::VectorXd::Zero(nq + nv);
+      target.head(nq) = q_goal;
+      Eigen::MatrixXd weights = Eigen::MatrixXd::Zero(2 * nv, 2 * nv);
+      weights.diagonal().head(nv).setConstant(100.0);
+      stack.addCost(CostPoly(aligator::QuadraticStateCostTpl<double>(ManifoldPoly(opt.phaseSpace()),
+                                                                     nv, target, weights)),
+                    1.0);
+    }
+    return aligator::StageModelTpl<double>(CostPoly(stack), dynamics);
+  });
+
+  opt.build();
+  const auto result = opt.solve(TrajOptSeed{});
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_LT((result->xs.back().head(nq) - q_goal).norm(), 0.1);
+}
+
+TEST(CostTest, StageFactoryIsExclusiveWithSpecBasedCosts) {
+  auto scene = makeSo101Scene();
+  TrajectoryOptimizer opt(scene, "arm", /*horizon=*/4, /*dt=*/0.02);
+
+  ConfigurationCost cost;
+  cost.q_target = Eigen::VectorXd::Zero(opt.nq());
+  cost.weights = Eigen::VectorXd::Ones(opt.nv());
+  opt.addCost(cost);
+
+  EXPECT_THROW(opt.setStageFactory([](int, const aligator_detail::DiscreteDynamics&)
+                                       -> xyz::polymorphic<aligator::StageModelTpl<double>> {
+    throw std::logic_error("should not be called");
+  }),
+               std::logic_error);
+
+  opt.resetProblem();
+  opt.setStageFactory([&](int index, const aligator_detail::DiscreteDynamics& dynamics) {
+    (void)index;
+    aligator_detail::CostStack stack(ManifoldPoly(opt.phaseSpace()), opt.nv());
+    return aligator::StageModelTpl<double>(CostPoly(stack), dynamics);
+  });
+  EXPECT_THROW(opt.addCost(cost), std::logic_error);
 }
 
 }  // namespace roboplan

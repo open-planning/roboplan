@@ -8,9 +8,9 @@
 
 namespace roboplan::aligator_detail {
 
-std::function<void(const Eigen::VectorXd&)>
-attachConfigurationCost(CostStack& stack, const PhaseSpace& space, const ReducedGroupModel& rgm,
-                        const ConfigurationCost& spec, double weight) {
+void attachConfigurationCost(CostStack& stack, const PhaseSpace& space,
+                             const ReducedGroupModel& rgm, const ConfigurationCost& spec,
+                             double weight) {
   const int nq = rgm.nq();
   const int nv = rgm.nv();
   if (spec.q_target.size() != nq) {
@@ -28,8 +28,8 @@ attachConfigurationCost(CostStack& stack, const PhaseSpace& space, const Reduced
   Eigen::VectorXd target = Eigen::VectorXd::Zero(nq + nv);
   target.head(nq) = spec.q_target;
 
-  return attachMaskedStateCost(stack, space, nq, nv, target, spec.weights,
-                               /*mask_configuration_block=*/true, weight);
+  attachMaskedStateCost(stack, space, nv, target, spec.weights,
+                        /*mask_configuration_block=*/true, weight);
 }
 
 }  // namespace roboplan::aligator_detail

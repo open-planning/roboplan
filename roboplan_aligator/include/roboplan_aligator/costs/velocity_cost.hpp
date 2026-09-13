@@ -5,8 +5,7 @@
 namespace roboplan {
 
 // A cost is a soft objective described in terms the user understands (per-DoF targets and
-// weights). Each is attached with `TrajectoryOptimizer::addCost(spec, window, weight)`, which
-// returns a CostHandle whose `setTarget` updates the target between solves.
+// weights). Attach with `TrajectoryOptimizer::addCost`/`addStageCost`/`addTerminalCost`.
 
 /// @brief Penalize reduced-group velocity deviation from a target.
 struct VelocityCost {
