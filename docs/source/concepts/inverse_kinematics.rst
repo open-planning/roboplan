@@ -426,12 +426,13 @@ Keeps a frame within an axis-aligned bounding box using CBF constraints.
 
 .. math::
 
-   -J_{h_i} \cdot \Delta q \leq \Delta t \cdot \gamma \cdot \frac{h_i}{1 + |h_i|} - m
+   -\frac{J_{h_i} \cdot \Delta q}{\Delta t} \leq \gamma \cdot \frac{h_i - m}{1 + |h_i - m|}
 
 Where:
 
 - :math:`\gamma` — barrier gain (aggressiveness)
-- :math:`m` — safety margin (conservative buffer for linearization error)
+- :math:`m` — safety margin (conservative buffer for linearization error).
+  It shifts the barrier so it begins to resist motion at :math:`h_i = m` rather than at :math:`h_i = 0`.
 
 **Safe displacement regularization** adds to the objective:
 
@@ -489,18 +490,24 @@ that Jacobian row is zeroed so the barrier degrades gracefully instead of produc
 
 The same safe-displacement regularization described for ``PositionBarrier`` applies.
 
+The control timestep ``dt`` is passed directly to the constructor; everything else is set through a ``SelfCollisionBarrierOptions`` struct:
+
 +-----------------------------+----------------------------------------+-----------+
 | Parameter                   | Description                            | Default   |
 +=============================+========================================+===========+
-| ``n_collision_pairs``       | Number of closest pairs to constrain   | required  |
-|                             | (must be ≤ total pairs in the model)   |           |
+| ``n_collision_pairs``       | Number of closest pairs to constrain   | 1         |
+|                             | (clipped to the number of pairs in     |           |
+|                             | the collision model)                   |           |
 +-----------------------------+----------------------------------------+-----------+
 | ``d_min``                   | Minimum allowed distance               | 0.02      |
 |                             | :math:`d_{\min}` (meters)              |           |
 +-----------------------------+----------------------------------------+-----------+
-| ``gain``                    | Class-K function gain :math:`\gamma`   | 1.0       |
+| ``d_max``                   | Broadphase cull distance (meters);     | 0.25      |
+|                             | pairs whose bounding boxes are farther |           |
+|                             | apart skip the exact distance query.   |           |
+|                             | ``None`` disables culling.             |           |
 +-----------------------------+----------------------------------------+-----------+
-| ``dt``                      | Control timestep                       | required  |
+| ``gain``                    | Class-K function gain :math:`\gamma`   | 1.0       |
 +-----------------------------+----------------------------------------+-----------+
 | ``safe_displacement_gain``  | Regularization weight :math:`r`        | 1.0       |
 +-----------------------------+----------------------------------------+-----------+
@@ -512,6 +519,9 @@ The same safe-displacement regularization described for ``PositionBarrier`` appl
    Per-pair narrow-phase distance dominates the per-solve cost when many pairs are tracked.
    Pick the smallest ``n_collision_pairs`` that still covers the pairs you expect to be active.
    The post-solve ``enforceBarriers()`` check only re-evaluates this active set, so over-sizing ``n_collision_pairs`` makes both the QP assembly and the FK validation slower.
+
+   ``d_max`` is a performance bound, not a separation limit: pairs beyond it simply exert no influence on the barrier.
+   Keep it comfortably larger than the distances at which the barrier actively pushes (a few times ``d_min``) and it will not change the solution at all.
 
    Additionally, you should consider using robot models that have optimized collision meshes (e.g., simplified convex hulls or simple geometric primitives).
    If your collision meshes are too high-quality, this will dramatically increase solve time.
@@ -571,7 +581,7 @@ Usage Example
        ConfigurationTask, ConfigurationTaskOptions,
        FrameTask, FrameTaskOptions,
        Oink, PositionLimit, VelocityLimit,
-       PositionBarrier, SelfCollisionBarrier,
+       PositionBarrier, SelfCollisionBarrier, SelfCollisionBarrierOptions,
    )
 
    # Scene + solver. urdf/srdf are XML strings (e.g. from xacro.process_file(...).toxml()).
@@ -625,11 +635,12 @@ Usage Example
            safety_margin=0.01,
        ),
        SelfCollisionBarrier(
-           oink, scene,
-           n_collision_pairs=4,              # track the 4 closest pairs each step
-           dt=dt,
-           gain=0.01,
-           d_min=0.02,
+           oink, scene, dt,
+           SelfCollisionBarrierOptions(
+               n_collision_pairs=4,          # track the 4 closest pairs each step
+               gain=0.01,
+               d_min=0.02,
+           ),
        ),
    ]
 
@@ -637,12 +648,12 @@ Usage Example
    delta_q = np.zeros(nv)
    oink.solveIk(scene, tasks, constraints, barriers, delta_q, regularization=1e-6)
 
-   # When the joint group is a subset of the model, scatter the group's velocity into
-   # the full-model nv vector before enforceBarriers / integrate.
-   delta_q_full = np.zeros(model_nv)         # full model velocity dimension
-   delta_q_full[oink.v_indices] = delta_q
+   # enforceBarriers and integrate work on full-model velocity vectors. When the joint
+   # group is a subset of the model, scatter the group's displacement into the full
+   # vector first (non-group joints are zero).
+   delta_q_full = scene.toFullJointVelocities("arm", delta_q)
 
-   # Optional FK-based safety check: zeros delta_q_full if any barrier would be violated.
+   # Optional FK-based safety check: zeros the joints of any barrier that would be violated.
    oink.enforceBarriers(scene, barriers, delta_q_full)
 
    q_next = scene.integrate(scene.getCurrentJointPositions(), delta_q_full)

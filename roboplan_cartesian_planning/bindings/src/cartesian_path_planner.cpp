@@ -110,11 +110,11 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Plans a joint trajectory that traces the provided Cartesian path.", "path"_a,
            "q_start"_a)
-      .def("compute_peak_limit_ratios", &CartesianPathPlanner::computePeakLimitRatios,
+      .def("computePeakLimitRatios", &CartesianPathPlanner::computePeakLimitRatios,
            "Computes the (peak velocity / limit, peak acceleration / limit) ratios over a "
            "trajectory. Values <= 1.0 mean the respective joint limits are respected.",
            "trajectory"_a)
-      .def("compute_achieved_path_length", &CartesianPathPlanner::computeAchievedPathLength,
+      .def("computeAchievedPathLength", &CartesianPathPlanner::computeAchievedPathLength,
            "Computes the achieved Cartesian path length (m) traced by the path's tip frames.",
            "trajectory"_a, "path"_a);
 }
