@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-
 #include <Eigen/Dense>
 
 namespace roboplan {

@@ -1,38 +1,16 @@
 #pragma once
 
 #include <memory>
-#include <string>
 
 #include <Eigen/Dense>
 
 namespace roboplan {
 
-// A cost is a soft objective described in terms the user understands (per-DoF targets and
-// weights). Each is attached with `TrajectoryOptimizer::addCost(spec, window, weight)`, which
-// returns a CostHandle whose `setTarget` updates the target between solves.
-
-/// @brief Penalize deviation of the reduced-group configuration from a target.
-struct ConfigurationCost {
-  /// @brief Target reduced-group configuration (size nq).
-  Eigen::VectorXd q_target;
-
-  /// @brief Per-DoF weights (size nv). Nonnegative.
-  Eigen::VectorXd weights;
-};
-
-/// @brief Penalize reduced-group velocity deviation from a target.
-struct VelocityCost {
-  /// @brief Per-DoF velocity weights (size nv). Nonnegative.
-  Eigen::VectorXd weights;
-
-  /// @brief Target velocity (size nv); empty means zero.
-  Eigen::VectorXd v_target;
-};
-
 /// @brief Mutable handle to an attached cost, for target updates between solves.
 /// @details Returned by `TrajectoryOptimizer::addCost`. `setTarget` rewrites the target in place
 /// (no rebuild, legal between solves). Move-only; dangles if the owning optimizer is destroyed or
-/// `resetProblem()` is called.
+/// `resetProblem()` is called. Shared infrastructure used by every cost type (ConfigurationCost,
+/// VelocityCost, ...) — not a cost type itself.
 class CostHandle {
 public:
   /// @brief Constructs an empty handle (references nothing). Provided for default-construction

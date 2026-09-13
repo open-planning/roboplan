@@ -4,7 +4,7 @@
 #include <aligator/core/function-abstract.hpp>       // StageFunctionTpl
 #include <aligator/third-party/polymorphic_cxx14.h>  // xyz::polymorphic
 
-#include <roboplan_aligator/constraints.hpp>  // spec types
+#include <roboplan_aligator/constraints/torque_limit.hpp>  // spec type
 
 #include <roboplan_aligator/problem_builder.hpp>  // PhaseSpace
 

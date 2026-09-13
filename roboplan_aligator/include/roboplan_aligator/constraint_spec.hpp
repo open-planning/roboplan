@@ -2,7 +2,7 @@
 
 #include <variant>
 
-#include <roboplan_aligator/constraints.hpp>
+#include <roboplan_aligator/constraints/torque_limit.hpp>
 
 namespace roboplan {
 

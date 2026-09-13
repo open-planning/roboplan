@@ -18,9 +18,11 @@
 #include <roboplan/core/types.hpp>  // JointTrajectory (returned by TrajOptResult::toRoboplan)
 
 #include <roboplan_aligator/constraint_spec.hpp>
-#include <roboplan_aligator/constraints.hpp>
+#include <roboplan_aligator/constraints/torque_limit.hpp>
+#include <roboplan_aligator/cost_handle.hpp>
 #include <roboplan_aligator/cost_spec.hpp>
-#include <roboplan_aligator/costs.hpp>
+#include <roboplan_aligator/costs/configuration_cost.hpp>
+#include <roboplan_aligator/costs/velocity_cost.hpp>
 #include <roboplan_aligator/trajectory_optimizer.hpp>
 #include <roboplan_aligator/types.hpp>
 
@@ -84,11 +86,10 @@ void init_aligator(nb::module_& m) {
              IntegratorType integrator, bool verbose, double control_reg, bool record_history,
              aligator::LQSolverChoice linear_solver_choice, int num_threads,
              aligator::RolloutType rollout_type) {
-            new (self) TrajOptOptions{max_iters,   tol,
-                                      mu_init,     integrator,
-                                      verbose,     control_reg,
-                                      record_history, linear_solver_choice,
-                                      num_threads, rollout_type};
+            new (self)
+                TrajOptOptions{max_iters,   tol,         mu_init,        integrator,
+                               verbose,     control_reg, record_history, linear_solver_choice,
+                               num_threads, rollout_type};
           },
           "max_iters"_a = 100, "tol"_a = 1e-4, "mu_init"_a = 1e-2,
           "integrator"_a = IntegratorType::SemiImplicitEuler, "verbose"_a = false,
@@ -115,7 +116,8 @@ void init_aligator(nb::module_& m) {
 
   nb::class_<TrajOptIterate>(m, "TrajOptIterate", "One recorded ProxDDP iteration.")
       .def(nb::init<>())
-      .def_rw("iteration", &TrajOptIterate::iteration, "Iteration index within the solve (0-based).")
+      .def_rw("iteration", &TrajOptIterate::iteration,
+              "Iteration index within the solve (0-based).")
       .def_rw("cost", &TrajOptIterate::cost, "Total trajectory cost at this iteration.")
       .def_rw("prim_infeas", &TrajOptIterate::prim_infeas,
               "Primal infeasibility (constraint violation) at this iteration.")

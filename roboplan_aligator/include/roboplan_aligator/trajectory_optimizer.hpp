@@ -19,9 +19,8 @@
 #include <aligator/third-party/polymorphic_cxx14.h>
 
 #include <roboplan_aligator/constraint_spec.hpp>
-#include <roboplan_aligator/constraints.hpp>
+#include <roboplan_aligator/cost_handle.hpp>
 #include <roboplan_aligator/cost_spec.hpp>
-#include <roboplan_aligator/costs.hpp>
 #include <roboplan_aligator/problem_builder.hpp>
 #include <roboplan_aligator/reduced_group_model.hpp>
 #include <roboplan_aligator/types.hpp>

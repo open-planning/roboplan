@@ -2,7 +2,8 @@
 
 #include <variant>
 
-#include <roboplan_aligator/costs.hpp>
+#include <roboplan_aligator/costs/configuration_cost.hpp>
+#include <roboplan_aligator/costs/velocity_cost.hpp>
 
 namespace roboplan {
 

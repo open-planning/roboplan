@@ -12,8 +12,8 @@
 
 #include <roboplan/core/scene.hpp>
 
-#include <roboplan_aligator/constraints.hpp>
-#include <roboplan_aligator/costs.hpp>
+#include <roboplan_aligator/constraints/torque_limit.hpp>
+#include <roboplan_aligator/costs/configuration_cost.hpp>
 #include <roboplan_aligator/trajectory_optimizer.hpp>
 #include <roboplan_aligator/types.hpp>
 

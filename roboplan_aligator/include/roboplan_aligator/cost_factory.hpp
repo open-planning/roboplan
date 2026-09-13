@@ -8,7 +8,9 @@
 
 #include <aligator/modelling/costs/sum-of-costs.hpp>  // CostStackTpl
 
-#include <roboplan_aligator/costs.hpp>  // spec types + CostHandle
+#include <roboplan_aligator/cost_handle.hpp>  // CostHandle
+#include <roboplan_aligator/costs/configuration_cost.hpp>
+#include <roboplan_aligator/costs/velocity_cost.hpp>
 
 #include <roboplan_aligator/problem_builder.hpp>  // PhaseSpace
 
