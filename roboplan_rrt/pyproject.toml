@@ -35,10 +35,4 @@ roboplan-rrt = { pin-subpackage = true }
 
 [tool.cmeel]
 run-tests = false
-configure-args = [
-    "-DBUILD_PYTHON_BINDINGS=ON",
-    "-DGENERATE_PYTHON_STUBS=OFF",
-    # Wheels put libraries in cmeel.prefix/lib and extensions four levels below
-    # it; this lets both find their dependencies relative to themselves.
-    "-DCMAKE_INSTALL_RPATH=$ORIGIN;$ORIGIN/../../../../;@loader_path;@loader_path/../../../../",
-]
+configure-args = ["-DBUILD_PYTHON_BINDINGS=ON", "-DGENERATE_PYTHON_STUBS=OFF"]
