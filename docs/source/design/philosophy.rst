@@ -15,7 +15,7 @@ What distinguishes RoboPlan from other solutions are the following design points
 Not a monolith
 ---------------
 
-Several tools optimize their design for runtime configurability via YAML config files and plugins that rely on abstract interface classes for motion planners, IK solvers, etc.
+Several tools optimize their design for runtime configurability via YAML config files and plugins that rely on abstract interface classes for motion planners, IK solvers, hardware/simulator interfaces, etc.
 However, not every motion planning solution fits into the same abstraction.
 This library shall instead establish *standard data types* for things like joint states, paths, and trajectories.
 It is strongly recommended that implementations use these data types in their interfaces as much as possible.
