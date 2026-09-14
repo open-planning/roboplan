@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <numbers>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -177,6 +178,12 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
                              collision_model_, package_paths_str);
   collision_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf);
+
+  // Everything in the collision model at this point came from the URDF, i.e. the robot itself.
+  // Objects added later always append (and only added objects can be removed, shifting only the
+  // indices above these), so this list stays valid for the Scene's lifetime.
+  robot_collision_geometry_ids_.resize(collision_model_.ngeoms);
+  std::iota(robot_collision_geometry_ids_.begin(), robot_collision_geometry_ids_.end(), 0);
 
   // Create auxiliary model info
   frame_map_ = createFrameMap(model_);
