@@ -66,15 +66,24 @@ else()
   file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
 endif()
 
-# Ensure the extension can find workspace dylibs via @rpath on macOS, as it
-# seems that SIP will strip DYLD_LIBRARY_PATH from subprocesses, which will
-# break stub generation.
+# Let each extension find the roboplan libraries, and their dependencies,
+# relative to itself. macOS dyld searches an image's run paths for the whole
+# load chain, and SIP strips DYLD_LIBRARY_PATH from subprocesses, which would
+# otherwise break stub generation. Linux RUNPATH is per-object, so ask the
+# linker for the older RPATH tag, which glibc applies to the whole dependency
+# tree. Windows uses DLL search directories instead (roboplan_common/dll.py).
 if(APPLE)
+  set(_rpath_origin "@loader_path")
+elseif(UNIX)
+  set(_rpath_origin "$ORIGIN")
+  target_link_options(_toppra_ext PRIVATE "LINKER:--disable-new-dtags")
+endif()
+if(_rpath_origin)
   file(RELATIVE_PATH _ext_to_lib
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/toppra"
        "${CMAKE_INSTALL_PREFIX}/lib")
-  set_target_properties(_toppra_ext PROPERTIES INSTALL_RPATH
-                                               "@loader_path/${_ext_to_lib}")
+  set_target_properties(
+    _toppra_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}")
 endif()
 
 install(TARGETS _toppra_ext

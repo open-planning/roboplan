@@ -15,16 +15,6 @@ if(WIN32)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-# cmeel wheels: libraries land in cmeel.prefix/lib and extensions four levels
-# below it, so let both find their dependencies relative to themselves.
-if(DEFINED ENV{CMEEL_BUILD})
-  if(APPLE)
-    set(CMAKE_INSTALL_RPATH "@loader_path;@loader_path/../../../../")
-  else()
-    set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/../../../../")
-  endif()
-endif()
-
 # Find dependencies.
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
