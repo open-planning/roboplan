@@ -4,6 +4,9 @@ project(roboplan VERSION 0.6.1)
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)
   ament_package()
+else()
+  # Give non-ament builds an install rule to run. Under ament this must be
+  # skipped: its symlink-install wrapper forwards the empty CODE string
+  # unquoted, which makes CMake fail.
+  install(CODE "")
 endif()
-
-install(CODE "")
