@@ -197,24 +197,8 @@ jobs:
           package-dir: roboplan_cartesian_planning
           output-dir: wheelhouse
         env:
-          CIBW_BEFORE_TEST_LINUX: >-
-            pip install --find-links /host${{ github.workspace }}/wheelhouse
-            roboplan-example-models==${{ needs.check_version.outputs.version }}
-            roboplan-core==${{ needs.check_version.outputs.version }}
-            roboplan-oink==${{ needs.check_version.outputs.version }}
-            roboplan-rrt==${{ needs.check_version.outputs.version }}
-            roboplan-simple-ik==${{ needs.check_version.outputs.version }}
-            roboplan-toppra==${{ needs.check_version.outputs.version }}
-            roboplan-cartesian-planning==${{ needs.check_version.outputs.version }}
-          CIBW_BEFORE_TEST_MACOS: >-
-            pip install --find-links ${{ github.workspace }}/wheelhouse
-            roboplan-example-models==${{ needs.check_version.outputs.version }}
-            roboplan-core==${{ needs.check_version.outputs.version }}
-            roboplan-oink==${{ needs.check_version.outputs.version }}
-            roboplan-rrt==${{ needs.check_version.outputs.version }}
-            roboplan-simple-ik==${{ needs.check_version.outputs.version }}
-            roboplan-toppra==${{ needs.check_version.outputs.version }}
-            roboplan-cartesian-planning==${{ needs.check_version.outputs.version }}
+          # The metapackage pins every subpackage, so this pulls the full set from the wheelhouse.
+          CIBW_TEST_REQUIRES: roboplan==${{ needs.check_version.outputs.version }}
           CIBW_TEST_COMMAND: >-
             python -c "import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;
@@ -223,13 +207,9 @@ jobs:
         with:
           name: python-distributions-${{ matrix.artifact }}
           path: |
-            wheelhouse/roboplan_core-*.whl
-            wheelhouse/roboplan_example_models-*.whl
-            wheelhouse/roboplan_oink-*.whl
-            wheelhouse/roboplan_rrt-*.whl
-            wheelhouse/roboplan_simple_ik-*.whl
-            wheelhouse/roboplan_toppra-*.whl
-            wheelhouse/roboplan_cartesian_planning-*.whl
+            wheelhouse/*.whl
+            !wheelhouse/roboplan-*.whl
+            !wheelhouse/roboplan_common-*.whl
           if-no-files-found: error
 
   build_sdist:
