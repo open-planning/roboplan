@@ -43,6 +43,9 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Download distributions
         uses: actions/download-artifact@v5
         with:
@@ -50,21 +53,9 @@ jobs:
           merge-multiple: true
           path: dist
       - name: Select distributions for ${{ matrix.package }}
-        env:
-          PACKAGE: ${{ matrix.package }}
         run: |
-          shopt -s nullglob
-          mkdir -p package
-          # Wheels use the normalized name (underscores); sdists may use either form.
-          # The "-[0-9]" suffix keeps "roboplan-*" from matching "roboplan-core-*" and friends.
-          for f in dist/"${PACKAGE//-/_}"-[0-9]* dist/"${PACKAGE}"-[0-9]*; do
-            [ -e "$f" ] && mv "$f" package/
-          done
-          ls -la package
-          if [ -z "$(ls -A package)" ]; then
-            echo "::error::No distributions found for $PACKAGE"
-            exit 1
-          fi
+          python -m pip install --upgrade packaging
+          python scripts/select_distributions.py ${{ matrix.package }} --src dist --dst package
       - name: Check distributions
         run: |
           python -m pip install --upgrade twine
