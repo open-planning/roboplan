@@ -25,7 +25,8 @@ protected:
     const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
-    scene = std::make_shared<Scene>("test_scene", urdf_path, srdf_path, package_paths);
+    scene = std::make_shared<Scene>("test_scene", loadUrdfSceneDescription(urdf_path, srdf_path),
+                                    package_paths);
   }
 
   // Builds a goal pose by running forward kinematics on a known configuration.

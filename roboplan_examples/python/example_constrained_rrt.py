@@ -20,7 +20,12 @@ try:
 except ModuleNotFoundError:
     import hppfcl as coal
 
-from roboplan.core import CartesianConfiguration, JointConfiguration, Scene
+from roboplan.core import (
+    CartesianConfiguration,
+    JointConfiguration,
+    Scene,
+    UrdfSceneDescription,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import (
     ConstraintProjector,
@@ -245,14 +250,13 @@ def main(
     if model_data is None or model not in SUPPORTED_MODELS:
         print(f"Invalid model requested: {model}. Supported: {SUPPORTED_MODELS}")
         sys.exit(1)
-
+    package_paths = [get_package_share_dir()]
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
-    package_paths = [get_package_share_dir()]
+
     scene = Scene(
         "constrained_rrt_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
+        UrdfSceneDescription(urdf_xml, srdf_xml),
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )
@@ -260,10 +264,16 @@ def main(
     # Create a redundant Pinocchio model just for visualization with mimic joints.
     pin_model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
-        pin_model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
+        pin_model,
+        str(model_data.urdf_path),
+        pin.GeometryType.COLLISION,
+        package_dirs=package_paths,
     )
     visual_model = pin.buildGeomFromUrdfString(
-        pin_model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
+        pin_model,
+        str(model_data.urdf_path),
+        pin.GeometryType.VISUAL,
+        package_dirs=package_paths,
     )
 
     group_name = model_data.default_joint_group

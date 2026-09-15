@@ -1,8 +1,12 @@
 import pytest
-import sys
 import xacro
+import sys
 
-from roboplan.core import JointConfiguration, Scene
+from roboplan.core import (
+    JointConfiguration,
+    Scene,
+    UrdfSceneDescription,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRTOptions, RRT
 
@@ -68,8 +72,7 @@ def create_scene(model_name: str) -> Scene:
 
     scene = Scene(
         f"{model_name}_benchmark_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
+        UrdfSceneDescription(urdf_xml, srdf_xml),
         package_paths=package_paths,
         yaml_config_path=model_data.yaml_config_path,
     )

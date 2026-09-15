@@ -37,14 +37,17 @@ constexpr const char* kBallUrdf = R"(
 constexpr const char* kBallSrdf = R"(<robot name="ball_bot"/>)";
 
 std::shared_ptr<Scene> makeBallScene() {
-  return std::make_shared<Scene>("ball_scene", std::string(kBallUrdf), std::string(kBallSrdf));
+  return std::make_shared<Scene>(
+      "ball_scene",
+      UrdfSceneDescription{.urdf_xml = std::string(kBallUrdf), .srdf_xml = std::string(kBallSrdf)});
 }
 
 std::shared_ptr<Scene> makeUr5Scene() {
   const auto model_prefix = example_models::get_package_models_dir();
   return std::make_shared<Scene>(
-      "ur5_scene", model_prefix / "ur_robot_model" / "ur5_gripper.urdf",
-      model_prefix / "ur_robot_model" / "ur5_gripper.srdf",
+      "ur5_scene",
+      loadUrdfSceneDescription(model_prefix / "ur_robot_model" / "ur5_gripper.urdf",
+                               model_prefix / "ur_robot_model" / "ur5_gripper.srdf"),
       std::vector<std::filesystem::path>{example_models::get_package_share_dir()},
       model_prefix / "ur_robot_model" / "ur5_config.yaml");
 }
