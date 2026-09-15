@@ -263,13 +263,13 @@ def main(
     elapsed = time.time() - t0
 
     traj = result
-    peak_vel_ratio, peak_accel_ratio = planner.compute_peak_limit_ratios(traj)
+    peak_vel_ratio, peak_accel_ratio = planner.computePeakLimitRatios(traj)
     print(f"  Planned in {elapsed * 1e3:.1f} ms")
     print(f"  Trajectory samples: {len(traj.times)}")
     print(f"  Trajectory duration: {traj.times[-1]:.3f} s")
     print(
         f"  Achieved Cartesian path length: "
-        f"{planner.compute_achieved_path_length(traj, path):.4f} m"
+        f"{planner.computeAchievedPathLength(traj, path):.4f} m"
     )
     print(f"  Peak velocity / limit:     {peak_vel_ratio:.2f}")
     print(f"  Peak acceleration / limit: {peak_accel_ratio:.2f}")

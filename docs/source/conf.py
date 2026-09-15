@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -61,7 +62,7 @@ extensions = [
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns: list[str] = []
+exclude_patterns: list[str] = ["_templates"]
 
 autoapi_type = "python"
 autoapi_template_dir = "_templates/autoapi"
@@ -86,22 +87,43 @@ breathe_default_project = "roboplan"
 breathe_projects = {}
 breathe_projects_source = {}
 
-for package in [
-    "roboplan",
-    "roboplan_example_models",
-    "roboplan_rrt",
-    "roboplan_simple_ik",
-    "roboplan_oink",
-    "roboplan_toppra",
-    "roboplan_cartesian_planning",
-]:
+# Maps each breathe project name (as referenced from api_cpp.rst) to the package
+# directory that holds its Doxyfile and public headers. The core library lives in
+# `roboplan_core/` but keeps the `roboplan` project name, since its headers are
+# installed under `include/roboplan/`.
+breathe_package_dirs = {
+    "roboplan": "roboplan_core",
+    "roboplan_example_models": "roboplan_example_models",
+    "roboplan_rrt": "roboplan_rrt",
+    "roboplan_simple_ik": "roboplan_simple_ik",
+    "roboplan_oink": "roboplan_oink",
+    "roboplan_toppra": "roboplan_toppra",
+    "roboplan_cartesian_planning": "roboplan_cartesian_planning",
+}
+
+if shutil.which("doxygen") is None:
+    print(
+        "WARNING: doxygen not found on PATH; the C++ API reference will be empty. "
+        "Install it (e.g., apt/brew/conda install doxygen) to build the full docs.",
+        file=sys.stderr,
+    )
+
+for breathe_project, package_dir in breathe_package_dirs.items():
+    package_root = Path(os.path.abspath(f"../../{package_dir}"))
+    docs_dir = package_root / "docs"
+    if not (docs_dir / "Doxyfile").exists():
+        raise FileNotFoundError(
+            f"Missing Doxyfile for breathe project '{breathe_project}': {docs_dir}"
+        )
+
     # Generate Doxygen XML and add it to the breathe projects.
-    subprocess.call(f"cd ../../{package}/docs; rm -rf html/ xml/; doxygen", shell=True)
-    breathe_projects[package] = (os.path.abspath(f"../../{package}/docs/xml"),)
+    if shutil.which("doxygen") is not None:
+        subprocess.check_call("rm -rf html/ xml/ && doxygen", cwd=docs_dir, shell=True)
+    breathe_projects[breathe_project] = (docs_dir / "xml").as_posix()
 
     # Add the package files to the breathe projects sources list.
-    package_path = Path(os.path.abspath(f"../../{package}/include/{package}"))
-    breathe_projects_source[package] = (
+    package_path = package_root / "include" / breathe_project
+    breathe_projects_source[breathe_project] = (
         package_path.as_posix(),
         [f for f in package_path.rglob("*.hpp")],
     )

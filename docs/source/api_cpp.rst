@@ -1,44 +1,68 @@
 API Reference (C++)
 ===================
 
+All RoboPlan C++ symbols live in the ``roboplan`` namespace.
+Each section below lists the public API of one package.
+
 Core Library
 ------------
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan
     :project: roboplan
+    :content-only:
+    :members:
+    :undoc-members:
 
 Example Models
 --------------
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan::example_models
     :project: roboplan_example_models
+    :content-only:
+    :members:
+    :undoc-members:
 
 Simple IK
 ---------
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan
     :project: roboplan_simple_ik
+    :content-only:
+    :members:
+    :undoc-members:
 
 Optimal IK (OInK)
 -----------------
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan
     :project: roboplan_oink
+    :content-only:
+    :members:
+    :undoc-members:
 
 RRT
 ---
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan
     :project: roboplan_rrt
+    :content-only:
+    :members:
+    :undoc-members:
 
 TOPP-RA
 -------
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan
     :project: roboplan_toppra
+    :content-only:
+    :members:
+    :undoc-members:
 
 Cartesian Planning
 ------------------
 
-.. autodoxygenindex::
+.. doxygennamespace:: roboplan
     :project: roboplan_cartesian_planning
+    :content-only:
+    :members:
+    :undoc-members:
