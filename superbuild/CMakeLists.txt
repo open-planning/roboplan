@@ -12,9 +12,9 @@ project(roboplan_superbuild)
 #
 # Each package below is also an independent project resolving siblings via
 # find_package(<name> REQUIRED), so it stays buildable standalone (colcon,
-# conda-forge, its own wheel). roboplan_register_build_tree_packages() makes
-# those calls resolve to the in-tree targets instead of requiring a real install
-# -- see RoboplanSuperbuild.cmake.
+# conda-forge, its own wheel). In this tree those calls are skipped: each
+# package guards its find_package() with `if(NOT TARGET <alias>)`, and the
+# aliases already exist from the earlier add_subdirectory() calls.
 get_filename_component(ROBOPLAN_REPOSITORY_ROOT
                        "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 

@@ -109,9 +109,6 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfig.cmake"
               "${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfigVersion.cmake"
         DESTINATION "lib/cmake/roboplan_core")
 
-# Install the headers and targets
-install(DIRECTORY include/roboplan DESTINATION lib/cmake/)
-
 install(
   EXPORT roboplan-targets
   FILE roboplanTargets.cmake
