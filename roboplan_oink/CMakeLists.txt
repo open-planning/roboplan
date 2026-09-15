@@ -25,7 +25,7 @@ include(FetchContent)
 
 # Find dependencies.
 if(NOT TARGET roboplan::roboplan)
-  find_package(roboplan REQUIRED)
+  find_package(roboplan_core REQUIRED)
 endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that

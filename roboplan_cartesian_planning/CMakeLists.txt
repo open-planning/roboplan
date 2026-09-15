@@ -17,7 +17,7 @@ endif()
 
 # Find dependencies.
 if(NOT TARGET roboplan::roboplan)
-  find_package(roboplan REQUIRED)
+  find_package(roboplan_core REQUIRED)
 endif()
 if(NOT TARGET roboplan_oink::roboplan_oink)
   find_package(roboplan_oink REQUIRED)
