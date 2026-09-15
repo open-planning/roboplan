@@ -12,6 +12,7 @@ backend = { name = "pixi-build-cmake", version = "*" }
 roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
 roboplan-core = { path = "../roboplan" }
 roboplan-example-models = { path = "../roboplan_example_models" }
+roboplan-mujoco = { path = "../roboplan_mujoco" }
 roboplan-oink = { path = "../roboplan_oink" }
 roboplan-rrt = { path = "../roboplan_rrt" }
 roboplan-simple-ik = { path = "../roboplan_simple_ik" }
@@ -26,6 +27,7 @@ pynput = ">=1.8.2,<2"
 roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
 roboplan-core = { path = "../roboplan" }
 roboplan-example-models = { path = "../roboplan_example_models" }
+roboplan-mujoco = { path = "../roboplan_mujoco" }
 roboplan-oink = { path = "../roboplan_oink" }
 roboplan-rrt = { path = "../roboplan_rrt" }
 roboplan-simple-ik = { path = "../roboplan_simple_ik" }

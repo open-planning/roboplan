@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(roboplan)
+find_dependency(roboplan_hardware_interface)
+find_dependency(mujoco 3.12.0 EXACT CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/roboplan_mujocoTargets.cmake")

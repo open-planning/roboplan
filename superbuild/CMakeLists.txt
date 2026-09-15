@@ -66,6 +66,10 @@ add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_toppra"
                  "roboplan_toppra")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_cartesian_planning"
                  "roboplan_cartesian_planning")
+add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_hardware_interface"
+                 "roboplan_hardware_interface")
+add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_mujoco"
+                 "roboplan_mujoco")
 if(ROBOPLAN_BUILD_EXAMPLES)
   add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_examples"
                    "roboplan_examples")
@@ -88,7 +92,8 @@ if(DEFINED ENV{CMEEL_BUILD})
           roboplan_oink
           roboplan_rrt
           roboplan_toppra
-          roboplan_cartesian_planning)
+          roboplan_cartesian_planning
+          roboplan_mujoco)
     if(TARGET ${target})
       set_property(TARGET ${target} PROPERTY INSTALL_RPATH
                                              "${_roboplan_library_rpath}")

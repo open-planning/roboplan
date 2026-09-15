@@ -32,6 +32,9 @@ endif()
 if(NOT TARGET roboplan_cartesian_planning::roboplan_cartesian_planning)
   find_package(roboplan_cartesian_planning REQUIRED)
 endif()
+if(NOT TARGET roboplan_mujoco::roboplan_mujoco)
+  find_package(roboplan_mujoco QUIET)
+endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a

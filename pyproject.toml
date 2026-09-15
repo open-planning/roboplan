@@ -185,6 +185,8 @@ roboplan-simple-ik = { path = "roboplan_simple_ik" }
 roboplan-toppra = { path = "roboplan_toppra" }
 roboplan-cartesian-planning = { path = "roboplan_cartesian_planning" }
 roboplan-examples = { path = "roboplan_examples" }
+roboplan-hardware-interface = { path = "roboplan_hardware_interface" }
+roboplan-mujoco = { path = "roboplan_mujoco" }
 
 [tool.pixi.feature.lint.tasks]
 lint = "pre-commit run --all-files"
