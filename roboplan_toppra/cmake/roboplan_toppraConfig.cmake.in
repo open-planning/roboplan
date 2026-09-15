@@ -1,6 +1,6 @@
 @PACKAGE_INIT@
 
-find_package(roboplan REQUIRED)
+find_package(roboplan_core REQUIRED)
 
 # Try to find toppra - it may be in the same install prefix as roboplan_toppra
 # if it was built via FetchContent. PACKAGE_PREFIX_DIR is set by @PACKAGE_INIT@

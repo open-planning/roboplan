@@ -12,9 +12,9 @@ project(roboplan_superbuild)
 #
 # Each package below is also an independent project resolving siblings via
 # find_package(<name> REQUIRED), so it stays buildable standalone (colcon,
-# conda-forge, its own wheel). roboplan_register_build_tree_packages() makes
-# those calls resolve to the in-tree targets instead of requiring a real install
-# -- see RoboplanSuperbuild.cmake.
+# conda-forge, its own wheel). In this tree those calls are skipped: each
+# package guards its find_package() with `if(NOT TARGET <alias>)`, and the
+# aliases already exist from the earlier add_subdirectory() calls.
 get_filename_component(ROBOPLAN_REPOSITORY_ROOT
                        "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 
@@ -69,44 +69,4 @@ add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_cartesian_planning"
 if(ROBOPLAN_BUILD_EXAMPLES)
   add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_examples"
                    "roboplan_examples")
-endif()
-
-if(DEFINED ENV{CMEEL_BUILD})
-  if(APPLE)
-    set(_roboplan_library_rpath "@loader_path")
-    set(_roboplan_extension_rpath "@loader_path/../../../../")
-  else()
-    set(_roboplan_library_rpath "$ORIGIN")
-    set(_roboplan_extension_rpath "$ORIGIN/../../../../")
-  endif()
-
-  foreach(
-    target IN
-    ITEMS roboplan_example_models
-          roboplan
-          roboplan_simple_ik
-          roboplan_oink
-          roboplan_rrt
-          roboplan_toppra
-          roboplan_cartesian_planning)
-    if(TARGET ${target})
-      set_property(TARGET ${target} PROPERTY INSTALL_RPATH
-                                             "${_roboplan_library_rpath}")
-    endif()
-  endforeach()
-  foreach(
-    target IN
-    ITEMS _example_models_ext
-          _core_ext
-          _filters_ext
-          _simple_ik_ext
-          _optimal_ik_ext
-          _rrt_ext
-          _toppra_ext
-          _cartesian_ext)
-    if(TARGET ${target})
-      set_property(TARGET ${target} PROPERTY INSTALL_RPATH
-                                             "${_roboplan_extension_rpath}")
-    endif()
-  endforeach()
 endif()

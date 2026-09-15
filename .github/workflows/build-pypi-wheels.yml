@@ -114,7 +114,7 @@ jobs:
   build_wheels:
     name: Build ${{ matrix.name }} wheels
     runs-on: ${{ matrix.os }}
-    needs: [build_common_wheels, build_metapackage]
+    needs: [check_version, build_common_wheels, build_metapackage]
     strategy:
       fail-fast: false
       matrix:
@@ -147,8 +147,9 @@ jobs:
         MAKEFLAGS="-j2"
         NINJAFLAGS="-j2"
         ${{ matrix.extra_environment }}
-      CIBW_BEFORE_BUILD_LINUX: pip config set global.find-links /host${{ github.workspace }}/wheelhouse
-      CIBW_BEFORE_BUILD_MACOS: pip config set global.find-links ${{ github.workspace }}/wheelhouse
+      # Bootstrap wheels are kept apart from the wheels built here so the upload needs no file exclusions.
+      CIBW_BEFORE_BUILD_LINUX: pip config set global.find-links "/host${{ github.workspace }}/bootstrap /host${{ github.workspace }}/wheelhouse"
+      CIBW_BEFORE_BUILD_MACOS: pip config set global.find-links "${{ github.workspace }}/bootstrap ${{ github.workspace }}/wheelhouse"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -159,7 +160,7 @@ jobs:
         with:
           pattern: python-distributions-bootstrap-*
           merge-multiple: true
-          path: wheelhouse
+          path: bootstrap
       - name: Build roboplan-core wheels
         uses: pypa/cibuildwheel@v4.1.0
         with:
@@ -197,12 +198,8 @@ jobs:
           package-dir: roboplan_cartesian_planning
           output-dir: wheelhouse
         env:
-          CIBW_BEFORE_TEST_LINUX: >-
-            pip install --find-links /host${{ github.workspace }}/wheelhouse
-            roboplan roboplan-example-models roboplan-rrt roboplan-simple-ik
-          CIBW_BEFORE_TEST_MACOS: >-
-            pip install --find-links ${{ github.workspace }}/wheelhouse
-            roboplan roboplan-example-models roboplan-rrt roboplan-simple-ik
+          # The metapackage pins every subpackage, so this pulls the full set from the wheelhouse.
+          CIBW_TEST_REQUIRES: roboplan==${{ needs.check_version.outputs.version }}
           CIBW_TEST_COMMAND: >-
             python -c "import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;
@@ -210,14 +207,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions-${{ matrix.artifact }}
-          path: |
-            wheelhouse/roboplan_core-*.whl
-            wheelhouse/roboplan_example_models-*.whl
-            wheelhouse/roboplan_oink-*.whl
-            wheelhouse/roboplan_rrt-*.whl
-            wheelhouse/roboplan_simple_ik-*.whl
-            wheelhouse/roboplan_toppra-*.whl
-            wheelhouse/roboplan_cartesian_planning-*.whl
+          path: wheelhouse/*.whl
           if-no-files-found: error
 
   build_sdist:

@@ -16,6 +16,11 @@ ROBOPLAN_EXTRA_CMAKE_ARGS = " "
 [tool.pixi.target.linux.activation.env]
 ROBOPLAN_LINKER_FLAG = "-fuse-ld=mold"
 
+[tool.pixi.target.osx-arm64.activation.env]
+# Temporary fix: XCode CLT update shipped with macOS 27 has changed
+# some linker implementation details that have not been upstreamed into LLVM yet
+ROBOPLAN_LINKER_FLAG = "-fuse-ld=/usr/bin/ld"
+
 [tool.pixi.feature.local.activation.env]
 CMAKE_INSTALL_MODE   = "SYMLINK"
 CMAKE_BUILD_TYPE     = "RelWithDebInfo"
@@ -126,19 +131,9 @@ clang-tidy-fix = { cmd = "run-clang-tidy -p build -fix -quiet \"^$PIXI_PROJECT_R
 # The following are toolchains that are shared between the superbuild and the
 # ROS environments defined below.
 [tool.pixi.feature.toolchain.dependencies]
-clang-tools = ">=19.1.7,<20"
 cmake       = ">=3.30.5,<4"
 ninja       = ">=1.12.1,<2"
-clangxx     = ">=19.1.7,<20"
-lld         = ">=19.1.2,<20"
 sccache     = ">=0.16.0,<0.17"
-# Sanitizer deps, also target-overridden for Windows below.
-llvm-tools  = ">=19.1.7,<20"
-compiler-rt = ">=19.1.7,<20"
-
-# The MSVC STL on current GitHub Windows runners requires clang >= 20, so use a
-# newer LLVM toolchain than on the Unix platforms.
-[tool.pixi.feature.toolchain.target.win.dependencies]
 clang-tools = ">=22.1.8,<23"
 clangxx     = ">=22.1.8,<23"
 compiler-rt = ">=22.1.8,<23"
