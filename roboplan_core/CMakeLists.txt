@@ -93,20 +93,21 @@ install(DIRECTORY include/ DESTINATION include)
 
 # Generate the package configuration file
 configure_file("cmake/roboplanConfig.cmake.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake" @ONLY)
+               "${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfig.cmake" @ONLY)
 
 # Create and install the configuration files
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  cmake/roboplanConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake
-  INSTALL_DESTINATION lib/cmake/roboplan)
+  cmake/roboplanConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfig.cmake
+  INSTALL_DESTINATION lib/cmake/roboplan_core)
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/roboplanConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfigVersion.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY AnyNewerVersion)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfig.cmake"
-              "${CMAKE_CURRENT_BINARY_DIR}/roboplanConfigVersion.cmake"
-        DESTINATION "lib/cmake/roboplan")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfig.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/roboplan_coreConfigVersion.cmake"
+        DESTINATION "lib/cmake/roboplan_core")
 
 # Install the headers and targets
 install(DIRECTORY include/roboplan DESTINATION lib/cmake/)
@@ -115,7 +116,7 @@ install(
   EXPORT roboplan-targets
   FILE roboplanTargets.cmake
   NAMESPACE roboplan::
-  DESTINATION lib/cmake/roboplan)
+  DESTINATION lib/cmake/roboplan_core)
 
 install(
   TARGETS roboplan
