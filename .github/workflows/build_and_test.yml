@@ -22,21 +22,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # format:
-  #   name: Format
-  #   uses: ./.github/workflows/format.yml
+  format:
+    name: Format
+    uses: ./.github/workflows/format.yml
 
-  # build_pypi_wheels:
-  #   name: Wheels
-  #   uses: ./.github/workflows/build-pypi-wheels.yml
+  build_pypi_wheels:
+    name: Wheels
+    uses: ./.github/workflows/build-pypi-wheels.yml
 
-  # ubuntu_build_and_test:
-  #   name: Bare Ubuntu
-  #   uses: ./.github/workflows/ubuntu_build_and_test.yml
+  ubuntu_build_and_test:
+    name: Bare Ubuntu
+    uses: ./.github/workflows/ubuntu_build_and_test.yml
 
-  # ros_build_and_test:
-  #   name: ROS
-  #   uses: ./.github/workflows/ros_build_and_test.yml
+  ros_build_and_test:
+    name: ROS
+    uses: ./.github/workflows/ros_build_and_test.yml
 
   pixi_build_and_test:
     name: Pixi
@@ -46,6 +46,6 @@ jobs:
     name: Pixi ROS
     uses: ./.github/workflows/pixi_ros_build_and_test.yml
 
-  # rrt_benchmarks:
-  #   name: Benchmarks
-  #   uses: ./.github/workflows/rrt_benchmarks.yml
+  rrt_benchmarks:
+    name: Benchmarks
+    uses: ./.github/workflows/rrt_benchmarks.yml

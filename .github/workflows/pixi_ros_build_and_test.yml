@@ -10,11 +10,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TEMP: narrowed to one macOS combo to debug why colcon's isolated
-        # install resolves cross-package dylibs on GH runners but not
-        # locally, even with DYLD_LIBRARY_PATH stripped. Revert before merge.
-        os: [macos-latest]
-        ros_distro: [kilted]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        ros_distro: [rolling, lyrical, kilted, jazzy, humble]
 
     runs-on: ${{ matrix.os }}
     defaults:
@@ -47,30 +44,3 @@ jobs:
           pixi run -e ${{ matrix.ros_distro }} build
           pixi run -e ${{ matrix.ros_distro }} test
           pixi run -e ${{ matrix.ros_distro }} test-result
-      # TEMP: debug step for the macOS colcon dylib investigation. Remove
-      # once we've confirmed why this runner resolves @rpath deps that a
-      # local build with DYLD_LIBRARY_PATH stripped can't.
-      - name: Debug macOS dylib resolution
-        if: runner.os == 'macOS'
-        run: |
-          set -x
-          sw_vers
-          uname -a
-          csrutil status || true
-          xcodebuild -version || true
-          EXT=$(find install -name '_cartesian_ext*.so')
-          LIB=$(find install -name 'libroboplan_cartesian_planning.dylib')
-          echo "=== otool -l (LC_RPATH) for $EXT ==="
-          otool -l "$EXT" | grep -A2 LC_RPATH
-          echo "=== otool -L for $EXT ==="
-          otool -L "$EXT"
-          echo "=== otool -l (LC_RPATH) for $LIB ==="
-          otool -l "$LIB" | grep -A2 LC_RPATH
-          echo "=== otool -L for $LIB ==="
-          otool -L "$LIB"
-          echo "=== import with DYLD_LIBRARY_PATH stripped, dyld tracing on ==="
-          pixi run -e ${{ matrix.ros_distro }} bash -c '
-            source install/setup.bash
-            env -u DYLD_LIBRARY_PATH DYLD_PRINT_LIBRARIES=1 DYLD_PRINT_RPATHS=1 \
-              python3 -c "import roboplan.cartesian_planning; print(\"IMPORT OK\")" 2>&1
-          '
