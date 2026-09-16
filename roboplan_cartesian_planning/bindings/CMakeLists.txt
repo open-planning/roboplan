@@ -77,6 +77,8 @@ endif()
 # otherwise break stub generation. Linux RUNPATH is per-object, so ask the
 # linker for the older RPATH tag, which glibc applies to the whole dependency
 # tree. Windows uses DLL search directories instead (roboplan_common/dll.py).
+# INSTALL_RPATH_USE_LINK_PATH also covers linked libraries in sibling install
+# prefixes (roboplan_oink, roboplan_toppra).
 if(APPLE)
   set(_rpath_origin "@loader_path")
 elseif(UNIX)
@@ -89,7 +91,8 @@ if(_rpath_origin)
     "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/cartesian_planning"
     "${CMAKE_INSTALL_PREFIX}/lib")
   set_target_properties(
-    _cartesian_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}")
+    _cartesian_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}"
+                              INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
 install(TARGETS _cartesian_ext

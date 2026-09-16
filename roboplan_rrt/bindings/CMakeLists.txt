@@ -80,8 +80,9 @@ if(_rpath_origin)
   file(RELATIVE_PATH _ext_to_lib
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/rrt"
        "${CMAKE_INSTALL_PREFIX}/lib")
-  set_target_properties(_rrt_ext PROPERTIES INSTALL_RPATH
-                                            "${_rpath_origin}/${_ext_to_lib}")
+  set_target_properties(
+    _rrt_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}"
+                        INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
 install(TARGETS _rrt_ext

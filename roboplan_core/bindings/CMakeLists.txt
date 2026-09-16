@@ -117,13 +117,15 @@ if(_rpath_origin)
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/core"
        "${CMAKE_INSTALL_PREFIX}/lib")
   set_target_properties(
-    _core_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib_core}")
+    _core_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib_core}"
+                         INSTALL_RPATH_USE_LINK_PATH TRUE)
   file(RELATIVE_PATH _ext_to_lib_filters
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/filters"
        "${CMAKE_INSTALL_PREFIX}/lib")
   set_target_properties(
-    _filters_ext PROPERTIES INSTALL_RPATH
-                            "${_rpath_origin}/${_ext_to_lib_filters}")
+    _filters_ext
+    PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib_filters}"
+               INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
 install(TARGETS _core_ext

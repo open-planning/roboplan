@@ -82,7 +82,8 @@ if(_rpath_origin)
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/simple_ik"
        "${CMAKE_INSTALL_PREFIX}/lib")
   set_target_properties(
-    _simple_ik_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}")
+    _simple_ik_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}"
+                              INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
 install(TARGETS _simple_ik_ext

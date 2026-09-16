@@ -83,7 +83,8 @@ if(_rpath_origin)
        "${CMAKE_INSTALL_PREFIX}/${PYTHON_DESTINATION}/roboplan/optimal_ik"
        "${CMAKE_INSTALL_PREFIX}/lib")
   set_target_properties(
-    _optimal_ik_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}")
+    _optimal_ik_ext PROPERTIES INSTALL_RPATH "${_rpath_origin}/${_ext_to_lib}"
+                               INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
 install(TARGETS _optimal_ik_ext
