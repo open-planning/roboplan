@@ -2,6 +2,28 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Improve MuJoCo RRT example (`#349 <https://github.com/open-planning/roboplan/issues/349>`_)
+* Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
+* Move YAML loading out of constructor (`#348 <https://github.com/open-planning/roboplan/issues/348>`_)
+* Add group helpers, exercise them via new `importSrdf` (`#344 <https://github.com/open-planning/roboplan/issues/344>`_)
+* Add helper function to allow all adjacent links to collide (`#342 <https://github.com/open-planning/roboplan/issues/342>`_)
+* Move file I/O out of Scene constructor, support loading MJCF (`#300 <https://github.com/open-planning/roboplan/issues/300>`_)
+* Add ruff check (`#336 <https://github.com/open-planning/roboplan/issues/336>`_)
+* Switch from Black to `ruff format` (`#335 <https://github.com/open-planning/roboplan/issues/335>`_)
+* Rename roboplan-core's export target (`#329 <https://github.com/open-planning/roboplan/issues/329>`_)
+* Utilities to filter robot model from point cloud (`#292 <https://github.com/open-planning/roboplan/issues/292>`_)
+* General CMake cleanup (`#319 <https://github.com/open-planning/roboplan/issues/319>`_)
+* Re-add pycollada dependency (`#321 <https://github.com/open-planning/roboplan/issues/321>`_)
+* Use pixi-build to declare Conda dependencies for each package (`#301 <https://github.com/open-planning/roboplan/issues/301>`_)
+* Remove cmake build-time package config hack (`#316 <https://github.com/open-planning/roboplan/issues/316>`_)
+* Add Pixi ROS targets and CI (`#308 <https://github.com/open-planning/roboplan/issues/308>`_)
+* Add `cmake-format` to pre-commit, and run it (`#317 <https://github.com/open-planning/roboplan/issues/317>`_)
+* Make cmeel packages independently buildable (`#312 <https://github.com/open-planning/roboplan/issues/312>`_)
+* Migrate to SceneContext class for thread-safe operation (`#286 <https://github.com/open-planning/roboplan/issues/286>`_)
+* Contributors: Erik Holum, Ezra Brooks, Sebastian Castro
+
 0.6.1 (2026-08-20)
 ------------------
 * Optionally brake to target in OInK acceleration limit (`#290 <https://github.com/open-planning/roboplan/issues/290>`_)

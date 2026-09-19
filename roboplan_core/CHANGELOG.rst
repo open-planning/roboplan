@@ -2,6 +2,31 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
+* Move YAML loading out of constructor (`#348 <https://github.com/open-planning/roboplan/issues/348>`_)
+* Add group helpers, exercise them via new `importSrdf` (`#344 <https://github.com/open-planning/roboplan/issues/344>`_)
+* Use Pinocchio 4.1, drop Humble, drop support for non-standard URDF fields (`#346 <https://github.com/open-planning/roboplan/issues/346>`_)
+* Add helper function to allow all adjacent links to collide (`#342 <https://github.com/open-planning/roboplan/issues/342>`_)
+* Move file I/O out of Scene constructor, support loading MJCF (`#300 <https://github.com/open-planning/roboplan/issues/300>`_)
+* Add ruff check (`#336 <https://github.com/open-planning/roboplan/issues/336>`_)
+* Fix dylib resolution for bindings on macOS with colcon (`#306 <https://github.com/open-planning/roboplan/issues/306>`_)
+* Per package PyPi publishing and runtime path setting (`#326 <https://github.com/open-planning/roboplan/issues/326>`_)
+* Rename roboplan-core's export target (`#329 <https://github.com/open-planning/roboplan/issues/329>`_)
+* Utilities to filter robot model from point cloud (`#292 <https://github.com/open-planning/roboplan/issues/292>`_)
+* Add toFullJointVelocities (`#297 <https://github.com/open-planning/roboplan/issues/297>`_)
+* General CMake cleanup (`#319 <https://github.com/open-planning/roboplan/issues/319>`_)
+* Use pixi-build to declare Conda dependencies for each package (`#301 <https://github.com/open-planning/roboplan/issues/301>`_)
+* Remove cmake build-time package config hack (`#316 <https://github.com/open-planning/roboplan/issues/316>`_)
+* Put the Python install logic back into its original CMake location (`#315 <https://github.com/open-planning/roboplan/issues/315>`_)
+* Add `cmake-format` to pre-commit, and run it (`#317 <https://github.com/open-planning/roboplan/issues/317>`_)
+* Find pinocchio package in superbuild to simplify build logic (`#314 <https://github.com/open-planning/roboplan/issues/314>`_)
+* Make cmeel packages independently buildable (`#312 <https://github.com/open-planning/roboplan/issues/312>`_)
+* Rename roboplan directory (`#311 <https://github.com/open-planning/roboplan/issues/311>`_)
+* Migrate to SceneContext class for thread-safe operation (`#286 <https://github.com/open-planning/roboplan/issues/286>`_)
+* Contributors: Erik Holum, Ezra Brooks, Sebastian Castro, Sebastian Jahr
+
 0.6.1 (2026-08-20)
 ------------------
 * Rename `filters` target to `roboplan_filters` (`#284 <https://github.com/open-planning/roboplan/issues/284>`_)
