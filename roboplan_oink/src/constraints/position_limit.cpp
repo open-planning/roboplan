@@ -25,7 +25,7 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
   }
   const auto& q_collapsed = maybe_q_collapsed.value();
 
-  // Get joint limits from the model (only do this once).
+  // Fetch joint limits from the model once.
   if (q_min.size() == 0u) {
     const auto maybe_position_limits =
         context.getScene().getPositionLimitVectors("", /*collapsed*/ true);
@@ -36,7 +36,6 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
     q_max = maybe_position_limits->second;
   }
 
-  // Validate pre-allocated workspace dimensions
   if (constraint_matrix.rows() != num_variables || constraint_matrix.cols() != num_variables) {
     return tl::make_unexpected("PositionLimit: constraint_matrix size mismatch. Expected (" +
                                std::to_string(num_variables) + " x " +
@@ -55,9 +54,8 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
                                std::to_string(upper_bounds.size()));
   }
 
-  // Assuming single DOF joints (revolute/prismatic), nq == nv
-  // Compute distances to limits and scale by gain, then write to bounds
-  // Use v_indices to select the correct joints from the full model
+  // Assumes single-DOF joints (nq == nv once continuous joints are collapsed); v_indices selects
+  // the group's joints from the full model.
   for (int i = 0; i < num_variables; ++i) {
     const int vi = v_indices(i);
     // Compute distance to upper limit
@@ -75,15 +73,13 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
     }
   }
 
-  // Scale by gain parameter in-place
   delta_q_max *= config_limit_gain;
   delta_q_min *= config_limit_gain;
 
-  // Fill constraint matrix: identity matrix (write directly into workspace)
   constraint_matrix.setIdentity();
 
-  // For box constraints l <= G*dq <= u where G = I. Unlimited joints (e.g. continuous
-  // joints) keep infinite bounds; the QP solver treats those rows as unbounded.
+  // Unlimited joints (e.g. continuous joints) keep infinite bounds; the QP solver treats those
+  // rows as unbounded.
   lower_bounds = -delta_q_min;
   upper_bounds = delta_q_max;
 

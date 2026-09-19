@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <numbers>
 #include <numeric>
+#include <optional>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -13,6 +16,7 @@
 
 #include <tinyxml2.h>
 #include <tl/expected.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/collision/broadphase.hpp>
@@ -50,6 +54,13 @@ std::string loadTextFile(const std::filesystem::path& path) {
   return content;
 }
 
+YAML::Node loadJointLimitsConfig(const std::filesystem::path& path) {
+  if (!std::filesystem::exists(path)) {
+    throw std::runtime_error("File not found: " + path.string());
+  }
+  return YAML::LoadFile(path.string());
+}
+
 PinocchioSceneDescription
 loadUrdfSceneDescriptionFromXml(const std::string& urdf_xml,
                                 const std::vector<std::filesystem::path>& package_paths) {
@@ -83,14 +94,8 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path) 
   return description;
 }
 
-Scene::Scene(const std::string& name, const PinocchioSceneDescription& description,
-             const std::filesystem::path& yaml_config_path)
+Scene::Scene(const std::string& name, const PinocchioSceneDescription& description)
     : name_{name}, model_{description.model}, collision_model_{description.collision_model} {
-  YAML::Node yaml_config;
-  if (!yaml_config_path.empty() && !std::filesystem::is_directory(yaml_config_path)) {
-    yaml_config = YAML::LoadFile(yaml_config_path.string());
-  }
-
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix this.
   std::random_device rd;
   rng_gen_ = std::mt19937(rd());
@@ -105,8 +110,7 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
 
     const auto& joint = model_.joints.at(idx);
     if (joint.shortname() == "JointModelMimic") {
-      // If the joint is a mimic joint, do nothing for now.
-      // The information will be extracted later.
+      // Mimic joint info is extracted later, in applyMimicJointLimits().
       continue;
     }
     actuated_joint_names_.push_back(joint_name);
@@ -141,12 +145,41 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
     }
     q_idx += info.num_position_dofs;
 
-    overrideJointLimitsFromYaml(model_, yaml_config, joint_name, info);
+    const auto v_start = model_.idx_vs.at(idx);
+    for (size_t dof = 0; dof < info.num_velocity_dofs; ++dof) {
+      info.limits.max_velocity[dof] = model_.velocityLimit(v_start + dof);
+      info.limits.max_acceleration[dof] =
+          sanitizeLimit(model_.upperAccelerationLimit(v_start + dof));
+      info.limits.max_jerk[dof] = sanitizeLimit(model_.upperJerkLimit(v_start + dof));
+    }
 
     joint_info_map_.emplace(joint_name, info);
   }
 
   // Add the mimic joint information once all the other joints have been parsed.
+  applyMimicJointLimits();
+
+  // Everything in the collision model at this point belongs to the robot itself. Objects added
+  // later append, so this list remains valid for the Scene's lifetime.
+  robot_collision_geometry_ids_.resize(collision_model_.ngeoms);
+  std::iota(robot_collision_geometry_ids_.begin(), robot_collision_geometry_ids_.end(), 0);
+
+  // Create auxiliary model info.
+  frame_map_ = createFrameMap(model_);
+  joint_group_info_map_ = createDefaultJointGroupInfo(model_);
+
+  model_data_ = pinocchio::Data(model_);
+  collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
+
+  // Initialize the current state of the scene.
+  cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
+                                  .positions = pinocchio::neutral(model_),
+                                  .velocities = Eigen::VectorXd::Zero(model_.nv),
+                                  .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+}
+
+void Scene::applyMimicJointLimits() {
   const auto num_mimics = model_.mimicked_joints.size();
   for (size_t idx = 0; idx < num_mimics; ++idx) {
     const auto mimicking_idx = model_.mimicking_joints[idx];
@@ -190,27 +223,107 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
     info.limits.max_velocity = mimicked_joint_info.limits.max_velocity * scaling_abs;
     info.limits.max_acceleration = mimicked_joint_info.limits.max_acceleration * scaling_abs;
     info.limits.max_jerk = mimicked_joint_info.limits.max_jerk * scaling_abs;
-    joint_info_map_.emplace(mimicking_joint_name, info);
+    joint_info_map_.insert_or_assign(mimicking_joint_name, std::move(info));
   }
+}
 
-  // Everything in the collision model at this point belongs to the robot itself. Objects added
-  // later append, so this list remains valid for the Scene's lifetime.
-  robot_collision_geometry_ids_.resize(collision_model_.ngeoms);
-  std::iota(robot_collision_geometry_ids_.begin(), robot_collision_geometry_ids_.end(), 0);
+void Scene::importJointLimitsFromConfig(const YAML::Node& yaml_config) {
+  for (auto& [joint_name, info] : joint_info_map_) {
+    if (info.mimic_info) {
+      continue;
+    }
 
-  // Create auxiliary model info.
-  frame_map_ = createFrameMap(model_);
-  joint_group_info_map_ = createDefaultJointGroupInfo(model_);
-
-  model_data_ = pinocchio::Data(model_);
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
-  rebuildBroadphaseManager();
-
-  // Initialize the current state of the scene.
-  cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
-                                  .positions = pinocchio::neutral(model_),
-                                  .velocities = Eigen::VectorXd::Zero(model_.nv),
-                                  .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+    const int nv = static_cast<int>(info.num_velocity_dofs);
+    std::optional<YAML::Node> maybe_min_pos_limits;
+    std::optional<YAML::Node> maybe_max_pos_limits;
+    std::optional<YAML::Node> maybe_vel_limits;
+    std::optional<YAML::Node> maybe_acc_limits;
+    std::optional<YAML::Node> maybe_jerk_limits;
+    if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
+      const auto& limits_config = yaml_config["joint_limits"][joint_name];
+      if (limits_config["min_position"]) {
+        maybe_min_pos_limits = limits_config["min_position"];
+        if (!maybe_min_pos_limits->IsSequence() ||
+            (maybe_min_pos_limits->size() != static_cast<size_t>(nv))) {
+          throw std::runtime_error("Minimum position limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(nv) + ".");
+        }
+      }
+      if (limits_config["max_position"]) {
+        maybe_max_pos_limits = limits_config["max_position"];
+        if (!maybe_max_pos_limits->IsSequence() ||
+            (maybe_max_pos_limits->size() != static_cast<size_t>(nv))) {
+          throw std::runtime_error("Maximum position limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(nv) + ".");
+        }
+      }
+      if (limits_config["max_velocity"]) {
+        maybe_vel_limits = limits_config["max_velocity"];
+        if (!maybe_vel_limits->IsSequence() ||
+            (maybe_vel_limits->size() != static_cast<size_t>(nv))) {
+          throw std::runtime_error("Velocity limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(nv) + ".");
+        }
+      }
+      if (limits_config["max_acceleration"]) {
+        maybe_acc_limits = limits_config["max_acceleration"];
+        if (!maybe_acc_limits->IsSequence() ||
+            (maybe_acc_limits->size() != static_cast<size_t>(nv))) {
+          throw std::runtime_error("Acceleration limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(nv) + ".");
+        }
+      }
+      if (limits_config["max_jerk"]) {
+        maybe_jerk_limits = limits_config["max_jerk"];
+        if (!maybe_jerk_limits->IsSequence() ||
+            (maybe_jerk_limits->size() != static_cast<size_t>(nv))) {
+          throw std::runtime_error("Jerk limits for joint '" + joint_name +
+                                   "' must be a sequence of size " + std::to_string(nv) + ".");
+        }
+      }
+    }
+    for (int idx = 0; idx < nv; ++idx) {
+      // Position limits are overridden per velocity-space DOF. Free-rotating DOFs (continuous
+      // joints and the orientation DOFs of planar/floating joints) have no meaningful position
+      // limit, so any finite override is discarded with a warning; use '.inf' / '-.inf' instead.
+      const bool is_free_dof = isFreeRotatingDof(info.type, idx);
+      bool discarded_pos_limit = false;
+      if (maybe_min_pos_limits) {
+        const double val = maybe_min_pos_limits.value()[idx].as<double>();
+        if (is_free_dof) {
+          discarded_pos_limit |= std::isfinite(val);
+        } else {
+          info.limits.min_position[idx] = sanitizeLimit(val);
+        }
+      }
+      if (maybe_max_pos_limits) {
+        const double val = maybe_max_pos_limits.value()[idx].as<double>();
+        if (is_free_dof) {
+          discarded_pos_limit |= std::isfinite(val);
+        } else {
+          info.limits.max_position[idx] = sanitizeLimit(val);
+        }
+      }
+      if (discarded_pos_limit) {
+        std::cout << "Warning: joint '" << joint_name
+                  << "' has a free-rotating DOF (velocity-space index " << idx
+                  << "); the specified position limit was discarded. Use '.inf' and '-.inf' in the "
+                     "YAML config to denote an unbounded position."
+                  << std::endl;
+      }
+      if (maybe_vel_limits) {
+        info.limits.max_velocity[idx] = maybe_vel_limits.value()[idx].as<double>();
+      }
+      if (maybe_acc_limits) {
+        info.limits.max_acceleration[idx] =
+            sanitizeLimit(maybe_acc_limits.value()[idx].as<double>());
+      }
+      if (maybe_jerk_limits) {
+        info.limits.max_jerk[idx] = sanitizeLimit(maybe_jerk_limits.value()[idx].as<double>());
+      }
+    }
+  }
+  applyMimicJointLimits();
 }
 
 Eigen::VectorXd Scene::getCurrentJointPositionsWithMimics() const {
@@ -328,9 +441,8 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
                                         /*stopAtFirstCollision=*/true);
   }
 
-  // Debug path: evaluate every pair with the naive backend (no stop-at-first) so that all
-  // individual colliding pairs can be printed. The broadphase fast path stops at the first
-  // collision and therefore cannot enumerate every colliding pair.
+  // Debug path: the naive backend evaluates every pair (no stop-at-first) so all colliding pairs
+  // can be printed; the broadphase fast path stops at the first collision.
   return computeCollisionsVerbose(model_, model_data_, collision_model_, collision_model_data_, q);
 }
 
@@ -593,11 +705,8 @@ void Scene::computeRelativeFrameJacobian(pinocchio::Data& model_data, const Eige
   const pinocchio::SE3& T_ee = model_data.oMf.at(frame_id);
   const pinocchio::SE3& T_base = model_data.oMf.at(base_id);
 
-  // World-frame relative Jacobian (at EE origin, world orientation).
-  //
-  // This is the transport theorem for the velocity of a point expressed in a moving
-  // frame: the EE velocity relative to the base equals the EE world velocity minus the
-  // base world velocity minus the rigid-body coupling term omega_base x (p_ee - p_base).
+  // World-frame relative Jacobian (at EE origin, world orientation), from the transport theorem
+  // for the velocity of a point expressed in a moving frame.
   // Refs: Siciliano et al., "Robotics: Modelling, Planning and Control", Sec. 3.1.1,
   // Eq. (3.14); Featherstone, "Rigid Body Dynamics Algorithms", Secs. 2.2 and 2.8.
   //

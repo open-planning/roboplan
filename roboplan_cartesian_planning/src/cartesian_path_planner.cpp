@@ -439,7 +439,7 @@ CartesianPathPlanner::solveStep(const std::vector<FrameReference>& references,
   const Eigen::VectorXd delta_q_full = scene_->toFullJointVelocities(options_.group_name, delta_q);
   q_candidate = scene_->integrate(q, delta_q_full);
 
-  // Worst-case pose error across all tracked frames drives the tolerance/throttling logic.
+  // Worst-case pose error across all tracked frames.
   position_error = 0.0;
   orientation_error = 0.0;
   for (const auto& reference : references) {
@@ -548,7 +548,7 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   // deviate away from the intended path.
   //
   // Starting from just the first and last sample, we recursively check whether a straight
-  // joint-space interpolation between two kept samples stays close though to the reference at all
+  // joint-space interpolation between two kept samples stays close enough to the reference at all
   // the intermediate samples. If the worst deviation exceeds the budget, that sample must be kept
   // and we split the span. Otherwise every intermediate sample is redundant and can be removed.
   //

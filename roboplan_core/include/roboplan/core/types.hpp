@@ -10,6 +10,7 @@
 
 namespace roboplan {
 
+/// @brief A pair of vectors, e.g. (lower, upper) limits.
 using EigenVectorPair = std::pair<Eigen::VectorXd, Eigen::VectorXd>;
 
 /// @brief Represents a robot joint configuration.
@@ -40,8 +41,7 @@ struct CartesianConfiguration {
   std::string tip_frame;
 
   /// @brief The transformation matrix from the base to the tip frame.
-  /// NOTE: I'd like this to be an Isometry3d but nanobind doesn't have off the
-  /// shelf bindings for this.
+  /// @details Stored as a Matrix4d rather than an Isometry3d, which nanobind cannot bind directly.
   Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
 };
 
@@ -134,8 +134,8 @@ struct JointGroupInfo {
   /// @brief Whether the group has any continuous degrees of freedom.
   bool has_continuous_dofs{false};
 
-  /// @brief The number of collapsed degrees of freedom.
-  /// @details To get the full (expanded) value, this is q_indices.size().
+  /// @brief The number of position DOFs with each continuous rotation collapsed to one angle.
+  /// @details The full (expanded) count is q_indices.size().
   size_t nq_collapsed;
 
   /// @brief Prints basic information about the joint group.
@@ -195,12 +195,10 @@ struct CartesianPath {
   std::vector<std::string> tip_frames;
 
   /// @brief The list of Cartesian transforms from each base frame to each tip frame.
-  ///
-  /// The outer vector indexes the end-effector frame and the inner vector indexes
+  /// @details The outer vector indexes the end-effector frame and the inner vector indexes
   /// path waypoints, so tforms[frame_idx][path_idx] is the transform for
   /// tip_frames[frame_idx] at that path waypoint.
-  /// NOTE: I'd like this to be a std::vector<std::vector<Eigen::Isometry3d>>
-  /// but nanobind doesn't have off the shelf bindings for this.
+  /// Stored as Matrix4d rather than Isometry3d, which nanobind cannot bind directly.
   std::vector<std::vector<Eigen::Matrix4d>> tforms;
 
   /// @brief Prints basic information about the path.
@@ -228,12 +226,10 @@ struct CartesianTrajectory {
   std::vector<double> times;
 
   /// @brief The list of Cartesian transforms from each base frame to each tip frame.
-  ///
-  /// The outer vector indexes the end-effector frame and the inner vector indexes
+  /// @details The outer vector indexes the end-effector frame and the inner vector indexes
   /// time, so tforms[frame_idx][time_idx] is the transform for
   /// tip_frames[frame_idx] at times[time_idx].
-  /// NOTE: I'd like this to be a std::vector<std::vector<Eigen::Isometry3d>>
-  /// but nanobind doesn't have off the shelf bindings for this.
+  /// Stored as Matrix4d rather than Isometry3d, which nanobind cannot bind directly.
   std::vector<std::vector<Eigen::Matrix4d>> tforms;
 
   /// @brief Prints basic information about the trajectory.

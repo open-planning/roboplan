@@ -40,7 +40,8 @@ protected:
     package_paths_ = {example_models::get_package_share_dir()};
     yaml_config_path_ = model_prefix / "ur_robot_model" / "ur5_config.yaml";
     const auto description = loadUrdfSceneDescription(urdf_path_, package_paths_);
-    scene_ = std::make_shared<Scene>("test_scene", description, yaml_config_path_);
+    scene_ = std::make_shared<Scene>("test_scene", description);
+    scene_->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path_));
     if (const auto imported = scene_->importSrdf(loadTextFile(srdf_path_)); !imported) {
       throw std::runtime_error(imported.error());
     }
@@ -325,7 +326,6 @@ TEST_F(SelfCollisionBarrierTest, ResizesWorkspaceWhenPairCountGrows) {
 }
 
 TEST_F(SelfCollisionBarrierTest, IkSolvesWithBarrier) {
-  // Verify that solveIk() runs end to end with the self-collision barrier.
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
   scene_->forwardKinematics(q, "tool0");

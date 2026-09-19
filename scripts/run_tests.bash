@@ -5,10 +5,9 @@
 EXIT_CODE=0
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# Packages with Python binding tests, for the Python runner below (C++
-# tests run via one ctest invocation, no package list needed).
+# Packages checked for Python binding tests (C++ tests run via one ctest call).
 PACKAGES=(
-    roboplan
+    roboplan_core
     roboplan_rrt
     roboplan_simple_ik
     roboplan_oink
@@ -55,6 +54,8 @@ Running Python tests...
     do
         [[ -d "${PACKAGE}/bindings/test" ]] && PYTEST_DIRS+=("${PACKAGE}/bindings/test")
     done
+    # Import smoke test for every set of bindings (matches the `test_py` pixi task).
+    [[ -d "roboplan_examples/test" ]] && PYTEST_DIRS+=("roboplan_examples/test")
     python3 -m pytest "${PYTEST_DIRS[@]}" || EXIT_CODE=$?
     popd > /dev/null || exit
 fi

@@ -15,7 +15,6 @@ namespace roboplan {
 class VelocityLimitTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    // Use UR5 robot for testing
     const auto model_prefix = example_models::get_package_models_dir();
     urdf_path_ = model_prefix / "ur_robot_model" / "ur5_gripper.urdf";
     srdf_path_ = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
@@ -23,7 +22,8 @@ protected:
     yaml_config_path_ = model_prefix / "ur_robot_model" / "ur5_config.yaml";
 
     const auto description = loadUrdfSceneDescription(urdf_path_, package_paths_);
-    scene_ = std::make_shared<Scene>("test_scene", description, yaml_config_path_);
+    scene_ = std::make_shared<Scene>("test_scene", description);
+    scene_->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path_));
     if (const auto imported = scene_->importSrdf(loadTextFile(srdf_path_)); !imported) {
       throw std::runtime_error(imported.error());
     }
@@ -107,7 +107,6 @@ TEST_F(VelocityLimitTest, ConstraintMatrixIsIdentity) {
                                         upper_bounds)
                   .has_value());
 
-  // Constraint matrix should be identity for box constraints
   Eigen::MatrixXd expected_identity = Eigen::MatrixXd::Identity(num_variables_, num_variables_);
   EXPECT_TRUE(constraint_matrix.isApprox(expected_identity));
 }
@@ -180,7 +179,7 @@ TEST_F(VelocityLimitTest, PerJointLimits) {
   }
 }
 
-// Test with zero velocity limit
+// Test with zero velocity limit (no motion allowed)
 TEST_F(VelocityLimitTest, ZeroVelocityLimit) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Zero(num_variables_);
@@ -196,14 +195,13 @@ TEST_F(VelocityLimitTest, ZeroVelocityLimit) {
                                         upper_bounds)
                   .has_value());
 
-  // Both bounds should be zero (no motion allowed)
   EXPECT_TRUE(upper_bounds.isApprox(Eigen::VectorXd::Zero(num_variables_)));
   EXPECT_TRUE(lower_bounds.isApprox(Eigen::VectorXd::Zero(num_variables_)));
 }
 
 // Test with very small timestep
 TEST_F(VelocityLimitTest, SmallTimestep) {
-  double dt = 1e-6;  // Very small timestep
+  double dt = 1e-6;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_) * 1.0;
 
   VelocityLimit constraint(*oink_, dt, v_max);
@@ -217,7 +215,6 @@ TEST_F(VelocityLimitTest, SmallTimestep) {
                                         upper_bounds)
                   .has_value());
 
-  // Bounds should be very small
   EXPECT_LT(upper_bounds.maxCoeff(), 1e-5);
   EXPECT_GT(lower_bounds.minCoeff(), -1e-5);
 }
@@ -248,7 +245,6 @@ TEST_F(VelocityLimitTest, MismatchedVMaxSize) {
   double dt = 0.01;
   Eigen::VectorXd v_max = Eigen::VectorXd::Ones(num_variables_ - 1);  // Wrong size
 
-  // Constructor should throw std::invalid_argument due to size mismatch
   EXPECT_THROW({ VelocityLimit constraint(*oink_, dt, v_max); }, std::invalid_argument);
 }
 
@@ -278,7 +274,6 @@ TEST_F(VelocityLimitTest, ModifyDt) {
 
   VelocityLimit constraint(*oink_, dt, v_max);
 
-  // Change dt
   constraint.dt = 0.02;
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);
@@ -302,7 +297,6 @@ TEST_F(VelocityLimitTest, ModifyVMax) {
 
   VelocityLimit constraint(*oink_, dt, v_max);
 
-  // Change v_max
   constraint.v_max = Eigen::VectorXd::Ones(num_variables_) * 2.0;
 
   Eigen::MatrixXd constraint_matrix(num_variables_, num_variables_);

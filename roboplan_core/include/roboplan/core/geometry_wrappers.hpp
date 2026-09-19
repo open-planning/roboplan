@@ -38,8 +38,8 @@ namespace roboplan {
 struct Box {
   /// @brief Construct a Box object wrapper
   /// @param x The X dimension of the box.
-  /// @param y The y dimension of the box.
-  /// @param z The z dimension of the box.
+  /// @param y The Y dimension of the box.
+  /// @param z The Z dimension of the box.
   Box(double x, double y, double z) { geom_ptr = std::make_shared<coal::Box>(x, y, z); };
 
   /// @brief The underlying Coal box geometry.
@@ -87,7 +87,13 @@ struct Mesh {
   std::shared_ptr<coal::BVHModelBase> geom_ptr;
 };
 
+/// @brief Temporary wrapper struct to represent an octree geometry.
 struct OcTree {
+  /// @brief Construct an OcTree object wrapper from occupied boxes.
+  /// @param boxes Boxes as (x, y, z, size, occupancy, threshold), the format of Coal's
+  /// `OcTree::toBoxes()`. The size column is ignored, and the first box's threshold is used as the
+  /// tree's occupancy threshold.
+  /// @param resolution The leaf (voxel) size of the octree, in meters.
   OcTree(const std::vector<Eigen::Matrix<double, 6, 1>>& boxes, const double resolution) {
     auto octree = std::make_shared<octomap::OcTree>(resolution);
 
@@ -108,8 +114,10 @@ struct OcTree {
     geom_ptr = std::make_shared<coal::OcTree>(octree);
   }
 
+  /// @brief Construct an OcTree object wrapper from a pre-built Coal octree.
   OcTree(const std::shared_ptr<coal::OcTree>& octree_geom) { geom_ptr = octree_geom; }
 
+  /// @brief The underlying Coal octree geometry.
   std::shared_ptr<coal::OcTree> geom_ptr;
 };
 

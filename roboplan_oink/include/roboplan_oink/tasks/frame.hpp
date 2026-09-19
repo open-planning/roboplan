@@ -23,7 +23,7 @@ struct FrameTaskOptions {
   /// @brief Cost weight for orientation error (default: 1.0).
   double orientation_cost = 1.0;
 
-  /// @brief Proportional gain for error feedback (default: 1.0).
+  /// @brief Task gain for low-pass filtering (default: 1.0).
   double task_gain = 1.0;
 
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
@@ -46,30 +46,32 @@ struct FrameTaskOptions {
 
 /// @brief Task for tracking a target Cartesian pose with a specified frame.
 ///
-/// This task computes the SE(3) error between a target pose and the current
-/// frame pose, enabling full 6-DOF (position + orientation) tracking.
+/// Computes the SE(3) error between a target pose and the current frame pose, for full 6-DOF
+/// (position + orientation) tracking.
 ///
 /// The task owns pre-allocated storage for its 6×nv Jacobian and 6D error vector,
 /// allocated at construction time to avoid runtime allocations during IK solving.
 struct FrameTask : public Task {
   /// @brief Constructs a FrameTask for tracking a target pose.
-  ///
-  /// The Oink solver provides the velocity indices (for Jacobian column selection).
-  /// The scene is used at construction time to resolve the frame ID and allocate
-  /// the full Jacobian buffer.
-  ///
-  /// @param oink The Oink solver instance this task will be used with.
+  /// @param oink The Oink solver this task will be used with (provides the velocity indices for
+  ///        Jacobian column selection).
   /// @param scene The scene used to resolve the frame ID and allocate storage.
   /// @param target_pose The target Cartesian configuration to reach.
   /// @param options Optional task options (default: all options set to defaults).
-  /// @throws std::runtime_error if the frame name is not found in the scene.
+  /// @throws std::runtime_error if the frame or its base frame is not found in the scene.
   FrameTask(const Oink& oink, const Scene& scene, const CartesianConfiguration& target_pose,
             const FrameTaskOptions& options = {});
 
-  /// @brief Computes the SE(3) error between target and current frame pose.
+  /// @brief Computes the 6D pose error between the target and the current frame pose.
   ///
-  /// The error is computed as the logarithm of the relative transform:
-  ///     error = log_6(T_frame_to_world^{-1} * T_target_to_world)
+  /// The error is expressed in world-aligned coordinates, split into a position and a
+  /// rotation part:
+  ///     e_pos = p_target - p_frame
+  ///     e_rot = R_frame * log_3(R_frame^T * R_target)
+  ///
+  /// Each part is then softly saturated to `max_position_error` / `max_rotation_error`
+  /// (when finite) using e_max * tanh(||e|| / e_max) * e / ||e||, which bounds the step
+  /// requested from the QP and keeps the CBF linearization valid.
   ///
   /// Results are stored in error_container.
   ///
@@ -79,15 +81,15 @@ struct FrameTask : public Task {
 
   /// @brief Computes the task Jacobian for the frame tracking task.
   ///
-  /// The task Jacobian J(q) ∈ ℝ^(6 × n_v) is the derivative of the task
-  /// error e(q) ∈ ℝ^6 with respect to the configuration q. The formula is:
+  /// The task Jacobian J(q) ∈ ℝ^(6 × n_v) is the negated frame Jacobian of the tracked
+  /// frame, expressed in LOCAL_WORLD_ALIGNED coordinates so that it matches the error
+  /// convention of computeError():
   ///
-  ///     J(q) = -Jlog_6(T_frame_to_target) * J_frame(q)
+  ///     J(q) = -J_frame(q)
   ///
-  /// Where:
-  /// - T_frame_to_target: Transform from current frame to target
-  /// - J_frame(q): Frame Jacobian (expressed in frame coordinates)
-  /// - Jlog_6: Pinocchio's logarithmic Jacobian
+  /// When a base frame is set, the relative Jacobian of the frame with respect to that base
+  /// is used instead, so that the base frame's own motion through the joints is accounted for.
+  /// The negation ensures the QP formulation (min ||J Δq + α e||²) moves toward the target.
   ///
   /// Results are stored in jacobian_container.
   ///

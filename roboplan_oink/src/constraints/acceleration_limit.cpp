@@ -76,7 +76,6 @@ int AccelerationLimit::getNumConstraints(const SceneContext& /*context*/) const 
 tl::expected<void, std::string> AccelerationLimit::computeQpConstraints(
     const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
     Eigen::Ref<Eigen::VectorXd> lower_bounds, Eigen::Ref<Eigen::VectorXd> upper_bounds) const {
-  // Validate pre-allocated workspace dimensions.
   if (constraint_matrix.rows() != num_variables || constraint_matrix.cols() != num_variables) {
     return tl::make_unexpected("AccelerationLimit: constraint_matrix size mismatch. Expected (" +
                                std::to_string(num_variables) + " x " +
@@ -125,7 +124,6 @@ tl::expected<void, std::string> AccelerationLimit::computeQpConstraints(
 
   // Box constraints l <= G*dq <= u with G = identity.
   constraint_matrix.setIdentity();
-
   const double dt_sq = dt * dt;
   for (int i = 0; i < num_variables; ++i) {
     // A joint that cannot accelerate cannot move. Pin it instead of emitting a box that the

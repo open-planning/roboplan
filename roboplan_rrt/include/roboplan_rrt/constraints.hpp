@@ -81,7 +81,7 @@ public:
 ///
 /// Leaving one rotation coordinate free while bounding the other two is the usual way to express an
 /// axis constraint. Bounding roll and pitch to +/- theta with yaw free, for instance, keeps the
-/// frame's z axis within acos(cos^2(theta)) of the frame's z axis while allowing spin about it.
+/// frame's z axis within acos(cos^2(theta)) of the region frame's z axis while allowing spin.
 ///
 /// @note The roll-pitch-yaw parameterization is singular at a pitch of +/- pi/2 relative to the
 /// region frame. To avoid singularities, choose a region frame near the desired orientation.
@@ -101,10 +101,10 @@ public:
   /// @param orientation_tolerance The orientation residual norm, in radians, that counts as
   /// satisfied.
   /// @note The tolerances are how far outside the bounds a configuration may sit and still count
-  /// as satisfying the constraint, so they must be loose enough to cover the drift between two
-  /// projected configurations a planner connects. That drift grows with the square of the
-  /// planner's step, so the defaults are chosen for ConstraintProjectorOptions::path_step_size at
-  /// its own default; tighten them alongside a smaller step, and loosen them for a larger one.
+  /// as satisfying the constraint, so they must cover the drift between two projected
+  /// configurations a planner connects. That drift grows with the square of the planner's step, so
+  /// the defaults assume the default ConstraintProjectorOptions::path_step_size; tighten them with
+  /// a smaller step and loosen them with a larger one.
   PoseConstraint(const std::shared_ptr<Scene> scene, const std::string& group_name,
                  const std::string& frame_name,
                  const TaskSpaceVector& lower_bounds =
@@ -243,10 +243,9 @@ struct ConstraintProjectorOptions {
   double damping = 1.0e-6;
 
   /// @brief The fraction of each constraint's tolerance the projection converges to.
-  /// @details Stopping the moment the residual first dips under the tolerance leaves a
-  /// configuration sitting exactly on the tolerance boundary, so interpolating between two such
-  /// configurations immediately falls outside it. Converging well inside instead leaves the
-  /// headroom that a planner's edges need. Must be in (0, 1].
+  /// @details Stopping as soon as the residual dips under the tolerance leaves a configuration on
+  /// the tolerance boundary, so interpolating between two such configurations falls outside it.
+  /// Converging well inside leaves the headroom a planner's edges need. Must be in (0, 1].
   double convergence_ratio = 0.1;
 };
 

@@ -13,13 +13,11 @@ using namespace nanobind::literals;
 void init_example_models(nanobind::module_& m) {
 
   m.def("get_install_prefix", &example_models::get_install_prefix,
-        "Provides compile time access to the resources install directory.");
+        "Returns the install prefix, located at runtime from this shared library.");
   m.def("get_package_share_dir", &example_models::get_package_share_dir,
-        "Provides compile time access to the resources shared directory for accessing robot models "
-        "or other resource files.");
+        "Returns the `share` directory under the install prefix.");
   m.def("get_package_models_dir", &example_models::get_package_models_dir,
-        "Provides compile time access to the directory under the resources shared directory which "
-        "contains all the example robot models.");
+        "Returns the example robot models directory (`share/roboplan_example_models/models`).");
 }
 
 }  // namespace roboplan

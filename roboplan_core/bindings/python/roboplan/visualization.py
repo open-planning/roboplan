@@ -15,7 +15,7 @@ from roboplan.core import (
 )
 
 
-# TODO: Remove this function when this OcTree visualization support in Viser is added into pinocchio.
+# TODO: Remove this function once Pinocchio's ViserVisualizer supports OcTrees.
 # For more information, see https://github.com/stack-of-tasks/pinocchio/issues/2868
 # Inspired from https://github.com/stack-of-tasks/pinocchio/blob/655877b314baed68c7e2d4dd56b0a0200bb9f98e/bindings/python/pinocchio/visualize/meshcat_visualizer.py#L235-L295
 def visualizeOcTree(
@@ -85,10 +85,10 @@ def visualizeOcTree(
         all_faces[face_id + 5] = np.array([H, G, E])
         all_faces[face_id + 6] = np.array([G, H, D])
         all_faces[face_id + 7] = np.array([D, C, G])
-        # # top
+        # top
         all_faces[face_id + 8] = np.array([A, E, G])
         all_faces[face_id + 9] = np.array([G, C, A])
-        # # bottom
+        # bottom
         all_faces[face_id + 10] = np.array([B, H, F])
         all_faces[face_id + 11] = np.array([H, B, D])
 
@@ -237,9 +237,6 @@ def plotJointTrajectory(
 
     subplots = []
     if positions:
-        # Trajectory positions are stored expanded (continuous joints as cos/sin pairs);
-        # collapse them to velocity-DOF coordinates so they match the velocity/acceleration
-        # curves and the dof_names above.
         collapsed_positions = [
             collapseContinuousJointPositions(scene, group_name, q)
             for q in trajectory.positions

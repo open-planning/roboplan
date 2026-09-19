@@ -16,16 +16,15 @@ ROS Interface and Examples
 
 While RoboPlan itself is a middleware-free core library by design, integrating with common robotics ecosystems is desirable.
 
-As such, we also maintain an experimental `roboplan-ros <https://github.com/open-planning/roboplan-ros>`_ repository,
+As such, we also maintain a `roboplan-ros <https://github.com/open-planning/roboplan-ros>`_ repository,
 which contains a RoboPlan ROS 2 wrapper.
 
 This project involves directly working on the ``roboplan-ros`` repository, helping expand the capabilities and better integrate into the ROS ecosystem.
 Some representative tasks in this project are:
 
-* Helping finalize the ROS wrappers to RoboPlan for motion planning, inverse kinematics, modifying scene obstacles, etc.
-* Creating ROS 2 controllers that utilize inverse kinematics, online planning, and/or collision checking capabilities in RoboPlan.
+* Helping build up the ROS wrappers to RoboPlan for motion planning, inverse kinematics, modifying scene obstacles, etc.
+* Creating ROS 2 controllers that use inverse kinematics, online planning, and/or collision checking capabilities in RoboPlan.
 * Putting together more complete examples that use simulators such as MuJoCo/Gazebo with ``ros2_control`` and demonstrate full motion planning pipelines (`here <https://github.com/NASA-JSC-Robotics/clr_ws>`_ is a motivating example).
-* Work on releasing the ROS wrappers to the ROS Buildfarm, so the packages can be installed via binaries.
 
 You are welcome to propose a subset of the above ideas for this project, or even come up with new ideas!
 The ROS ecosystem has a large space to explore, and many types of contributions are welcome.
@@ -63,8 +62,8 @@ Expanding Available Algorithms in RoboPlan
 
 **Description:**
 
-Currently, RoboPlan offers basic algorithms for collision-free motion planning (RRT),
-inverse kinematics (simple IK and optimization-based IK), and trajectory timing (TOPP-RA).
+Currently, RoboPlan offers basic algorithms for collision-free motion planning (RRT and its variants),
+inverse kinematics (simple IK and optimization-based IK), Cartesian path planning, and trajectory timing (TOPP-RA).
 
 There are many other algorithms in the space of motion planning that could be implemented here.
 If you have any ideas for new algorithms to implement or integrate into RoboPlan, and you find this exciting,

@@ -32,8 +32,8 @@ struct RobotBodyFilterOptions {
   RobotBodyFilterMethod method = RobotBodyFilterMethod::Narrowphase;
 
   /// @brief Number of threads used to classify points, or 0 to use all hardware threads.
-  /// Points are split into blocks that the threads pull from a shared queue, so at most one
-  /// thread per block is ever spawned and small clouds are processed serially either way.
+  /// Threads pull blocks of points from a shared counter, and at most one thread is used per 8192
+  /// points, so small clouds are processed serially either way.
   size_t num_threads = 0;
 };
 

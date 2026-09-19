@@ -151,7 +151,8 @@ protected:
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
     const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
-    scene = std::make_shared<Scene>("test_scene", description, yaml_path);
+    scene = std::make_shared<Scene>("test_scene", description);
+    scene->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_path));
     if (const auto imported = scene->importSrdf(loadTextFile(srdf_path)); !imported) {
       throw std::runtime_error(imported.error());
     }

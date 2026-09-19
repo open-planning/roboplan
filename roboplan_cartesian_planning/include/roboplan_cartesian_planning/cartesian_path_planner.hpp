@@ -54,13 +54,13 @@ struct CartesianPlannerOptions {
   double max_angular_speed = 0.5;
 
   /// @brief Maximum linear tool acceleration along the path, in meters/second^2.
-  /// @details Only used in Bounded speed mode, where the tool speed is ramped up and down so
-  /// the Cartesian linear acceleration stays within this bound.
+  /// @details Only used in Bounded speed mode, which slows the whole motion until the peak tool
+  /// linear acceleration is within this bound.
   double max_linear_acceleration = 0.5;
 
   /// @brief Maximum angular tool acceleration along the path, in radians/second^2.
-  /// @details Only used in Bounded speed mode, where the tool speed is ramped up and down so
-  /// the Cartesian angular acceleration stays within this bound.
+  /// @details Only used in Bounded speed mode, which slows the whole motion until the peak tool
+  /// angular acceleration is within this bound.
   double max_angular_acceleration = 2.5;
 
   /// @brief Maximum allowed position deviation from the path, in meters.
@@ -99,7 +99,7 @@ struct CartesianPlannerOptions {
   /// @brief Corner-rounding tolerance, in joint-space units, for the straight-segment +
   /// circular-blend geometry TOPP-RA times the path over.
   /// @details Each corner is replaced by a circular arc that strays from it by at most this much.
-  /// Larger values round corners more aggressively, which means smoother motion with less stops,
+  /// Larger values round corners more aggressively, which means smoother motion with fewer stops,
   /// but the joint path strays further from the resolved waypoints. The tolerance is a joint-space
   /// bound, so the tool deviation it produces varies with the arm and is not checked against
   /// max_position_error. A value <= 0 disables blending, so the trajectory stops at every waypoint.
@@ -129,7 +129,7 @@ struct CartesianPlannerComponents {
   /// Must not be null.
   std::shared_ptr<Oink> oink;
 
-  /// @brief The FrameTasks whose target poses uses to trace the path, one per end-effector.
+  /// @brief The FrameTasks used to trace the path, one per end-effector.
   /// @details Entry i tracks the frame named by path.tip_frames[i] of the CartesianPath,
   /// so the count and order must match the path's specified tip frames.
   /// Each task must be constructed against `oink` and must track the matching tip frame.
@@ -156,9 +156,8 @@ struct CartesianPlannerComponents {
 class CartesianPathPlanner {
 public:
   /// @brief Constructor that builds the default differential-IK setup internally.
-  /// @details Constructs its own OInK solver and, on each plan() call, one FrameTask per
-  /// end-effector in the path plus a nullspace ConfigurationTask, bounded by VelocityLimit and
-  /// PositionLimit constraints, configured from `options`.
+  /// @details Constructs its own OInK solver and, on each plan() call, the default setup described
+  /// in CartesianPlannerComponents, configured from `options`.
   /// @param scene A pointer to the scene to use for planning.
   /// @param options A struct containing planner options.
   /// @throws std::runtime_error if the joint group cannot be resolved.

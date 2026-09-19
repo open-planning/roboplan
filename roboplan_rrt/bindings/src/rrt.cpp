@@ -80,7 +80,8 @@ void initConstraints(nanobind::module_& m) {
               "Damping value for the Jacobian pseudoinverse.")
       .def_rw("convergence_ratio", &ConstraintProjectorOptions::convergence_ratio,
               "The fraction of each constraint's tolerance the projection converges to, leaving "
-              "headroom for the interpolation between projected configurations.");
+              "headroom for the interpolation between projected configurations. Must be in "
+              "(0, 1].");
 
   nanobind::class_<ConstraintProjector>(
       m, "ConstraintProjector",
@@ -118,7 +119,9 @@ void initRrt(nanobind::module_& m) {
       .def(nanobind::init<const Eigen::VectorXd&, int>(), "config"_a, "parent_id"_a)
       .def_ro("config", &Node::config, "The configuration (e.g., joint positions) of this node.")
       .def_ro("parent_id", &Node::parent_id, "The parent node ID.")
-      .def_ro("cost", &Node::cost, "The cost-to-come from the tree root to this node (RRT* only).");
+      .def_ro("cost", &Node::cost,
+              "The cost-to-come from the tree root to this node. Zero unless rrt_star is true or "
+              "fast_return is false.");
 
   nanobind::class_<RRTOptions>(m, "RRTOptions", "Options struct for RRT planner.")
       .def(nanobind::init<const std::string&, size_t, double, double, bool, double, double, bool,
@@ -139,7 +142,8 @@ void initRrt(nanobind::module_& m) {
           "collision_check_use_bisection", &RRTOptions::collision_check_use_bisection,
           "If true, uses bisection instead of linear search for collision checking along edges.")
       .def_rw("goal_biasing_probability", &RRTOptions::goal_biasing_probability,
-              "The probability of sampling the goal node instead of a random node.")
+              "The probability of sampling the goal node instead of a random node. Must be "
+              "between 0 and 1. Ignored when `rrt_connect` is true.")
       .def_rw("max_planning_time", &RRTOptions::max_planning_time,
               "The maximum amount of time to allow for planning, in seconds.")
       .def_rw("rrt_connect", &RRTOptions::rrt_connect,
@@ -152,7 +156,8 @@ void initRrt(nanobind::module_& m) {
               "If true, return on the first path found; if false, plan until the budget is "
               "exhausted and return the lowest-cost path.")
       .def_rw("constraint_projection", &RRTOptions::constraint_projection,
-              "Options for the projection that pulls sampled configurations onto the constraints.");
+              "Options for the projection that pulls sampled configurations onto the constraints. "
+              "Only used when `plan` is given constraints.");
 
   nanobind::class_<RRT>(
       m, "RRT", "Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.")

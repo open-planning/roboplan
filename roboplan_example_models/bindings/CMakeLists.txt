@@ -4,8 +4,8 @@
 # BUILD_PYTHON_BINDINGS is ON. The roboplan_example_models target is already
 # available from the parent configure. This package is standalone (no core dep).
 #
-# NOTE: the ament/scikit/nanobind detection below is intentionally duplicated
-# per package for clarity rather than factored into a shared helper.
+# NOTE: the ament/cmeel/nanobind detection below is intentionally duplicated per
+# package for clarity rather than factored into a shared helper.
 
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)

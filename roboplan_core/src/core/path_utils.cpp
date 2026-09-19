@@ -49,11 +49,9 @@ std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>&
     return positions;
   }
 
-  // Scene::configurationDistance / interpolate operate on full model configurations, while the
-  // input stores only the group coordinates. Reuse two full-configuration buffers, writing each
-  // group waypoint into the group slice so the manifold-aware operations see the correct tangent
-  // space. The non-group joints are arbitrary (they cancel in the distance and pass through
-  // interpolation unchanged), so just seed both buffers from the scene's current state.
+  // configurationDistance / interpolate need full model configurations, but the input holds only
+  // group coordinates. Write each waypoint into the group slice of two reusable full buffers,
+  // seeded from the current state (non-group joints cancel in the distance and pass through).
   Eigen::VectorXd q_lhs = scene.getCurrentJointPositions();
   Eigen::VectorXd q_rhs = q_lhs;
 
@@ -109,8 +107,7 @@ bool hasCollisionsAlongPathImpl(const Scene& scene, const CollisionCheck& has_co
                                 const bool check_endpoints) {
   const auto distance = scene.configurationDistance(q_start, q_end);
 
-  // Optionally check the endpoints. Callers that have already validated both endpoints can set
-  // `check_endpoints` to false to skip these (expensive) collision checks entirely.
+  // Skipped when the caller has already validated both endpoints.
   const bool collision_at_endpoints =
       check_endpoints && (has_collisions(q_start) || has_collisions(q_end));
 
@@ -127,10 +124,9 @@ bool hasCollisionsAlongPathImpl(const Scene& scene, const CollisionCheck& has_co
   const auto num_steps = static_cast<size_t>(std::ceil(distance / max_step_size));
 
   if (bisection) {
-    // Visit the evenly-spaced interior grid points {1, ..., num_steps - 1} in a coarse-to-fine
-    // bisection order by recursively subdividing intervals at their midpoints. This keeps the
-    // early-termination benefit of bisection (collisions near the middle of an edge are found
-    // first) while checking exactly the same minimal number of points as the linear scan.
+    // Visit the interior grid points {1, ..., num_steps - 1} coarse-to-fine by recursively
+    // bisecting intervals: the same points as the linear scan, but collisions near the middle of
+    // an edge are found first.
     std::queue<std::pair<size_t, size_t>> intervals;
     intervals.emplace(0, num_steps);
     while (!intervals.empty()) {
@@ -285,9 +281,8 @@ JointPath PathShortcutter::shortcut(const JointPath& path) {
     // and following connections. We ONLY need to ensure that q_low and q_high are directly
     // connectable!
     //
-    // However, if  `q_start` and `q_low` or `q_high` and `q_end` are very close to each other,
-    // it doesn't make sense to add new configurations. If this is the case, use the existing
-    // configuration as the sample.
+    // If `q_start` and `q_low` (or `q_high` and `q_end`) are closer than max_step_size, use the
+    // existing configuration as the sample instead of adding a new one.
     q_start(q_indices) = path_configs[idx_low - 1];
     if (scene_->configurationDistance(q_start, q_low) < max_step_size) {
       q_low = q_start;
@@ -399,7 +394,7 @@ std::pair<Eigen::VectorXd, size_t> PathShortcutter::getConfigurationFromNormaliz
   auto q_start = q_full_;
   auto q_end = q_full_;
   for (long idx = 1; idx < path_scalings.size() - 1; ++idx) {
-    // Find the smallest index that is less than the provided value.
+    // Find the first waypoint whose normalized scaling is >= value.
     if (value > path_scalings(idx)) {
       continue;
     }

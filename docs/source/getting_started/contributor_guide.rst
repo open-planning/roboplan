@@ -29,7 +29,7 @@ The best way of making sure the stubs are up to date is by using Pixi:
 This uses the ``ci`` environment in our Pixi project to ensure that the build is done via copy, not symbolic link mechanism.
 
 ... but don't worry!
-There is a helpful CI check that will tell you if the stub files don't agree.
+A helpful CI check will tell you if the stub files don't agree.
 
 
 Running Tests and Generating Documentation
@@ -39,8 +39,7 @@ When working on your contributions, make sure the unit tests pass and the docume
 Of course, you should add your own tests and documentation depending on what you are working on!
 When adding unit tests, ensure you test both the C++ and Python sides (Coding Assistants are great at porting tests over to other languages).
 
-Running the tests depends on the installation workflow you used.
-Testing instructions are available in the :doc:`Installation </getting_started/installation>` page.
+Testing instructions for each installation workflow are on the :doc:`Installation </getting_started/installation>` page.
 
 If you are making changes that you think could affect the examples, we also recommend manually running the relevant examples to check that they still work.
 (Or even better, if you have ideas for automatically testing all the examples, that would be a great contribution!)
@@ -48,12 +47,14 @@ If you are making changes that you think could affect the examples, we also reco
 To generate the documentation on your end, ``cd`` to the ``docs`` subfolder of the repository.
 
 First, install the requirements (we recommend using a virtual environment).
+The C++ API docs are extracted with `Doxygen <https://www.doxygen.nl/>`_, which is not a Python package, so install it separately (e.g., ``apt install doxygen``, ``brew install doxygen``, or ``conda install doxygen``).
 
 ::
 
     pip3 install -r python_docs_requirements.txt
 
 Then, build the documentation.
+The C++ and Python API docs are generated automatically.
 
 ::
 
@@ -65,11 +66,6 @@ You can view the generated documentation in your browser.
 ::
 
     open build/html/index.html
-
-.. note::
-
-   The C++ and Python API docs should be automatically generated for you when you build the docs!
-
 
 When you submit a pull request, you can also access the built documentation from your branch from the `ReadTheDocs <https://about.readthedocs.com/>`_ CI job.
 

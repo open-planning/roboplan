@@ -148,7 +148,7 @@ class CartesianPlannerOptions:
     @property
     def toppra_blend_deviation(self) -> float:
         """
-        Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend geometry. Each corner becomes an arc straying from it by at most this much.
+        Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend geometry. Each corner becomes an arc straying from it by at most this much. A value <= 0 disables blending, so the trajectory stops at every waypoint.
         """
 
     @toppra_blend_deviation.setter
@@ -170,7 +170,9 @@ class CartesianPlannerComponents:
 
     @property
     def oink(self) -> roboplan.optimal_ik._optimal_ik_ext.Oink:
-        """The OInK solver to use."""
+        """
+        The OInK solver to use. Must not be null, and must be built for the same scene and joint group as the planner.
+        """
 
     @oink.setter
     def oink(self, arg: roboplan.optimal_ik._optimal_ik_ext.Oink, /) -> None: ...
@@ -178,7 +180,7 @@ class CartesianPlannerComponents:
     @property
     def tracking_tasks(self) -> list[roboplan.optimal_ik._optimal_ik_ext.FrameTask]:
         """
-        FrameTasks that the planner updates each step, one per end-effector (ordered to match the path's tip frames).
+        FrameTasks that the planner updates each step, one per end-effector (ordered to match the path's tip frames). Must be non-empty.
         """
 
     @tracking_tasks.setter
@@ -223,12 +225,12 @@ class CartesianPathPlanner:
     def plan(self, path: roboplan.core._core_ext.CartesianPath, q_start: roboplan.core._core_ext.JointConfiguration) -> roboplan.core._core_ext.JointTrajectory:
         """Plans a joint trajectory that traces the provided Cartesian path."""
 
-    def compute_peak_limit_ratios(self, trajectory: roboplan.core._core_ext.JointTrajectory) -> tuple[float, float]:
+    def computePeakLimitRatios(self, trajectory: roboplan.core._core_ext.JointTrajectory) -> tuple[float, float]:
         """
         Computes the (peak velocity / limit, peak acceleration / limit) ratios over a trajectory. Values <= 1.0 mean the respective joint limits are respected.
         """
 
-    def compute_achieved_path_length(self, trajectory: roboplan.core._core_ext.JointTrajectory, path: roboplan.core._core_ext.CartesianPath) -> float:
+    def computeAchievedPathLength(self, trajectory: roboplan.core._core_ext.JointTrajectory, path: roboplan.core._core_ext.CartesianPath) -> float:
         """
         Computes the achieved Cartesian path length (m) traced by the path's tip frames.
         """

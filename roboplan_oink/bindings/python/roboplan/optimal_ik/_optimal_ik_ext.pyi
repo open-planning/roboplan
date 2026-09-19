@@ -82,7 +82,7 @@ class FrameTaskOptions:
     @property
     def priority(self) -> int:
         """
-        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers.
+        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers. Must be >= 1.
         """
 
     @priority.setter
@@ -142,7 +142,7 @@ class ConfigurationTaskOptions:
     @property
     def priority(self) -> int:
         """
-        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers.
+        Priority level (1 = highest). Tasks at higher priority numbers are projected into the nullspace of lower priority numbers. Must be >= 1.
         """
 
     @priority.setter
@@ -275,7 +275,7 @@ class AccelerationLimit(Constraints):
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
 
-    def get_num_barriers(self, scene: roboplan.core._core_ext.SceneContext) -> int:
+    def getNumBarriers(self, scene: roboplan.core._core_ext.SceneContext) -> int:
         """Get the number of barrier constraints."""
 
     @property
@@ -329,7 +329,7 @@ class PositionBarrier(Barrier):
     def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], dt: float, axis_selection: ConstraintAxisSelection = ..., gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
         """Create a position barrier with optional axis selection."""
 
-    def get_frame_position(self, scene: roboplan.core._core_ext.SceneContext) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+    def getFramePosition(self, scene: roboplan.core._core_ext.SceneContext) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Get the current frame position in world coordinates."""
 
     @property
@@ -356,7 +356,9 @@ class SelfCollisionBarrierOptions:
 
     @property
     def n_collision_pairs(self) -> int:
-        """Maximum number of closest collision pairs to constrain."""
+        """
+        Maximum number of closest collision pairs to constrain. Must be > 0; values above the scene's pair count are clipped.
+        """
 
     @n_collision_pairs.setter
     def n_collision_pairs(self, arg: int, /) -> None: ...
@@ -377,7 +379,9 @@ class SelfCollisionBarrierOptions:
 
     @property
     def d_min(self) -> float:
-        """Minimum allowed distance between any pair of bodies."""
+        """
+        Minimum allowed distance between any pair of bodies. Must be non-negative.
+        """
 
     @d_min.setter
     def d_min(self, arg: float, /) -> None: ...
@@ -392,7 +396,7 @@ class SelfCollisionBarrierOptions:
     @property
     def d_max(self) -> float | None:
         """
-        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. Visibility / performance bound, not a separation limit.
+        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. Visibility / performance bound, not a separation limit. None disables culling.
         """
 
     @d_max.setter
@@ -422,7 +426,7 @@ class SelfCollisionBarrier(Barrier):
     @property
     def d_max(self) -> float | None:
         """
-        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance.
+        Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. None disables culling.
         """
 
 class OinkSettings:
@@ -523,7 +527,7 @@ class Oink:
     @overload
     def solveIk(self, scene: roboplan.core._core_ext.Scene, tasks: Sequence[Task], constraints: Sequence[Constraints], barriers: Sequence[Barrier], delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:
         """
-        Solve inverse kinematics for given tasks, constraints, and optional barriers.
+        Solve inverse kinematics for tasks, constraints, and barriers.
 
         Solves a QP minimizing weighted task errors subject to the constraints and
         barriers, writing the result into delta_q.
@@ -531,7 +535,7 @@ class Oink:
         Args:
             tasks: List of weighted tasks to optimize for.
             constraints: List of constraints to satisfy.
-            barriers: List of barrier functions for safety constraints (default: []).
+            barriers: List of barrier functions for safety constraints.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
                      Must be a contiguous float64 array. Modified in-place.
             regularization: Tikhonov regularization weight for the QP Hessian
@@ -541,16 +545,9 @@ class Oink:
         Raises:
             RuntimeError: If the QP solver fails to find a solution.
 
-        Examples:
-            # Without barriers:
+        Example:
             delta_q = np.zeros(oink.num_variables)
-            oink.solveIk(scene, tasks, constraints, [], delta_q)
-
-            # With barriers:
             oink.solveIk(scene, tasks, constraints, barriers, delta_q)
-
-            # With custom regularization:
-            oink.solveIk(scene, tasks, constraints, barriers, delta_q, 1e-6)
         """
 
     @overload
@@ -562,10 +559,6 @@ class Oink:
             tasks: List of weighted tasks to optimize for.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
             regularization: Tikhonov regularization weight (default: 1e-12).
-
-        Example:
-            delta_q = np.zeros(oink.num_variables)
-            oink.solveIk(scene, tasks, delta_q)
         """
 
     @overload
@@ -578,10 +571,6 @@ class Oink:
             constraints: List of constraints to satisfy.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
             regularization: Tikhonov regularization weight (default: 1e-12).
-
-        Example:
-            delta_q = np.zeros(oink.num_variables)
-            oink.solveIk(scene, tasks, constraints, delta_q)
         """
 
     @overload
@@ -594,10 +583,6 @@ class Oink:
             barriers: List of barrier functions for safety constraints.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
             regularization: Tikhonov regularization weight (default: 1e-12).
-
-        Example:
-            delta_q = np.zeros(oink.num_variables)
-            oink.solveIk(scene, tasks, barriers, delta_q)
         """
 
     @overload
@@ -636,10 +621,6 @@ class Oink:
             constraints: List of constraints to satisfy.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
             regularization: Tikhonov regularization weight (default: 1e-12).
-
-        Example:
-            q = np.array(scene.getCurrentJointPositions())
-            oink.solveIk(q, tasks, constraints, delta_q)
         """
 
     @overload
@@ -652,7 +633,7 @@ class Oink:
         Args:
             q: Configuration to evaluate at (size model.nq).
             barriers: List of barrier functions to check.
-            delta_q: Displacement to validate, modified in place.
+            delta_q: Full-model displacement to validate (size model.nv), modified in place.
             tolerance: Barrier violation tolerance (default: 0.0).
         """
 
@@ -661,14 +642,18 @@ class Oink:
         """
         Validate delta_q against barriers using forward kinematics.
 
-        Post-solve safety check: evaluates the barriers at q + delta_q and zeroes delta_q
-        if any would be violated. Backs up the QP's linearized CBF constraint where its
-        error is large (e.g., large jumps or near-boundary configurations).
+        Post-solve safety check: evaluates the barriers at q + delta_q and, for every
+        barrier that would be violated (and not improved by the step), zeroes the joints
+        that affect it. Backs up the QP's linearized CBF constraint where its error is
+        large (e.g., large jumps or near-boundary configurations).
 
         Args:
+            scene: The scene; the check runs at its current joint positions.
             barriers: List of barrier functions to check.
-            delta_q: Configuration displacement to validate. Modified in place: set to
-                     zero if barrier violation is detected.
+            delta_q: Full-model displacement to validate (size = model.nv, not the
+                     group's num_variables). Modified in place. Use
+                     scene.toFullJointVelocities(group_name, delta_q_group) to scatter a
+                     group-sized solveIk() result into the full vector.
             tolerance: Tolerance for barrier violation detection. A barrier is considered
                        violated if h(q + delta_q) < -tolerance. Default is 0.0.
 
@@ -678,5 +663,7 @@ class Oink:
         Example:
             delta_q = np.zeros(oink.num_variables)
             oink.solveIk(scene, tasks, constraints, barriers, delta_q)
-            oink.enforceBarriers(scene, barriers, delta_q)
+            delta_q_full = scene.toFullJointVelocities(group_name, delta_q)
+            oink.enforceBarriers(scene, barriers, delta_q_full)
+            q_next = scene.integrate(scene.getCurrentJointPositions(), delta_q_full)
         """

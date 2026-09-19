@@ -110,9 +110,9 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
     }
     auto curr_collapsed = maybe_collapsed_pos.value();
 
-    // For continuous joints we have to ensure that we take "the short way around" in the spline.
-    // If the distance to the preview point is greater than PI, then we either add or subtract
-    // 2*PI to this point to ensure that we don't travel further than we need to.
+    // For continuous joints, take "the short way around" in the spline: if the distance to the
+    // previous point is greater than PI, add or subtract 2*PI so we don't travel further than
+    // needed.
     if (idx > 0) {
       const auto& prev_collapsed = path_pos_vecs.at(idx - 1);
       for (auto q_idx : continuous_q_indices_) {
@@ -139,7 +139,7 @@ PathParameterizerTOPPRA::generateCubicSpline(const toppra::Vectors& path_pos_vec
     s += 1.0;
   }
 
-  // Set boundary conditions to zero velocity and acceleration at both endpoints.
+  // Natural boundary conditions: order 2 is the second derivative, set to zero at both endpoints.
   toppra::BoundaryCond bc{2, Eigen::VectorXd::Zero(path_pos_vecs.at(0).size())};
   toppra::BoundaryCondFull bc_full{{bc, bc}};
 

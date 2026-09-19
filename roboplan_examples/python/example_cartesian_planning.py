@@ -20,6 +20,7 @@ from roboplan.core import (
     CartesianPath,
     JointConfiguration,
     Scene,
+    loadJointLimitsConfig,
     loadUrdfSceneDescriptionFromXml,
 )
 from roboplan.example_models import get_package_share_dir
@@ -37,19 +38,18 @@ def round_corners(
     min_arc_length: float = 0.0,
 ) -> list[np.ndarray]:
     """
-    Rounds the interior corners of a polyline (list of 3D points) with circular arcs of the
-    given radius (meters), returning a denser list of points that traces straight legs joined
-    by tangent arcs. This is the task-space "blend": each corner is replaced by an arc of the
-    requested radius, tangent to both adjacent legs. The tangent length is clamped to half of
-    each adjacent segment so neighbouring arcs never overlap (the effective radius shrinks at
-    corners whose legs are too short). A radius <= 0 leaves the corners sharp.
+    Rounds the interior corners of a polyline (list of 3D points) with circular arcs.
 
-    Corners whose rounded arc would be shorter than `min_arc_length` meters are left sharp
-    instead. Such a sub-resolution arc cannot be traced as a blend: the whole direction change
-    happens within roughly one control step, spiking the joint acceleration and forcing the
-    Bounded planner to slow the entire motion down. A sharp corner is handled better there (its
-    single large-deflection vertex is caught by the corner-speed cap). Pass one control step of
-    tool travel (max_linear_speed * dt) to snap exactly the arcs the planner cannot resolve.
+    Each corner becomes an arc of `radius` meters tangent to both adjacent legs, and the result
+    is a denser list of points. The tangent length is clamped to half of each adjacent segment
+    so neighboring arcs never overlap (the effective radius shrinks where legs are short).
+    A radius <= 0 leaves the corners sharp.
+
+    Corners whose arc would be shorter than `min_arc_length` meters are left sharp: such a
+    sub-resolution arc turns within about one control step, spiking the joint acceleration and
+    forcing the Bounded planner to slow the whole motion, while a sharp corner is caught by its
+    corner-speed cap. Pass one control step of tool travel (max_linear_speed * dt) to snap
+    exactly the arcs the planner cannot resolve.
     """
     if radius <= 0.0 or len(vertices) < 3:
         return vertices
@@ -103,21 +103,18 @@ def make_lawnmower_path(
     path_corner_min_arc_length: float = 0.0,
 ) -> CartesianPath:
     """
-    Builds a "lawnmower" (boustrophedon) Cartesian path with one waypoint list per end-effector
-    in `tip_frames`. Each end-effector traces an identically shaped lawnmower that zigzags
-    `path_num_passes` times across a square region starting at its own current pose and extending
-    up and to the right, so multi-arm robots execute a coordinated sweep. The square lies in the
-    base-frame y-z plane. Each pass sweeps across the square along the in-plane "u" (y) axis,
-    alternating direction, and steps over along the "v" (z) axis between passes. Interior corners
-    are rounded with circular arcs of `path_corner_radius` meters (0 leaves them sharp); arcs
-    shorter than `path_corner_min_arc_length` meters are snapped back to sharp.
+    Builds a "lawnmower" (boustrophedon) Cartesian path, one waypoint list per tip frame.
+
+    Each end-effector zigzags `path_num_passes` times across a `path_size` square in the
+    base-frame y-z plane, starting at its own current pose and extending up and to the right.
+    Each pass sweeps along "u" (y), alternating direction, and steps over along "v" (z).
+    Interior corners are rounded with arcs of `path_corner_radius` meters (0 leaves them sharp);
+    arcs shorter than `path_corner_min_arc_length` meters are left sharp.
     """
     u_dir = np.array([0.0, 1.0, 0.0])
     v_dir = np.array([0.0, 0.0, 1.0])
 
-    # Corner vertices (positions relative to a start pose), then round them in task space. The
-    # square starts at the start pose and extends up and to the right (0 to path_size on both
-    # in-plane axes); the same offsets are applied from each end-effector's start pose.
+    # Corner vertices relative to the start pose, rounded in task space.
     vertices = []
     for i in range(path_num_passes):
         v = path_size * i / (path_num_passes - 1) if path_num_passes > 1 else 0.0
@@ -170,10 +167,9 @@ def main(
 
     Parameters:
         model: The name of the model to use.
-        speed_mode: Bounded for a bounded-acceleration Cartesian tool speed (ramps up/down
-            within the commanded Cartesian acceleration maxima, capped at the commanded speeds,
-            and slowed further to respect joint velocity/acceleration limits), or TimeOptimal for a
-            time-optimal re-timing that respects joint velocity and acceleration limits.
+        speed_mode: Bounded keeps the tool within the commanded Cartesian speed and acceleration
+            maxima (and the joint limits); TimeOptimal only respects joint velocity and
+            acceleration limits.
         max_linear_speed: Maximum linear tool speed along the path (m/s). Bounded mode only.
         max_angular_speed: Maximum angular tool speed along the path (rad/s). Bounded mode only.
         max_linear_acceleration: Maximum linear tool acceleration along the path (m/s^2).
@@ -187,13 +183,11 @@ def main(
         dt: Output trajectory sample period (s).
         path_size: Side length of the square region the lawnmower covers (m).
         path_num_passes: Number of zigzag passes across the square.
-        path_corner_radius: Task-space radius (m) used to round the lawnmower corners. Larger values
-            round the corners more, letting the tool carry speed through them (0 = sharp corners,
-            clamped per corner so adjacent arcs do not overlap).
-        path_corner_arc_step_deg: Angular step (deg) used to discretize each rounded corner arc into
-            chords. Coarse values (e.g., 15) facet the arc into a few straight segments whose kinks
-            show up as a jagged velocity profile; use a small value (~1-2) so the arc is smooth and
-            the tool carries speed cleanly through the corner. Ignored when path_corner_radius=0.
+        path_corner_radius: Task-space radius (m) used to round the lawnmower corners, which lets
+            the tool carry speed through them. 0 leaves corners sharp.
+        path_corner_arc_step_deg: Angular step (deg) used to discretize each rounded corner arc.
+            Coarse values (e.g., 15) facet the arc and give a jagged velocity profile; use ~1-2.
+            Ignored when path_corner_radius=0.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -210,7 +204,9 @@ def main(
     scene = Scene(
         "cartesian_scene",
         loadUrdfSceneDescriptionFromXml(urdf_xml, package_paths),
-        yaml_config_path=model_data.yaml_config_path,
+    )
+    scene.importJointLimitsFromConfig(
+        loadJointLimitsConfig(model_data.yaml_config_path)
     )
     scene.importSrdf(srdf_xml)
 
@@ -220,9 +216,7 @@ def main(
 
     base_link = model_data.base_link
     tip_frames = model_data.ee_names
-    # Snap corner arcs that the planner cannot resolve (shorter than one control step of tool
-    # travel) back to sharp corners: a sub-step arc spikes the joint acceleration and makes the
-    # Bounded planner slow the whole motion down, whereas a sharp corner is handled cleanly.
+    # Arcs shorter than one control step of tool travel are left sharp (see round_corners).
     path = make_lawnmower_path(
         scene,
         base_link,
@@ -267,18 +261,17 @@ def main(
     elapsed = time.time() - t0
 
     traj = result
-    peak_vel_ratio, peak_accel_ratio = planner.compute_peak_limit_ratios(traj)
+    peak_vel_ratio, peak_accel_ratio = planner.computePeakLimitRatios(traj)
     print(f"  Planned in {elapsed * 1e3:.1f} ms")
     print(f"  Trajectory samples: {len(traj.times)}")
     print(f"  Trajectory duration: {traj.times[-1]:.3f} s")
     print(
         f"  Achieved Cartesian path length: "
-        f"{planner.compute_achieved_path_length(traj, path):.4f} m"
+        f"{planner.computeAchievedPathLength(traj, path):.4f} m"
     )
     print(f"  Peak velocity / limit:     {peak_vel_ratio:.2f}")
     print(f"  Peak acceleration / limit: {peak_accel_ratio:.2f}")
 
-    # Plot the planned joint trajectory over time.
     fig = plotJointTrajectory(
         traj,
         scene,
@@ -289,7 +282,7 @@ def main(
         accelerations=True,
     )
 
-    # Visualize: build a redundant Pinocchio model for rendering with mimic joints.
+    # Separate Pinocchio model (with mimic joints) for visualization.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
@@ -301,12 +294,9 @@ def main(
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
     viz.display(q_full)
 
-    # Draw the reference path (commanded waypoints, green) vs. the actual traced
-    # path (forward kinematics of the planned trajectory, red), once per end-effector.
-    #
-    # The CartesianPath waypoints are expressed in the base frame, so map them into
-    # the world frame for visualization. The base frame is fixed relative to the
-    # world, so a single forward-kinematics call suffices.
+    # Draw the reference path (commanded waypoints, green) vs. the actual traced path (forward
+    # kinematics of the planned trajectory, red), once per end-effector. Waypoints are in the
+    # base frame, so map them to the world frame; the base is fixed, so one FK call suffices.
     world_T_base = scene.forwardKinematics(q_full, base_link)
     for i, tip_frame in enumerate(tip_frames):
         reference_positions = np.array(

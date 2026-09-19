@@ -43,7 +43,8 @@ protected:
     package_paths_ = {example_models::get_package_share_dir()};
     yaml_config_path_ = model_prefix / "ur_robot_model" / "ur5_config.yaml";
     const auto description = loadUrdfSceneDescription(urdf_path_, package_paths_);
-    scene_ = std::make_shared<Scene>("test_scene", description, yaml_config_path_);
+    scene_ = std::make_shared<Scene>("test_scene", description);
+    scene_->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path_));
     if (const auto imported = scene_->importSrdf(loadTextFile(srdf_path_)); !imported) {
       throw std::runtime_error(imported.error());
     }
@@ -314,9 +315,8 @@ TEST_F(OinkTest, ConstraintDimensionValidation) {
 
   // Create velocity constraint with WRONG size - should throw at construction
   double dt = 0.01;
-  Eigen::VectorXd v_max_wrong = Eigen::VectorXd::Ones(num_variables_ - 1);  // Wrong size!
+  Eigen::VectorXd v_max_wrong = Eigen::VectorXd::Ones(num_variables_ - 1);
 
-  // Constructor should throw std::invalid_argument due to size mismatch
   EXPECT_THROW(
       { auto vel_constraint = std::make_shared<VelocityLimit>(oink, dt, v_max_wrong); },
       std::invalid_argument);
@@ -498,9 +498,7 @@ TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
   EXPECT_GT(delta_q(0), kTolerance);
   EXPECT_GT(delta_q(1), kTolerance);
 
-  // Other joints should have minimal movement (only from LM damping regularization)
-  // Note: due to the QP structure, zero-weight joints still get small movements
-  // from the LM damping term, but they should be much smaller than weighted joints
+  // Zero-weight joints should move far less than weighted joints.
   double weighted_movement = (delta_q(0) + delta_q(1)) / 2.0;
   for (int i = 2; i < num_variables_; ++i) {
     EXPECT_LT(std::abs(delta_q(i)), weighted_movement)
@@ -510,8 +508,6 @@ TEST_F(OinkTest, SolveWithSelectiveJointWeights) {
 
 // Test IK convergence with UR5 robot and position limits.
 TEST_F(OinkTest, ConvergenceWithUR5CanonicalPoseAndPositionLimit) {
-  // This test uses the scene_ from the fixture which is already set up with UR5
-
   const int ur5_nv = scene_->getModel().nv;
   const int ur5_nq = scene_->getModel().nq;
   Oink oink(*scene_);
@@ -677,14 +673,13 @@ protected:
     const auto model_prefix = example_models::get_package_models_dir();
     package_paths_ = {example_models::get_package_share_dir()};
 
-    // Construct full paths
     auto urdf_path = model_prefix / std::filesystem::path(config.urdf_path);
     auto srdf_path = model_prefix / std::filesystem::path(config.srdf_path);
     auto yaml_config_path = model_prefix / std::filesystem::path(config.yaml_config_path);
 
-    // Load the robot model
     const auto description = loadUrdfSceneDescription(urdf_path, package_paths_);
-    scene_ = std::make_shared<Scene>(config.name, description, yaml_config_path);
+    scene_ = std::make_shared<Scene>(config.name, description);
+    scene_->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path));
     if (const auto imported = scene_->importSrdf(loadTextFile(srdf_path)); !imported) {
       throw std::runtime_error(imported.error());
     }
@@ -776,7 +771,6 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<RobotModelConfig>& info) { return info.param.name; });
 
 // Test that FrameTask makes progress toward target over multiple iterations
-// This test verifies the IK solver consistently moves toward the target.
 TEST_F(OinkTest, FrameTaskConvergesToTarget) {
   Oink oink(*scene_);
 
@@ -888,8 +882,7 @@ TEST_F(OinkTest, ConfigurationTaskConvergesToTarget) {
       << q_current.transpose() << "], Error: " << final_error;
 }
 
-// Test that single IK step moves toward target (not away)
-// This is a regression test for the sign bug where error direction was inverted.
+// Regression test for the sign bug where error direction was inverted.
 TEST_F(OinkTest, SingleStepMovesTowardTarget) {
   Oink oink(*scene_);
 

@@ -96,12 +96,11 @@ TEST_F(RoboPlanRRTTest, PlanRRTConnect) {
 }
 
 TEST_F(RoboPlanRRTTest, PlanRRTStar) {
-  // Plan the same problem with and without RRT*. RRT* keeps rewiring and optimizing until its
-  // budget runs out, so its path must be equal or shorter than plain RRT.
+  // Plan the same problem with and without RRT*. RRT* keeps rewiring until its budget runs out, so
+  // its path must be equal or shorter than plain RRT.
   //
-  // Seed the scene RNG so the start/goal pair is fixed: this seed yields a non-trivial problem
-  // where plain RRT wanders noticeably, so rewiring produces a clearly shorter path (and the test
-  // is reproducible instead of depending on a random problem each run).
+  // This seed fixes a non-trivial start/goal pair where plain RRT wanders noticeably, so rewiring
+  // produces a clearly shorter path.
   scene->setRngSeed(4);
   JointConfiguration start, goal;
   start.positions = scene->randomCollisionFreePositions().value();
@@ -139,13 +138,11 @@ TEST_F(RoboPlanRRTTest, PlanRRTStar) {
 }
 
 TEST_F(RoboPlanRRTTest, PlanRRTStarConnect) {
-  // RRT* rewiring combined with the bidirectional RRT-Connect tree growth, contrasted against plain
-  // RRT-Connect on the same (seeded) problem. As with single-tree RRT*, the rewired path must be
-  // equal or shorter than its non-star counterpart.
+  // RRT* rewiring with RRT-Connect tree growth, against plain RRT-Connect on the same seeded
+  // problem (see PlanRRTStar). The rewired path must be equal or shorter.
   //
-  // Seed the scene RNG so the start/goal pair is fixed and reproducible (see PlanRRTStar). Plain
-  // RRT-Connect already produces fairly direct paths, so rewiring's benefit is smaller and needs a
-  // slightly larger budget to show than for single-tree RRT*; this seed still gives a clear gain.
+  // Plain RRT-Connect already produces fairly direct paths, so rewiring's benefit is smaller; this
+  // seed still gives a clear gain.
   scene->setRngSeed(4);
   JointConfiguration start, goal;
   start.positions = scene->randomCollisionFreePositions().value();

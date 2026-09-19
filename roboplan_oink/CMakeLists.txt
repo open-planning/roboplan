@@ -20,7 +20,6 @@ endif()
 option(BUILD_TESTING "" ON)
 option(BUILD_TESTING_OINK "" ${BUILD_TESTING})
 
-# Include FetchContent for downloading dependencies
 include(FetchContent)
 
 # Find dependencies.

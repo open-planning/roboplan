@@ -26,7 +26,7 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<JointConfiguration>(m, "JointConfiguration",
                                        "Represents a robot joint configuration.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def(nanobind::init<const std::vector<std::string>&, const Eigen::VectorXd&>(),
            "joint_names"_a, "positions"_a)
       .def_rw("joint_names", &JointConfiguration::joint_names, "The names of the joints.")
@@ -39,7 +39,7 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<CartesianConfiguration>(m, "CartesianConfiguration",
                                            "Represents a robot Cartesian configuration.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>(),
            "base_frame"_a, "tip_frame"_a, "tform"_a)
       .def_rw("base_frame", &CartesianConfiguration::base_frame,
@@ -59,7 +59,7 @@ void init_core_types(nanobind::module_& m) {
       .value("FLOATING", JointType::FLOATING);
 
   nanobind::class_<JointLimits>(m, "JointLimits", "Contains joint limit information.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def_rw("min_position", &JointLimits::min_position, "The minimum positions of the joint.")
       .def_rw("max_position", &JointLimits::max_position, "The maximum positions of the joint.")
       .def_rw("max_velocity", &JointLimits::max_velocity,
@@ -69,7 +69,7 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("max_jerk", &JointLimits::max_jerk, "The maximum (symmetric) jerks of the joint.");
 
   nanobind::class_<JointMimicInfo>(m, "JointMimicInfo", "Contains joint mimic information.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def_rw("mimicked_joint_name", &JointMimicInfo::mimicked_joint_name,
               "The name of the joint being mimicked.")
       .def_rw("scaling", &JointMimicInfo::scaling, "The scaling factor for the mimic relationship.")
@@ -89,7 +89,7 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<JointGroupInfo>(m, "JointGroupInfo",
                                    "Contains information about a named group of joints.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def_rw("joint_names", &JointGroupInfo::joint_names,
               "The joint names that make up the group.")
       .def_rw("joint_indices", &JointGroupInfo::joint_indices, "The joint indices in the group.")
@@ -108,7 +108,7 @@ void init_core_types(nanobind::module_& m) {
       });
 
   nanobind::class_<JointPath>(m, "JointPath", "Contains a path of joint configurations.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def_rw("joint_names", &JointPath::joint_names, "The list of joint names.")
       .def_rw("positions", &JointPath::positions, "The list of joint configuration positions.")
       .def("__repr__", [](const JointPath& path) {
@@ -119,7 +119,7 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<JointTrajectory>(m, "JointTrajectory",
                                     "Contains a trajectory of joint configurations.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def_rw("joint_names", &JointTrajectory::joint_names, "The list of joint names.")
       .def_rw("times", &JointTrajectory::times, "The list of times.")
       .def_rw("positions", &JointTrajectory::positions, "The list of joint positions.")
@@ -133,13 +133,14 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<CartesianPath>(m, "CartesianPath",
                                   "Contains a path of Cartesian configurations.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def(nanobind::init<const std::vector<std::string>&, const std::vector<std::string>&,
                           const std::vector<std::vector<Eigen::Matrix4d>>&>(),
            nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("tforms"))
       .def_rw("base_frames", &CartesianPath::base_frames, "The names of the base frames.")
       .def_rw("tip_frames", &CartesianPath::tip_frames, "The names of the tip frames.")
-      .def_rw("tforms", &CartesianPath::tforms, "The list of Cartesian transforms.")
+      .def_rw("tforms", &CartesianPath::tforms,
+              "The Cartesian transforms from each base frame to each tip frame.")
       .def("__repr__", [](const CartesianPath& path) {
         std::stringstream ss;
         ss << path;
@@ -148,7 +149,7 @@ void init_core_types(nanobind::module_& m) {
 
   nanobind::class_<CartesianTrajectory>(m, "CartesianTrajectory",
                                         "Contains a trajectory of Cartesian configurations.")
-      .def(nanobind::init<>())  // Default constructor
+      .def(nanobind::init<>())
       .def(nanobind::init<std::vector<std::string>, std::vector<std::string>, std::vector<double>,
                           std::vector<std::vector<Eigen::Matrix4d>>>(),
            nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("times"),
@@ -156,7 +157,8 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("base_frames", &CartesianTrajectory::base_frames, "The names of the base frames.")
       .def_rw("tip_frames", &CartesianTrajectory::tip_frames, "The names of the tip frames.")
       .def_rw("times", &CartesianTrajectory::times, "The list of times.")
-      .def_rw("tforms", &CartesianTrajectory::tforms, "The list of Cartesian transforms.")
+      .def_rw("tforms", &CartesianTrajectory::tforms,
+              "The Cartesian transforms from each base frame to each tip frame.")
       .def("__repr__", [](const CartesianTrajectory& traj) {
         std::stringstream ss;
         ss << traj;
@@ -176,7 +178,7 @@ void init_core_geometry_wrappers(nanobind::module_& m) {
                          "Temporary wrapper struct to represent a triangle mesh geometry.")
       .def(nanobind::init<const std::filesystem::path&, const Eigen::Vector3d&>(), "filename"_a,
            "scale"_a = Eigen::Vector3d::Ones());
-  nanobind::class_<OcTree>(m, "OcTree", "Temporary wrapper struct to represent a octree geometry.")
+  nanobind::class_<OcTree>(m, "OcTree", "Temporary wrapper struct to represent an octree geometry.")
       .def(nanobind::init<const std::vector<Eigen::Matrix<double, 6, 1>>&, const double>(),
            "boxes"_a, "resolution"_a);
 }
@@ -184,17 +186,24 @@ void init_core_geometry_wrappers(nanobind::module_& m) {
 void init_core_scene(nanobind::module_& m) {
   nanobind::class_<PinocchioSceneDescription>(m, "PinocchioSceneDescription",
                                               "Pinocchio model and collision geometry.");
-  m.def("loadTextFile", &loadTextFile, "path"_a);
-  m.def("loadUrdfSceneDescriptionFromXml", &loadUrdfSceneDescriptionFromXml, "urdf_xml"_a,
-        "package_paths"_a = std::vector<std::filesystem::path>());
-  m.def("loadUrdfSceneDescription", &loadUrdfSceneDescription, "urdf_path"_a,
-        "package_paths"_a = std::vector<std::filesystem::path>());
-  m.def("loadMjcfModel", &loadMjcfModel, "mjcf_path"_a);
+  m.def("loadTextFile", &loadTextFile, "Reads a text file from disk.", "path"_a);
+  nanobind::class_<YAML::Node>(m, "YamlNode", "Parsed YAML document.");
+  m.def("loadJointLimitsConfig", &loadJointLimitsConfig, "Loads a joint-limits config from disk.",
+        "path"_a);
+  m.def("loadUrdfSceneDescriptionFromXml", &loadUrdfSceneDescriptionFromXml,
+        "Builds a PinocchioSceneDescription from URDF XML. `package_paths` resolve `package://` "
+        "mesh paths.",
+        "urdf_xml"_a, "package_paths"_a = std::vector<std::filesystem::path>());
+  m.def("loadUrdfSceneDescription", &loadUrdfSceneDescription,
+        "Loads a URDF file into a PinocchioSceneDescription. `package_paths` resolve "
+        "`package://` mesh paths.",
+        "urdf_path"_a, "package_paths"_a = std::vector<std::filesystem::path>());
+  m.def("loadMjcfModel", &loadMjcfModel, "Loads an MJCF file into a PinocchioSceneDescription.",
+        "mjcf_path"_a);
 
   nanobind::class_<Scene>(m, "Scene", "Primary scene representation for planning and control.")
-      .def(nanobind::init<const std::string&, const PinocchioSceneDescription&,
-                          const std::filesystem::path&>(),
-           "name"_a, "description"_a, "yaml_config_path"_a = std::filesystem::path())
+      .def(nanobind::init<const std::string&, const PinocchioSceneDescription&>(), "name"_a,
+           "description"_a)
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
            "Gets the scene's actuated joint names (non-mimic joints only).")
@@ -254,8 +263,8 @@ void init_core_scene(nanobind::module_& m) {
             self.computeFrameJacobian(q, maybe_frame_id.value(), reference_frame, jacobian);
             return jacobian;
           },
-          "Computes the frame Jacobian for a specific frame, expressed in world frame.", "q"_a,
-          "frame_name"_a, "local"_a = true)
+          "Computes the frame Jacobian (6 x nv): LOCAL frame if `local` is true, else WORLD.",
+          "q"_a, "frame_name"_a, "local"_a = true)
       .def(
           "computeRelativeFrameJacobian",
           [](const Scene& self, const Eigen::VectorXd& q, const std::string& frame_name,
@@ -281,6 +290,8 @@ void init_core_scene(nanobind::module_& m) {
            "Get the joint group information of a scene by its name.", "name"_a)
       .def("importSrdf", unwrap_expected(&Scene::importSrdf),
            "Applies groups and disabled collision pairs from an SRDF document.", "srdf_xml"_a)
+      .def("importJointLimitsFromConfig", &Scene::importJointLimitsFromConfig,
+           "Overrides joint limits from a parsed configuration.", "yaml_config"_a)
       .def("addGroupFromChain", unwrap_expected(&Scene::addGroupFromChain),
            "Adds a joint group defined by a kinematic chain.", "name"_a, "base_link"_a,
            "tip_link"_a)
@@ -320,7 +331,7 @@ void init_core_scene(nanobind::module_& m) {
            "Adds a triangle mesh geometry to the scene.", "name"_a, "parent_frame"_a, "mesh"_a,
            "tform"_a, "color"_a)
       .def("addOcTreeGeometry", unwrap_expected(&Scene::addOcTreeGeometry),
-           "Adds a octree geometry to the scene.", "name"_a, "parent_frame"_a, "octree"_a,
+           "Adds an octree geometry to the scene.", "name"_a, "parent_frame"_a, "octree"_a,
            "tform"_a, "color"_a)
       .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement),
            "Updates the placement of an object geometry in the scene.", "name"_a, "parent_frame"_a,
@@ -440,7 +451,7 @@ void init_core_path_utils(nanobind::module_& m) {
       .def_rw(
           "redundant_removal_iters", &PathShortcuttingOptions::redundant_removal_iters,
           "Cadence (in iterations) at which to interleave the redundant-vertex removal pass that "
-          "cleans up the micro-segments introduced by shortcutting.");
+          "cleans up the micro-segments introduced by shortcutting. Must be greater than 0.");
 
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")
@@ -483,16 +494,12 @@ void init_core_robot_body_filter(nanobind::module_& m) {
       m, "RobotBodyFilterMethod",
       "The test used by RobotBodyFilter to classify points near the robot geometry.")
       .value("Narrowphase", RobotBodyFilterMethod::Narrowphase,
-             "Exact: after the broadphase AABB cull, each candidate point is checked with a Coal "
-             "narrowphase collision query (point vs. padded geometry). This is exact for every "
-             "geometry type, including meshes, at the cost of one GJK/BVH query per candidate "
-             "point.")
+             "Exact for every geometry type, including meshes: each candidate point gets a Coal "
+             "narrowphase query against the padded geometry (one GJK/BVH query per point).")
       .value("PaddedObb", RobotBodyFilterMethod::PaddedObb,
-             "Conservative: after the broadphase AABB cull, each candidate point is checked "
-             "against the geometry's padded oriented bounding box (OBB). This is much faster "
-             "since it is a few arithmetic operations per candidate, but over-removes points "
-             "near the corners of the oriented boxes. The set of points it removes is always a "
-             "superset of Narrowphase's.");
+             "Conservative: each candidate point is checked against the geometry's padded "
+             "oriented bounding box (OBB). Much faster, but over-removes points near box corners, "
+             "so it always removes a superset of Narrowphase's points.");
 
   nanobind::class_<RobotBodyFilterOptions>(m, "RobotBodyFilterOptions",
                                            "Options struct for the robot body filter.")
@@ -504,24 +511,19 @@ void init_core_robot_body_filter(nanobind::module_& m) {
       .def_rw("method", &RobotBodyFilterOptions::method, "The classification test to use.")
       .def_rw("num_threads", &RobotBodyFilterOptions::num_threads,
               "Number of threads used to classify points, or 0 to use all hardware threads. "
-              "Points are split into blocks that the threads pull from a shared queue, so at "
-              "most one thread per block is ever spawned and small clouds are processed serially "
-              "either way.");
+              "At most one thread is spawned per block of points, so small clouds run serially.");
 
   nanobind::class_<RobotBodyFilter>(
       m, "RobotBodyFilter",
       "Filters points that lie on or near the robot's own collision geometry.\n\n"
-      "This removes the robot's body from a sensor point cloud (or the occupied cells of an "
-      "octree) so that the robot does not see itself as an obstacle when planning.\n\n"
-      "Both methods share a broadphase stage that culls points against the padded world-frame "
-      "AABB of every robot collision geometry at the query configuration; they differ only in "
-      "the exactness (and cost) of the test run on the surviving candidates. See "
-      "RobotBodyFilterMethod.\n\n"
-      "Thread safety and lifetime: the filter owns private Pinocchio scratch over the Scene's "
-      "robot description, so distinct filters may run concurrently on one Scene, but a single "
-      "filter must not be shared across threads. Only the robot's own collision geometry is "
-      "filtered against, and it is copied at construction, so objects can be freely added to or "
-      "removed from the scene without rebuilding the filter.")
+      "Removes the robot's body from a sensor point cloud (or octree cells) so it does not see "
+      "itself as an obstacle. Both methods share a broadphase cull against the padded "
+      "world-frame AABB of every robot collision geometry and differ only in the test run on the "
+      "surviving candidates; see RobotBodyFilterMethod.\n\n"
+      "Thread safety and lifetime: the filter owns private Pinocchio scratch, so distinct "
+      "filters may run concurrently on one Scene, but one filter must not be shared across "
+      "threads. Only the robot's own collision geometry is filtered against, and it is copied "
+      "at construction, so adding or removing scene objects does not require a rebuild.")
       .def(nanobind::init<const std::shared_ptr<Scene>&, const RobotBodyFilterOptions&>(),
            "scene"_a, "options"_a,
            "Constructs a filter over the scene's current robot collision geometry.")

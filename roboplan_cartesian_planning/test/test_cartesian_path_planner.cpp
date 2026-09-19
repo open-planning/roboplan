@@ -35,7 +35,8 @@ protected:
     const std::vector<std::filesystem::path> package_paths = {
         example_models::get_package_share_dir()};
     const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
-    scene_ = std::make_shared<Scene>("test_scene", description, yaml_config_path);
+    scene_ = std::make_shared<Scene>("test_scene", description);
+    scene_->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path));
     if (const auto imported = scene_->importSrdf(loadTextFile(srdf_path)); !imported) {
       throw std::runtime_error(imported.error());
     }
@@ -382,7 +383,7 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   CartesianPlannerOptions options;
   options.group_name = kGroup;
   options.dt = 0.01;
-  // Aggressive commanded speed so the acceleration profile and joint-limit throttle are active.
+  // Aggressive commanded speed so the acceleration bounds are active.
   options.max_linear_speed = 0.5;
   options.max_linear_acceleration = 0.5;
   options.max_angular_acceleration = 2.5;
@@ -402,14 +403,13 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   const JointTrajectory& traj = *result;
   ASSERT_GE(traj.velocities.size(), 3u);
 
-  // The trapezoidal profile ramps from rest and back to rest, so the first and last joint
-  // velocities should be (near) zero.
+  // The trajectory starts and stops at rest, so the first and last joint velocities should be
+  // (near) zero.
   EXPECT_LT(traj.velocities.front().cwiseAbs().maxCoeff(), 1e-6);
   EXPECT_LT(traj.velocities.back().cwiseAbs().maxCoeff(), 0.05);
 
-  // The bounded-acceleration profile plus the global slow-down retry should keep the peak joint
-  // acceleration near its limit, unlike the old constant-speed trace which ignored acceleration
-  // entirely. Allow slack for the finite-difference accelerations and the retry's accept tolerance.
+  // The slowed trajectory must still respect the joint limits. Allow slack for the
+  // finite-difference accelerations and the slow-down's accept tolerance.
   const auto [peak_velocity_ratio, peak_acceleration_ratio] = planner.computePeakLimitRatios(traj);
   EXPECT_LE(peak_acceleration_ratio, 1.1);
   EXPECT_LE(peak_velocity_ratio, 1.1);

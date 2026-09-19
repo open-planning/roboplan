@@ -22,14 +22,13 @@ PositionBarrier::PositionBarrier(const Oink& oink, const Scene& scene,
                                  double safe_displacement_gain, double safety_margin)
     : Barrier(gain, dt, safe_displacement_gain, safety_margin), frame_name(frame_name),
       axis_selection(axis_selection), p_min(p_min), p_max(p_max), v_indices(oink.v_indices) {
-  // Resolve frame_id eagerly
   const auto maybe_frame_id = scene.getFrameId(frame_name);
   if (!maybe_frame_id) {
     throw std::runtime_error("PositionBarrier: frame '" + frame_name + "' not found in scene");
   }
   frame_id = maybe_frame_id.value();
 
-  // Validate that p_min < p_max for enabled axes with finite bounds
+  // p_min < p_max is required on enabled axes with finite bounds.
   const std::array<bool, 3> axes_enabled{{axis_selection.x, axis_selection.y, axis_selection.z}};
   for (int i = 0; i < 3; ++i) {
     if (axes_enabled[i] && std::isfinite(p_min[i]) && std::isfinite(p_max[i])) {
@@ -41,7 +40,7 @@ PositionBarrier::PositionBarrier(const Oink& oink, const Scene& scene,
       }
     }
   }
-  // Count active constraints (finite bounds and enabled axes)
+  // One barrier per finite bound on each enabled axis.
   int num_barriers = 0;
   if (axis_selection.x) {
     if (std::isfinite(p_min[0]))
@@ -70,13 +69,10 @@ int PositionBarrier::getNumBarriers(const SceneContext& /*context*/) const {
 }
 
 tl::expected<void, std::string> PositionBarrier::computeBarrier(const SceneContext& context) {
-  // Get current frame position in world coordinates
   Eigen::Vector3d p = getFramePosition(context);
 
-  // Compute barrier values for each active constraint
   int idx = 0;
 
-  // X axis
   if (axis_selection.x) {
     if (std::isfinite(p_min[0])) {
       barrier_values[idx] = p[0] - p_min[0];
@@ -88,7 +84,6 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const SceneConte
     }
   }
 
-  // Y axis
   if (axis_selection.y) {
     if (std::isfinite(p_min[1])) {
       barrier_values[idx] = p[1] - p_min[1];
@@ -100,7 +95,6 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const SceneConte
     }
   }
 
-  // Z axis
   if (axis_selection.z) {
     if (std::isfinite(p_min[2])) {
       barrier_values[idx] = p[2] - p_min[2];
@@ -116,20 +110,14 @@ tl::expected<void, std::string> PositionBarrier::computeBarrier(const SceneConte
 }
 
 tl::expected<void, std::string> PositionBarrier::computeJacobian(const SceneContext& context) {
-  // The barrier constrains where the frame origin is, so its Jacobian must be d(pworld)/dq.
-  // This is computed in Pinocchio using LOCAL_WORLD_ALIGNED.
+  // The barrier constrains the frame origin, so its Jacobian is d(p_world)/dq: the linear rows
+  // (0-2; rows 3-5 are angular) of the LOCAL_WORLD_ALIGNED frame Jacobian.
   const Eigen::VectorXd& q = context.getJointPositions();
   context.computeFrameJacobian(q, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
                                full_jacobian);
 
-  // Pinocchio frame Jacobian layout:
-  //   Rows 0-2: linear velocity (dp_world/dq) - this is what we need
-  //   Rows 3-5: angular velocity (d_omega_world/dq)
-
-  // Build barrier Jacobians from the linear velocity rows, selecting group columns via v_indices
   int idx = 0;
 
-  // X axis
   if (axis_selection.x) {
     if (std::isfinite(p_min[0])) {
       jacobian_container.row(idx) = full_jacobian.row(0)(v_indices);
@@ -141,7 +129,6 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const SceneCont
     }
   }
 
-  // Y axis
   if (axis_selection.y) {
     if (std::isfinite(p_min[1])) {
       jacobian_container.row(idx) = full_jacobian.row(1)(v_indices);
@@ -153,7 +140,6 @@ tl::expected<void, std::string> PositionBarrier::computeJacobian(const SceneCont
     }
   }
 
-  // Z axis
   if (axis_selection.z) {
     if (std::isfinite(p_min[2])) {
       jacobian_container.row(idx) = full_jacobian.row(2)(v_indices);
@@ -175,16 +161,10 @@ Eigen::Vector3d PositionBarrier::getFramePosition(const SceneContext& context) c
 tl::expected<double, std::string>
 PositionBarrier::evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
                                          const Eigen::VectorXd& q) const {
-  // Compute FK for the candidate configuration
   pinocchio::forwardKinematics(model, data, q);
-
-  // Update frame placement
   pinocchio::updateFramePlacement(model, data, frame_id);
-
-  // Get frame position
   const Eigen::Vector3d pos = data.oMf[frame_id].translation();
 
-  // Compute minimum barrier value across all enabled constraints
   double min_h = std::numeric_limits<double>::infinity();
 
   if (axis_selection.x) {

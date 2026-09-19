@@ -74,7 +74,8 @@ void init_cartesian_path_planner(nanobind::module_& m) {
               "both speed modes.")
       .def_rw("toppra_blend_deviation", &CartesianPlannerOptions::toppra_blend_deviation,
               "Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend "
-              "geometry. Each corner becomes an arc straying from it by at most this much.")
+              "geometry. Each corner becomes an arc straying from it by at most this much. A "
+              "value <= 0 disables blending, so the trajectory stops at every waypoint.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
               "Gain (0, 1] for the joint position-limit constraint.");
 
@@ -82,10 +83,12 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       m, "CartesianPlannerComponents",
       "Caller-supplied OInK solver and IK objectives for the Cartesian path planner.")
       .def(nanobind::init<>())
-      .def_rw("oink", &CartesianPlannerComponents::oink, "The OInK solver to use.")
+      .def_rw("oink", &CartesianPlannerComponents::oink,
+              "The OInK solver to use. Must not be null, and must be built for the same scene and "
+              "joint group as the planner.")
       .def_rw("tracking_tasks", &CartesianPlannerComponents::tracking_tasks,
               "FrameTasks that the planner updates each step, one per end-effector "
-              "(ordered to match the path's tip frames).")
+              "(ordered to match the path's tip frames). Must be non-empty.")
       .def_rw("extra_tasks", &CartesianPlannerComponents::extra_tasks,
               "Additional tasks solved alongside the tracking tasks.")
       .def_rw("constraints", &CartesianPlannerComponents::constraints,
@@ -110,11 +113,11 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Plans a joint trajectory that traces the provided Cartesian path.", "path"_a,
            "q_start"_a)
-      .def("compute_peak_limit_ratios", &CartesianPathPlanner::computePeakLimitRatios,
+      .def("computePeakLimitRatios", &CartesianPathPlanner::computePeakLimitRatios,
            "Computes the (peak velocity / limit, peak acceleration / limit) ratios over a "
            "trajectory. Values <= 1.0 mean the respective joint limits are respected.",
            "trajectory"_a)
-      .def("compute_achieved_path_length", &CartesianPathPlanner::computeAchievedPathLength,
+      .def("computeAchievedPathLength", &CartesianPathPlanner::computeAchievedPathLength,
            "Computes the achieved Cartesian path length (m) traced by the path's tip frames.",
            "trajectory"_a, "path"_a);
 }

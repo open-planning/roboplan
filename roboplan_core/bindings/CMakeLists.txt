@@ -1,15 +1,14 @@
 # Python bindings for the roboplan core package.
 #
 # This file is added via `add_subdirectory(bindings)` from the parent
-# roboplan_core/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the C++
-# targets (roboplan, roboplan_filters) already exist in this configure and do
-# not need to be found via find_package.
+# roboplan_core/CMakeLists.txt only when BUILD_PYTHON_BINDINGS is ON, so the
+# `roboplan` C++ target already exists in this configure and does not need to be
+# found via find_package.
 #
-# NOTE: The ament/scikit-build/nanobind detection boilerplate below is
-# duplicated per package for now; it should be factored into a shared CMake
-# helper installed by this (core) package once the migration is complete.
+# NOTE: The ament/cmeel/nanobind detection boilerplate below is duplicated per
+# package for now; it should be factored into a shared CMake helper installed by
+# this (core) package once the migration is complete.
 
-# Determine if we are compiling with ament or scikit-build.
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)
   set(AMENT_BUILD TRUE)
@@ -20,7 +19,6 @@ else()
     STATUS "roboplan bindings: building with scikit-build / vanilla CMake")
 endif()
 
-# Configure nanobind for either ament or scikit.
 if(AMENT_BUILD)
   find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
   find_package(ament_cmake_python REQUIRED)
@@ -40,15 +38,13 @@ execute_process(
   OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
-# NOTE: the shared binding utility header <roboplan_bindings/expected.hpp> lives
-# in this package's main include tree (roboplan_core/include/roboplan_bindings/)
-# and is installed unconditionally by the top-level CMakeLists, so dependent
-# packages (e.g. roboplan_rrt, roboplan_toppra) can find it via
-# find_package(roboplan) even when this package is built without the Python
-# bindings. The core.hpp / filters.hpp init-declaration headers under
-# bindings/include are private.
+# NOTE: <roboplan_bindings/expected.hpp> lives in this package's main include
+# tree (roboplan_core/include/roboplan_bindings/) and is installed
+# unconditionally by the top-level CMakeLists, so dependent packages (e.g.
+# roboplan_rrt, roboplan_toppra) can find it via find_package(roboplan_core)
+# even when this package is built without the Python bindings. The core.hpp /
+# filters.hpp headers under bindings/include are private.
 
-# Compile the core extension module.
 nanobind_add_module(_core_ext STABLE_ABI NB_STATIC src/core_ext.cpp
                     src/core.cpp)
 target_include_directories(_core_ext
@@ -88,8 +84,7 @@ else()
   file(TO_CMAKE_PATH "${Python_SITEARCH}" PYTHON_DESTINATION)
 endif()
 
-# Compile the filters extension module (the `filters` C++ target is part of this
-# core package, so no cross-package import is needed at runtime).
+# The filters C++ code is part of the `roboplan` library.
 nanobind_add_module(_filters_ext STABLE_ABI NB_STATIC src/filters_ext.cpp
                     src/filters.cpp)
 target_include_directories(_filters_ext
@@ -199,7 +194,6 @@ endif()
 # Ships the roboplan/<sub>/ packages and the generated .pyi/py.typed stubs.
 install(DIRECTORY python/roboplan/ DESTINATION "${PYTHON_DESTINATION}/roboplan")
 
-# Register the Python binding tests, if enabled.
 if(AMENT_BUILD AND BUILD_TESTING)
   add_subdirectory(test)
 endif()

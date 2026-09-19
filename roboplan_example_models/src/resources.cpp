@@ -11,15 +11,12 @@ extern void exampleModelsLocationAnchor();
 }
 
 std::filesystem::path get_install_prefix() {
-  // This would be a lot easier if it were an ament package, instead we use
-  // dynamic linking to get the filesystem path of the example resources shared
-  // object file.
+  // Not an ament package, so find this shared library's path with dladdr.
   Dl_info dl_info;
   dladdr((void*)&anchor::exampleModelsLocationAnchor, &dl_info);
   const auto lib_path = std::filesystem::path(dl_info.dli_fname).lexically_normal();
 
-  // Then we can just pull the relative path to the share directory
-  // <install_directory>/lib/roboplan_example_models/<executable>
+  // The library sits in <install_directory>/lib (bin on Windows), so the prefix is two levels up.
   const auto prefix = lib_path.parent_path().parent_path();
 
   // For compiled installs with symlinks, dladdr may follow and break (e.g. on MacOS).

@@ -16,6 +16,7 @@ from roboplan.core import (
     Scene,
     Sphere,
     hasCollisionsAlongPath,
+    loadJointLimitsConfig,
     loadMjcfModel,
     loadUrdfSceneDescription,
     loadUrdfSceneDescriptionFromXml,
@@ -75,11 +76,8 @@ def test_scene() -> Scene:
     yaml_config_path = roboplan_models_dir / "ur_robot_model" / "ur5_config.yaml"
 
     description = loadUrdfSceneDescription(urdf_path, package_paths)
-    scene = Scene(
-        "test_scene",
-        description,
-        yaml_config_path,
-    )
+    scene = Scene("test_scene", description)
+    scene.importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path))
     scene.importSrdf(srdf_path.read_text())
     return scene
 
@@ -266,7 +264,7 @@ def test_set_collisions(test_scene: Scene) -> None:
     )
     assert test_scene.hasCollisions(q)
 
-    # Use the frame names, which should automatically look up the corresponding collision geometries.
+    # Frame names should resolve to their collision geometries.
     test_scene.setCollisions("forearm_link", "test_sphere", False)
     assert not test_scene.hasCollisions(q)
 
@@ -274,7 +272,7 @@ def test_set_collisions(test_scene: Scene) -> None:
     test_scene.setCollisions("test_sphere", "forearm_link", True)
     assert test_scene.hasCollisions(q)
 
-    # Add an invalid collision pair for check for errors.
+    # An unknown body name should raise.
     with pytest.raises(RuntimeError) as exc_info:
         test_scene.setCollisions("nonexistent_link", "test_sphere", True)
     expected_error = (
@@ -289,12 +287,10 @@ def test_allow_adjacent_link_collisions() -> None:
     roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
     urdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.urdf"
     package_paths = [roboplan_examples_dir]
-    yaml_config_path = roboplan_models_dir / "ur_robot_model" / "ur5_config.yaml"
 
     scene = Scene(
         "test_scene",
         loadUrdfSceneDescription(urdf_path, package_paths),
-        yaml_config_path,
     )
 
     # Without an SRDF every self-collision pair is active, so even the neutral configuration
