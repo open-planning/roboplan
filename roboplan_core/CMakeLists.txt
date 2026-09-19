@@ -71,9 +71,9 @@ target_link_libraries(
   PUBLIC pinocchio::pinocchio
   PRIVATE tinyxml2::tinyxml2 console_bridge::console_bridge)
 if(yaml-cpp_VERSION VERSION_LESS "0.8") # for Ubuntu 22.04
-  target_link_libraries(roboplan PRIVATE yaml-cpp)
+  target_link_libraries(roboplan PUBLIC yaml-cpp)
 else()
-  target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
+  target_link_libraries(roboplan PUBLIC yaml-cpp::yaml-cpp)
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
 # Alias so this works via add_subdirectory() too, not just installed

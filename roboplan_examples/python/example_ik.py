@@ -14,6 +14,7 @@ from roboplan.core import (
     CartesianConfiguration,
     JointConfiguration,
     Scene,
+    loadJointLimitsConfig,
     loadUrdfSceneDescriptionFromXml,
 )
 from roboplan.example_models import get_package_share_dir
@@ -57,7 +58,9 @@ def main(
     scene = Scene(
         "test_scene",
         loadUrdfSceneDescriptionFromXml(urdf_xml, package_paths),
-        yaml_config_path=model_data.yaml_config_path,
+    )
+    scene.importJointLimitsFromConfig(
+        loadJointLimitsConfig(model_data.yaml_config_path)
     )
     scene.importSrdf(srdf_xml)
     q_indices = scene.getJointGroupInfo(model_data.default_joint_group).q_indices

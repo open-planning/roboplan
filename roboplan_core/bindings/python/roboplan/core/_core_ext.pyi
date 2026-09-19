@@ -400,6 +400,11 @@ class PinocchioSceneDescription:
 
 def loadTextFile(path: str | os.PathLike) -> str: ...
 
+class YamlNode:
+    """Parsed YAML document."""
+
+def loadJointLimitsConfig(path: str | os.PathLike) -> YamlNode: ...
+
 def loadUrdfSceneDescriptionFromXml(urdf_xml: str, package_paths: Sequence[str | os.PathLike] = []) -> PinocchioSceneDescription: ...
 
 def loadUrdfSceneDescription(urdf_path: str | os.PathLike, package_paths: Sequence[str | os.PathLike] = []) -> PinocchioSceneDescription: ...
@@ -409,7 +414,7 @@ def loadMjcfModel(mjcf_path: str | os.PathLike) -> PinocchioSceneDescription: ..
 class Scene:
     """Primary scene representation for planning and control."""
 
-    def __init__(self, name: str, description: PinocchioSceneDescription, yaml_config_path: str | os.PathLike = ...) -> None: ...
+    def __init__(self, name: str, description: PinocchioSceneDescription) -> None: ...
 
     def getName(self) -> str:
         """Gets the scene's name."""
@@ -484,6 +489,9 @@ class Scene:
 
     def importSrdf(self, srdf_xml: str) -> None:
         """Applies groups and disabled collision pairs from an SRDF document."""
+
+    def importJointLimitsFromConfig(self, yaml_config: YamlNode) -> None:
+        """Overrides joint limits from a parsed configuration."""
 
     def addGroupFromChain(self, name: str, base_link: str, tip_link: str) -> None:
         """Adds a joint group defined by a kinematic chain."""

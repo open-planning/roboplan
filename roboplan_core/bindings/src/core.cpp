@@ -185,6 +185,8 @@ void init_core_scene(nanobind::module_& m) {
   nanobind::class_<PinocchioSceneDescription>(m, "PinocchioSceneDescription",
                                               "Pinocchio model and collision geometry.");
   m.def("loadTextFile", &loadTextFile, "path"_a);
+  nanobind::class_<YAML::Node>(m, "YamlNode", "Parsed YAML document.");
+  m.def("loadJointLimitsConfig", &loadJointLimitsConfig, "path"_a);
   m.def("loadUrdfSceneDescriptionFromXml", &loadUrdfSceneDescriptionFromXml, "urdf_xml"_a,
         "package_paths"_a = std::vector<std::filesystem::path>());
   m.def("loadUrdfSceneDescription", &loadUrdfSceneDescription, "urdf_path"_a,
@@ -192,9 +194,8 @@ void init_core_scene(nanobind::module_& m) {
   m.def("loadMjcfModel", &loadMjcfModel, "mjcf_path"_a);
 
   nanobind::class_<Scene>(m, "Scene", "Primary scene representation for planning and control.")
-      .def(nanobind::init<const std::string&, const PinocchioSceneDescription&,
-                          const std::filesystem::path&>(),
-           "name"_a, "description"_a, "yaml_config_path"_a = std::filesystem::path())
+      .def(nanobind::init<const std::string&, const PinocchioSceneDescription&>(), "name"_a,
+           "description"_a)
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
            "Gets the scene's actuated joint names (non-mimic joints only).")
@@ -281,6 +282,8 @@ void init_core_scene(nanobind::module_& m) {
            "Get the joint group information of a scene by its name.", "name"_a)
       .def("importSrdf", unwrap_expected(&Scene::importSrdf),
            "Applies groups and disabled collision pairs from an SRDF document.", "srdf_xml"_a)
+      .def("importJointLimitsFromConfig", &Scene::importJointLimitsFromConfig,
+           "Overrides joint limits from a parsed configuration.", "yaml_config"_a)
       .def("addGroupFromChain", unwrap_expected(&Scene::addGroupFromChain),
            "Adds a joint group defined by a kinematic chain.", "name"_a, "base_link"_a,
            "tip_link"_a)

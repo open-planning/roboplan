@@ -47,7 +47,8 @@ protected:
     package_paths = {example_models::get_package_share_dir()};
     yaml_config_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
     const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
-    scene = std::make_unique<Scene>("test_scene", description, yaml_config_path);
+    scene = std::make_unique<Scene>("test_scene", description);
+    scene->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path));
     if (const auto imported = scene->importSrdf(loadTextFile(srdf_path)); !imported) {
       throw std::runtime_error(imported.error());
     }
@@ -506,8 +507,7 @@ bool hasCollisionPair(Scene& scene, const std::string& body1, const std::string&
 }
 
 TEST_F(RoboPlanSceneTest, TestAllowAdjacentLinkCollisions) {
-  Scene scene_no_srdf("test_scene", loadUrdfSceneDescription(urdf_path, package_paths),
-                      yaml_config_path);
+  Scene scene_no_srdf("test_scene", loadUrdfSceneDescription(urdf_path, package_paths));
 
   ASSERT_TRUE(hasCollisionPair(scene_no_srdf, "base_link", "shoulder_link"));
   ASSERT_TRUE(hasCollisionPair(scene_no_srdf, "shoulder_link", "upper_arm_link"));
@@ -617,7 +617,8 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
   }
 
   const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
-  Scene scene("override_scene", description, tmp_config);
+  Scene scene("override_scene", description);
+  scene.importJointLimitsFromConfig(loadJointLimitsConfig(tmp_config));
   if (const auto imported = scene.importSrdf(loadTextFile(srdf_path)); !imported) {
     FAIL() << imported.error();
   }
@@ -653,7 +654,8 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideInfinityFromYaml) {
   }
 
   const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
-  Scene scene("inf_scene", description, tmp_config);
+  Scene scene("inf_scene", description);
+  scene.importJointLimitsFromConfig(loadJointLimitsConfig(tmp_config));
   if (const auto imported = scene.importSrdf(loadTextFile(srdf_path)); !imported) {
     FAIL() << imported.error();
   }
@@ -702,7 +704,10 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
   }
 
   EXPECT_THROW(
-      Scene("bad_size_scene", loadUrdfSceneDescription(urdf_path, package_paths), tmp_config),
+      {
+        Scene scene("bad_size_scene", loadUrdfSceneDescription(urdf_path, package_paths));
+        scene.importJointLimitsFromConfig(loadJointLimitsConfig(tmp_config));
+      },
       std::runtime_error);
 
   std::filesystem::remove(tmp_config);

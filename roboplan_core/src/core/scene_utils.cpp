@@ -1,7 +1,6 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
-#include <optional>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
@@ -10,41 +9,27 @@
 
 #include <roboplan/core/scene_utils.hpp>
 
-namespace {
+namespace roboplan {
 
-/// @brief Returns whether the given velocity-space DOF index of a joint is free-rotating.
-/// @details These are the unbounded orientation DOFs for which position limits are meaningless:
-/// the single DOF of a continuous joint, the rotational DOF of a planar joint, and the three
-/// rotational DOFs of a floating joint. Position limit indices follow the velocity (tangent)
-/// space, so a continuous DOF collapses to a single index here.
-bool isFreeRotatingDof(roboplan::JointType type, int dof) {
+bool isFreeRotatingDof(JointType type, int dof) {
   switch (type) {
-  case roboplan::JointType::CONTINUOUS:
+  case JointType::CONTINUOUS:
     return dof == 0;
-  case roboplan::JointType::PLANAR:
+  case JointType::PLANAR:
     return dof == 2;  // (x, y, theta) -> theta is free-rotating.
-  case roboplan::JointType::FLOATING:
+  case JointType::FLOATING:
     return dof >= 3;  // (x, y, z, rx, ry, rz) -> the rotational DOFs are free-rotating.
   default:
     return false;
   }
 }
 
-/// @brief Maps an infinite limit to the finite sentinel used to denote "unbounded".
-/// @details JointInfo represents an unbounded limit as
-/// std::numeric_limits<double>::lowest() / max() (see the JointInfo constructor), not as
-/// +/-infinity. A user-supplied '.inf' / '-.inf' is normalized to these sentinels so that an
-/// overridden unbounded limit is represented identically to the default unbounded limit.
 double sanitizeLimit(double value) {
   if (std::isinf(value)) {
     return value > 0.0 ? std::numeric_limits<double>::max() : std::numeric_limits<double>::lowest();
   }
   return value;
 }
-
-}  // namespace
-
-namespace roboplan {
 
 std::unordered_map<std::string, pinocchio::FrameIndex>
 createFrameMap(const pinocchio::Model& model) {
@@ -371,110 +356,6 @@ Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene,
     }
   }
   return positions;
-}
-
-void overrideJointLimitsFromYaml(const pinocchio::Model& model, const YAML::Node& yaml_config,
-                                 const std::string& joint_name, JointInfo& info) {
-  const int nv = static_cast<int>(info.num_velocity_dofs);
-  // Starting index of this joint's DOFs in the model's velocity vector.
-  const auto v_start = model.idx_vs[model.getJointId(joint_name)];
-
-  // Override URDF limits if supplied in the YAML file.
-  std::optional<YAML::Node> maybe_min_pos_limits;
-  std::optional<YAML::Node> maybe_max_pos_limits;
-  std::optional<YAML::Node> maybe_vel_limits;
-  std::optional<YAML::Node> maybe_acc_limits;
-  std::optional<YAML::Node> maybe_jerk_limits;
-  if (yaml_config["joint_limits"] && yaml_config["joint_limits"][joint_name]) {
-    const auto& limits_config = yaml_config["joint_limits"][joint_name];
-    if (limits_config["min_position"]) {
-      maybe_min_pos_limits = limits_config["min_position"];
-      if (!maybe_min_pos_limits->IsSequence() ||
-          (maybe_min_pos_limits->size() != static_cast<size_t>(nv))) {
-        throw std::runtime_error("Minimum position limits for joint '" + joint_name +
-                                 "' must be a sequence of size " + std::to_string(nv) + ".");
-      }
-    }
-    if (limits_config["max_position"]) {
-      maybe_max_pos_limits = limits_config["max_position"];
-      if (!maybe_max_pos_limits->IsSequence() ||
-          (maybe_max_pos_limits->size() != static_cast<size_t>(nv))) {
-        throw std::runtime_error("Maximum position limits for joint '" + joint_name +
-                                 "' must be a sequence of size " + std::to_string(nv) + ".");
-      }
-    }
-    if (limits_config["max_velocity"]) {
-      maybe_vel_limits = limits_config["max_velocity"];
-      if (!maybe_vel_limits->IsSequence() ||
-          (maybe_vel_limits->size() != static_cast<size_t>(nv))) {
-        throw std::runtime_error("Velocity limits for joint '" + joint_name +
-                                 "' must be a sequence of size " + std::to_string(nv) + ".");
-      }
-    }
-    if (limits_config["max_acceleration"]) {
-      maybe_acc_limits = limits_config["max_acceleration"];
-      if (!maybe_acc_limits->IsSequence() ||
-          (maybe_acc_limits->size() != static_cast<size_t>(nv))) {
-        throw std::runtime_error("Acceleration limits for joint '" + joint_name +
-                                 "' must be a sequence of size " + std::to_string(nv) + ".");
-      }
-    }
-    if (limits_config["max_jerk"]) {
-      maybe_jerk_limits = limits_config["max_jerk"];
-      if (!maybe_jerk_limits->IsSequence() ||
-          (maybe_jerk_limits->size() != static_cast<size_t>(nv))) {
-        throw std::runtime_error("Jerk limits for joint '" + joint_name +
-                                 "' must be a sequence of size " + std::to_string(nv) + ".");
-      }
-    }
-  }
-  for (int idx = 0; idx < nv; ++idx) {
-    // Position limits are overridden per velocity-space DOF. For free-rotating DOFs (continuous
-    // joints and the orientation DOFs of planar/floating joints) a position limit is meaningless,
-    // so any finite override is discarded with a warning. Users should use '.inf' / '-.inf' to
-    // explicitly denote an unbounded position for these DOFs.
-    const bool is_free_dof = isFreeRotatingDof(info.type, idx);
-    bool discarded_pos_limit = false;
-    if (maybe_min_pos_limits) {
-      const double val = maybe_min_pos_limits.value()[idx].as<double>();
-      if (is_free_dof) {
-        discarded_pos_limit |= std::isfinite(val);
-      } else {
-        info.limits.min_position[idx] = sanitizeLimit(val);
-      }
-    }
-    if (maybe_max_pos_limits) {
-      const double val = maybe_max_pos_limits.value()[idx].as<double>();
-      if (is_free_dof) {
-        discarded_pos_limit |= std::isfinite(val);
-      } else {
-        info.limits.max_position[idx] = sanitizeLimit(val);
-      }
-    }
-    if (discarded_pos_limit) {
-      std::cout << "Warning: joint '" << joint_name
-                << "' has a free-rotating DOF (velocity-space index " << idx
-                << "); the specified position limit was discarded. Use '.inf' and '-.inf' in the "
-                   "YAML config to denote an unbounded position."
-                << std::endl;
-    }
-    if (maybe_vel_limits) {
-      info.limits.max_velocity[idx] = maybe_vel_limits.value()[idx].as<double>();
-    } else {
-      info.limits.max_velocity[idx] = model.velocityLimit(v_start + idx);
-    }
-    if (maybe_acc_limits) {
-      info.limits.max_acceleration[idx] = sanitizeLimit(maybe_acc_limits.value()[idx].as<double>());
-    } else {
-      info.limits.max_acceleration[idx] =
-          sanitizeLimit(model.upperAccelerationLimit(v_start + idx));
-    }
-    if (maybe_jerk_limits) {
-      info.limits.max_jerk[idx] = sanitizeLimit(maybe_jerk_limits.value()[idx].as<double>());
-    } else {
-      info.limits.max_jerk[idx] = sanitizeLimit(model.upperJerkLimit(v_start + idx));
-    }
-  }
 }
 
 bool computeCollisionsVerbose(const pinocchio::Model& model, pinocchio::Data& data,

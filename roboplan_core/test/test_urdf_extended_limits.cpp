@@ -172,7 +172,8 @@ TEST(UrdfExtendedLimits, YamlOverridesUrdf) {
       << "    max_jerk: [100.0]\n";
   }
 
-  Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfForYamlOverride), tmp_yaml);
+  Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfForYamlOverride));
+  scene.importJointLimitsFromConfig(loadJointLimitsConfig(tmp_yaml));
 
   const auto info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 10.0, kTolerance);

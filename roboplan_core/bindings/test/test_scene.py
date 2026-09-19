@@ -16,6 +16,7 @@ from roboplan.core import (
     Scene,
     Sphere,
     hasCollisionsAlongPath,
+    loadJointLimitsConfig,
     loadMjcfModel,
     loadUrdfSceneDescription,
     loadUrdfSceneDescriptionFromXml,
@@ -75,11 +76,8 @@ def test_scene() -> Scene:
     yaml_config_path = roboplan_models_dir / "ur_robot_model" / "ur5_config.yaml"
 
     description = loadUrdfSceneDescription(urdf_path, package_paths)
-    scene = Scene(
-        "test_scene",
-        description,
-        yaml_config_path,
-    )
+    scene = Scene("test_scene", description)
+    scene.importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path))
     scene.importSrdf(srdf_path.read_text())
     return scene
 
@@ -289,12 +287,10 @@ def test_allow_adjacent_link_collisions() -> None:
     roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
     urdf_path = roboplan_models_dir / "ur_robot_model" / "ur5_gripper.urdf"
     package_paths = [roboplan_examples_dir]
-    yaml_config_path = roboplan_models_dir / "ur_robot_model" / "ur5_config.yaml"
 
     scene = Scene(
         "test_scene",
         loadUrdfSceneDescription(urdf_path, package_paths),
-        yaml_config_path,
     )
 
     # Without an SRDF every self-collision pair is active, so even the neutral configuration

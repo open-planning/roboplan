@@ -129,11 +129,12 @@ The ``Scene`` is the central object in RoboPlan.
 It owns the Pinocchio robot model and data, the collision geometry model, and planning-relevant information such as joint groups, joint limits, and dynamic obstacles.
 On top of these it provides the queries every algorithm needs: forward kinematics, frame Jacobians, joint limits and groups, collision and distance checks, random and collision-free sampling, and interpolation/integration that respects the configuration space topology.
 
-A ``Scene`` is constructed from a ``PinocchioSceneDescription`` (a Pinocchio model and its collision geometry), plus an optional YAML file that overrides joint limits.
+A ``Scene`` is constructed from a ``PinocchioSceneDescription`` (a Pinocchio model and its collision geometry).
 Loaders produce that description; they are the only place format-specific I/O lives:
 
 - ``loadUrdfSceneDescription`` / ``loadUrdfSceneDescriptionFromXml`` — URDF, with ``package_paths`` used to resolve ``package://`` meshes
 - ``loadMjcfModel`` — MJCF
+- ``loadJointLimitsConfig`` — joint-limit config, applied afterwards with ``importJointLimitsFromConfig``
 
 The constructor is kinematics and geometry only.
 Joint groups and disabled collision pairs are applied afterwards with ``importSrdf`` (SRDF XML contents) or the ``addGroup*`` / collision-pair helpers.

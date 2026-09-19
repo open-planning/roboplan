@@ -19,6 +19,7 @@
 #include <pinocchio/multibody/geometry.hpp>
 #include <pinocchio/multibody/model.hpp>
 #include <tl/expected.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/types.hpp>
@@ -42,6 +43,9 @@ struct PinocchioSceneDescription {
 
 /// @brief Reads a text file from disk.
 std::string loadTextFile(const std::filesystem::path& path);
+
+/// @brief Loads a joint-limits config from disk.
+YAML::Node loadJointLimitsConfig(const std::filesystem::path& path);
 
 /// @brief Builds a Pinocchio model and collision geometry from URDF XML.
 /// @param urdf_xml The URDF XML contents.
@@ -77,18 +81,18 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
 ///    scratch over this Scene's immutable description, and call the equivalent methods there.
 ///
 /// 3. Mutable bookkeeping (`setJointPositions`, `setRngSeed`, geometry mutators, `importSrdf`,
-///    and the group mutators). These are for single-threaded setup and interactive use. Library
-///    code must not write them while other threads are querying, and must not read
-///    `getCurrentJointPositions()` in the middle of an algorithm.
+///    `importJointLimitsFromConfig`, and the group mutators). These are for single-threaded setup
+///    and interactive use. Library code must not write them while other threads are querying, and
+///    must not read `getCurrentJointPositions()` in the middle of an algorithm.
 ///
 /// For items 2. and 3., if you need thread safety, we recommend using a SceneContext.
 class Scene {
 public:
   /// @brief Builds a scene from a Pinocchio model and collision geometry.
-  /// @details Planner configuration such as joint groups and disabled collision pairs is applied
-  /// afterwards with `importSrdf` or the `addGroup*` methods.
-  Scene(const std::string& name, const PinocchioSceneDescription& description,
-        const std::filesystem::path& yaml_config_path = std::filesystem::path());
+  /// @details Planner configuration such as joint groups, disabled collision pairs, and YAML
+  /// joint-limit overrides is applied afterwards with `importSrdf`, `importJointLimitsFromConfig`,
+  /// or the `addGroup*` methods.
+  Scene(const std::string& name, const PinocchioSceneDescription& description);
 
   // Non-copyable and non-movable. `broadphase_manager_` caches raw pointers to this Scene's
   // `model_` and `collision_model_data_`, so a defaulted copy or move would silently produce a
@@ -371,6 +375,15 @@ public:
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> importSrdf(const std::string& srdf_xml);
 
+  /// @brief Overrides joint limits from a parsed configuration.
+  /// @details Position, velocity, acceleration, and jerk limits may each be overridden via a
+  /// `joint_limits/<joint_name>` entry, where every limit is a sequence sized to the joint's
+  /// number of velocity DOFs. Mimic joints inherit scaled limits from the joints they mimic after
+  /// overrides are applied. Position limits for free-rotating DOFs are discarded with a warning
+  /// unless given as `.inf` / `-.inf`.
+  /// @param yaml_config The parsed YAML configuration node (may be empty/null).
+  void importJointLimitsFromConfig(const YAML::Node& yaml_config);
+
   /// @brief Adds a joint group defined by a kinematic chain.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param base_link The name of the chain's base link.
@@ -571,6 +584,7 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
+  void applyMimicJointLimits();
   /// @brief The name of the scene.
   std::string name_;
 

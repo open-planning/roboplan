@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <pinocchio/multibody/model.hpp>
-#include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/types.hpp>
@@ -101,18 +100,18 @@ bool computeCollisionsVerbose(const pinocchio::Model& model, pinocchio::Data& da
                               const pinocchio::GeometryModel& collision_model,
                               pinocchio::GeometryData& geom_data, const Eigen::VectorXd& q);
 
-/// @brief Overrides a joint's limits in-place from a YAML configuration.
-/// @details Position, velocity, acceleration, and jerk limits may each be overridden via a
-/// `joint_limits/<joint_name>` entry, where every limit is a sequence sized to the joint's number
-/// of velocity DOFs. When no override is present, limits fall back to the Pinocchio model (URDF
-/// 1.2 acceleration/jerk included). Position limits for free-rotating DOFs (continuous joints and
-/// the orientation DOFs of planar/floating joints) are meaningless and are discarded with a
-/// warning unless given as '.inf' / '-.inf'.
-/// @param model The Pinocchio model, used for URDF-derived limit fallbacks.
-/// @param yaml_config The parsed YAML configuration node (may be empty/null).
-/// @param joint_name The name of the joint to override.
-/// @param info The joint info to modify in-place.
-void overrideJointLimitsFromYaml(const pinocchio::Model& model, const YAML::Node& yaml_config,
-                                 const std::string& joint_name, JointInfo& info);
+/// @brief Returns whether the given velocity-space DOF index of a joint is free-rotating.
+/// @details These are the unbounded orientation DOFs for which position limits are meaningless:
+/// the single DOF of a continuous joint, the rotational DOF of a planar joint, and the three
+/// rotational DOFs of a floating joint. Position limit indices follow the velocity (tangent)
+/// space, so a continuous DOF collapses to a single index here.
+bool isFreeRotatingDof(JointType type, int dof);
+
+/// @brief Maps an infinite limit to the finite sentinel used to denote "unbounded".
+/// @details JointInfo represents an unbounded limit as
+/// std::numeric_limits<double>::lowest() / max() (see the JointInfo constructor), not as
+/// +/-infinity. A user-supplied '.inf' / '-.inf' is normalized to these sentinels so that an
+/// overridden unbounded limit is represented identically to the default unbounded limit.
+double sanitizeLimit(double value);
 
 }  // namespace roboplan

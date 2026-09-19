@@ -52,8 +52,9 @@ std::shared_ptr<Scene> makeUr5Scene() {
   const auto description =
       loadUrdfSceneDescription(model_prefix / "ur_robot_model" / "ur5_gripper.urdf",
                                {example_models::get_package_share_dir()});
-  auto scene = std::make_shared<Scene>("ur5_scene", description,
-                                       model_prefix / "ur_robot_model" / "ur5_config.yaml");
+  auto scene = std::make_shared<Scene>("ur5_scene", description);
+  scene->importJointLimitsFromConfig(
+      loadJointLimitsConfig(model_prefix / "ur_robot_model" / "ur5_config.yaml"));
   const auto imported =
       scene->importSrdf(loadTextFile(model_prefix / "ur_robot_model" / "ur5_gripper.srdf"));
   if (!imported) {

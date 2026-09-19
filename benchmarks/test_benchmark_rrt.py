@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 import xacro
 
-from roboplan.core import JointConfiguration, Scene, loadUrdfSceneDescriptionFromXml
+from roboplan.core import (
+    JointConfiguration,
+    Scene,
+    loadJointLimitsConfig,
+    loadUrdfSceneDescriptionFromXml,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRT, RRTOptions
 
@@ -70,7 +75,9 @@ def create_scene(model_name: str) -> Scene:
     scene = Scene(
         f"{model_name}_benchmark_scene",
         loadUrdfSceneDescriptionFromXml(urdf_xml, package_paths),
-        yaml_config_path=model_data.yaml_config_path,
+    )
+    scene.importJointLimitsFromConfig(
+        loadJointLimitsConfig(model_data.yaml_config_path)
     )
     scene.importSrdf(srdf_xml)
     return scene
