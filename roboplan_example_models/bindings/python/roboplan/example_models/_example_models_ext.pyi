@@ -2,14 +2,14 @@ import pathlib
 
 
 def get_install_prefix() -> pathlib.Path:
-    """Provides compile time access to the resources install directory."""
+    """
+    Returns the install prefix, located at runtime from this shared library.
+    """
 
 def get_package_share_dir() -> pathlib.Path:
-    """
-    Provides compile time access to the resources shared directory for accessing robot models or other resource files.
-    """
+    """Returns the `share` directory under the install prefix."""
 
 def get_package_models_dir() -> pathlib.Path:
     """
-    Provides compile time access to the directory under the resources shared directory which contains all the example robot models.
+    Returns the example robot models directory (`share/roboplan_example_models/models`).
     """

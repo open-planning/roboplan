@@ -36,7 +36,6 @@ def test_scene() -> Scene:
 
 
 def test_plan(test_scene: Scene) -> None:
-    # Ensure determinism in the test.
     test_scene.setRngSeed(286)
 
     options = RRTOptions()
@@ -61,7 +60,7 @@ def test_plan(test_scene: Scene) -> None:
 
 
 def test_plan_default_group(test_scene: Scene) -> None:
-    # It should be possible to plan without specifying a group name, if using a model format that doesn't require them
+    # Planning without a group name should work for model formats that don't require groups.
     test_scene.setRngSeed(286)
 
     options = RRTOptions()  # group_name defaults to "".
@@ -91,7 +90,6 @@ def test_plan_rrt_star(test_scene: Scene) -> None:
     # Plan the same problem with and without RRT*. RRT* keeps rewiring and optimizing,
     # so its path must be equal or shorter than plain RRT.
 
-    # Ensure determinism in the test.
     test_scene.setRngSeed(286)
 
     start = JointConfiguration()

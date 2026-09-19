@@ -264,7 +264,7 @@ def test_set_collisions(test_scene: Scene) -> None:
     )
     assert test_scene.hasCollisions(q)
 
-    # Use the frame names, which should automatically look up the corresponding collision geometries.
+    # Frame names should resolve to their collision geometries.
     test_scene.setCollisions("forearm_link", "test_sphere", False)
     assert not test_scene.hasCollisions(q)
 
@@ -272,7 +272,7 @@ def test_set_collisions(test_scene: Scene) -> None:
     test_scene.setCollisions("test_sphere", "forearm_link", True)
     assert test_scene.hasCollisions(q)
 
-    # Add an invalid collision pair for check for errors.
+    # An unknown body name should raise.
     with pytest.raises(RuntimeError) as exc_info:
         test_scene.setCollisions("nonexistent_link", "test_sphere", True)
     expected_error = (

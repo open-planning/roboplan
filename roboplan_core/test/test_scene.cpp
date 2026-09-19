@@ -402,7 +402,7 @@ TEST_F(RoboPlanSceneTest, TestCollisionForOcTreeGeometry) {
   auto octree_geometry = createPointcloud();
 
   Eigen::Matrix4d octree_tform = Eigen::Matrix4d::Identity();
-  octree_tform(0, 3) = 1.0;  // z position
+  octree_tform(0, 3) = 1.0;  // x position
 
   const auto add_octree_result =
       scene->addOcTreeGeometry("test_octree", "universe", octree_geometry, octree_tform, color);
@@ -430,7 +430,7 @@ TEST_F(RoboPlanSceneTest, TestSetCollisionsForOcTree) {
   auto octree_geometry = createPointcloud();
 
   Eigen::Matrix4d octree_tform = Eigen::Matrix4d::Identity();
-  octree_tform(0, 3) = 0.6;  // z position
+  octree_tform(0, 3) = 0.6;  // x position
 
   const auto add_octree_result =
       scene->addOcTreeGeometry("test_octree", "universe", octree_geometry, octree_tform, color);

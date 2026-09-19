@@ -5,8 +5,8 @@
 # roboplan::roboplan import target are already available from the parent
 # configure.
 #
-# NOTE: the ament/scikit/nanobind detection below is intentionally duplicated
-# per package for clarity rather than factored into a shared helper.
+# NOTE: the ament/cmeel/nanobind detection below is intentionally duplicated per
+# package for clarity rather than factored into a shared helper.
 
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)

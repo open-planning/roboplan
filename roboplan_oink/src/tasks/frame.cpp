@@ -49,7 +49,7 @@ FrameTask::FrameTask(const Oink& oink, const Scene& scene,
 }
 
 tl::expected<void, std::string> FrameTask::computeError(const SceneContext& context) {
-  // Get data from scene (assumes kinematics are already up-to-date)
+  // Assumes kinematics are already up-to-date.
   auto& data = context.getData();
 
   // Get current frame pose in world frame
@@ -75,9 +75,8 @@ tl::expected<void, std::string> FrameTask::computeError(const SceneContext& cont
   error_container.head<3>() = e_pos;
   error_container.tail<3>() = e_rot;
 
-  // Soft saturation of position error using tanh for smooth gradients
-  // This prevents large jumps that can invalidate CBF linearization while maintaining
-  // smooth error dynamics. Uses saturate(e) = e_max * tanh(||e|| / e_max) * (e / ||e||)
+  // Soft saturation with tanh prevents large jumps that can invalidate CBF linearization while
+  // keeping the error dynamics smooth: saturate(e) = e_max * tanh(||e|| / e_max) * (e / ||e||)
   if (std::isfinite(max_position_error)) {
     Eigen::Vector3d pos_error = error_container.head<kPositionDimension>();
     const double pos_norm = pos_error.norm();
@@ -87,7 +86,6 @@ tl::expected<void, std::string> FrameTask::computeError(const SceneContext& cont
     }
   }
 
-  // Soft saturation of rotation error using tanh for smooth gradients
   if (std::isfinite(max_rotation_error)) {
     Eigen::Vector3d rot_error = error_container.tail<kOrientationDimension>();
     const double rot_norm = rot_error.norm();
@@ -101,7 +99,6 @@ tl::expected<void, std::string> FrameTask::computeError(const SceneContext& cont
 }
 
 tl::expected<void, std::string> FrameTask::computeJacobian(const SceneContext& context) {
-  // Get current joint configuration
   const Eigen::VectorXd& q = context.getJointPositions();
 
   // Compute the full-robot frame Jacobian, then select the group's velocity columns.

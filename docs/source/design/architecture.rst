@@ -6,7 +6,6 @@ The core package defines the :doc:`standard data types </design/philosophy>` (e.
 Each algorithm lives in its own package, consumes the ``Scene`` and the standard types, and can be installed and used independently.
 
 The diagram below shows the major components, the external libraries they build on, and how the Python bindings fit in.
-Colors indicate the implementation language of each component: C++ only, Python only, or C++ with Python bindings.
 
 .. mermaid::
 
@@ -81,7 +80,7 @@ Colors indicate the implementation language of each component: C++ only, Python 
        class LBOTH,CART,SINK,OINK,RRT,TOPPRA,SCENE,TYPES,SHORT,PIN,COAL both
        class USER neutral
 
-Note that all components use `Eigen <https://eigen.tuxfamily.org/>`_ for linear algebra; it is omitted from the diagram for clarity.
+All components use `Eigen <https://eigen.tuxfamily.org/>`_ for linear algebra; it is omitted from the diagram for clarity.
 
 
 Packages
@@ -123,10 +122,10 @@ Each C++ package ships its own Python bindings, exposed as a submodule of the ``
      - Runnable C++ and Python examples.
    * - ``roboplan_common``
      - ``roboplan_common``
-     - Internal build and runtime support shared by the packages above (CMake macros, Python install helpers); not part of the public API.
+     - Internal Python runtime support shared by the packages above (e.g., CMake macros, Python install helpers); not part of the public API.
    * - ``roboplan``
      - (metapackage)
-     - Pure-Python metapackage that depends on every package above, so that ``pip install roboplan`` pulls in all of the bindings.
+     - Pure-Python metapackage that depends on every package above except the examples, so ``pip install roboplan`` installs all the bindings.
 
 
 The core package
@@ -152,7 +151,7 @@ Following the design of Pinocchio, the ``Scene`` itself splits into:
 - An immutable robot description (the model, the collision geometry, the frame/joint/group lookups)
 - Per-query scratch (Pinocchio data, geometry data, the broadphase AABB tree, the RNG, the current configuration).
 
-Only the first half is safe to share, so algorithms can snapshot a private ``SceneContext`` from the ``Scene`` and run every scratch-writing query (e.g., collision checks, forward kinematics, frame Jacobians, random sampling)  against that.
+Only the first half is safe to share, so algorithms can snapshot a private ``SceneContext`` from the ``Scene`` and run every scratch-writing query (e.g., collision checks, forward kinematics, frame Jacobians, random sampling) against that.
 Give each thread its own ``SceneContext`` and any number of algorithms can work against one shared ``Scene`` concurrently; the Python bindings release the GIL for the long-running entry points, so this holds from Python too.
 A context also takes advantage of Pinocchio's broadphase manager for faster collision checking.
 
@@ -185,7 +184,7 @@ Python bindings and visualization
 ---------------------------------
 
 The bindings are a first-class deliverable (see :doc:`Design Philosophy </design/philosophy>`).
-Each package binds its C++ API with `nanobind <https://github.com/wjakob/nanobind>`_ and installs typed stubs, and the per-package modules combine into the single ``roboplan`` namespace package shown in the table above.
+Each package binds its C++ API with `nanobind <https://github.com/wjakob/nanobind>`_ and installs typed stubs.
 
 Two modules are implemented in pure Python on top of the bindings:
 

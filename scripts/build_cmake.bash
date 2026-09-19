@@ -12,7 +12,7 @@ pushd "${REPO_ROOT_DIR}" || exit
 INSTALL_PREFIX="${PWD}/install"
 
 cmake -S superbuild --preset default -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-cmake --build build --parallel "$(nproc)"
+cmake --build build --parallel "${CMAKE_BUILD_PARALLEL_LEVEL:-$(nproc)}"
 cmake --install build
 
 echo "

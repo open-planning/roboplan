@@ -19,7 +19,7 @@ GROUP_NAME = "arm"
 BASE_FRAME = "base"
 TIP_FRAME = "tool0"
 
-# The solver's default time budget is too tight to reliably converge on a slo
+# The solver's default time budget is too tight to reliably converge on a slow
 # or loaded machine (e.g., a debug CI build), so give it generous headroom.
 MAX_SOLVE_TIME = 1.0
 

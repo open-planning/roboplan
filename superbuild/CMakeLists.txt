@@ -22,8 +22,6 @@ option(ROBOPLAN_BUILD_EXAMPLES "Build the RoboPlan examples" ON)
 
 # compile_commands.json export and colored diagnostics live in
 # CMakePresets.json, not here: configure with --preset default (or pixi).
-# CMAKE_EXPORT_COMPILE_COMMANDS can't be set via set(... CACHE ...) here --
-# CMake pre-seeds it blank before project code runs, so that's a no-op.
 
 # Declared before any add_subdirectory() so the value applies everywhere: each
 # package's own option() of the same name is a no-op once this one has already

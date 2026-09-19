@@ -18,25 +18,25 @@ struct VelocityLimit : public Constraints {
   ///        Size must equal oink.num_variables.
   VelocityLimit(const Oink& oink, double dt, const Eigen::VectorXd& v_max);
 
-  /// @brief Get the number of constraint rows (number_variables)
+  /// @brief Get the number of constraint rows (num_variables)
   /// @param context The context (unused; the row count is fixed at construction).
   /// @return Number of constraint rows
   int getNumConstraints(const SceneContext& context) const override;
 
   /// @brief Compute QP constraint matrices for velocity limits
   /// @param context The context supplying the configuration and the kinematics scratch.
-  /// @param constraint_matrix Output constraint matrix G (number_variables × number_variables)
-  /// @param lower_bounds Output lower bounds vector (number_variables)
-  /// @param upper_bounds Output upper bounds vector (number_variables)
+  /// @param constraint_matrix Output constraint matrix G (num_variables × num_variables)
+  /// @param lower_bounds Output lower bounds vector (num_variables)
+  /// @param upper_bounds Output upper bounds vector (num_variables)
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 
-  double dt;
-  Eigen::VectorXd v_max;
-  int num_variables;  /// Number of variables (cached from model.nv)
+  double dt;              ///< Control timestep (seconds).
+  Eigen::VectorXd v_max;  ///< Maximum velocity per group joint.
+  int num_variables;      ///< Number of group velocity DOFs.
 };
 
 }  // namespace roboplan

@@ -37,7 +37,7 @@ struct Task {
 
   /// @brief Initialize pre-allocated storage with correct dimensions.
   /// @param task_rows Number of rows for the task (e.g., 6 for SE(3), nv for configuration)
-  /// @param num_vars Number of optimization variables (model.nv)
+  /// @param num_vars Number of optimization variables (the joint group's velocity DOFs)
   void initializeStorage(int task_rows, int num_vars) {
     num_variables = num_vars;
     jacobian_container = Eigen::MatrixXd::Zero(task_rows, num_vars);
@@ -70,11 +70,11 @@ struct Task {
   /// - e: Task error vector
   /// - W: Weight matrix for cost normalization
   ///
-  /// The method returns:
+  /// The outputs are:
   /// - H = J_w^T J_w + μ I  (num_variables x num_variables Hessian matrix)
   /// - c = -J_w^T e_w       (num_variables x 1 linear term)
   ///
-  /// Where J_w = W*J, e_w = -α*W*e, and μ is the Levenberg-Marquardt damping.
+  /// Where J_w = W*J, e_w = -α*W*e, and μ = lm_damping·‖e_w‖² is the Levenberg-Marquardt damping.
   /// @param context The context supplying the configuration and the kinematics scratch.
   /// @param H Output Hessian matrix
   /// @param c Output linear cost term
@@ -109,15 +109,13 @@ struct Constraints {
 
   /// @brief Compute QP constraint matrices using pre-allocated workspace views
   ///
-  /// The constraint_matrix, lower_bounds, and upper_bounds parameters are Eigen::Ref views
-  /// into pre-allocated workspace memory. The views are already sized to match
-  /// getNumConstraints() rows, so implementations should fill the entire view.
+  /// The output parameters are Eigen::Ref views into pre-allocated workspace memory, already
+  /// sized to getNumConstraints() rows. Implementations should fill the entire view.
   ///
   /// @param context The context supplying the configuration and the kinematics scratch.
-  /// @param constraint_matrix Output constraint matrix G (pre-sized view: num_constraints ×
-  /// num_variables)
-  /// @param lower_bounds Output lower bounds vector (pre-sized view: num_constraints)
-  /// @param upper_bounds Output upper bounds vector (pre-sized view: num_constraints)
+  /// @param constraint_matrix Output constraint matrix G (num_constraints × num_variables)
+  /// @param lower_bounds Output lower bounds vector (num_constraints)
+  /// @param upper_bounds Output upper bounds vector (num_constraints)
   /// @return void on success, error message on failure
   virtual tl::expected<void, std::string>
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
@@ -135,8 +133,8 @@ struct Constraints {
 ///   QP form:          G · δq ≤ b  where G = -J_h/dt, b = α(h(q))
 ///
 /// Uses a saturating class-K function: α(h) = γ·h / (1 + |h|)
-/// This provides bounded recovery force, preventing over-reaction when far from
-/// the boundary while giving smooth, proportional behavior near constraints.
+/// This bounds the recovery force far from the boundary while giving smooth, proportional
+/// behavior near it.
 ///
 /// Safe displacement regularization adds a QP objective term:
 ///   (safe_displacement_gain / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
@@ -145,11 +143,9 @@ struct Constraints {
 /// constraint boundaries. The weighting by 1/‖J_h‖² normalizes the contribution
 /// based on how sensitive the barrier is to joint motion.
 ///
-/// The safety_margin parameter provides a conservative buffer for hard constraints.
-/// When safety_margin > 0, the CBF constraint is tightened by this amount, meaning
-/// the barrier will begin to resist motion earlier (when h = safety_margin rather
-/// than h = 0). This compensates for linearization errors in the discrete-time
-/// formulation.
+/// When safety_margin > 0, the CBF constraint is tightened by this amount: the barrier
+/// begins to resist motion at h = safety_margin rather than h = 0, which compensates for
+/// linearization error in the discrete-time formulation.
 struct Barrier {
   /// @brief Constructor with barrier parameters
   /// @param gain Barrier gain (gamma), controls aggressiveness
@@ -161,7 +157,7 @@ struct Barrier {
 
   /// @brief Initialize pre-allocated storage
   /// @param num_barriers Number of barrier constraints this barrier produces
-  /// @param num_vars Number of optimization variables (model.nv)
+  /// @param num_vars Number of optimization variables (the joint group's velocity DOFs)
   void initializeStorage(int num_barriers, int num_vars);
 
   /// @brief Get the number of barrier constraints this barrier produces
@@ -194,7 +190,7 @@ struct Barrier {
   /// Produces: G_b * delta_q <= b_b
   /// Where:
   ///   G_b = -J_h / dt
-  ///   b_b = γ·(h - m) / (1 + |h - m|)  (saturating class-K function)
+  ///   b_b = γ·(h - m) / (1 + |h - m|)  (saturating class-K function, m = safety_margin)
   ///
   /// @pre computeBarrier() and computeJacobian() must have been called first.
   /// @param G Output constraint matrix (pre-sized view: num_barriers x num_variables)
@@ -212,23 +208,21 @@ struct Barrier {
   void formatQpObjective(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> H,
                          Eigen::Ref<Eigen::VectorXd> c) const;
 
-  /// @brief Convenience: compute barrier + Jacobian, then format QP inequalities.
-  /// Equivalent to calling computeBarrier(), computeJacobian(), formatQpInequalities().
+  /// @brief Calls computeBarrier(), computeJacobian(), then formatQpInequalities().
   tl::expected<void, std::string> computeQpInequalities(const SceneContext& context,
                                                         Eigen::Ref<Eigen::MatrixXd> G,
                                                         Eigen::Ref<Eigen::VectorXd> b);
 
-  /// @brief Convenience: compute barrier + Jacobian, then format QP objective.
-  /// Equivalent to calling computeBarrier(), computeJacobian(), formatQpObjective().
+  /// @brief Calls computeBarrier(), computeJacobian(), then formatQpObjective().
   tl::expected<void, std::string> computeQpObjective(const SceneContext& context,
                                                      Eigen::Ref<Eigen::MatrixXd> H,
                                                      Eigen::Ref<Eigen::VectorXd> c);
 
   /// @brief Evaluate the minimum barrier value at a candidate configuration using FK.
   ///
-  /// This method allows post-solve validation by computing the actual barrier value
-  /// at a candidate configuration q, independent of the linearized constraint used
-  /// in the QP. Used by Oink::enforceBarriers() to detect linearization errors.
+  /// Computes the actual barrier value at a candidate configuration q, independent of the
+  /// linearized constraint used in the QP. Used by Oink::enforceBarriers() to detect
+  /// linearization errors.
   ///
   /// @param model Pinocchio model
   /// @param data Pinocchio data (will be modified by FK computation)
@@ -294,32 +288,24 @@ struct Oink {
 
   ~Oink();
 
-  /// @brief Solve inverse kinematics for tasks only
-  ///
-  /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors.
-  ///
+  /// @brief Solve inverse kinematics for tasks only.
+  /// @details Overload of the full solveIk() below, with no constraints or barriers.
   /// @param scene The scene; the solve runs at its current joint positions
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param delta_q Pre-allocated output buffer for configuration displacement
   /// @param regularization Tikhonov regularization weight (default: 1e-12)
-  /// @return void on success, error message on failure
   tl::expected<void, std::string>
   solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
   /// @brief Solve inverse kinematics for tasks with constraints.
-  ///
-  /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors while satisfying all constraints.
-  ///
+  /// @details Overload of the full solveIk() below, with no barriers.
   /// @param scene The scene; the solve runs at its current joint positions
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param constraints Vector of constraints to satisfy
   /// @param delta_q Pre-allocated output buffer for configuration displacement
   /// @param regularization Tikhonov regularization weight (default: 1e-12)
-  /// @return void on success, error message on failure
   tl::expected<void, std::string>
   solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
           const std::vector<std::shared_ptr<Constraints>>& constraints,
@@ -327,16 +313,12 @@ struct Oink {
           double regularization = 1e-12);
 
   /// @brief Solve inverse kinematics for tasks with barriers.
-  ///
-  /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors while satisfying all barrier functions.
-  ///
+  /// @details Overload of the full solveIk() below, with no constraints.
   /// @param scene The scene; the solve runs at its current joint positions
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param barriers Vector of barrier functions for safety constraints
   /// @param delta_q Pre-allocated output buffer for configuration displacement
   /// @param regularization Tikhonov regularization weight (default: 1e-12)
-  /// @return void on success, error message on failure
   tl::expected<void, std::string>
   solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
           const std::vector<std::shared_ptr<Barrier>>& barriers,
@@ -345,26 +327,20 @@ struct Oink {
 
   /// @brief Solve inverse kinematics for tasks with constraints and barriers.
   ///
-  /// Solves a QP optimization problem to compute the joint velocity that minimizes
-  /// weighted task errors while satisfying all constraints and barrier functions.
-  /// The result is written directly into the provided delta_q buffer.
+  /// Solves a QP to compute the joint displacement that minimizes weighted task errors while
+  /// satisfying all constraints and barrier functions.
   ///
   /// @param scene The scene; the solve runs at its current joint positions
   /// @param tasks Vector of weighted tasks to optimize for
   /// @param constraints Vector of constraints to satisfy
   /// @param barriers Vector of barrier functions for safety constraints
-  /// @param delta_q Pre-allocated output buffer for configuration displacement.
-  ///                Must be sized to num_variables (velocity space dimension).
-  ///                Using Eigen::Ref allows zero-copy access from Python numpy arrays.
-  /// @param regularization Tikhonov regularization weight added to the Hessian diagonal.
-  ///                This provides numerical stability by ensuring the Hessian is
-  ///                strictly positive definite. Higher values increase regularization
-  ///                but may reduce task tracking accuracy. Default is 1e-12.
+  /// @param delta_q Pre-allocated output buffer for configuration displacement. Must be sized to
+  ///                num_variables (velocity space dimension); any other size is an error.
+  ///                Eigen::Ref allows zero-copy access from Python numpy arrays.
+  /// @param regularization Tikhonov regularization weight added to the Hessian diagonal, which
+  ///                keeps the Hessian strictly positive definite. Higher values may reduce task
+  ///                tracking accuracy.
   /// @return void on success, error message on failure
-  ///
-  /// @note The delta_q parameter must be pre-allocated to the correct size before calling.
-  ///       Eigen::Ref cannot be resized, so passing an empty or incorrectly sized vector
-  ///       will result in a failure.
   tl::expected<void, std::string>
   solveIk(const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
           const std::vector<std::shared_ptr<Constraints>>& constraints,
@@ -374,10 +350,10 @@ struct Oink {
 
   /// @brief Solve inverse kinematics at an explicitly supplied configuration.
   ///
-  /// This is the primary entry point; the overloads above are this one, called with the scene's
-  /// current joint positions. Prefer this whenever more than one solver is running: passing `q`
-  /// directly means the configuration never travels through the shared Scene, so two threads
-  /// cannot overwrite each other's notion of "current".
+  /// This is the primary entry point; the overloads above call it with the scene's current joint
+  /// positions. Prefer it whenever more than one solver is running: passing `q` directly means
+  /// the configuration never travels through the shared Scene, so two threads cannot overwrite
+  /// each other's notion of "current".
   ///
   /// `q` is copied into this solver's own SceneContext, which every task, constraint, and barrier
   /// reads and whose Pinocchio data they write.
@@ -387,7 +363,7 @@ struct Oink {
   /// @param constraints Vector of constraints to satisfy
   /// @param barriers Vector of barrier functions for safety constraints
   /// @param delta_q Pre-allocated output buffer for configuration displacement
-  /// @param regularization Tikhonov regularization weight (default: 1e-12)
+  /// @param regularization Tikhonov regularization weight
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
   solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>& tasks,
@@ -398,24 +374,22 @@ struct Oink {
 
   /// @brief Validate delta_q against barriers using forward kinematics.
   ///
-  /// This method provides a post-solve safety check by evaluating the actual barrier
-  /// values at the candidate configuration (q + delta_q). It is a backup safety mechanism
-  /// for cases where the linearized CBF constraint in the QP has significant error (e.g.,
-  /// large jumps, near-boundary configurations). The QP constraint uses a first-order
-  /// approximation h(q + δq) ≈ h(q) + J_h · δq, which can have error O(||δq||²) for large
-  /// displacements.
+  /// Post-solve safety check that evaluates the actual barrier values at the candidate
+  /// configuration (q + delta_q). It backs up the QP's linearized CBF constraint where that has
+  /// significant error (e.g., large jumps, near-boundary configurations): the constraint uses the
+  /// first-order approximation h(q + δq) ≈ h(q) + J_h · δq, whose error is O(||δq||²).
   ///
   /// Enforcement is per-barrier rather than global. For each barrier that would be violated
   /// at the candidate configuration, only the joints that affect that barrier (its nonzero
-  /// Jacobian columns) are zeroed, so an unrelated kinematic chain, e.g, the other arm in a
+  /// Jacobian columns) are zeroed, so an unrelated kinematic chain, e.g., the other arm in a
   /// dual-arm setup, is not frozen just because one frame left its bound.
-  /// A step that is still violated but strictly reduces the violation is allowed/
-  /// For example, a frame that started outside its bound can recover instead of deadlocking.
+  /// A step that is still violated but strictly reduces the violation is allowed, so a frame
+  /// that started outside its bound can recover instead of deadlocking.
   ///
-  /// @param scene The scene; the solve runs at its current joint positions
+  /// @param scene The scene; the check runs at its current joint positions
   /// @param barriers Vector of barrier functions to check
-  /// @param delta_q Configuration displacement to validate. Modified in place: the joints of
-  ///                each violated, non-recovering barrier are set to zero.
+  /// @param delta_q Full-model configuration displacement to validate (size model.nv). Modified
+  ///                in place: the joints of each violated, non-recovering barrier are set to zero.
   /// @param tolerance Tolerance for barrier violation detection. A barrier is considered
   ///                  violated if h(q + delta_q) < -tolerance. Default is 0.0.
   /// @return void on success, error message if barrier evaluation fails
@@ -508,10 +482,9 @@ public:
   Eigen::MatrixXd barrier_H_contribution;
   Eigen::VectorXd barrier_c_contribution;
 
-  // Cumulative unweighted Jacobian stack used by the hierarchical-priority projector.
-  // Rows from each priority level are appended after that level's task contributions are
-  // accumulated, then a damped pseudoinverse builds the nullspace projector N used to
-  // project the NEXT priority level's Jacobian into the higher levels' nullspace.
+  // Cumulative unweighted Jacobian stack of the priority levels processed so far, and the
+  // nullspace projector N built from it (damped pseudoinverse), which projects the NEXT
+  // priority level's Jacobian into the higher levels' nullspace.
   Eigen::MatrixXd jacobian_stack;
   Eigen::MatrixXd nullspace_projector;
 

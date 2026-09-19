@@ -11,35 +11,35 @@ namespace roboplan {
 /// limits. The constraint is formulated as: l <= G*dq <= u where G is an identity matrix, and the
 /// bounds are computed based on the distance to limits.
 struct PositionLimit : public Constraints {
-  /// @brief Constructor with pre-allocation for optimal performance
+  /// @brief Constructor; pre-allocates the workspace.
   /// @param oink The Oink solver this constraint will be used with (provides num_variables and
   ///        v_indices for selecting the correct joint limits from the full model).
   /// @param gain Scaling factor for how aggressively to steer away from limits (0 < gain <= 1)
   explicit PositionLimit(const Oink& oink, double gain = 1.0);
 
-  /// @brief Get the number of constraint rows (number_variables)
+  /// @brief Get the number of constraint rows (num_variables)
   /// @param context The context (unused; the row count is fixed at construction).
   /// @return Number of constraint rows
   int getNumConstraints(const SceneContext& context) const override;
 
   /// @brief Compute QP constraint matrices for position limits
   /// @param context The context supplying the configuration and the kinematics scratch.
-  /// @param constraint_matrix Output constraint matrix G (number_variables × number_variables)
-  /// @param lower_bounds Output lower bounds vector (number_variables)
-  /// @param upper_bounds Output upper bounds vector (number_variables)
+  /// @param constraint_matrix Output constraint matrix G (num_variables × num_variables)
+  /// @param lower_bounds Output lower bounds vector (num_variables)
+  /// @param upper_bounds Output upper bounds vector (num_variables)
   /// @return void on success, error message on failure
   tl::expected<void, std::string>
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 
-  double config_limit_gain;             /// Gain parameter for steering away from limits
-  int num_variables;                    /// Number of group velocity DOFs
-  Eigen::VectorXi v_indices;            /// Velocity indices of the joint group
-  mutable Eigen::VectorXd q_max;        /// Pre-allocated maximum joint position limits.
-  mutable Eigen::VectorXd q_min;        /// Pre-allocated minimum joint position limits.
-  mutable Eigen::VectorXd delta_q_max;  /// Pre-allocated workspace for max joint deltas
-  mutable Eigen::VectorXd delta_q_min;  /// Pre-allocated workspace for min joint deltas
+  double config_limit_gain;             ///< Gain parameter for steering away from limits
+  int num_variables;                    ///< Number of group velocity DOFs
+  Eigen::VectorXi v_indices;            ///< Velocity indices of the joint group
+  mutable Eigen::VectorXd q_max;        ///< Pre-allocated maximum joint position limits.
+  mutable Eigen::VectorXd q_min;        ///< Pre-allocated minimum joint position limits.
+  mutable Eigen::VectorXd delta_q_max;  ///< Pre-allocated workspace for max joint deltas
+  mutable Eigen::VectorXd delta_q_min;  ///< Pre-allocated workspace for min joint deltas
 };
 
 }  // namespace roboplan

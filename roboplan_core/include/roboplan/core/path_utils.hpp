@@ -17,7 +17,7 @@ class SceneContext;
 /// @param scene The scene to use.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
-/// @param frame_name The name of the frame in which to compute the Cartesian path.
+/// @param frame_name The name of the frame whose path is computed.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
 /// @return A list of 4x4 matrices corresponding to the poses of the frame along the path.
 std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::VectorXd& q_start,
@@ -28,7 +28,7 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
 /// @brief Computes the Cartesian path of a specified frame using a vector of provided points.
 /// @param scene The scene to use.
 /// @param q_vec A vector of joint positions.
-/// @param frame_name The name of the frame in which to compute the Cartesian path.
+/// @param frame_name The name of the frame whose path is computed.
 /// @return A list of 4x4 matrices corresponding to the poses of the frame along the path.
 std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
                                               const std::vector<Eigen::VectorXd>& q_vec,
@@ -36,17 +36,16 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 
 /// @brief Resamples a dense sequence of group joint positions to `count` waypoints spaced
 /// uniformly in configuration-space arc length (endpoints preserved).
-/// @details Arc length and interpolation are computed with Scene::configurationDistance and
-/// Scene::interpolate so that continuous / free-rotating joints are measured and blended on
-/// their true manifold rather than as raw coordinates: differencing those coordinates as a flat
-/// Euclidean vector mishandles their tangent space (e.g. the wrap from +pi to -pi reads as a
-/// large jump, and the SO(2) cos/sin pair of a continuous joint does not subtract linearly).
+/// @details Arc length and interpolation use Scene::configurationDistance and Scene::interpolate,
+/// so continuous / free-rotating joints are measured and blended on their true manifold rather
+/// than as flat Euclidean coordinates (which reads the wrap from +pi to -pi as a large jump and
+/// does not subtract the SO(2) cos/sin pair of a continuous joint linearly).
 ///
 /// This is useful when downstream consumers need evenly spaced knots: e.g. TOPP-RA parameterizes
 /// its spline by waypoint index, so unevenly spaced waypoints (clustered where a tracker throttled
 /// at corners) leave large gaps that the spline overshoots, deviating from the path.
 /// @param positions Dense group joint positions, each of size `q_indices.size()`.
-/// @param count Target number of (uniformly spaced) waypoints.
+/// @param count Target number of (uniformly spaced) waypoints, capped at `positions.size()`.
 /// @param scene Scene providing the manifold-aware distance/interpolation over the full model.
 /// @param q_indices The full-configuration indices occupied by the group's coordinates.
 /// @return The resampled group joint positions.
@@ -55,21 +54,19 @@ std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>&
                                              const Eigen::VectorXi& q_indices);
 
 /// @brief Checks collisions along a specified configuration space path.
-/// @details All collision checks are answered by the caller-owned `context`, so the traversal does
-///   not contend on the Scene's shared collision scratch. Interpolation and distance use `scene`,
-///   which only reads the immutable model and is therefore safe to share.
+/// @details All collision checks are answered by the caller-owned `scene_context`, so the traversal
+///   does not contend on the Scene's shared collision scratch. Interpolation and distance use
+///   `scene`, which only reads the immutable model and is therefore safe to share.
 /// @param scene The scene to use for interpolating positions and computing distances.
 /// @param scene_context The collision context whose scratch is used for all collision checks.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
-/// @param bisection If True, visits the interior grid points in a coarse-to-fine bisection order
-///   instead of a linear scan. This checks exactly the same minimal number of points as the linear
-///   scan, but can find collisions faster in collision-dense environments since points near the
-///   middle of the path are checked first.
-/// @param check_endpoints If True, checks the start and end endpoints for collisions.
-///   Callers that already know both endpoints are collision-free (e.g. they are existing nodes in a
-///   search tree) can set this to False to skip redundant, expensive collision checks.
+/// @param bisection If true, visits the interior grid points coarse-to-fine by bisection instead
+///   of a linear scan. The same points are checked, but collisions near the middle of the path are
+///   found sooner, which helps in collision-dense environments.
+/// @param check_endpoints If true, also checks the start and end points. Set to false when both
+///   are already known to be collision-free (e.g. existing search-tree nodes) to skip those checks.
 /// @return True if there are collisions, else false.
 bool hasCollisionsAlongPath(const Scene& scene, const SceneContext& scene_context,
                             const Eigen::VectorXd& q_start, const Eigen::VectorXd& q_end,
@@ -78,23 +75,18 @@ bool hasCollisionsAlongPath(const Scene& scene, const SceneContext& scene_contex
 
 /// @brief Checks collisions along a specified configuration space path using the Scene's own
 /// scratch.
-/// @details This convenience overload answers every collision check via `scene.hasCollisions`,
-/// which
-///   uses the Scene's internal (shared) collision scratch. It avoids constructing a per-call
-///   SceneContext, but carries the same caveat as every other Scene collision query: it is not
-///   safe to call concurrently with other queries on the same Scene. Callers that need to
-///   parallelize should own a SceneContext and use the overload above.
+/// @details Every collision check goes through `scene.hasCollisions`, which avoids building a
+///   SceneContext per call but is not safe to call concurrently with other queries on the same
+///   Scene. Callers that need to parallelize should own a SceneContext and use the overload above.
 /// @param scene The scene to use for interpolation, distances, and collision checks.
 /// @param q_start The starting joint positions.
 /// @param q_end The ending joint positions.
 /// @param max_step_size The maximum configuration distance step size for interpolation.
-/// @param bisection If True, visits the interior grid points in a coarse-to-fine bisection order
-///   instead of a linear scan. This checks exactly the same minimal number of points as the linear
-///   scan, but can find collisions faster in collision-dense environments since points near the
-///   middle of the path are checked first.
-/// @param check_endpoints If True, checks the start and end endpoints for collisions.
-///   Callers that already know both endpoints are collision-free (e.g. they are existing nodes in a
-///   search tree) can set this to False to skip redundant, expensive collision checks.
+/// @param bisection If true, visits the interior grid points coarse-to-fine by bisection instead
+///   of a linear scan. The same points are checked, but collisions near the middle of the path are
+///   found sooner, which helps in collision-dense environments.
+/// @param check_endpoints If true, also checks the start and end points. Set to false when both
+///   are already known to be collision-free (e.g. existing search-tree nodes) to skip those checks.
 /// @return True if there are collisions, else false.
 bool hasCollisionsAlongPath(const Scene& scene, const Eigen::VectorXd& q_start,
                             const Eigen::VectorXd& q_end, const double max_step_size,
@@ -130,8 +122,8 @@ struct PathShortcuttingOptions {
   /// A value of 0 disables early stopping.
   unsigned int max_convergence_iters = 20;
 
-  /// @brief Cadence (in iterations) at which to interleave the redundant-vertex
-  /// removal pass that cleans up the micro-segments introduced by shortcutting.
+  /// @brief Cadence (in iterations) of the redundant-vertex removal pass that cleans up the
+  /// micro-segments introduced by shortcutting. Must be greater than 0.
   unsigned int redundant_removal_iters = 20;
 };
 
@@ -147,18 +139,18 @@ public:
 
   /// @brief Attempts to shortcut a specified path.
   /// @details Each iteration samples two configurations along the path and, if they connect
-  ///   collision-free, splices in the straight connection. Because successful corner-cutting
-  ///   shortcuts introduce new interpolated vertices, a deterministic redundant-vertex removal
-  ///   pass is interleaved periodically and run once more at the end to collapse vertices whose
-  ///   neighbors became directly connectable, preventing accumulation of unhelpful micro-segments.
+  ///   collision-free, splices in the straight connection. Corner-cutting shortcuts add new
+  ///   interpolated vertices, so a redundant-vertex removal pass runs periodically (see
+  ///   `redundant_removal_iters`) and once more at the end, collapsing vertices whose neighbors
+  ///   became directly connectable.
   /// @param path The JointPath to try to shorten.
-  /// @return A shortcutted JointPath, if available.
+  /// @return The shortcutted JointPath, or a copy of `path` if no shortcut applies.
   JointPath shortcut(const JointPath& path);
 
   /// @brief Computes configuration distances from the start to each pose in a path.
   /// @param path The JointPath to evaluate.
-  /// @return A vector of incremental path distances, if there is sufficient data. Otherwise an
-  /// error.
+  /// @return The cumulative distance at each waypoint (the first is 0), or an error if the path
+  /// has fewer than two points.
   tl::expected<Eigen::VectorXd, std::string> getPathLengths(const JointPath& path);
 
   /// @brief Computes length-normalized scaling values along a JointPath.
@@ -171,8 +163,8 @@ public:
   /// @param path A JointPath of joint poses.
   /// @param path_scalings The corresponding path scalings (between 0 and 1) to the provided path.
   /// @param value A value between 0.0 and 1.0 pointing to the intermediate point along the path.
-  /// @return a pair containing the joint configuration at the scaled value along the path,
-  ///         as well as the index corresponding to the next point along the path.
+  /// @return A pair containing the full-model joint configuration at the scaled value along the
+  ///         path, as well as the index corresponding to the next point along the path.
   std::pair<Eigen::VectorXd, size_t>
   getConfigurationFromNormalizedPathScaling(const JointPath& path,
                                             const Eigen::VectorXd& path_scalings, double value);

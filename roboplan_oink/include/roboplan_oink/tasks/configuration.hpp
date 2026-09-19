@@ -9,7 +9,7 @@ namespace roboplan {
 
 /// @brief ConfigurationTask configuration.
 struct ConfigurationTaskOptions {
-  /// @brief Proportional gain for error feedback (default: 1.0).
+  /// @brief Task gain for low-pass filtering (default: 1.0).
   double task_gain = 1.0;
 
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
@@ -22,13 +22,11 @@ struct ConfigurationTaskOptions {
 
 /// @brief Task for tracking a target joint configuration.
 ///
-/// This task computes the error between a target configuration and the current
-/// configuration in the tangent space, enabling joint-space
-/// tracking with per-joint weights.
+/// Computes the error between a target configuration and the current configuration in the
+/// tangent space, for joint-space tracking with per-joint weights.
 ///
 /// The task owns pre-allocated storage for its nv×nv Jacobian and nv error vector,
 /// allocated at construction time to avoid runtime allocations during IK solving.
-///
 struct ConfigurationTask : public Task {
   /// @brief Target joint configuration to reach.
   Eigen::VectorXd target_q;
@@ -45,8 +43,6 @@ struct ConfigurationTask : public Task {
   /// @brief Constructs a ConfigurationTask for tracking a target configuration.
   ///
   /// Pre-allocates storage for the (nv_group × nv_group) Jacobian and nv_group error vector.
-  /// The group's velocity indices are taken from the Oink solver to correctly extract
-  /// sub-group errors from the full-robot tangent space.
   ///
   /// @param oink The Oink solver this task will be used with (provides q_indices, v_indices).
   /// @param target_q The target joint configuration for the group (size oink.q_indices.size()).
@@ -61,9 +57,8 @@ struct ConfigurationTask : public Task {
 
   /// @brief Sets the target joint configuration for this task.
   ///
-  /// Allows updating the tracked configuration at runtime (e.g., to follow a
-  /// sequence of joint targets) without reconstructing the task. Mirrors
-  /// FrameTask::setTargetFrameTransform for joint-space tracking.
+  /// Retargets the task at runtime (e.g., to follow a sequence of joint targets) without
+  /// reconstructing it. Mirrors FrameTask::setTargetFrameTransform.
   ///
   /// @param target The new target joint configuration (size must equal q_indices.size()).
   /// @throws std::invalid_argument if target size doesn't match the group's q_indices size.
@@ -71,7 +66,7 @@ struct ConfigurationTask : public Task {
 
   /// @brief Computes the configuration space error.
   ///
-  ///     error = pin.difference(model, q_current, q_target)
+  ///     error = pinocchio::difference(model, q_current, q_target)
   ///
   /// @param context The context supplying the configuration and the frame placements to read.
   /// @return Void if successful, else an error message string.

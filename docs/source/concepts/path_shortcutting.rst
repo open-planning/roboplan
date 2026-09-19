@@ -1,20 +1,18 @@
 Path Shortcutting
 =================
 
-Paths produced by sampling-based planners such as :doc:`RRT <sampling_based_planning>` are collision-free but rarely efficient.
-Because the tree grows by random extension, the resulting path tends to wander, with unnecessary corners and detours that a more direct route would avoid.
-*Path shortcutting* is a fast post-processing step that smooths such a path without re-running the planner.
+Paths from sampling-based planners such as :doc:`RRT <sampling_based_planning>` are collision-free but tend to wander, with unnecessary corners and detours.
+*Path shortcutting* is a fast post-processing step that shortens such a path without re-running the planner.
 
-RoboPlan provides the ``PathShortcutter`` class (in ``roboplan_core/include/roboplan/core/path_utils.hpp``), which shortens a ``JointPath`` using random shortcutting.
-
-Each iteration of the shortcutter:
+``PathShortcutter`` (in ``roboplan_core/include/roboplan/core/path_utils.hpp``) shortens a ``JointPath`` using random shortcutting.
+Each iteration:
 
 1. **Samples** two configurations at random along the current path.
 2. Checks whether they can be connected by a straight, collision-free segment in configuration space.
 3. If so, **splices in** that direct connection, discarding the intervening waypoints (the "corner" being cut).
 
-Repeatedly cutting corners this way monotonically shortens the path while keeping it collision-free.
-Because corner-cutting introduces new interpolated vertices, a deterministic **redundant-vertex removal** pass is interleaved periodically (and run once at the end) to collapse vertices whose neighbors have become directly connectable, preventing an accumulation of unhelpful micro-segments.
+Repeatedly cutting corners monotonically shortens the path while keeping it collision-free.
+Because corner-cutting introduces new interpolated vertices, a deterministic **redundant-vertex removal** pass is interleaved periodically (and run once at the end) to collapse vertices whose neighbors have become directly connectable, preventing an accumulation of micro-segments.
 
 This implementation follows `Section 3.5.3 of Motion Planning in Higher Dimensions <https://motion.cs.illinois.edu/RoboticSystems/MotionPlanningHigherDimensions.html>`_.
 
@@ -53,4 +51,4 @@ Applying the shortcutter to a path is a single call:
    # `path` is a JointPath, e.g. the output of rrt.plan(...).
    shortened_path = shortcutter.shortcut(path)
 
-The shortened path is itself a collision-free ``JointPath``, ready to be timed into a smooth trajectory with :doc:`trajectory_generation`.
+The result is a collision-free ``JointPath``, ready to be timed with :doc:`trajectory_generation`.

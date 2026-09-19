@@ -23,7 +23,7 @@ Joint **position** limits are enforced inside the QP; a ``VelocityLimit`` is als
 **Stage 2 — time.**
 The resolved joint path is decimated to its shape-carrying waypoints and time-parameterized with :doc:`TOPP-RA <trajectory_generation>`.
 This is done over a straight-segment + circular-blend geometry, so the trajectory respects the robot's joint **velocity and acceleration** limits.
-``toppra_blend_deviation`` bounds how far a rounded corner may stray from the sharp one.
+``toppra_blend_deviation`` bounds how far, in joint-space units, a rounded corner may stray from the sharp one.
 
 Both speed modes run both stages and differ only in what happens after the TOPP-RA pass:
 
@@ -36,7 +36,7 @@ Both speed modes run both stages and differ only in what happens after the TOPP-
   The commanded values therefore act as **maxima**, not fixed values: a motion the joint limits already keep slower than the caps is left alone.
 
 Both modes return a ``JointTrajectory``.
-Quality metrics are computed on demand from that trajectory: ``computePeakLimitRatios`` returns the peak velocity/acceleration-to-limit ratios so the caller can see how close the result is to the joint limits, and ``computeAchievedPathLength`` returns the Cartesian distance traced by the tip frames.
+``computePeakLimitRatios`` returns the trajectory's peak velocity/acceleration-to-limit ratios, showing how close the result is to the joint limits, and ``computeAchievedPathLength`` returns the Cartesian distance traced by the tip frames.
 Use ``Bounded`` for a predictable, velocity- and acceleration-limited Cartesian motion, and ``TimeOptimal`` when time-optimality matters.
 
 Multiple end effectors
@@ -53,8 +53,7 @@ By default the planner builds its own OInK solver.
 This solver has one ``FrameTask`` per end-effector plus a nullspace ``ConfigurationTask``.
 It is bounded by ``VelocityLimit`` and ``PositionLimit`` constraints based on the robot joint limits.
 
-For full control over the differential-IK problem, you can instead construct the planner with a ``CartesianPlannerComponents``.
-This lets you supply your own:
+To control the differential-IK problem yourself, construct the planner with a ``CartesianPlannerComponents`` supplying:
 
 - ``oink``: the :ref:`OInK <oink-solver>` solver instance.
 - ``tracking_tasks``: one ``FrameTask`` per end-effector, ordered to match the path's tip frames.

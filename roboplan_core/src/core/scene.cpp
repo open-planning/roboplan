@@ -110,8 +110,7 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
 
     const auto& joint = model_.joints.at(idx);
     if (joint.shortname() == "JointModelMimic") {
-      // If the joint is a mimic joint, do nothing for now.
-      // The information will be extracted later.
+      // Mimic joint info is extracted later, in applyMimicJointLimits().
       continue;
     }
     actuated_joint_names_.push_back(joint_name);
@@ -284,10 +283,9 @@ void Scene::importJointLimitsFromConfig(const YAML::Node& yaml_config) {
       }
     }
     for (int idx = 0; idx < nv; ++idx) {
-      // Position limits are overridden per velocity-space DOF. For free-rotating DOFs (continuous
-      // joints and the orientation DOFs of planar/floating joints) a position limit is
-      // meaningless, so any finite override is discarded with a warning. Users should use '.inf' /
-      // '-.inf' to explicitly denote an unbounded position for these DOFs.
+      // Position limits are overridden per velocity-space DOF. Free-rotating DOFs (continuous
+      // joints and the orientation DOFs of planar/floating joints) have no meaningful position
+      // limit, so any finite override is discarded with a warning; use '.inf' / '-.inf' instead.
       const bool is_free_dof = isFreeRotatingDof(info.type, idx);
       bool discarded_pos_limit = false;
       if (maybe_min_pos_limits) {
@@ -443,9 +441,8 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
                                         /*stopAtFirstCollision=*/true);
   }
 
-  // Debug path: evaluate every pair with the naive backend (no stop-at-first) so that all
-  // individual colliding pairs can be printed. The broadphase fast path stops at the first
-  // collision and therefore cannot enumerate every colliding pair.
+  // Debug path: the naive backend evaluates every pair (no stop-at-first) so all colliding pairs
+  // can be printed; the broadphase fast path stops at the first collision.
   return computeCollisionsVerbose(model_, model_data_, collision_model_, collision_model_data_, q);
 }
 
@@ -708,11 +705,8 @@ void Scene::computeRelativeFrameJacobian(pinocchio::Data& model_data, const Eige
   const pinocchio::SE3& T_ee = model_data.oMf.at(frame_id);
   const pinocchio::SE3& T_base = model_data.oMf.at(base_id);
 
-  // World-frame relative Jacobian (at EE origin, world orientation).
-  //
-  // This is the transport theorem for the velocity of a point expressed in a moving
-  // frame: the EE velocity relative to the base equals the EE world velocity minus the
-  // base world velocity minus the rigid-body coupling term omega_base x (p_ee - p_base).
+  // World-frame relative Jacobian (at EE origin, world orientation), from the transport theorem
+  // for the velocity of a point expressed in a moving frame.
   // Refs: Siciliano et al., "Robotics: Modelling, Planning and Control", Sec. 3.1.1,
   // Eq. (3.14); Featherstone, "Rigid Body Dynamics Algorithms", Secs. 2.2 and 2.8.
   //

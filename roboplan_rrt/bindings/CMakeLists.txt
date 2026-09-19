@@ -6,8 +6,8 @@
 # <roboplan_bindings/...> headers) are already available from the parent
 # configure.
 #
-# NOTE: the ament/scikit/nanobind detection below mirrors the core package and
-# should be replaced by a shared CMake helper once the migration is complete.
+# NOTE: the ament/cmeel/nanobind detection below is intentionally duplicated per
+# package for clarity rather than factored into a shared helper.
 
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)

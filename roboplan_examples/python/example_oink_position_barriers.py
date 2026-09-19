@@ -47,11 +47,10 @@ def main(
     port: str = "8000",
 ):
     """
-    Tutorial on optimal IK with Control Barrier Functions (CBF) safety constraints.
+    Optimal IK with Control Barrier Function (CBF) safety constraints.
 
-    This example demonstrates how to use PositionBarrier to enforce safety constraints
-    on end-effector motion. Barriers prevent the robot from leaving a safe region while
-    tracking target poses.
+    A PositionBarrier keeps each end-effector inside a box around its start position while it
+    tracks target poses.
 
     Parameters:
         model: The name of the model to use.
@@ -60,19 +59,18 @@ def main(
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values
             improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
-        barrier_gain: Barrier gain for CBF constraint. Since the linear class-K function
-            provides proportional force, use lower values (5-20) compared to saturating
-            functions. Higher values = stronger barrier response.
+        barrier_gain: Barrier gain (gamma) for the CBF constraint. Typically 5-20; higher
+            values give a stronger barrier response.
         barrier_size: Size of the cubic barrier box around the EE start position (meters).
-        safety_margin: Distance from boundary where barrier activates (meters). With linear
-            barriers, smaller values (0.02-0.1m) are typically sufficient.
+        safety_margin: Distance from the boundary where the barrier activates (meters).
+            Typically 0.02-0.1.
         max_position_error: Maximum position error magnitude in meters. Prevents large
             jumps that can invalidate CBF linearization.
         max_rotation_error: Maximum rotation error magnitude in radians. Prevents large
             jumps that can invalidate CBF linearization.
-        reference_filter_tau: Time constant (tau) for exponential low-pass filter in seconds.
-            The filter reaches ~63% of target per tau seconds. For tau=0.1, the filter
-            smooths target pose changes to prevent sudden jumps. Set to 0 to disable.
+        reference_filter_tau: Time constant (seconds) of the exponential low-pass filter on
+            target poses. It covers ~63% of a step per tau seconds, which smooths sudden
+            jumps. Set to 0 to disable.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -100,7 +98,6 @@ def main(
     )
     scene.importSrdf(srdf_xml)
 
-    # Print joint information
     print(f"\n=== Model: {model} ===")
     joint_names = scene.getJointGroupInfo(model_data.default_joint_group).joint_names
     print(
@@ -113,8 +110,8 @@ def main(
 
     q_full = scene.getCurrentJointPositions()
 
-    # Create a redundant Pinocchio model just for visualization with mimic joints.
-    # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
+    # Build a separate Pinocchio model (with mimic joints) for visualization. Until Pinocchio
+    # and Coal have nanobind bindings, it cannot be taken from the scene.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
@@ -132,16 +129,14 @@ def main(
     print(f"\nConfiguration space dimension (nq): {len(q_full)}")
     print(f"Velocity space dimension (nv): {num_variables}")
 
-    # Thread-safe access to scene
+    # Guards scene access between the control thread and the Viser callbacks.
     scene_lock = threading.Lock()
 
-    # Control loop time step
     dt = 1.0 / control_freq
 
-    # Create position limit constraint
+    # Create constraints
     position_limit = PositionLimit(oink, gain=1.0)
 
-    # Create velocity limit constraint
     v_max = np.hstack(
         [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
     )
@@ -172,15 +167,14 @@ def main(
     )
     print(f"  {q_canonical}")
 
-    # Create a ConfigurationTask to regularize toward the starting pose.
-    # Do this as a second-priority task, i.e., in the nullspace of the first task.
+    # Regularize toward the starting pose with a second-priority ConfigurationTask, i.e., in the
+    # nullspace of the first task.
     joint_weights = np.full(num_variables, 0.05)
     config_options = ConfigurationTaskOptions(task_gain=1.0, lm_damping=0.0, priority=2)
     config_task = ConfigurationTask(
         oink, q_canonical[oink.q_indices], joint_weights, config_options
     )
 
-    # Task parameters (define before using in callbacks)
     # max_position_error and max_rotation_error prevent large error jumps that can
     # invalidate the linearized CBF constraint, improving barrier stability.
     task_options = FrameTaskOptions(
@@ -192,7 +186,7 @@ def main(
         max_rotation_error=max_rotation_error,
     )
 
-    # First, create all frame tasks and controls
+    # One FrameTask and interactive marker per end effector.
     frame_tasks = []
     transform_controls = []
     for name in model_data.ee_names:
@@ -203,7 +197,6 @@ def main(
         frame_task = FrameTask(oink, scene, goal, task_options)
         frame_tasks.append(frame_task)
 
-        # Create an interactive marker
         controls = viz.viewer.scene.add_transform_controls(
             "/ik_marker/" + name,
             depth_test=False,
@@ -224,7 +217,6 @@ def main(
         reference_filters.append(ref_filter)
         raw_targets.append(initial_pose.copy())
 
-    # Now set up the callback after all controls are created
     def update_goals(_):
         global paused
         with scene_lock:
@@ -232,11 +224,9 @@ def main(
                 tform = pin.SE3(
                     pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), controls.position
                 ).homogeneous
-                # Store the raw target from the marker
                 raw_targets[idx] = tform.copy()
         paused = False
 
-    # Attach the callback to all controls
     for controls in transform_controls:
         controls.on_update(update_goals)
 
@@ -259,10 +249,8 @@ def main(
             loop_start = time.time()
             q_to_display = None
 
-            # Thread-safe scene access for IK solving
             if not paused:
                 with scene_lock:
-                    # Get current joint configuration
                     q_current = scene.getCurrentJointPositions()
 
                     # Marker targets are in the world frame, but each FrameTask expects its
@@ -315,8 +303,6 @@ def main(
                 delta_q[:] = 0.0
                 delta_q_full[:] = 0.0
 
-            # Throttled visualization, outside the scene lock, so a slow browser push does
-            # not perturb the control-loop timing.
             if (
                 q_to_display is not None
                 and (loop_start - last_display) >= display_period
@@ -324,15 +310,12 @@ def main(
                 viz.display(q_to_display)
                 last_display = loop_start
 
-            # Maintain control loop rate
             elapsed = time.time() - loop_start
             time.sleep(max(0, dt - elapsed))
 
-    # Start control loop in separate thread
     control_thread = threading.Thread(target=control_loop, daemon=True)
     control_thread.start()
 
-    # Create a marker reset button.
     reset_button = viz.viewer.gui.add_button("Reset Marker")
 
     @reset_button.on_click
@@ -374,9 +357,8 @@ def main(
             raw_targets[idx] = initial_pose.copy()
             reference_filters[idx].reset(initial_pose)
 
-    # Create position barriers for each end-effector with conservative parameters
-    # - High gain ensures strong resistance to boundary approach
-    # - Safety margin shifts the effective boundary inward to account for linearization errors
+    # One position barrier per end-effector. The safety margin shifts the effective boundary
+    # inward to account for linearization error.
     barriers = []
     barrier_colors = [
         ((255, 100, 100), (255, 50, 50)),  # Red for first EE
@@ -385,16 +367,15 @@ def main(
     ]
 
     for idx, ee_name in enumerate(model_data.ee_names):
-        # Get the initial pose for this end-effector
         ee_pose = scene.forwardKinematics(q_full, ee_name)
         ee_pos = ee_pose[:3, 3]
 
-        # Create barrier bounds centered at this EE's initial position
+        # Bounds centered at this EE's initial position.
         half_size = barrier_size / 2.0
         p_min = ee_pos - half_size
         p_max = ee_pos + half_size
 
-        # Create the barrier for this end-effector
+        # Create the barrier for this end effector
         position_barrier = PositionBarrier(
             oink,
             scene,
@@ -408,7 +389,7 @@ def main(
         )
         barriers.append(position_barrier)
 
-        # Visualize the barrier box in Viser with unique name and color per EE
+        # Draw the barrier box, with a unique name and color per EE.
         box_color, wireframe_color = barrier_colors[idx % len(barrier_colors)]
         viz.viewer.scene.add_box(
             f"/barrier_box_{ee_name}",
@@ -417,7 +398,6 @@ def main(
             color=box_color,
             opacity=0.15,
         )
-        # Add wireframe edges for better visibility
         viz.viewer.scene.add_box(
             f"/barrier_box_wireframe_{ee_name}",
             dimensions=(barrier_size, barrier_size, barrier_size),

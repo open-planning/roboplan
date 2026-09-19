@@ -54,10 +54,9 @@ CMAKE_GENERATOR_TOOLSET = ""
 CMAKE_INSTALL_MODE = "COPY"
 
 [tool.pixi.tasks]
-# Configures the whole superbuild in one shared build tree, using the
-# 'pixi' preset (superbuild/CMakePresets.json) for compiler/linker/build-cache
-# settings. cxx_flags/extra_flags are for one-off variant builds (see
-# build_asan/build_timetrace below); leave default for a normal configure.
+# Configures the whole superbuild in one shared build tree, using the 'pixi'
+# preset (superbuild/CMakePresets.json). cxx_flags/extra_flags are for one-off
+# variant builds (see build_asan/build_timetrace below); leave default otherwise.
 configure = { cmd = "cmake -S superbuild --preset pixi {{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }} {{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }} {{ extra_flags }} $ROBOPLAN_EXTRA_CMAKE_ARGS", args = [
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
@@ -224,7 +223,7 @@ build = { cmd = [
 ] }
 
 # ROS Environment targets.
-# These will bypass the super build and test roboplan using colcon directly.
+# These bypass the super build and test roboplan using colcon directly.
 [tool.pixi.feature.ros.tasks]
 setup = "colcon mixin add default https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml || true && colcon mixin update default"
 build = { cmd = ["colcon", "build", "--cmake-args", "-DBUILD_TESTING=ON"] }

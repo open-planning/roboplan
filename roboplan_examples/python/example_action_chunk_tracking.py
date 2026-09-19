@@ -9,15 +9,6 @@ Supported chunk types:
   1. Cartesian/end-effector targets: sparse absolute SE(3) target poses
   2. Joint-space targets: sparse absolute joint configurations
 
-The main idea is:
-  sparse policy-like action chunk
-      -> sparse target poses/configurations
-      -> dense interpolated targets at control_dt
-      -> Cartesian actions: OInK FrameTasks tracking with PositionLimit + VelocityLimit
-         (+ optional AccelerationLimit)
-      -> joint-space actions: OInK ConfigurationTask tracking with PositionLimit +
-         VelocityLimit (+ optional AccelerationLimit)
-      -> visualization
 
 For multi-arm models such as "dual", Cartesian chunks create one frame task per
 end effector, and joint-space chunks visualize trails for all configured end
@@ -301,12 +292,10 @@ def main(
         lm_damping: OInK task Levenberg-Marquardt damping.
         regularization: Tikhonov regularization passed to OInK.
         limit_acceleration: If true (and the model defines acceleration limits), add an OInK
-            AccelerationLimit so the executed motion respects joint acceleration limits. Off by
-            default: it bounds how fast velocity can change but does not brake toward the task
-            target, so aggressive chunks will overshoot (the arm saturates velocity and cannot
-            decelerate in time). Use a gentler chunk (smaller action_scale / larger segment_time)
-            when enabling it.
-        sleep: If true, sleep between dense tracking steps while initially generating the trajectory.
+            AccelerationLimit so the executed motion respects joint acceleration limits. Each
+            step also feeds it the task target displacement, so the arm brakes into the target
+            instead of overshooting.
+        sleep: If true, sleep between dense tracking steps while generating the trajectory.
         playback_speed: Playback speed multiplier for GUI animation.
         host: Viser host.
         port: Viser port.
@@ -347,7 +336,7 @@ def main(
     print(f"Action space: {action_space}")
     print(f"Action scale: {action_scale}")
 
-    # Create a redundant Pinocchio model just for visualization with mimic joints.
+    # Separate Pinocchio model (with mimic joints) for visualization.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     q_start = get_home_configuration(scene, model_data)
 
@@ -384,9 +373,8 @@ def main(
         raise ValueError(f"Model '{model}' has no configured end-effectors.")
     print(f"End-effectors: {ee_frame_names}")
 
-    # Both action spaces feed their dense targets through the same OInK solver so the
-    # executed motion respects joint position and velocity limits. The solver and these
-    # limit constraints are shared; each action space only adds its own tracking tasks.
+    # Both action spaces track their dense targets through one OInK solver with shared limit
+    # constraints, so the executed motion respects joint limits. Each adds its own tracking tasks.
     oink = Oink(scene, joint_group)
     num_variables = len(oink.v_indices)
     print(f"Velocity variables: {num_variables}")
@@ -399,10 +387,9 @@ def main(
         VelocityLimit(oink, dt, v_max),
     ]
 
-    # Acceleration limit (opt-in): bounds the change in velocity between control steps so the
-    # motion does not snap/jerk. The rollout loops call accel_limit.setLastVelocity(...) and
-    # accel_limit.setTargetDisplacement(...) each iteration, so it also brakes toward the task
-    # target and aggressive chunks decelerate into the goal instead of overshooting it.
+    # Acceleration limit (opt-in): bounds the change in velocity between control steps. The
+    # rollout loops call setLastVelocity() and setTargetDisplacement() each iteration, so it
+    # also brakes toward the task target instead of overshooting it.
     accel_limit = None
     if limit_acceleration:
         a_max = np.hstack(

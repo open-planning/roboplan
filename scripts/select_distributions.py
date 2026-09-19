@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Move the wheels and sdists belonging to one project into their own directory.
 
-Distribution filenames are parsed with ``packaging`` so that the project name is compared in canonical form.
-For example, ``roboplan-core`` == ``roboplan_core``.
+Filenames are parsed with ``packaging`` so project names compare in canonical form, e.g.,
+``roboplan-core`` == ``roboplan_core``.
 """
 
 import argparse

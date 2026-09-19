@@ -118,9 +118,9 @@ RobotBodyFilter::computeMask(const Eigen::VectorXd& q, const Eigen::Ref<const Po
   };
 
   // Points are handed out in small fixed-size blocks from a shared counter, so threads that land
-  // on stretches of cheap (culled) points simply take more blocks than those doing narrowphase
-  // work, even when the points on the robot are clustered together in the cloud (as they are in
-  // a sensor scan). The thread count is also capped to keep small clouds serial.
+  // on stretches of cheap (culled) points take more blocks than those doing narrowphase work,
+  // even when the points on the robot are clustered together in the cloud (as they are in a
+  // sensor scan). The thread count is also capped to keep small clouds serial.
   const size_t num_threads =
       std::min<size_t>(max_threads_, std::max<Eigen::Index>(1, num_points / kMinPointsPerThread));
   if (num_threads <= 1) {

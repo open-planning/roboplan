@@ -39,6 +39,7 @@ WORKDIR /roboplan_ws
 COPY . /roboplan_ws
 
 # Build via the superbuild and add its shared install prefix to cmake/LD paths.
+ARG CMAKE_BUILD_PARALLEL_LEVEL
 RUN . /roboplan_env.sh && ./scripts/build_cmake.bash
 RUN echo "export CMAKE_PREFIX_PATH=/roboplan_ws/install:\${CMAKE_PREFIX_PATH}" >> /roboplan_env.sh \
     && echo "export LD_LIBRARY_PATH=/roboplan_ws/install/lib:\${LD_LIBRARY_PATH}" >> /roboplan_env.sh

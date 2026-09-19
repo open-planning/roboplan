@@ -14,7 +14,7 @@ As described in the :doc:`Design Philosophy </design/philosophy>`, RoboPlan diff
 
    This comparison reflects the state of each project at the time of writing.
    All of these tools are actively developed, so check their documentation for the latest details.
-   If you see anything that is incorrect or missing, please submit an issue or pull request.
+   If you see anything incorrect or missing, please submit an issue or pull request.
 
 
 At a Glance
@@ -109,7 +109,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - None
    * - Task composition
      - Not yet — components are composed directly in code
-     - MoveIt Task Constructor: powerful multi-stage task planning (e.g., pick-and-place) built from generator, propagator, and connector stages
+     - MoveIt Task Constructor: multi-stage task planning (e.g., pick-and-place) built from generator, propagator, and connector stages
      - Task Composer: YAML-defined pipelines (planning, validation, smoothing) executed as parallel task graphs
      - None
    * - Path post-processing
@@ -129,7 +129,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - None
    * - Servoing / teleoperation
      - No dedicated servo component, but OInK supports servo-style control (see the teleoperation example)
-     - MoveIt Servo — a dedicated component, though in practice it tends to require substantial tuning to get good results
+     - MoveIt Servo, a dedicated component that in practice tends to need substantial tuning
      - None
      - None
    * - Visualization

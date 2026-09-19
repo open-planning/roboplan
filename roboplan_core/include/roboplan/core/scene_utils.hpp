@@ -61,22 +61,23 @@ makeJointGroupInfo(const pinocchio::Model& model, const std::vector<std::string>
 
 /// @brief Collapses a joint position vector's continuous joints for downstream algorithms.
 /// @details That is, positions that are expressed as [cos(theta), sin(theta)] will be collapsed
-/// to [theta], assuming being between +/- pi.
+/// to [theta], with theta = atan2(sin, cos) in [-pi, pi]. The same applies to the rotation of
+/// planar joints.
 /// @param scene The scene from which to look up joint information.
 /// @param group_name The name of the joint group corresponding to the position vector.
-/// @param q_orig The original position vectors.
-/// @return The collapsed position vectors if successful, else a string describing the error.
+/// @param q_orig The original position vector.
+/// @return The collapsed position vector if successful, else a string describing the error.
 tl::expected<Eigen::VectorXd, std::string>
 collapseContinuousJointPositions(const Scene& scene, const std::string& group_name,
                                  const Eigen::VectorXd& q_orig);
 
 /// @brief Expands a joint position vector's continuous joints from downstream algorithms.
 /// @details That is, positions that are expressed as [theta] will be expanded to
-/// [cos(theta), sin(theta)].
+/// [cos(theta), sin(theta)]. The same applies to the rotation of planar joints.
 /// @param scene The scene from which to look up joint information.
 /// @param group_name The name of the joint group corresponding to the position vector.
-/// @param q_orig The original position vectors.
-/// @return The expanded position vectors if successful, else a string describing the error.
+/// @param q_orig The original position vector.
+/// @return The expanded position vector if successful, else a string describing the error.
 tl::expected<Eigen::VectorXd, std::string>
 expandContinuousJointPositions(const Scene& scene, const std::string& group_name,
                                const Eigen::VectorXd& q_orig);

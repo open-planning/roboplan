@@ -22,7 +22,7 @@ struct ConstraintAxisSelection {
 /// Constrains a frame's position to remain within an axis-aligned bounding box:
 ///     p_min <= p(q) <= p_max
 ///
-/// This creates up to 6 barrier constraints (2 per enabled axis).
+/// This creates up to 6 barrier constraints (one per finite bound on each enabled axis).
 ///
 /// The barrier functions are:
 ///     h_lower_i = p_i(q) - p_min_i  (for min bounds)
@@ -30,7 +30,8 @@ struct ConstraintAxisSelection {
 ///
 /// Uses a saturating class-K function α(h) = γ·h/(1+|h|) for smooth behavior.
 ///
-/// Safe displacement regularization encourages moving toward the center of the safe region.
+/// Safe displacement regularization uses the default zero displacement
+/// (see Barrier::computeSafeDisplacement()).
 struct PositionBarrier : public Barrier {
   /// @brief Constructs a position barrier for box constraint.
   /// @param oink The Oink solver this barrier will be used with (provides num_variables and
@@ -39,8 +40,8 @@ struct PositionBarrier : public Barrier {
   /// @param frame_name Name of the frame to constrain.
   /// @param p_min Minimum position bounds [x, y, z] in world frame (use -inf for no constraint).
   /// @param p_max Maximum position bounds [x, y, z] in world frame (use +inf for no constraint).
-  /// @param dt Timestep matching your control loop period (required; must match actual control
-  /// loop).
+  /// @param dt Timestep, required. Must match the actual control/integration period, which
+  ///        significantly affects barrier behavior.
   /// @param axis_selection Which axes to constrain (default: all three axes).
   /// @param gain Barrier gain (gamma), controls convergence to safe set. Default 1.0
   /// @param safe_displacement_gain Gain for safe displacement regularization. Default 1.0
@@ -54,9 +55,9 @@ struct PositionBarrier : public Barrier {
                   double gain = 1.0, double safe_displacement_gain = 1.0,
                   double safety_margin = 0.0);
 
-  /// @brief Get the number of active barrier constraints.
+  /// @brief Get the number of active barrier constraints (up to 6: 2 per enabled axis).
   /// @param context The context (unused; the row count is fixed at construction).
-  /// @return Number of active barriers (up to 6: 2 per enabled axis).
+  /// @return Number of active barriers.
   int getNumBarriers(const SceneContext& context) const override;
 
   /// @brief Compute barrier function values h(q) for all active constraints.
@@ -70,20 +71,20 @@ struct PositionBarrier : public Barrier {
   /// function with the safety margin applied as a shift:
   ///   rhs_i = gamma * (h_i - safety_margin) / (1 + |h_i - safety_margin|)
   ///
-  /// @param context The context supplying the configuration and the collision scratch to write.
-  /// @return Expected void on success, or error message if frame is not found.
+  /// @param context The context supplying the frame placements to read.
+  /// @return Void on success, or error message if frame is not found.
   tl::expected<void, std::string> computeBarrier(const SceneContext& context) override;
 
-  /// @brief Compute barrier constraint Jacobian matrix.
+  /// @brief Compute the barrier Jacobian J_h = dh/dq.
   ///
-  /// Computes the Jacobian -J_h used in the QP constraint: -J_h * delta_q <= rhs
-  /// Each barrier uses one row of the frame's position Jacobian (first 3 rows only).
-  /// The sign is negated for upper bounds to convert p_max - p(q) >= 0 into the standard form.
+  /// Each barrier uses one row of the frame's position Jacobian (first 3 rows only), negated for
+  /// upper bounds since h_upper = p_max - p(q). Barrier::formatQpInequalities() turns J_h into
+  /// the QP constraint -J_h * delta_q / dt <= rhs.
   ///
-  /// Results are stored in the inherited `barrier_jacobian` matrix (num_barriers x nv).
+  /// Results are stored in the inherited `jacobian_container` matrix (num_barriers x
+  /// num_variables).
   ///
   /// @param context The context supplying the configuration and the kinematics scratch to write.
-  /// @return Expected void on success, or error message if frame is not found.
   tl::expected<void, std::string> computeJacobian(const SceneContext& context) override;
 
   /// @brief Evaluate minimum barrier value at a candidate configuration.
@@ -94,7 +95,7 @@ struct PositionBarrier : public Barrier {
   /// @param model Pinocchio model
   /// @param data Pinocchio data (will be modified by FK computation)
   /// @param q Candidate joint configuration to evaluate
-  /// @return Expected containing minimum barrier value (negative if any constraint is violated),
+  /// @return Minimum barrier value (negative if any constraint is violated),
   ///         or error message if frame is not found
   tl::expected<double, std::string>
   evaluateAtConfiguration(const pinocchio::Model& model, pinocchio::Data& data,
