@@ -4,7 +4,7 @@ build-backend = "cmeel.build"
 
 [project]
 name = "roboplan-common"
-version = "0.6.1"
+version = "0.7.0"
 description = "Shared runtime support for RoboPlan Python packages."
 readme = "README.md"
 license = "MIT"

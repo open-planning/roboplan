@@ -4,14 +4,14 @@ build-backend = "cmeel.build"
 
 [project]
 name = "roboplan-example-models"
-version = "0.6.1"
+version = "0.7.0"
 description = "Robot descriptions for RoboPlan testing and examples."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10,<3.15"
 authors = [{ name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" }]
 classifiers = ["License :: OSI Approved :: MIT License"]
-dependencies = ["roboplan-common ==0.6.1"]
+dependencies = ["roboplan-common ==0.7.0"]
 
 [project.urls]
 Homepage = "https://github.com/open-planning/roboplan"

@@ -3,13 +3,13 @@ requires = [
     "cmeel[build] >=0.56",
     "cmeel-toppra[build] ==0.6.8",
     "nanobind >=1.3.2",
-    "roboplan-core ==0.6.1",
+    "roboplan-core ==0.7.0",
 ]
 build-backend = "cmeel.build"
 
 [project]
 name = "roboplan-toppra"
-version = "0.6.1"
+version = "0.7.0"
 description = "Time Optimal Path Parameterization based on Reachability Analysis (TOPP-RA) wrapper for RoboPlan."
 readme = "README.md"
 license = "MIT"
@@ -18,8 +18,8 @@ authors = [{ name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" }]
 classifiers = ["License :: OSI Approved :: MIT License"]
 dependencies = [
     "cmeel-toppra ==0.6.8",
-    "roboplan-common ==0.6.1",
-    "roboplan-core ==0.6.1",
+    "roboplan-common ==0.7.0",
+    "roboplan-core ==0.7.0",
 ]
 
 [project.urls]

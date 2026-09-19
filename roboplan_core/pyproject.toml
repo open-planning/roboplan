@@ -11,7 +11,7 @@ build-backend = "cmeel.build"
 
 [project]
 name = "roboplan-core"
-version = "0.6.1"
+version = "0.7.0"
 description = "Core types, scene representation, and utilities for RoboPlan."
 readme = "README.md"
 license = "MIT"
@@ -23,7 +23,7 @@ dependencies = [
     "cmeel-urdfdom[build] >=6",
     "cmeel-yaml-cpp >=0.8, <0.9; platform_system != 'Windows'",
     "pin >=4.1.0, <4.2",
-    "roboplan-common ==0.6.1",
+    "roboplan-common ==0.7.0",
 ]
 
 [project.urls]
