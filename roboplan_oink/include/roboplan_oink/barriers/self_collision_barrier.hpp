@@ -13,9 +13,8 @@ namespace roboplan {
 
 /// @brief Parameters for SelfCollisionBarrier configuration.
 struct SelfCollisionBarrierOptions {
-  /// @brief Maximum number of closest collision pairs to constrain. Must be > 0. Only the closest
-  /// `n_collision_pairs` pairs at the current configuration are constrained. Values larger than the
-  /// number of collision pairs in the scene are clipped to that count.
+  /// @brief Maximum number of collision pairs to constrain; only the closest pairs at the current
+  /// configuration are used. Must be > 0. Values above the scene's pair count are clipped to it.
   int n_collision_pairs = 1;
 
   /// @brief Barrier gain (gamma), controls convergence to safe set (default: 1.0).
@@ -36,10 +35,10 @@ struct SelfCollisionBarrierOptions {
   /// distance computation (the dominant per-solve cost on dense / mesh-heavy models) and
   /// therefore exert no influence on the barrier.
   ///
-  /// This is a visibility / performance bound, NOT a separation limit: it does not constrain how
-  /// far apart bodies may be. When set comfortably larger than the distances at which the barrier
-  /// actively pushes (a few times d_min), it does not change the solution at all -- only a
-  /// too-small value silently drops mid-range pairs. Set to std::nullopt to disable culling.
+  /// This is a visibility / performance bound, NOT a separation limit. When set comfortably larger
+  /// than the distances at which the barrier actively pushes (a few times d_min), it does not
+  /// change the solution at all -- only a too-small value silently drops mid-range pairs. Set to
+  /// std::nullopt to disable culling.
   std::optional<double> d_max = 0.25;
 };
 
@@ -78,8 +77,8 @@ struct SelfCollisionBarrier : public Barrier {
 
   /// @brief Compute barrier function values h(q) for the closest n_collision_pairs pairs.
   ///
-  /// Triggers distance computation on the scene's collision data, then fills
-  /// `barrier_values` with the distances of the closest pairs, each shifted by `-d_min`.
+  /// Computes pair distances on the solver's context, then fills `barrier_values` with the
+  /// distances of the closest pairs, each shifted by `-d_min`.
   /// The selected pair indices are cached in `closest_pair_indices` for use by
   /// computeJacobian().
   ///
@@ -100,15 +99,15 @@ struct SelfCollisionBarrier : public Barrier {
 
   /// @brief Evaluate the minimum barrier value at a candidate configuration.
   ///
-  /// Refreshes geometry placements on this barrier's own SceneContext scratch and runs
+  /// Refreshes geometry placements on the solver's SceneContext scratch and runs
   /// narrow-phase distance only on the pairs cached by the most recent computeBarrier() call
   /// (`closest_pair_indices`). For small displacements between the configuration used in
   /// computeBarrier() and `q`, those are the active constraints, and skipping narrow phase
   /// on the remaining pairs is the dominant per-solve speedup. computeBarrier() must have
   /// run before this method.
   ///
-  /// @param model Unused; kept for the Barrier interface. Distances are evaluated on this
-  ///        barrier's SceneContext, which owns the model shared with the scene.
+  /// @param model Unused; kept for the Barrier interface. Distances are evaluated on the
+  ///        solver's SceneContext, which owns the model shared with the scene.
   /// @param data Unused; kept for the Barrier interface.
   /// @param q Candidate joint configuration to evaluate.
   /// @return Expected containing the minimum barrier value (negative if any pair is in

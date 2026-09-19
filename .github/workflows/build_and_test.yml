@@ -1,7 +1,6 @@
 name: CI
 
 on:
-  # Run action on certain pull request events
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -9,11 +8,9 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
-  # Whenever certain branches are pushed
   push:
     branches: [main]
 
-  # On demand from github.com for testing
   workflow_dispatch:
 
 # Ensures that only one workflow runs at a time for this branch

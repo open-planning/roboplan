@@ -43,7 +43,7 @@ struct RRTOptions {
   bool collision_check_use_bisection = true;
 
   /// @brief The probability of sampling the goal node instead of a random node.
-  /// @details Must be between 0 and 1.
+  /// @details Must be between 0 and 1. Ignored when `rrt_connect` is true.
   double goal_biasing_probability = 0.15;
 
   /// @brief The maximum amount of time to allow for planning, in seconds.
@@ -54,23 +54,20 @@ struct RRTOptions {
   bool rrt_connect = false;
 
   /// @brief If true, use the RRT* algorithm to grow asymptotically optimal trees by rewiring.
-  /// @details This is compatible with `rrt_connect`, in which case both trees are rewired.
-  /// Works well alongside constraints, and is worth enabling there, especially since
-  /// path shortcutting should not be used in this case as it will likely violate constraints.
+  /// @details Compatible with `rrt_connect`, in which case both trees are rewired. Worth enabling
+  /// with constraints, since path shortcutting would likely violate them.
   bool rrt_star = false;
 
   /// @brief The configuration-space radius used to find neighbors for RRT* rewiring.
-  /// @details Only used when `rrt_star` is true. Expressed in the same units as
-  /// `max_connection_distance`, and should generally be at least that large so that neighbors a
-  /// single connection step away are considered. Larger values consider more neighbors when
-  /// choosing parents and rewiring, improving path quality at the cost of more collision checks.
+  /// @details Only used when `rrt_star` is true. In the same units as `max_connection_distance`,
+  /// and should generally be at least that large so neighbors one connection step away are
+  /// considered. Larger values improve path quality at the cost of more collision checks.
   double rewire_distance = 5.0;
 
   /// @brief If true, return as soon as the first path is found; if false, keep planning until the
   /// node or time budget is exhausted and return the lowest-cost path found.
-  /// @details Applies to every mode. With RRT* (`rrt_star`), set this to false to obtain the
-  /// asymptotically optimal behavior; with plain RRT or RRT-Connect, setting it to false simply
-  /// keeps the cheapest path discovered across the whole budget.
+  /// @details Applies to every mode. Set to false with `rrt_star` for asymptotically optimal
+  /// behavior; with plain RRT or RRT-Connect it keeps the cheapest path found within the budget.
   bool fast_return = true;
 
   /// @brief Options for the projection that pulls sampled configurations onto the constraints.
@@ -97,24 +94,24 @@ public:
   /// @param start The starting joint configuration.
   /// @param goal The goal joint configuration.
   /// @param constraints Constraints that every configuration on the path must satisfy via
-  /// projection, which is the CBiRRT2 constrained extension (Berenson et al., 2009).
-  /// If empty (default), plans without constraints.
+  /// projection, which is the CBiRRT2 constrained extension (Berenson et al., 2009). The start and
+  /// goal must already satisfy them. If empty (default), plans without constraints.
   /// @return A joint-space path, if planning succeeds, otherwise an error message.
   tl::expected<JointPath, std::string>
   plan(const JointConfiguration& start, const JointConfiguration& goal,
        const std::vector<std::shared_ptr<Constraint>>& constraints = {});
 
   /// @brief Sets the seed for the random number generator (RNG).
-  /// @details For reproducibility, this also seeds the underlying scene.
-  /// For now, this means it would break multi-threaded applications.
+  /// @details Each plan derives its sampling seed from this generator, so a fixed seed makes
+  /// planning reproducible.
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);
 
   /// @brief Initializes the search tree with the specified start pose.
   /// @param tree Reference to an empty tree.
   /// @param nodes Reference to the nodes vector.
-  /// @param q_init The first node to add to the tree.
-  /// @param max_size The maximum size of the tree.
+  /// @param q_init The root configuration, as full (model-sized) joint positions.
+  /// @param max_size The number of nodes to reserve space for.
   void initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
                       size_t max_size = 1000);
 
@@ -139,10 +136,9 @@ public:
   /// @param target_nodes The nodes in the target tree.
   /// @param grow_start_tree If true, the target_tree is the goal tree.
   /// @param context This plan's private collision context, used for all collision checks.
-  /// @return If a path is found, a pair of the completed start-to-goal path and its total
-  /// cost-to-come (the two connected nodes' costs plus the connecting edge length); otherwise none.
-  /// The cost is only meaningful when the planner tracks node costs (RRT*, or any mode with
-  /// fast_return disabled); callers returning the first path can ignore it.
+  /// @return If a path is found, a pair of the start-to-goal path and its total cost-to-come (the
+  /// connected nodes' costs plus the connecting edge length); otherwise none. The cost is only
+  /// meaningful when node costs are tracked (RRT*, or `fast_return` disabled).
   std::optional<std::pair<JointPath, double>> joinTrees(const std::vector<Node>& nodes,
                                                         const KdTree& target_tree,
                                                         const std::vector<Node>& target_nodes,

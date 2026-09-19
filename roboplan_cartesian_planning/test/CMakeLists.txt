@@ -3,7 +3,6 @@ if(NOT TARGET roboplan_example_models::roboplan_example_models)
   find_package(roboplan_example_models REQUIRED)
 endif()
 
-# Build tests
 add_executable(test_cartesian_path_planner test_cartesian_path_planner.cpp)
 set_property(TARGET test_cartesian_path_planner PROPERTY CXX_STANDARD 20)
 target_link_libraries(

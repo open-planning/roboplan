@@ -216,9 +216,7 @@ TEST_F(AccelerationLimitTest, MismatchedWorkspaceSize) {
   EXPECT_TRUE(result.error().find("size mismatch") != std::string::npos);
 }
 
-// ---------------------------------------------------------------------------------------
 // Braking distance to the task target
-// ---------------------------------------------------------------------------------------
 
 // No target set (the default) means no target braking: the bounds are the plain Pink ones.
 TEST_F(AccelerationLimitTest, NoTargetSetLeavesBoundsUnchanged) {

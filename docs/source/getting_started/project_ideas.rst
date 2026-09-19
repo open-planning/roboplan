@@ -23,7 +23,7 @@ This project involves directly working on the ``roboplan-ros`` repository, helpi
 Some representative tasks in this project are:
 
 * Helping build up the ROS wrappers to RoboPlan for motion planning, inverse kinematics, modifying scene obstacles, etc.
-* Creating ROS 2 controllers that utilize inverse kinematics, online planning, and/or collision checking capabilities in RoboPlan.
+* Creating ROS 2 controllers that use inverse kinematics, online planning, and/or collision checking capabilities in RoboPlan.
 * Putting together more complete examples that use simulators such as MuJoCo/Gazebo with ``ros2_control`` and demonstrate full motion planning pipelines (`here <https://github.com/NASA-JSC-Robotics/clr_ws>`_ is a motivating example).
 
 You are welcome to propose a subset of the above ideas for this project, or even come up with new ideas!

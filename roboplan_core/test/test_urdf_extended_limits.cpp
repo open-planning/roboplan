@@ -102,10 +102,9 @@ const std::string kUrdfWithMimic = R"(
 
 namespace roboplan {
 
-// Only urdfdom 3.0.0 and newer accept a URDF 1.2 document and parse its `acceleration` / `jerk`
-// attributes. The older releases shipped by ROS 2 Jazzy and Kilted reject any version above 1.0
-// outright, so the 1.2 fixtures below cannot even be parsed there. Probe the capability once
-// instead of assuming it.
+// Only urdfdom 3.0.0+ accepts a URDF 1.2 document and parses its `acceleration` / `jerk`
+// attributes. The older releases shipped by ROS 2 Jazzy and Kilted reject versions above 1.0,
+// so the 1.2 fixtures below cannot be parsed there. Probe once instead of assuming.
 bool urdfExtendedLimitsSupported() {
   static const bool supported = [] {
     try {

@@ -60,21 +60,18 @@ def main(
         control_freq: Control loop frequency in Hz.
         reference_filter_tau: Time constant for reference filtering in seconds. Smooths
             target pose changes to prevent sudden jumps. Set to 0 to disable filtering.
-        self_collision_num_pairs: Number of collision pairs to use for the solver's
-            self-collision barrier. If zero, no collision barrier will be used.
-            Note that this can significantly increase solve time, especially for models
-            that use high-resolution meshes for collision geometries.
+        self_collision_num_pairs: Number of closest collision pairs constrained by the
+            self-collision barrier; 0 disables the barrier. Can significantly increase solve
+            time, especially for models with high-resolution collision meshes.
         self_collision_d_min: Minimum distance (meters) the IK solver will try to keep
             between every pair of self-collision bodies declared by the SRDF.
-        self_collision_d_max: Maximum distance (meters) the IK solver will use for a
-            broadphase culling step. This can significantly speed up collision checking
-            by pruning out far-away meshes, especially if they have complex geometries.
+        self_collision_d_max: Distance (meters) beyond which pairs skip exact distance checks
+            (broadphase culling). Speeds up checking by pruning far-away, complex meshes.
         self_collision_gain: Barrier gain (gamma) for the self-collision barrier. Higher
             values produce stronger pushback as bodies approach `self_collision_d_min`.
         limit_acceleration: If true, adds an acceleration limit. The control loop also feeds
-            it a target displacement each step, which bounds the step by the braking distance
-            to the task target so the arm decelerates into the marker rather than arriving at
-            full speed, which helps prevent overshooting behavior.
+            it a target displacement each step, so the arm brakes into the marker instead of
+            overshooting.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
     """
@@ -98,7 +95,6 @@ def main(
     )
     scene.importSrdf(srdf_xml)
 
-    # Print joint information
     print(f"\n=== Model: {model} ===")
     joint_names = scene.getJointGroupInfo(model_data.default_joint_group).joint_names
     print(
@@ -111,8 +107,8 @@ def main(
 
     q_full = scene.getCurrentJointPositions()
 
-    # Create a redundant Pinocchio model just for visualization with mimic joints.
-    # When Pinocchio 4.x releases nanobind bindings, we should be able to directly grab the model from the scene instead.
+    # Build a separate Pinocchio model (with mimic joints) for visualization. Until Pinocchio
+    # and Coal have nanobind bindings, it cannot be taken from the scene.
     model_pin = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model_pin, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths
@@ -130,16 +126,14 @@ def main(
     print(f"\nConfiguration space dimension (nq): {len(q_full)}")
     print(f"Velocity space dimension (nv): {num_variables}")
 
-    # Thread-safe access to scene
+    # Guards scene access between the control thread and the Viser callbacks.
     scene_lock = threading.Lock()
 
-    # Control loop time step
     dt = 1.0 / control_freq
 
-    # Create position limit constraint
+    # Create constraints
     position_limit = PositionLimit(oink, gain=1.0)
 
-    # Create velocity limit constraint
     v_max = np.hstack(
         [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
     )
@@ -190,17 +184,15 @@ def main(
     )
     print(f"  {q_canonical}")
 
-    # Create a ConfigurationTask to regularize toward the starting pose.
-    # The task runs at priority 2 so it is projected into the nullspace of the (priority 1)
-    # FrameTask. This way, regularization toward the starting pose never sacrifices end-effector
-    # tracking; it only uses the redundant degrees of freedom that the FrameTask leaves free.
+    # Regularize toward the starting pose with a ConfigurationTask at priority 2. It is projected
+    # into the nullspace of the (priority 1) FrameTask, so it only uses the redundant degrees of
+    # freedom the FrameTask leaves free and never sacrifices end-effector tracking.
     joint_weights = np.full(num_variables, 0.05)
     config_options = ConfigurationTaskOptions(task_gain=1.0, lm_damping=0.0, priority=2)
     config_task = ConfigurationTask(
         oink, q_canonical[oink.q_indices], joint_weights, config_options
     )
 
-    # Task parameters
     task_options = FrameTaskOptions(
         position_cost=1.0,
         orientation_cost=0.1,
@@ -208,7 +200,7 @@ def main(
         lm_damping=lm_damping,
     )
 
-    # First, create all frame tasks and controls
+    # One FrameTask and interactive marker per end effector.
     frame_tasks = []
     transform_controls = []
     for name in model_data.ee_names:
@@ -219,7 +211,6 @@ def main(
         frame_task = FrameTask(oink, scene, goal, task_options)
         frame_tasks.append(frame_task)
 
-        # Create an interactive marker
         controls = viz.viewer.scene.add_transform_controls(
             "/ik_marker/" + name,
             depth_test=False,
@@ -229,8 +220,7 @@ def main(
         )
         transform_controls.append(controls)
 
-    # Create reference filters for smooth target pose changes
-    # These filters smooth sudden changes in target pose to prevent large jumps
+    # Low-pass filters smooth sudden changes in the target pose.
     reference_filters = []
     raw_targets = []  # Store unfiltered targets from user input
     for name in model_data.ee_names:
@@ -240,7 +230,6 @@ def main(
         reference_filters.append(ref_filter)
         raw_targets.append(initial_pose.copy())
 
-    # Now set up the callback after all controls are created
     def update_goals(_):
         global paused
         with scene_lock:
@@ -248,11 +237,9 @@ def main(
                 tform = pin.SE3(
                     pin.Quaternion(controls.wxyz[[1, 2, 3, 0]]), controls.position
                 ).homogeneous
-                # Store the raw target from the marker
                 raw_targets[idx] = tform.copy()
         paused = False
 
-    # Attach the callback to all controls
     for controls in transform_controls:
         controls.on_update(update_goals)
 
@@ -276,10 +263,8 @@ def main(
             loop_start = time.time()
             q_to_display = None
 
-            # Thread-safe scene access for IK solving
             if not paused:
                 with scene_lock:
-                    # Get current joint configuration
                     q_current = scene.getCurrentJointPositions()
 
                     # Marker targets are in the world frame, but each FrameTask expects its
@@ -289,8 +274,7 @@ def main(
                         scene.forwardKinematics(q_current, model_data.base_link)
                     )
 
-                    # Update reference filters if enabled (smooths target pose changes)
-                    # The filter gradually approaches the raw target to prevent sudden jumps
+                    # Filter the raw targets, unless filtering is disabled (tau = 0).
                     if reference_filter_tau > 0:
                         for idx, ref_filter in enumerate(reference_filters):
                             filtered_target = ref_filter.update(raw_targets[idx], dt)
@@ -298,7 +282,6 @@ def main(
                                 base_T_world @ filtered_target
                             )
                     else:
-                        # No filtering - use raw targets directly
                         for idx in range(len(frame_tasks)):
                             frame_tasks[idx].setTargetFrameTransform(
                                 base_T_world @ raw_targets[idx]
@@ -309,9 +292,8 @@ def main(
                         # (delta_q / dt) so the limit couples consecutive control steps.
                         accel_limit.setLastVelocity(delta_q / dt)
 
-                        # Solve the unconstrained task to get the target delta_q for the
-                        # acceleration limit. This enables the it to brake towards the
-                        # target rather than approaching at full speed and overshooting.
+                        # Solve the tasks alone for the target delta_q, so the acceleration
+                        # limit can brake toward the target instead of overshooting it.
                         oink.solveIk(scene, tasks, delta_q_target, regularization)
                         accel_limit.setTargetDisplacement(delta_q_target)
 
@@ -348,8 +330,6 @@ def main(
                 delta_q[:] = 0.0
                 delta_q_full[:] = 0.0
 
-            # Throttled visualization, outside the scene lock, so a slow browser push does
-            # not perturb the control-loop timing.
             if (
                 q_to_display is not None
                 and (loop_start - last_display) >= display_period
@@ -357,15 +337,12 @@ def main(
                 viz.display(q_to_display)
                 last_display = loop_start
 
-            # Maintain control loop rate
             elapsed = time.time() - loop_start
             time.sleep(max(0, dt - elapsed))
 
-    # Start control loop in separate thread
     control_thread = threading.Thread(target=control_loop, daemon=True)
     control_thread.start()
 
-    # Create a marker reset button.
     reset_button = viz.viewer.gui.add_button("Reset Marker")
 
     @reset_button.on_click

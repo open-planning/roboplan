@@ -324,7 +324,7 @@ class CartesianPath:
 
     @property
     def tforms(self) -> list[list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]]:
-        """The list of Cartesian transforms."""
+        """The Cartesian transforms from each base frame to each tip frame."""
 
     @tforms.setter
     def tforms(self, arg: Sequence[Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]], /) -> None: ...
@@ -363,7 +363,7 @@ class CartesianTrajectory:
 
     @property
     def tforms(self) -> list[list[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]]:
-        """The list of Cartesian transforms."""
+        """The Cartesian transforms from each base frame to each tip frame."""
 
     @tforms.setter
     def tforms(self, arg: Sequence[Sequence[Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]]], /) -> None: ...
@@ -391,25 +391,34 @@ class Mesh:
     def __init__(self, filename: str | os.PathLike, scale: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
 
 class OcTree:
-    """Temporary wrapper struct to represent a octree geometry."""
+    """Temporary wrapper struct to represent an octree geometry."""
 
     def __init__(self, boxes: Sequence[Annotated[NDArray[numpy.float64], dict(shape=(6), order='C')]], resolution: float) -> None: ...
 
 class PinocchioSceneDescription:
     """Pinocchio model and collision geometry."""
 
-def loadTextFile(path: str | os.PathLike) -> str: ...
+def loadTextFile(path: str | os.PathLike) -> str:
+    """Reads a text file from disk."""
 
 class YamlNode:
     """Parsed YAML document."""
 
-def loadJointLimitsConfig(path: str | os.PathLike) -> YamlNode: ...
+def loadJointLimitsConfig(path: str | os.PathLike) -> YamlNode:
+    """Loads a joint-limits config from disk."""
 
-def loadUrdfSceneDescriptionFromXml(urdf_xml: str, package_paths: Sequence[str | os.PathLike] = []) -> PinocchioSceneDescription: ...
+def loadUrdfSceneDescriptionFromXml(urdf_xml: str, package_paths: Sequence[str | os.PathLike] = []) -> PinocchioSceneDescription:
+    """
+    Builds a PinocchioSceneDescription from URDF XML. `package_paths` resolve `package://` mesh paths.
+    """
 
-def loadUrdfSceneDescription(urdf_path: str | os.PathLike, package_paths: Sequence[str | os.PathLike] = []) -> PinocchioSceneDescription: ...
+def loadUrdfSceneDescription(urdf_path: str | os.PathLike, package_paths: Sequence[str | os.PathLike] = []) -> PinocchioSceneDescription:
+    """
+    Loads a URDF file into a PinocchioSceneDescription. `package_paths` resolve `package://` mesh paths.
+    """
 
-def loadMjcfModel(mjcf_path: str | os.PathLike) -> PinocchioSceneDescription: ...
+def loadMjcfModel(mjcf_path: str | os.PathLike) -> PinocchioSceneDescription:
+    """Loads an MJCF file into a PinocchioSceneDescription."""
 
 class Scene:
     """Primary scene representation for planning and control."""
@@ -475,7 +484,7 @@ class Scene:
 
     def computeFrameJacobian(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, local: bool = True) -> Annotated[NDArray[numpy.float64], dict(shape=(None, None), order='F')]:
         """
-        Computes the frame Jacobian for a specific frame, expressed in world frame.
+        Computes the frame Jacobian (6 x nv): LOCAL frame if `local` is true, else WORLD.
         """
 
     def computeRelativeFrameJacobian(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], frame_name: str, base_frame: str, local: bool = True) -> Annotated[NDArray[numpy.float64], dict(shape=(None, None), order='F')]:
@@ -541,7 +550,7 @@ class Scene:
         """Adds a triangle mesh geometry to the scene."""
 
     def addOcTreeGeometry(self, name: str, parent_frame: str, octree: OcTree, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
-        """Adds a octree geometry to the scene."""
+        """Adds an octree geometry to the scene."""
 
     def updateGeometryPlacement(self, name: str, parent_frame: str, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> None:
         """Updates the placement of an object geometry in the scene."""
@@ -700,7 +709,7 @@ class PathShortcuttingOptions:
     @property
     def redundant_removal_iters(self) -> int:
         """
-        Cadence (in iterations) at which to interleave the redundant-vertex removal pass that cleans up the micro-segments introduced by shortcutting.
+        Cadence (in iterations) at which to interleave the redundant-vertex removal pass that cleans up the micro-segments introduced by shortcutting. Must be greater than 0.
         """
 
     @redundant_removal_iters.setter
@@ -752,12 +761,12 @@ class RobotBodyFilterMethod(enum.Enum):
 
     Narrowphase = 0
     """
-    Exact: after the broadphase AABB cull, each candidate point is checked with a Coal narrowphase collision query (point vs. padded geometry). This is exact for every geometry type, including meshes, at the cost of one GJK/BVH query per candidate point.
+    Exact for every geometry type, including meshes: each candidate point gets a Coal narrowphase query against the padded geometry (one GJK/BVH query per point).
     """
 
     PaddedObb = 1
     """
-    Conservative: after the broadphase AABB cull, each candidate point is checked against the geometry's padded oriented bounding box (OBB). This is much faster since it is a few arithmetic operations per candidate, but over-removes points near the corners of the oriented boxes. The set of points it removes is always a superset of Narrowphase's.
+    Conservative: each candidate point is checked against the geometry's padded oriented bounding box (OBB). Much faster, but over-removes points near box corners, so it always removes a superset of Narrowphase's points.
     """
 
 class RobotBodyFilterOptions:
@@ -784,7 +793,7 @@ class RobotBodyFilterOptions:
     @property
     def num_threads(self) -> int:
         """
-        Number of threads used to classify points, or 0 to use all hardware threads. Points are split into blocks that the threads pull from a shared queue, so at most one thread per block is ever spawned and small clouds are processed serially either way.
+        Number of threads used to classify points, or 0 to use all hardware threads. At most one thread is spawned per block of points, so small clouds run serially.
         """
 
     @num_threads.setter
@@ -794,11 +803,9 @@ class RobotBodyFilter:
     """
     Filters points that lie on or near the robot's own collision geometry.
 
-    This removes the robot's body from a sensor point cloud (or the occupied cells of an octree) so that the robot does not see itself as an obstacle when planning.
+    Removes the robot's body from a sensor point cloud (or octree cells) so it does not see itself as an obstacle. Both methods share a broadphase cull against the padded world-frame AABB of every robot collision geometry and differ only in the test run on the surviving candidates; see RobotBodyFilterMethod.
 
-    Both methods share a broadphase stage that culls points against the padded world-frame AABB of every robot collision geometry at the query configuration; they differ only in the exactness (and cost) of the test run on the surviving candidates. See RobotBodyFilterMethod.
-
-    Thread safety and lifetime: the filter owns private Pinocchio scratch over the Scene's robot description, so distinct filters may run concurrently on one Scene, but a single filter must not be shared across threads. Only the robot's own collision geometry is filtered against, and it is copied at construction, so objects can be freely added to or removed from the scene without rebuilding the filter.
+    Thread safety and lifetime: the filter owns private Pinocchio scratch, so distinct filters may run concurrently on one Scene, but one filter must not be shared across threads. Only the robot's own collision geometry is filtered against, and it is copied at construction, so adding or removing scene objects does not require a rebuild.
     """
 
     def __init__(self, scene: Scene, options: RobotBodyFilterOptions) -> None:

@@ -262,7 +262,9 @@ def main(
     step_dt = mj_model.opt.timestep * steps_per_waypoint
 
     print("Executing in MuJoCo (close the viewer window to exit)...")
-    with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
+    with mujoco.viewer.launch_passive(
+        mj_model, mj_data, show_left_ui=False, show_right_ui=False
+    ) as viewer:
         while viewer.is_running():
             reset_to_home()
             for q in reference:

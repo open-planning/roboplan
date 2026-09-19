@@ -19,15 +19,14 @@ SceneContext::SceneContext(const Scene& scene)
     : scene_(scene), model_(scene.getModel()), collision_model_(scene.getCollisionModel()),
       data_(scene.getModel()), geom_data_(scene.getCollisionModel()),
       q_(scene.getCurrentJointPositions()), geometry_version_(scene.getGeometryVersion()) {
-  // Seed pseudorandomly, matching Scene's own default. Callers that need reproducibility call
-  // setRngSeed().
+  // Seed pseudorandomly like Scene; call setRngSeed() for reproducibility.
   std::random_device rd;
   rng_gen_ = std::mt19937(rd());
 
   // Bind a fresh broadphase manager to this context's own geometry data, then seed the geometry
   // world placements (at the neutral configuration) before the first AABB-tree build so coal does
   // not see degenerate bounding volumes. compute_local_aabb is false here on purpose.
-  // Local AABBs live on the coal geometries, which are  shared with the Scene and other contexts.
+  // Local AABBs live on the coal geometries, which are shared with the Scene and other contexts.
   manager_.emplace(&model_, &collision_model_, &geom_data_);
   pinocchio::updateGeometryPlacements(model_, data_, collision_model_, geom_data_,
                                       pinocchio::neutral(model_));

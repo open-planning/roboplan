@@ -158,8 +158,7 @@ createDefaultJointGroupInfo(const pinocchio::Model& model) {
   std::vector<size_t> all_joint_indices(model.njoints - 1);
   std::iota(all_joint_indices.begin(), all_joint_indices.end(), 0);
 
-  // It is possible for a robot to have continuous joints that are not in any group. So check
-  // again to be sure.
+  // The default group holds every joint, so count continuous DOFs over the whole model.
   bool default_group_has_continuous_dofs = false;
   size_t default_group_num_continuous_dofs = 0;
   for (size_t jid = 1; jid < static_cast<size_t>(model.njoints); ++jid) {

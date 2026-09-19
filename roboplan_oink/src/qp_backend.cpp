@@ -75,7 +75,6 @@ solveQp(QpSolverPtr& solver, const OinkSettings& settings, bool init_required, i
     solver->settings.initial_guess = InitialGuessStatus::WARM_START_WITH_PREVIOUS_RESULT;
   }
 
-  // Extract the solution and copy into delta_q
   delta_q.noalias() = solver->results.x;
   return {};
 }

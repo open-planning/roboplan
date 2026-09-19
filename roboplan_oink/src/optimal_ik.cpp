@@ -12,7 +12,6 @@ constexpr double kMinNormSq = 1e-12;
 
 namespace roboplan {
 
-// Barrier base class implementation
 Barrier::Barrier(double gain, double dt, double safe_displacement_gain, double safety_margin)
     : gain(gain), dt(dt), safe_displacement_gain(safe_displacement_gain),
       safety_margin(safety_margin) {
@@ -50,7 +49,6 @@ Barrier::evaluateAtConfiguration(const pinocchio::Model& /*model*/, pinocchio::D
 
 void Barrier::formatQpInequalities(Eigen::Ref<Eigen::MatrixXd> G,
                                    Eigen::Ref<Eigen::VectorXd> b) const {
-  // G = -J_h / dt
   G = -jacobian_container / dt;
 
   // Saturating class-K function with safety margin: α(h - m) = γ·(h - m) / (1 + |h - m|)
@@ -62,21 +60,18 @@ void Barrier::formatQpInequalities(Eigen::Ref<Eigen::MatrixXd> G,
 
 void Barrier::formatQpObjective(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> H,
                                 Eigen::Ref<Eigen::VectorXd> c) const {
-  // Compute squared Frobenius norm of Jacobian: ‖J_h‖²
   const double jacobian_norm_sq = jacobian_container.squaredNorm();
 
-  // Avoid division by zero - if Jacobian is near zero, no regularization needed
+  // Avoid division by zero: with a near-zero Jacobian, no regularization is needed.
   if (jacobian_norm_sq < kMinNormSq) {
     H.setZero();
     c.setZero();
     return;
   }
 
-  // Compute safe displacement
   const Eigen::VectorXd dq_safe = computeSafeDisplacement(context);
 
-  // Regularization weight: r / ‖J_h‖²
-  // The 1/‖J_h‖² normalizes based on barrier sensitivity
+  // Regularization: The 1/‖J_h‖² factor normalizes by barrier sensitivity.
   const double weight = safe_displacement_gain / jacobian_norm_sq;
 
   // QP objective contribution: (r / (2·‖J_h‖²)) · ‖δq - δq_safe‖²
@@ -119,7 +114,6 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const SceneContext& 
 
 tl::expected<void, std::string> Task::computeQpObjective(const SceneContext& context,
                                                          Eigen::MatrixXd& H, Eigen::VectorXd& c) {
-  // Compute Jacobian and error into internal containers
   auto jacobian_result = computeJacobian(context);
   if (!jacobian_result.has_value()) {
     return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
@@ -130,12 +124,12 @@ tl::expected<void, std::string> Task::computeQpObjective(const SceneContext& con
     return tl::make_unexpected("Failed to compute error: " + error_result.error());
   }
 
-  // Apply weights
+  // Apply weights: J_w = W*J, e_w = -α*W*e
   jacobian_container.applyOnTheLeft(weight);
   error_container *= -gain;
   error_container.applyOnTheLeft(weight);
 
-  // Compute Levenberg-Marquardt damping based on weighted error
+  // Levenberg-Marquardt damping, scaled by the weighted error
   const double mu = lm_damping * error_container.squaredNorm();
 
   // Compute H = J^T * J + mu * I
@@ -193,7 +187,7 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
   const SceneContext& context = *context_;
 
   // Barriers are evaluated value-first, so computeBarrier() reads frame placements that no
-  // Jacobian call has populated yet. so refresh them up front. Tasks do not need this; each
+  // Jacobian call has populated yet, so refresh them up front. Tasks do not need this; each
   // computes its own Jacobian (which runs forward kinematics) before its error term reads oMf,
   // so the barrier-free path does not pay for the pass.
   if (!barriers.empty()) {
@@ -220,12 +214,10 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
   nullspace_projector.setIdentity(num_variables, num_variables);
   jacobian_stack.resize(0, num_variables);
 
-  // Walk tasks in priority order. Tasks are projected through the current nullspace_projector
-  // (encoding all strictly-higher priorities); whenever we cross into a new priority level,
-  // rebuild the projector from everything stacked so far so the new level acts only in the
-  // nullspace of everything above it. Tasks are sorted ascending by priority (1 = highest),
-  // so the back holds the lowest priority level — its tasks don't need to be appended to
-  // `jacobian_stack` since no further levels will project against them.
+  // Walk tasks in priority order (1 = highest). Each is projected through the current
+  // nullspace_projector (all strictly-higher priorities); on crossing into a new priority level,
+  // rebuild the projector from everything stacked so far. The lowest level, at the back, is never
+  // appended to `jacobian_stack` since no further level projects against it.
   const int lowest_priority = sorted_tasks.empty() ? 0 : sorted_tasks.back()->priority;
   const Task* prev_task = nullptr;
   for (Task* task : sorted_tasks) {
@@ -266,9 +258,8 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     c += barrier_c_contribution;
   }
 
-  // Build inequality rows for constraints and barriers, in the original dq space.
-  // No transformation is needed because dq is the decision variable directly.
-  // Additionally, cache sizes.
+  // Cache the row count of each constraint and barrier. Rows are in dq space, which is the
+  // decision variable itself.
   constraint_sizes.reserve(constraints.size());
   int total_constraint_rows = 0;
   for (const auto& constraint : constraints) {
@@ -284,8 +275,7 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     total_barrier_rows += num_rows;
   }
 
-  // Total inequality constraints = constraints (box) + barriers (one-sided)
-  // For barriers: -inf <= G*dq <= h (only upper bounded)
+  // Total inequality rows = constraints (box) + barriers (one-sided: -inf <= G*dq <= h)
   const int total_rows = total_constraint_rows + total_barrier_rows;
 
   const bool init_required = !solver || (total_constraint_rows != last_constraint_rows ||

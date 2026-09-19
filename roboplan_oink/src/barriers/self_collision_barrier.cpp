@@ -75,7 +75,7 @@ tl::expected<void, std::string> SelfCollisionBarrier::computeBarrier(const Scene
     all_distances = Eigen::VectorXd::Zero(total_pairs);
   }
 
-  // Update geometry placements and recompute pair distances on the barrier's own scratch. Pairs
+  // Update geometry placements and recompute pair distances on the solver's context. Pairs
   // whose bounding boxes are farther apart than d_max skip exact narrow-phase distance.
   const Eigen::VectorXd& q = context.getJointPositions();
   scene_context.computeDistances(q, d_max);
@@ -173,7 +173,7 @@ tl::expected<void, std::string> SelfCollisionBarrier::computeJacobian(const Scen
 
 tl::expected<double, std::string> SelfCollisionBarrier::evaluateAtConfiguration(
     const pinocchio::Model& /*model*/, pinocchio::Data& /*data*/, const Eigen::VectorXd& q) const {
-  // Refresh geometry placements at q on the barrier's own scratch, then run narrow-phase distance
+  // Refresh geometry placements at q on the solver's context, then run narrow-phase distance
   // only on the pairs that computeBarrier() identified as closest. This skips the full pair sweep
   // that pinocchio::computeDistances() would otherwise do, and never touches scene state.
   const auto& scene_context = this->context();

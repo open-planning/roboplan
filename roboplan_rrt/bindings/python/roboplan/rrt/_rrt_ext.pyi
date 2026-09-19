@@ -109,7 +109,7 @@ class ConstraintProjectorOptions:
     @property
     def convergence_ratio(self) -> float:
         """
-        The fraction of each constraint's tolerance the projection converges to, leaving headroom for the interpolation between projected configurations.
+        The fraction of each constraint's tolerance the projection converges to, leaving headroom for the interpolation between projected configurations. Must be in (0, 1].
         """
 
     @convergence_ratio.setter
@@ -153,7 +153,9 @@ class Node:
 
     @property
     def cost(self) -> float:
-        """The cost-to-come from the tree root to this node (RRT* only)."""
+        """
+        The cost-to-come from the tree root to this node. Zero unless rrt_star is true or fast_return is false.
+        """
 
 class RRTOptions:
     """Options struct for RRT planner."""
@@ -199,7 +201,9 @@ class RRTOptions:
 
     @property
     def goal_biasing_probability(self) -> float:
-        """The probability of sampling the goal node instead of a random node."""
+        """
+        The probability of sampling the goal node instead of a random node. Must be between 0 and 1. Ignored when `rrt_connect` is true.
+        """
 
     @goal_biasing_probability.setter
     def goal_biasing_probability(self, arg: float, /) -> None: ...
@@ -246,7 +250,7 @@ class RRTOptions:
     @property
     def constraint_projection(self) -> ConstraintProjectorOptions:
         """
-        Options for the projection that pulls sampled configurations onto the constraints.
+        Options for the projection that pulls sampled configurations onto the constraints. Only used when `plan` is given constraints.
         """
 
     @constraint_projection.setter

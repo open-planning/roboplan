@@ -5,8 +5,7 @@
 EXIT_CODE=0
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# Packages with Python binding tests, for the Python runner below (C++
-# tests run via one ctest invocation, no package list needed).
+# Packages checked for Python binding tests (C++ tests run via one ctest call).
 PACKAGES=(
     roboplan_core
     roboplan_rrt

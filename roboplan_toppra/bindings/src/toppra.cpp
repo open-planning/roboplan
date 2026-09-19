@@ -39,13 +39,31 @@ void init_toppra(nanobind::module_& m) {
           "dt"_a = 0.01, "mode"_a = SplineFittingMode::Hermite, "velocity_scale"_a = 1.0,
           "acceleration_scale"_a = 1.0, "max_adaptive_iterations"_a = 10,
           "max_adaptive_step_size"_a = 0.05, "max_blend_deviation"_a = 0.01)
-      .def_rw("dt", &TOPPRAOptions::dt)
-      .def_rw("mode", &TOPPRAOptions::mode)
-      .def_rw("velocity_scale", &TOPPRAOptions::velocity_scale)
-      .def_rw("acceleration_scale", &TOPPRAOptions::acceleration_scale)
-      .def_rw("max_adaptive_iterations", &TOPPRAOptions::max_adaptive_iterations)
-      .def_rw("max_adaptive_step_size", &TOPPRAOptions::max_adaptive_step_size)
-      .def_rw("max_blend_deviation", &TOPPRAOptions::max_blend_deviation);
+      .def_rw("dt", &TOPPRAOptions::dt,
+              "The sample time of the output trajectory, in seconds. Must be strictly positive.")
+      .def_rw("mode", &TOPPRAOptions::mode,
+              "The mode to use for spline fitting the path. Hermite fits a cubic Hermite spline "
+              "with zero velocity at all waypoints, which can be slow but adheres to the path "
+              "exactly. Cubic fits a smoother spline with zero acceleration only at the "
+              "endpoints; it can deviate from the path, so it is collision checked and falls "
+              "back to Hermite. Adaptive uses Cubic but adds intermediate points where it finds "
+              "collisions, up to max_adaptive_iterations, then falls back to Hermite. "
+              "LinearBlend joins straight-line segments with circular corner blends (see "
+              "max_blend_deviation), is collision checked, and falls back to Hermite.")
+      .def_rw("velocity_scale", &TOPPRAOptions::velocity_scale,
+              "A scaling factor in (0, 1] for velocity limits.")
+      .def_rw("acceleration_scale", &TOPPRAOptions::acceleration_scale,
+              "A scaling factor in (0, 1] for acceleration limits.")
+      .def_rw("max_adaptive_iterations", &TOPPRAOptions::max_adaptive_iterations,
+              "Maximum number of adaptive iterations, if adaptive mode is enabled.")
+      .def_rw("max_adaptive_step_size", &TOPPRAOptions::max_adaptive_step_size,
+              "If adaptive mode is enabled, the maximum joint configuration step size to sample "
+              "generated splines for collision checking.")
+      .def_rw("max_blend_deviation", &TOPPRAOptions::max_blend_deviation,
+              "Maximum distance a corner blend may deviate from the sharp corner, in the joint "
+              "configuration's units. Only used by LinearBlend. Larger values round corners more "
+              "(faster, but the path strays further from the waypoints); values <= 0 disable "
+              "blending.");
 
   nanobind::class_<PathParameterizerTOPPRA>(
       m, "PathParameterizerTOPPRA", "Trajectory time parameterizer using the TOPP-RA algorithm.")

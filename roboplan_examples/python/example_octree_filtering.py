@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Demonstrates filtering the robot's own body out of a point cloud before turning it into
-an octree collision object.
+Filters the robot's own body out of a point cloud before turning it into an octree.
 
-The example scatters points on the Franka robot itself at its current pose, the way a depth
-camera looking at the workspace would also see the robot. Without filtering, those points
-become occupied voxels on the robot body and the current pose is immediately in collision,
-so no planning is possible. The RobotBodyFilter removes them, and the example then repeatedly
-plans RRT paths to random collision-free goals, refreshing the simulated point cloud and
-the filtered octree at every pose the robot stops at.
-
-The filter method (exact Narrowphase or the faster, conservative PaddedObb) is selected
-with --method, and each cycle prints its timing.
+Points scattered on the Franka at its current pose stand in for a depth camera that also sees
+the robot. Unfiltered, they become occupied voxels on the robot body and the current pose is in
+collision, so nothing can be planned. Each cycle filters a fresh simulated cloud with
+`RobotBodyFilter`, swaps the octree into the scene, and plans RRT to a random goal. Select the
+filter with --method; timing is printed for each cycle.
 """
 
 import time
@@ -65,10 +60,10 @@ def main(
     open_browser: bool = True,
 ):
     """
-    Run the octree filtering example with the provided parameters.
+    Run the octree filtering example.
 
     Parameters:
-        method: The filter method used to build the scene octree.
+        method: Narrowphase is exact; PaddedObb is faster but conservative (removes a superset).
         padding: Distance around the robot's collision geometry, in meters, within which
             points are considered part of the robot body.
         num_robot_points: Number of synthetic sensor points scattered on the robot body.
@@ -97,7 +92,7 @@ def main(
     group_name = model_data.default_joint_group
     group_info = scene.getJointGroupInfo(group_name)
 
-    # Redundant Pinocchio models for visualization and robot point sampling (see example_rrt.py).
+    # Separate Pinocchio models for visualization and robot point sampling (see example_rrt.py).
     model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths

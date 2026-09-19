@@ -6,7 +6,7 @@ RoboPlan provides two inverse kinematics solvers: a simple Jacobian-based solver
 SimpleIK: Jacobian-Based Solver
 -------------------------------
 
-SimpleIK is a lightweight inverse kinematics solver using the damped least squares (DLS) method, also known as the Levenberg-Marquardt algorithm.
+SimpleIK is a lightweight inverse kinematics solver that uses damped least squares (DLS), also known as the Levenberg-Marquardt algorithm.
 
 Algorithm
 ^^^^^^^^^
@@ -36,11 +36,10 @@ The joint configuration is updated via integration:
 
 **Properties:**
 
-- Simple and efficient — minimal computational overhead
 - Supports multiple simultaneous goal frames
 - Collision checking with random restarts on failure
 - Convergence monitoring based on separate linear and angular error thresholds
-- Optionally attempt to find a nearest solution to the seed until the timeout is reached
+- With ``fast_return = false``, runs through all restarts (or until ``max_time``) and returns the solution nearest the seed
 
 Configuration
 ^^^^^^^^^^^^^
@@ -179,8 +178,7 @@ Task Priorities and Nullspace Projection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Each task carries an integer ``priority`` (default ``1`` = highest).
-Tasks at a lower priority level (higher priority *number*) are projected into the nullspace of all higher-priority tasks, so they cannot fight tasks above them.
-Their contribution is structurally zero in the higher-priority directions.
+Tasks at a lower priority level (higher priority *number*) are projected into the nullspace of all higher-priority tasks, so their contribution is structurally zero in the higher-priority directions.
 
 For each priority level :math:`k`, the QP uses a *projected* Jacobian :math:`J_k N_k`,
 where :math:`N_k` is the cumulative nullspace projector built from the row-stacked Jacobians of all priority levels :math:`1, \ldots, k-1`.
@@ -258,7 +256,7 @@ Tracks a target 6-DOF pose (position + orientation).
 ConfigurationTask
 """""""""""""""""
 
-Drives toward a target joint configuration, or use as null-space regularization towards a nominal configuration.
+Drives toward a target joint configuration, or regularizes toward a nominal one in the nullspace.
 
 **Error:** Manifold-aware difference: :math:`e = \text{difference}(q, q_{\text{target}})`
 
@@ -266,9 +264,8 @@ Drives toward a target joint configuration, or use as null-space regularization 
 
 **Weight matrix:** :math:`W = \text{diag}(\sqrt{w_1}, \ldots, \sqrt{w_{n_v}})`
 
-Also accepts ``task_gain``, ``lm_damping``, and ``priority`` (defaults match
-``FrameTaskOptions``).
-A common pattern is to use a ConfigurationTask at a lower priority level (e.g. ``priority=2``) as a posture / null-space regularizer that will not interfere with a higher-priority FrameTask.
+Also accepts ``task_gain``, ``lm_damping``, and ``priority`` (defaults match ``FrameTaskOptions``).
+A common pattern is a ConfigurationTask at ``priority=2`` as a posture regularizer that does not interfere with a higher-priority FrameTask.
 
 Constraints vs Barriers
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -331,7 +328,7 @@ Comparison
 +------------------------+------------------------------------+--------------------------------------+
 | **Enforcement**        | Exact                              | Approximate (linearization)          |
 +------------------------+------------------------------------+--------------------------------------+
-| **Feasibility**        | Can fail                           | Always feasible                      |
+| **Feasibility**        | Can fail (conflicting constraints) | Always feasible (class-K function)   |
 +------------------------+------------------------------------+--------------------------------------+
 | **Behavior**           | Abrupt at limit                    | Smooth approach                      |
 +------------------------+------------------------------------+--------------------------------------+
@@ -364,9 +361,9 @@ The gain :math:`\gamma \in (0, 1]` controls aggressiveness. As :math:`q \to q_{\
 AccelerationLimit
 """""""""""""""""
 
-Bounds how fast the joint velocity may change between successive control steps, so the executed motion does not snap/jerk (unbounded acceleration). Inspired by `pink.limits.AccelerationLimit <https://github.com/stephane-caron/pink/blob/main/pink/limits/acceleration_limit.py>`_.
+Bounds how fast the joint velocity may change between successive control steps, so the executed motion does not jerk. Inspired by `pink.limits.AccelerationLimit <https://github.com/stephane-caron/pink/blob/main/pink/limits/acceleration_limit.py>`_.
 
-It combines two box bounds on :math:`\Delta q` and takes the tighter per joint:
+It combines up to three box bounds on :math:`\Delta q` and takes the tighter per joint:
 
 **1. Finite-difference acceleration bound**, centered on the previous step's displacement :math:`\Delta q_{\text{prev}}`:
 
@@ -447,7 +444,8 @@ Where:
 
    \frac{r}{2\|J_h\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2
 
-This encourages motion toward a safe configuration when near boundaries.
+This pulls the step toward :math:`\Delta q_{\text{safe}}` near boundaries.
+The built-in barriers use the default of zero, so it acts as damping.
 
 +-------------------------------+-------------------------------------+-----------+
 | Parameter                     | Description                         | Default   |
@@ -477,7 +475,7 @@ Distances come from the narrow-phase collision check on the scene's collision mo
    h_i(q) = d_i(q) - d_{\min}
 
 where :math:`d_i(q)` is the signed distance between the two geometries in pair :math:`i`.
-Pairs are re-selected at every call: at each step the :math:`n_{\text{pairs}}` smallest distances across the full collision model become the active constraints, so the barrier always tracks whichever pairs are most at risk.
+Pairs are re-selected at every call: at each step the ``n_collision_pairs`` smallest distances across the full collision model become the active constraints.
 
 **Barrier Jacobian** (built from witness points and parent-joint Jacobians):
 
@@ -523,15 +521,14 @@ The control timestep ``dt`` is passed directly to the constructor; everything el
 
 .. note::
 
-   Per-pair narrow-phase distance dominates the per-solve cost when many pairs are tracked.
+   Narrow-phase distance queries dominate the per-solve cost, and ``d_max`` culls the pairs that are far apart.
    Pick the smallest ``n_collision_pairs`` that still covers the pairs you expect to be active.
    The post-solve ``enforceBarriers()`` check only re-evaluates this active set, so over-sizing ``n_collision_pairs`` makes both the QP assembly and the FK validation slower.
 
-   ``d_max`` is a performance bound, not a separation limit: pairs beyond it simply exert no influence on the barrier.
-   Keep it comfortably larger than the distances at which the barrier actively pushes (a few times ``d_min``) and it will not change the solution at all.
+   ``d_max`` is a performance bound, not a separation limit: pairs beyond it exert no influence on the barrier.
+   Keep it comfortably larger than the distances at which the barrier actively pushes (a few times ``d_min``) and it will not change the solution.
 
-   Additionally, you should consider using robot models that have optimized collision meshes (e.g., simplified convex hulls or simple geometric primitives).
-   If your collision meshes are too high-quality, this will dramatically increase solve time.
+   Prefer robot models with simplified collision meshes (e.g., convex hulls or geometric primitives); high-detail meshes dramatically increase solve time.
 
 Linearization Error and ``enforceBarriers()``
 """"""""""""""""""""""""""""""""""""""""""""""
@@ -551,7 +548,7 @@ This has :math:`O(\|\Delta q\|^2)` error. Near boundaries with large commands, t
    // After solving QP
    oink.solveIk(scene, tasks, constraints, barriers, delta_q);
 
-   // Validate using FK: if h(q + delta_q) < -tolerance, set delta_q = 0
+   // Validate using FK: zero the joints of barriers the step violates (h(q + delta_q) < -tolerance) without improving
    oink.enforceBarriers(scene, barriers, delta_q, tolerance);
 
 Implementation Notes

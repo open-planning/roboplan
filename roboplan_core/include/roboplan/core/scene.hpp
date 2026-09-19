@@ -72,8 +72,8 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
 /// 1. The robot kinematics and geometry (`getModel()`, the collision geometry, the frame / joint
 ///    lookups) is immutable once the constructor returns. Every query that reads only these --
 ///    `configurationDistance`, `interpolate`, `integrate`, `difference`, `isValidConfiguration`,
-///    `clampToValidConfiguration`, `toFullJointPositions`, `getFrameId`, `getJointInfo`,
-///    and the limit getters -- is safe to call concurrently on one Scene.
+///    `clampToValidConfiguration`, `toFullJointPositions` (with `q_reference`), `getFrameId`,
+///    `getJointInfo`, and the limit getters -- is safe to call concurrently on one Scene.
 ///
 /// 2. Per-query scratch (`model_data_`, `collision_model_data_`, `broadphase_manager_`). The
 ///    methods that write it are marked `const` for convenience, but they are *not* safe to call
@@ -85,7 +85,7 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
 ///    and interactive use. Library code must not write them while other threads are querying, and
 ///    must not read `getCurrentJointPositions()` in the middle of an algorithm.
 ///
-/// For items 2. and 3., if you need thread safety, we recommend using a SceneContext.
+/// For items 2. and 3., use a SceneContext when you need thread safety.
 class Scene {
 public:
   /// @brief Builds a scene from a Pinocchio model and collision geometry.
@@ -94,10 +94,9 @@ public:
   /// or the `addGroup*` methods.
   Scene(const std::string& name, const PinocchioSceneDescription& description);
 
-  // Non-copyable and non-movable. `broadphase_manager_` caches raw pointers to this Scene's
-  // `model_` and `collision_model_data_`, so a defaulted copy or move would silently produce a
-  // Scene whose manager collides against the *original* Scene's data. Share a Scene with
-  // `std::shared_ptr<Scene>` and give each thread its own SceneContext rather than cloning it.
+  // Non-copyable and non-movable: `broadphase_manager_` caches raw pointers to this Scene's
+  // `model_` and `collision_model_data_`, so a copy or move would collide against the *original*
+  // Scene's data. Share a Scene with `std::shared_ptr<Scene>` and give each thread a SceneContext.
   Scene(const Scene&) = delete;
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&&) = delete;
@@ -134,7 +133,7 @@ public:
   /// @param q The joint configuration at which to compute the distances.
   void computeCollisionDistances(const Eigen::VectorXd& q) const;
 
-  /// @brief A counter that changes whenever the collision geometry is modified.
+  /// @brief A counter that changes whenever geometry is added or removed or collision pairs change.
   /// @return The current geometry version.
   uint64_t getGeometryVersion() const { return geometry_version_; };
 
@@ -151,7 +150,7 @@ public:
   /// @return The joint information struct if successful, else a string describing the error.
   tl::expected<JointInfo, std::string> getJointInfo(const std::string& joint_name) const;
 
-  /// @brief Gets the distance between two joint configurations.
+  /// @brief Gets the configuration-space distance between two joint configurations.
   /// @param q_start The starting joint positions.
   /// @param q_end The ending joint positions.
   /// @return The configuration-space distance between the two positions.
@@ -190,14 +189,13 @@ public:
                                Eigen::VectorXd& q) const;
 
   /// @brief Generates random collision-free positions for the robot model.
-  /// @param max_tries The maximum number of samples to attempt.
+  /// @param max_samples The maximum number of samples to attempt.
   /// @return The random positions, if successful, else std::nullopt.
   std::optional<Eigen::VectorXd> randomCollisionFreePositions(size_t max_samples = 1000);
 
   /// @brief Checks collisions at specified joint positions.
   /// @param q The joint positions.
-  /// @param debug If true, prints debug information and does not stop at first collision.
-  /// This parameter is disabled by default.
+  /// @param debug If true, prints every colliding pair instead of stopping at the first collision.
   /// @return True if there are collisions, else false.
   bool hasCollisions(const Eigen::VectorXd& q, const bool debug = false) const;
 
@@ -214,8 +212,8 @@ public:
   Eigen::VectorXd clampToValidConfiguration(const Eigen::VectorXd& q) const;
 
   /// @brief Converts partial joint positions to full joint positions.
-  /// @details This includes adding new joints. The joints outside `group_name` are filled from the
-  /// scene's current state; use the three-argument overload to supply them explicitly instead.
+  /// @details The joints outside `group_name` are filled from the scene's current state; use the
+  /// three-argument overload to supply them explicitly instead.
   /// @param group_name The name of the joint group.
   /// @param q The original (partial) joint positions.
   /// @return The full joint positions.
@@ -232,16 +230,16 @@ public:
                                        const Eigen::VectorXd& q_reference) const;
 
   /// @brief Converts partial joint velocities to full joint velocities.
-  /// @details This includes adding new joints. The joints outside `group_name` are filled from the
-  /// scene's current state; use the three-argument overload to supply them explicitly instead.
+  /// @details The joints outside `group_name` are filled from the scene's current state; use the
+  /// three-argument overload to supply them explicitly instead.
   /// @param group_name The name of the joint group.
   /// @param v The original (partial) joint velocities.
-  /// @return The full joint velocities (size model.nv), with non-group entries set to current
-  /// internal state.
+  /// @return The full joint velocities (size model.nv).
   Eigen::VectorXd toFullJointVelocities(const std::string& group_name,
                                         const Eigen::VectorXd& v) const;
 
-  /// @brief Converts partial joint velocities to full joint velocities.
+  /// @brief Converts partial joint velocities to full joint velocities against an explicit
+  /// reference.
   /// @details Reads no Scene state beyond the immutable model, so it is safe to call concurrently.
   /// @param group_name The name of the joint group.
   /// @param v The original (partial) joint velocities.
@@ -290,9 +288,8 @@ public:
                                     const std::string& frame_name,
                                     const std::string& base_frame = "") const;
 
-  /// @brief Computes the frame Jacobian for a specific frame expressed in world frame.
-  /// @note Requires that forward kinematics and frame placements are up-to-date, or that
-  /// this is the first kinematics call for the given q (the underlying Pinocchio call runs FK).
+  /// @brief Computes the Jacobian of a frame, expressed in the requested reference frame.
+  /// @note Runs forward kinematics at `q`, so no prior kinematics call is needed.
   /// @param q The joint configuration.
   /// @param frame_id The Pinocchio frame ID of the frame.
   /// @param reference_frame The reference frame for the Jacobian output (LOCAL, WORLD, or
@@ -316,10 +313,8 @@ public:
                             Eigen::Ref<Eigen::MatrixXd> jacobian) const;
 
   /// @brief Computes the Jacobian of a frame's velocity relative to a (possibly moving) base frame.
-  /// @details Computes the Jacobian of the EE frame velocity relative to the base frame, expressed
-  /// in the reference frame of the relative transform T_rel = T_base^{-1} * T_ee.
-  /// @note Requires that forward kinematics and frame placements are up-to-date, or that
-  /// this is the first kinematics call for the given q (the underlying Pinocchio call runs FK).
+  /// @details The relative transform is T_rel = T_base^{-1} * T_ee.
+  /// @note Runs forward kinematics at `q`, so no prior kinematics call is needed.
   /// @param q The joint configuration.
   /// @param frame_id The Pinocchio frame ID of the end-effector frame.
   /// @param base_frame The name of the base frame (its ID is looked up internally).
@@ -369,8 +364,7 @@ public:
 
   /// @brief Applies groups and disabled collision pairs from an SRDF document.
   /// @details Groups with the same name as an existing non-default group overwrite it. The
-  /// default whole-model group is left unchanged. Call this after construction; the constructor
-  /// does not apply SRDF.
+  /// default whole-model group is left unchanged.
   /// @param srdf_xml The SRDF XML contents.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> importSrdf(const std::string& srdf_xml);
@@ -411,7 +405,7 @@ public:
 
   /// @brief Get the current Pinocchio configuration vector (model.nq).
   /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).
-  /// Joint count may differ from getJointNames().size().
+  /// Its size may differ from getJointNames().size().
   /// @return The current joint position vector.
   const Eigen::VectorXd& getCurrentJointPositions() const { return cur_state_.positions; }
 
@@ -434,34 +428,30 @@ public:
   /// @param group_name The name of the group. Defaults to the complete robot model.
   /// @param collapsed If true, collapses limits for continuous rotation degrees of freedom into
   /// one value; else, leaves them expanded as two values for cos(theta) and sin(theta).
-  /// @return A pair of vectors for the lower and upper joint position limits, if successful,
-  /// or a string describing any errors.
+  /// @return The (lower, upper) limit vectors if successful, else a string describing the error.
   tl::expected<EigenVectorPair, std::string>
   getPositionLimitVectors(const std::string& group_name = "", const bool collapsed = false) const;
 
   /// @brief Get the joint velocity limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.
-  /// @return A pair of vectors for the lower and upper joint velocity limits, if successful,
-  /// or a string describing any errors.
+  /// @return The (lower, upper) limit vectors if successful, else a string describing the error.
   tl::expected<EigenVectorPair, std::string>
   getVelocityLimitVectors(const std::string& group_name = "") const;
 
   /// @brief Get the joint acceleration limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.
-  /// @return A pair of vectors for the lower and upper joint acceleration limits, if successful,
-  /// or a string describing any errors.
+  /// @return The (lower, upper) limit vectors if successful, else a string describing the error.
   tl::expected<EigenVectorPair, std::string>
   getAccelerationLimitVectors(const std::string& group_name = "") const;
 
   /// @brief Get the joint jerk limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.
-  /// @return A pair of vectors for the lower and upper joint jerk limits, if successful,
-  /// or a string describing any errors.
+  /// @return The (lower, upper) limit vectors if successful, else a string describing the error.
   tl::expected<EigenVectorPair, std::string>
   getJerkLimitVectors(const std::string& group_name = "") const;
 
   /// @brief Adds a box geometry to the scene.
-  /// @param name The name of the object to add.
+  /// @param name The name of the object to add. Must be unique.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param box The box geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -473,7 +463,7 @@ public:
                                                  const Eigen::Vector4d& color);
 
   /// @brief Adds a sphere geometry to the scene.
-  /// @param name The name of the object to add.
+  /// @param name The name of the object to add. Must be unique.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param sphere The sphere geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -484,7 +474,7 @@ public:
                     const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
 
   /// @brief Adds a cylinder geometry to the scene.
-  /// @param name The name of the object to add.
+  /// @param name The name of the object to add. Must be unique.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param cylinder The cylinder geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -497,7 +487,7 @@ public:
                                                       const Eigen::Vector4d& color);
 
   /// @brief Adds a triangle mesh geometry to the scene.
-  /// @param name The name of the object to add.
+  /// @param name The name of the object to add. Must be unique.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param mesh The mesh geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -508,8 +498,8 @@ public:
                                                   const Eigen::Matrix4d& tform,
                                                   const Eigen::Vector4d& color);
 
-  /// @brief Adds a octree geometry to the scene.
-  /// @param name The name of the object to add.
+  /// @brief Adds an octree geometry to the scene.
+  /// @param name The name of the object to add. Must be unique.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param octree The octree geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -539,26 +529,26 @@ public:
   tl::expected<void, std::string> removeGeometry(const std::string& name);
 
   /// @brief Gets a list of collision geometry IDs corresponding to a specified body.
-  /// @details The body name can either be a model frame name or a collision model geometry name.
+  /// @details The body name can be a model frame name or the name of a geometry added to the scene.
   /// @param body The name of the body.
-  /// @return A std::vector of collision geometry indices for the body if successful,
-  /// else a string describing the error.
+  /// @return The collision geometry indices for the body if successful, else a string describing
+  /// the error.
   tl::expected<std::vector<pinocchio::GeomIndex>, std::string>
   getCollisionGeometryIds(const std::string& body);
 
   /// @brief Gets the collision geometry IDs belonging to the robot model itself.
-  /// @details That is, the geometries loaded from the URDF at construction, excluding any
-  /// objects (boxes, spheres, meshes, octrees, etc.) added to the scene afterwards. These IDs
-  /// are computed once at construction: added objects always append after the robot's
-  /// geometries, and only added objects can be removed (shifting only the indices above the
-  /// robot's), so they stay valid for the Scene's lifetime.
+  /// @details That is, the geometries in the scene description given to the constructor, excluding
+  /// any objects (boxes, spheres, meshes, octrees, etc.) added afterwards. These IDs are computed
+  /// once at construction: added objects always append after the robot's geometries, and only
+  /// added objects can be removed (shifting only the indices above the robot's), so they stay
+  /// valid for the Scene's lifetime.
   /// @return The collision geometry indices for the robot's own geometry.
   const std::vector<pinocchio::GeomIndex>& getRobotCollisionGeometryIds() const {
     return robot_collision_geometry_ids_;
   }
 
   /// @brief Sets the allowable collisions for a pair of bodies in the model.
-  /// @details The body names can either be model frame names or collision model geometry names.
+  /// @details The body names can be model frame names or names of geometry added to the scene.
   /// @param body1 The name of the first body.
   /// @param body2 The name of the second body.
   /// @param enable If true, enables the collision; if false, disables it.
@@ -567,16 +557,16 @@ public:
                                                 const bool enable);
 
   /// @brief Sets the allowable collisions for many body pairs, rebuilding collision data once.
-  /// @param pairs Body name pairs. Names can be model frame names or collision geometry names.
+  /// @param pairs Body name pairs. Names can be model frame names or names of added geometry.
   /// @param enable If true, enables each pair; if false, disables each pair.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   setCollisions(const std::vector<std::pair<std::string, std::string>>& pairs, const bool enable);
 
   /// @brief Allows collisions between every parent-child link pair in the kinematic tree.
-  /// @details Almost all robots need this since adjacent link geometries may overlap across joint
-  /// boundaries and cause collision checking to fail on valid configurations. Consider calling this
-  /// if you are not using SRDF to explicitly remove collision pairs.
+  /// @details Adjacent link geometries usually overlap across joint boundaries and make valid
+  /// configurations look like collisions. Call this if you are not using an SRDF to remove those
+  /// collision pairs.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> allowAdjacentLinkCollisions();
 

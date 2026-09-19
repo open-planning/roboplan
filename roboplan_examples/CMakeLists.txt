@@ -33,10 +33,9 @@ if(NOT TARGET roboplan_cartesian_planning::roboplan_cartesian_planning)
   find_package(roboplan_cartesian_planning REQUIRED)
 endif()
 
-# Ament CMake is not immediately required, but we include it at the top so that
-# if it is found we can use it in build testing before requiring a
-# find_package(ament_cmake_test REQUIRED). Otherwise this can cause infinite
-# recursion issues with symlink installs.
+# ament_cmake is optional. Find it up front so build testing can use it before
+# find_package(ament_cmake_test REQUIRED); otherwise symlink installs can
+# recurse infinitely.
 find_package(ament_cmake QUIET)
 
 # Build and install the examples.

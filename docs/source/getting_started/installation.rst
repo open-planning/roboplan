@@ -10,15 +10,13 @@ First, clone this repo.
 
 Minimally, this will give you access to the examples so you can run them regardless of how you installed RoboPlan.
 
-The rest of this page shows various ways of getting started with RoboPlan.
-
 ---
 
 
 Pre-built
 ---------
 
-RoboPlan is available via `conda-forge <https://conda-forge.org/>`_, `PyPi <https://pypi.org/>`_, and as ROS 2 packages for easy installation.
+RoboPlan is available via `conda-forge <https://conda-forge.org/>`_, `PyPI <https://pypi.org/>`_, and as ROS 2 packages for easy installation.
 
 Conda (recommended)
 ~~~~~~~~~~~~~~~~~~~
@@ -53,7 +51,7 @@ We also provide convenient metapackages (``libroboplan`` and ``roboplan-python``
 
 ---
 
-PyPi (Experimental)
+PyPI (Experimental)
 ~~~~~~~~~~~~~~~~~~~
 
 **Supported platforms:** Linux (x86_64 and aarch64), macOS (Apple Silicon)
@@ -124,13 +122,13 @@ Once set up, you can run the ``pixi`` tasks as follows.
 
 .. note::
 
-   The ``-e default`` (``--environment default``) flag is required for the ``build``, ``install``, and ``test`` tasks.
+   The ``-e default`` (``--environment default``) flag is required for every task in this section except ``lint``.
    The :ref:`ROS 2 Pixi environments <ros2-with-pixi>` define tasks with the same names, so Pixi refuses to guess which environment you mean.
 
 All packages share a single build tree (``build/``), configured in one shot, so there is no separate
 "install one package" operation -- ``pixi run -e default install`` always installs everything.
 
-After building all the packages, you can use the Pixi shell to run specific examples.
+After installing all the packages, you can use the Pixi shell to run specific examples.
 
 ::
 
@@ -150,7 +148,7 @@ To run the unit tests:
     pixi run -e default test PACKAGE_NAME
 
     # Run only the Python tests
-    pixi run test_py
+    pixi run -e default test_py
 
 To lint the code:
 
@@ -247,7 +245,7 @@ At this point, you should also be able to use RoboPlan as a Python package!
     python3
     >>> import roboplan
 
-To run the unit tests, you can simply use ``colcon``:
+To run the unit tests, you can use ``colcon``:
 
 ::
 
@@ -272,6 +270,15 @@ Alternatively, you can try it for yourself.
 ::
 
     export UBUNTU_VERSION=24.04
+    docker compose build ubuntu
+
+Compiling on every CPU core at once can use a lot of memory, so on a machine with many cores and limited RAM the build may run out of memory.
+To cap the number of parallel compile jobs, set the ``CMAKE_BUILD_PARALLEL_LEVEL`` build argument.
+If not set, all CPU cores are used by default.
+
+::
+
+    export CMAKE_BUILD_PARALLEL_LEVEL=8
     docker compose build ubuntu
 
 Once the Docker image is built, you can try running the code in the image.

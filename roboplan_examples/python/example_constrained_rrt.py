@@ -220,14 +220,14 @@ def main(
     """
     Plans RRT paths that keep the gripper upright and inside a safe zone.
 
-    Each plan draws a random goal inside a box-shaped safe zone and plans to it without ever tipping
-    the gripper over or leaving the box, then plans the same problem unconstrained to show what the
-    constraint buys. Both requirements are one `PoseConstraint`: bounds on the end effector's position,
-    plus bounds on roll and pitch relative to a straight-down nominal orientation. Yaw is left free.
+    Each plan draws a random goal inside a box-shaped safe zone and plans to it without tipping the
+    gripper or leaving the box, then plans the same problem unconstrained for comparison. Both
+    requirements are one `PoseConstraint`: bounds on the end effector's position, plus bounds on
+    roll and pitch relative to a straight-down nominal orientation. Yaw is left free.
 
-    Note that bounding roll and pitch to +/- theta admits a total tilt of up to acos(cos^2(theta)),
-    because the two rotations compose, so the default 5 degree box allows the gripper to lean at
-    most 7.07 degrees off vertical.
+    Bounding roll and pitch to +/- theta admits a total tilt of up to acos(cos^2(theta)) because
+    the two rotations compose, so the default 5 degree box allows at most 7.07 degrees off
+    vertical.
 
     Parameters:
         model: The name of the model to use.
@@ -263,7 +263,7 @@ def main(
     )
     scene.importSrdf(srdf_xml)
 
-    # Create a redundant Pinocchio model just for visualization with mimic joints.
+    # Separate Pinocchio model (with mimic joints) for visualization.
     pin_model = pin.buildModelFromXML(urdf_xml, mimic=True)
     collision_model = pin.buildGeomFromUrdfString(
         pin_model, urdf_xml, pin.GeometryType.COLLISION, package_dirs=package_paths

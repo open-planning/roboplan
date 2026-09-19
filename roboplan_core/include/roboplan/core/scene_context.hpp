@@ -29,15 +29,13 @@ class Scene;
 /// world transforms, the broadphase AABB tree) and shared bookkeeping (its RNG and current joint
 /// positions), so a single Scene cannot answer those queries from multiple threads concurrently.
 /// A SceneContext owns its own copy of all of that over the Scene's immutable model and geometry
-/// model (shared by reference), so an algorithm can run without contending with anything else.
-///
-/// Every method is the exact query of the same name on Scene, run against this context's private
-/// scratch instead of the Scene's. Give each thread its own context and none of them interact.
+/// model (shared by reference). Give each thread its own context and none of them interact.
+/// Its query methods mirror the same-named ones on Scene, run against the context's scratch.
 ///
 /// A context borrows the scene's model and collision geometry and sizes its own scratch from them
 /// at construction. Adding/removing geometry or changing collision pairs leaves that scratch stale
-/// (see Scene::getGeometryVersion): the collision queries report the mismatch, while kinematics
-/// and sampling are unaffected. Moving existing geometry invalidates nothing.
+/// (see Scene::getGeometryVersion): the collision queries throw std::runtime_error, while
+/// kinematics and sampling are unaffected. Moving existing geometry invalidates nothing.
 class SceneContext {
 public:
   /// @brief Snapshots the current collision geometry of `scene`.
@@ -46,8 +44,8 @@ public:
   explicit SceneContext(const Scene& scene);
 
   // Non-copyable and non-movable: the broadphase manager caches a raw pointer to `geom_data_`,
-  // so the object's address must remain stable for its whole lifetime.
-  /// Hold one behind a pointer e.g., std::unique_ptr) if it needs to be relocated or rebuilt.
+  // so the object's address must remain stable for its whole lifetime. Hold one behind a pointer
+  // (e.g., std::unique_ptr) if it needs to be relocated or rebuilt.
   SceneContext(const SceneContext&) = delete;
   SceneContext& operator=(const SceneContext&) = delete;
   SceneContext(SceneContext&&) = delete;
@@ -61,14 +59,12 @@ public:
 
   /// @brief Refreshes geometry placements at `q` and computes the distance for every active
   /// collision pair into this context's own GeometryData.
-  /// @param broadphase_margin Broadphase cull distance. Pairs whose world axis-aligned bounding
-  /// boxes are farther apart than this are skipped: their (cheap) AABB-gap lower bound is stored as
-  /// the distance and their witness points are collapsed to the origin, so any Jacobian built from
-  /// them is a zero row. Such pairs are, by construction, farther than the margin and cannot be the
-  /// binding constraint of a barrier whose minimum distance is well inside it. The exact
-  /// narrow-phase distance and witness points are still computed for every pair within the margin.
-  /// Pass std::nullopt (the default) to disable culling and compute the exact distance for every
-  /// pair (equivalent to pinocchio::computeDistances).
+  /// @param broadphase_margin Broadphase cull distance. Pairs whose world AABBs are farther apart
+  /// than this are skipped: their AABB gap (a lower bound) is stored as the distance and their
+  /// witness points are set to the origin, so any Jacobian built from them is a zero row. Culled
+  /// pairs cannot be the binding constraint of a barrier whose minimum distance is well inside the
+  /// margin. Pairs within the margin get the exact narrow-phase distance and witness points. Pass
+  /// std::nullopt (the default) to disable culling (equivalent to pinocchio::computeDistances).
   void computeDistances(const Eigen::VectorXd& q,
                         std::optional<double> broadphase_margin = std::nullopt) const;
 

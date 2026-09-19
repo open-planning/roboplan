@@ -23,7 +23,7 @@ struct FrameTaskOptions {
   /// @brief Cost weight for orientation error (default: 1.0).
   double orientation_cost = 1.0;
 
-  /// @brief Proportional gain for error feedback (default: 1.0).
+  /// @brief Task gain for low-pass filtering (default: 1.0).
   double task_gain = 1.0;
 
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
@@ -46,23 +46,19 @@ struct FrameTaskOptions {
 
 /// @brief Task for tracking a target Cartesian pose with a specified frame.
 ///
-/// This task computes the SE(3) error between a target pose and the current
-/// frame pose, enabling full 6-DOF (position + orientation) tracking.
+/// Computes the SE(3) error between a target pose and the current frame pose, for full 6-DOF
+/// (position + orientation) tracking.
 ///
 /// The task owns pre-allocated storage for its 6×nv Jacobian and 6D error vector,
 /// allocated at construction time to avoid runtime allocations during IK solving.
 struct FrameTask : public Task {
   /// @brief Constructs a FrameTask for tracking a target pose.
-  ///
-  /// The Oink solver provides the velocity indices (for Jacobian column selection).
-  /// The scene is used at construction time to resolve the frame ID and allocate
-  /// the full Jacobian buffer.
-  ///
-  /// @param oink The Oink solver instance this task will be used with.
+  /// @param oink The Oink solver this task will be used with (provides the velocity indices for
+  ///        Jacobian column selection).
   /// @param scene The scene used to resolve the frame ID and allocate storage.
   /// @param target_pose The target Cartesian configuration to reach.
   /// @param options Optional task options (default: all options set to defaults).
-  /// @throws std::runtime_error if the frame name is not found in the scene.
+  /// @throws std::runtime_error if the frame or its base frame is not found in the scene.
   FrameTask(const Oink& oink, const Scene& scene, const CartesianConfiguration& target_pose,
             const FrameTaskOptions& options = {});
 

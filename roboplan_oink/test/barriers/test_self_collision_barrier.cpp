@@ -326,7 +326,6 @@ TEST_F(SelfCollisionBarrierTest, ResizesWorkspaceWhenPairCountGrows) {
 }
 
 TEST_F(SelfCollisionBarrierTest, IkSolvesWithBarrier) {
-  // Verify that solveIk() runs end to end with the self-collision barrier.
   Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
   scene_->setJointPositions(q);
   scene_->forwardKinematics(q, "tool0");

@@ -24,7 +24,7 @@ The main folders found in this repo are as follows.
 - `roboplan_cartesian_planning` : A Cartesian planner for following task-space paths.
 - `roboplan_example_models` : Contains robot models used for testing and examples.
 - `roboplan_examples` : Basic examples with real robot models.
-- `superbuild` : Shared CMake entry point for local, Conda, and PyPI-wheel builds.
+- `superbuild` : Shared CMake entry point that builds every package in one tree (Pixi, vanilla CMake, and PyPI wheel builds).
 
 ---
 
