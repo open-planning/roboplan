@@ -10,4 +10,5 @@ Changelog for package roboplan
 * Drop `scikit-build` in favor of direct usage of `cmeel` (`#304 <https://github.com/open-planning/roboplan/issues/304>`_)
 * Constrain scope of DLL loader manipulation (`#302 <https://github.com/open-planning/roboplan/issues/302>`_)
 * Create CMake superbuild to consolidate build config (`#295 <https://github.com/open-planning/roboplan/issues/295>`_)
+* The former `roboplan` package was renamed to `roboplan_core`; this is a new metapackage.
 * Contributors: Ezra Brooks, Sebastian Castro
