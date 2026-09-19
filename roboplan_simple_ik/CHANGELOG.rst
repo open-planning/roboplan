@@ -2,8 +2,8 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2026-09-19)
+------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
 * Add group helpers, exercise them via new `importSrdf` (`#344 <https://github.com/open-planning/roboplan/issues/344>`_)
 * Move file I/O out of Scene constructor, support loading MJCF (`#300 <https://github.com/open-planning/roboplan/issues/300>`_)

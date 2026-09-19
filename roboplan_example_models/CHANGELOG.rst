@@ -2,8 +2,8 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2026-09-19)
+------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
 * Add ruff check (`#336 <https://github.com/open-planning/roboplan/issues/336>`_)
 * Per package PyPi publishing and runtime path setting (`#326 <https://github.com/open-planning/roboplan/issues/326>`_)

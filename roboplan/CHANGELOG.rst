@@ -2,8 +2,8 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2026-09-19)
+------------------
 * Fix metapackage builds with colcon symlink install (`#334 <https://github.com/open-planning/roboplan/issues/334>`_)
 * Use pixi-build to declare Conda dependencies for each package (`#301 <https://github.com/open-planning/roboplan/issues/301>`_)
 * Make cmeel packages independently buildable (`#312 <https://github.com/open-planning/roboplan/issues/312>`_)

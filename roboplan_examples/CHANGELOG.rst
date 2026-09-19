@@ -2,8 +2,8 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2026-09-19)
+------------------
 * Improve MuJoCo RRT example (`#349 <https://github.com/open-planning/roboplan/issues/349>`_)
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
 * Move YAML loading out of constructor (`#348 <https://github.com/open-planning/roboplan/issues/348>`_)

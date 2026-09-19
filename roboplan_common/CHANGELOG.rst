@@ -2,8 +2,8 @@
 Changelog for package roboplan_common
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2026-09-19)
+------------------
 * Use pixi-build to declare Conda dependencies for each package (`#301 <https://github.com/open-planning/roboplan/issues/301>`_)
 * Put the Python install logic back into its original CMake location (`#315 <https://github.com/open-planning/roboplan/issues/315>`_)
 * Add `cmake-format` to pre-commit, and run it (`#317 <https://github.com/open-planning/roboplan/issues/317>`_)
