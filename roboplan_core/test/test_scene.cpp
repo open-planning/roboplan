@@ -350,6 +350,50 @@ TEST_F(RoboPlanSceneTest, TestCollisionGeometryRemoveReaddReparent) {
   }
 }
 
+// wrist_3_link, ee_link, and tool0 share wrist_3_joint. ee_link and tool0 are fixed-joint frames
+// that Pinocchio folds into the joint, so they differ only by Model::frames[...].placement.
+TEST_F(RoboPlanSceneTest, TestGeometryPlacementIsRelativeToParentFrame) {
+  Eigen::VectorXd q(6);
+  q << 0.1, -1.2, 0.8, -0.9, -1.5, 0.3;
+
+  Eigen::Matrix4d parent_T_box = Eigen::Matrix4d::Identity();
+  parent_T_box.block<3, 1>(0, 3) = Eigen::Vector3d(0.01, 0.02, 0.15);
+  Eigen::Matrix4d world_T_box = Eigen::Matrix4d::Identity();
+  world_T_box(2, 3) = 2.0;
+  const Eigen::Vector4d color(0.5, 0.5, 0.5, 1.0);
+
+  // Per frame: one box added directly, and one added to "universe" (identity frame placement)
+  // and then reparented onto the frame.
+  const std::vector<std::string> frames = {"wrist_3_link", "ee_link", "tool0"};
+  for (const auto& frame : frames) {
+    const auto add_result =
+        scene->addBoxGeometry("add_" + frame, frame, Box(0.02, 0.02, 0.02), parent_T_box, color);
+    ASSERT_TRUE(add_result.has_value()) << add_result.error();
+
+    const auto universe_result = scene->addBoxGeometry("update_" + frame, "universe",
+                                                       Box(0.02, 0.02, 0.02), world_T_box, color);
+    ASSERT_TRUE(universe_result.has_value()) << universe_result.error();
+    Eigen::Matrix4d tform = parent_T_box;
+    const auto update_result = scene->updateGeometryPlacement("update_" + frame, frame, tform);
+    ASSERT_TRUE(update_result.has_value()) << update_result.error();
+  }
+
+  scene->computeCollisionDistances(q);
+
+  for (const auto& frame : frames) {
+    const Eigen::Matrix4d expected = scene->forwardKinematics(q, frame) * parent_T_box;
+    for (const std::string prefix : {"add_", "update_"}) {
+      const auto box_idx = scene->getCollisionModel().getGeometryId(prefix + frame);
+      const Eigen::Matrix4d actual =
+          scene->getCollisionData().oMg.at(box_idx).toHomogeneousMatrix();
+      EXPECT_TRUE(actual.isApprox(expected, kTolerance))
+          << "geometry '" << prefix + frame << "'\nexpected:\n"
+          << expected << "\nactual:\n"
+          << actual;
+    }
+  }
+}
+
 TEST_F(RoboPlanSceneTest, TestCollisionForMeshGeometry) {
   // Nominally, this configuration is collision free.
   Eigen::VectorXd q(6);

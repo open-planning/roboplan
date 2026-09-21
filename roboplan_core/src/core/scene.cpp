@@ -1106,10 +1106,10 @@ tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
     return tl::make_unexpected("Failed to add box: " + maybe_parent_frame_id.error());
   }
   const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
+  const auto& frame = model_.frames.at(parent_frame_id);
 
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     box.geom_ptr};
+  pinocchio::GeometryObject geom_obj{name, frame.parentJoint, parent_frame_id,
+                                     frame.placement * pinocchio::SE3(tform), box.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
 }
@@ -1124,10 +1124,10 @@ tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name
     return tl::make_unexpected("Failed to add sphere: " + maybe_parent_frame_id.error());
   }
   const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
+  const auto& frame = model_.frames.at(parent_frame_id);
 
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     sphere.geom_ptr};
+  pinocchio::GeometryObject geom_obj{name, frame.parentJoint, parent_frame_id,
+                                     frame.placement * pinocchio::SE3(tform), sphere.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
 }
@@ -1142,10 +1142,10 @@ tl::expected<void, std::string> Scene::addCylinderGeometry(const std::string& na
     return tl::make_unexpected("Failed to add cylinder: " + maybe_parent_frame_id.error());
   }
   const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
+  const auto& frame = model_.frames.at(parent_frame_id);
 
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     cylinder.geom_ptr};
+  pinocchio::GeometryObject geom_obj{name, frame.parentJoint, parent_frame_id,
+                                     frame.placement * pinocchio::SE3(tform), cylinder.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
 }
@@ -1161,10 +1161,10 @@ Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame,
     return tl::make_unexpected("Failed to add mesh: " + maybe_parent_frame_id.error());
   }
   const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
+  const auto& frame = model_.frames.at(parent_frame_id);
 
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     mesh.geom_ptr};
+  pinocchio::GeometryObject geom_obj{name, frame.parentJoint, parent_frame_id,
+                                     frame.placement * pinocchio::SE3(tform), mesh.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
 }
@@ -1179,10 +1179,10 @@ tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name
     return tl::make_unexpected("Failed to add octree: " + maybe_parent_frame_id.error());
   }
   const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
+  const auto& frame = model_.frames.at(parent_frame_id);
 
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     octree.geom_ptr};
+  pinocchio::GeometryObject geom_obj{name, frame.parentJoint, parent_frame_id,
+                                     frame.placement * pinocchio::SE3(tform), octree.geom_ptr};
   geom_obj.meshColor = color;
   return addGeometry(geom_obj);
 }
@@ -1226,10 +1226,11 @@ tl::expected<void, std::string> Scene::updateGeometryPlacement(const std::string
   }
   const auto parent_frame_id = maybe_parent_frame_id.value();
 
+  const auto& frame = model_.frames[parent_frame_id];
   auto& collision_geom = collision_model_.geometryObjects[collision_geom_idx];
   collision_geom.parentFrame = parent_frame_id;
-  collision_geom.parentJoint = model_.frames[parent_frame_id].parentJoint;
-  collision_geom.placement = pinocchio::SE3(tform);
+  collision_geom.parentJoint = frame.parentJoint;
+  collision_geom.placement = frame.placement * pinocchio::SE3(tform);
   return {};
 }
 
