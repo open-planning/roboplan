@@ -1097,21 +1097,32 @@ Scene::getJerkLimitVectors(const std::string& group_name) const {
   return std::make_pair(lower_limits, upper_limits);
 }
 
+tl::expected<pinocchio::GeometryObject, std::string>
+Scene::makeGeometryObject(const std::string& name, const std::string& parent_frame,
+                          const std::shared_ptr<coal::CollisionGeometry>& geom_ptr,
+                          const Eigen::Matrix4d& tform, const Eigen::Vector4d& color) const {
+  const auto maybe_parent_frame_id = getFrameId(parent_frame);
+  if (!maybe_parent_frame_id) {
+    return tl::make_unexpected(maybe_parent_frame_id.error());
+  }
+  const auto& parent_frame_id = maybe_parent_frame_id.value();
+  const auto& frame = model_.frames.at(parent_frame_id);
+
+  pinocchio::GeometryObject geom_obj{name, frame.parentJoint, parent_frame_id,
+                                     frame.placement * pinocchio::SE3(tform), geom_ptr};
+  geom_obj.meshColor = color;
+  return geom_obj;
+}
+
 tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
                                                       const std::string& parent_frame,
                                                       const Box& box, const Eigen::Matrix4d& tform,
                                                       const Eigen::Vector4d& color) {
-  const auto maybe_parent_frame_id = getFrameId(parent_frame);
-  if (!maybe_parent_frame_id) {
-    return tl::make_unexpected("Failed to add box: " + maybe_parent_frame_id.error());
+  auto geom_obj = makeGeometryObject(name, parent_frame, box.geom_ptr, tform, color);
+  if (!geom_obj) {
+    return tl::make_unexpected("Failed to add box: " + geom_obj.error());
   }
-  const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
-
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     box.geom_ptr};
-  geom_obj.meshColor = color;
-  return addGeometry(geom_obj);
+  return addGeometry(geom_obj.value());
 }
 
 tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name,
@@ -1119,17 +1130,11 @@ tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name
                                                          const Sphere& sphere,
                                                          const Eigen::Matrix4d& tform,
                                                          const Eigen::Vector4d& color) {
-  const auto maybe_parent_frame_id = getFrameId(parent_frame);
-  if (!maybe_parent_frame_id) {
-    return tl::make_unexpected("Failed to add sphere: " + maybe_parent_frame_id.error());
+  auto geom_obj = makeGeometryObject(name, parent_frame, sphere.geom_ptr, tform, color);
+  if (!geom_obj) {
+    return tl::make_unexpected("Failed to add sphere: " + geom_obj.error());
   }
-  const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
-
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     sphere.geom_ptr};
-  geom_obj.meshColor = color;
-  return addGeometry(geom_obj);
+  return addGeometry(geom_obj.value());
 }
 
 tl::expected<void, std::string> Scene::addCylinderGeometry(const std::string& name,
@@ -1137,17 +1142,11 @@ tl::expected<void, std::string> Scene::addCylinderGeometry(const std::string& na
                                                            const Cylinder& cylinder,
                                                            const Eigen::Matrix4d& tform,
                                                            const Eigen::Vector4d& color) {
-  const auto maybe_parent_frame_id = getFrameId(parent_frame);
-  if (!maybe_parent_frame_id) {
-    return tl::make_unexpected("Failed to add cylinder: " + maybe_parent_frame_id.error());
+  auto geom_obj = makeGeometryObject(name, parent_frame, cylinder.geom_ptr, tform, color);
+  if (!geom_obj) {
+    return tl::make_unexpected("Failed to add cylinder: " + geom_obj.error());
   }
-  const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
-
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     cylinder.geom_ptr};
-  geom_obj.meshColor = color;
-  return addGeometry(geom_obj);
+  return addGeometry(geom_obj.value());
 }
 
 tl::expected<void, std::string>
@@ -1156,17 +1155,11 @@ Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame,
   if (!mesh.geom_ptr) {
     return tl::make_unexpected("Failed to add mesh: mesh geometry is null.");
   }
-  const auto maybe_parent_frame_id = getFrameId(parent_frame);
-  if (!maybe_parent_frame_id) {
-    return tl::make_unexpected("Failed to add mesh: " + maybe_parent_frame_id.error());
+  auto geom_obj = makeGeometryObject(name, parent_frame, mesh.geom_ptr, tform, color);
+  if (!geom_obj) {
+    return tl::make_unexpected("Failed to add mesh: " + geom_obj.error());
   }
-  const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
-
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     mesh.geom_ptr};
-  geom_obj.meshColor = color;
-  return addGeometry(geom_obj);
+  return addGeometry(geom_obj.value());
 }
 
 tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name,
@@ -1174,17 +1167,11 @@ tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name
                                                          const OcTree& octree,
                                                          const Eigen::Matrix4d& tform,
                                                          const Eigen::Vector4d& color) {
-  const auto maybe_parent_frame_id = getFrameId(parent_frame);
-  if (!maybe_parent_frame_id) {
-    return tl::make_unexpected("Failed to add octree: " + maybe_parent_frame_id.error());
+  auto geom_obj = makeGeometryObject(name, parent_frame, octree.geom_ptr, tform, color);
+  if (!geom_obj) {
+    return tl::make_unexpected("Failed to add octree: " + geom_obj.error());
   }
-  const auto& parent_frame_id = maybe_parent_frame_id.value();
-  const auto parent_joint_id = model_.frames.at(parent_frame_id).parentJoint;
-
-  pinocchio::GeometryObject geom_obj{name, parent_joint_id, parent_frame_id, pinocchio::SE3(tform),
-                                     octree.geom_ptr};
-  geom_obj.meshColor = color;
-  return addGeometry(geom_obj);
+  return addGeometry(geom_obj.value());
 }
 
 tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
@@ -1226,10 +1213,11 @@ tl::expected<void, std::string> Scene::updateGeometryPlacement(const std::string
   }
   const auto parent_frame_id = maybe_parent_frame_id.value();
 
+  const auto& frame = model_.frames[parent_frame_id];
   auto& collision_geom = collision_model_.geometryObjects[collision_geom_idx];
   collision_geom.parentFrame = parent_frame_id;
-  collision_geom.parentJoint = model_.frames[parent_frame_id].parentJoint;
-  collision_geom.placement = pinocchio::SE3(tform);
+  collision_geom.parentJoint = frame.parentJoint;
+  collision_geom.placement = frame.placement * pinocchio::SE3(tform);
   return {};
 }
 

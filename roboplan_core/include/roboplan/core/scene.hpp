@@ -575,6 +575,19 @@ public:
 
 private:
   void applyMimicJointLimits();
+
+  /// @brief Builds a geometry object attached to a named frame.
+  /// @param name The name of the object to add. Must be unique.
+  /// @param parent_frame The name of the parent frame to add the object to.
+  /// @param geom_ptr The collision geometry shape.
+  /// @param tform The transform between the parent frame and the geometry.
+  /// @param color The color of the geometry, in RGBA vector format.
+  /// @return The geometry object if successful, else a string describing the error.
+  tl::expected<pinocchio::GeometryObject, std::string>
+  makeGeometryObject(const std::string& name, const std::string& parent_frame,
+                     const std::shared_ptr<coal::CollisionGeometry>& geom_ptr,
+                     const Eigen::Matrix4d& tform, const Eigen::Vector4d& color) const;
+
   /// @brief The name of the scene.
   std::string name_;
 
