@@ -161,7 +161,7 @@ A ``SceneContext`` carries the configuration an algorithm is working at, which i
 A context borrows the scene's collision geometry and sizes its own scratch from it when built.
 Adding or removing geometry, or changing collision pairs, leaves that scratch stale: the collision queries report the mismatch rather than answering against geometry they were not sized for, while kinematics and sampling are unaffected.
 Algorithms can build a context per call to pick up the change automatically, or hold one for their lifetime and refresh it as needed.
-Moving an existing geometry with ``updateGeometryPlacement`` does not invalidate anything.
+Moving an existing geometry with ``updateGeometryPlacement`` does not invalidate anything, but ``attachObject``, ``detachObject``, and ``reparentAttachedObject`` do, since they change collision pairs.
 
 The core package also provides post-processing utilities that operate on paths, such as :doc:`path shortcutting </concepts/path_shortcutting>` and uniform resampling.
 
