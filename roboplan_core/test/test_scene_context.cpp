@@ -231,4 +231,20 @@ TEST_F(RoboPlanSceneContextTest, MovingGeometryDoesNotInvalidateContexts) {
   EXPECT_EQ(context.hasCollisions(q), scene->hasCollisions(q));
 }
 
+TEST_F(RoboPlanSceneContextTest, AttachAndDetachInvalidateContexts) {
+  // Unlike moving an obstacle, attaching and detaching change collision pairs.
+  ASSERT_TRUE(scene
+                  ->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05),
+                                   Eigen::Matrix4d::Identity(), Eigen::Vector4d(1.0, 0.0, 0.0, 1.0))
+                  .has_value());
+
+  const SceneContext before_attach(*scene);
+  ASSERT_TRUE(scene->attachObject("cube", "tool0").has_value());
+  EXPECT_FALSE(before_attach.isGeometryCurrent());
+
+  const SceneContext before_detach(*scene);
+  ASSERT_TRUE(scene->detachObject("cube").has_value());
+  EXPECT_FALSE(before_detach.isGeometryCurrent());
+}
+
 }  // namespace roboplan

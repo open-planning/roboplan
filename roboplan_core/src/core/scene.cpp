@@ -169,8 +169,7 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
   joint_group_info_map_ = createDefaultJointGroupInfo(model_);
 
   model_data_ = pinocchio::Data(model_);
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
-  rebuildBroadphaseManager();
+  refreshCollisionData();
 
   // Initialize the current state of the scene.
   cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
@@ -414,6 +413,11 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
     }
   }
   return std::nullopt;
+}
+
+void Scene::refreshCollisionData() {
+  collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
 }
 
 void Scene::rebuildBroadphaseManager() {
@@ -868,8 +872,7 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
     return tl::make_unexpected(std::string(e.what()));
   }
 
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
-  rebuildBroadphaseManager();
+  refreshCollisionData();
   return {};
 }
 
@@ -1193,8 +1196,7 @@ tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObje
     collision_model_.addCollisionPair(pinocchio::CollisionPair(idx, collision_geom_idx));
   }
 
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
-  rebuildBroadphaseManager();
+  refreshCollisionData();
   return {};
 }
 
@@ -1205,19 +1207,17 @@ tl::expected<void, std::string> Scene::updateGeometryPlacement(const std::string
   if (it == collision_geometry_map_.end()) {
     return tl::make_unexpected("Could not find object '" + name + "' to update.");
   }
+  if (isObjectAttached(name)) {
+    return tl::make_unexpected("Object '" + name +
+                               "' is attached. Use reparentAttachedObject to move it.");
+  }
   const auto& collision_geom_idx = it->second;
 
   const auto maybe_parent_frame_id = getFrameId(parent_frame);
   if (!maybe_parent_frame_id) {
     return tl::make_unexpected(maybe_parent_frame_id.error());
   }
-  const auto parent_frame_id = maybe_parent_frame_id.value();
-
-  const auto& frame = model_.frames[parent_frame_id];
-  auto& collision_geom = collision_model_.geometryObjects[collision_geom_idx];
-  collision_geom.parentFrame = parent_frame_id;
-  collision_geom.parentJoint = frame.parentJoint;
-  collision_geom.placement = frame.placement * pinocchio::SE3(tform);
+  placeGeometry(collision_geom_idx, maybe_parent_frame_id.value(), pinocchio::SE3(tform));
   return {};
 }
 
@@ -1225,6 +1225,9 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
   auto it = collision_geometry_map_.find(name);
   if (it == collision_geometry_map_.end()) {
     return tl::make_unexpected("Could not find object '" + name + "' to remove.");
+  }
+  if (isObjectAttached(name)) {
+    return tl::make_unexpected("Object '" + name + "' is attached. Call detachObject first.");
   }
 
   // Update all the collision object indices that came after the current object,
@@ -1236,11 +1239,129 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
     }
   }
 
+  // The removed object may be a touch body of an attached object, so its recorded pairs are
+  // dropped and shifted the same way Pinocchio does for its own collision pairs.
+  for (auto& [attached_name, disabled_pairs] : attached_object_pairs_) {
+    std::erase_if(disabled_pairs, [old_geom_idx](const pinocchio::CollisionPair& pair) {
+      return pair.first == old_geom_idx || pair.second == old_geom_idx;
+    });
+    for (auto& pair : disabled_pairs) {
+      if (pair.first > old_geom_idx) {
+        --pair.first;
+      }
+      if (pair.second > old_geom_idx) {
+        --pair.second;
+      }
+    }
+  }
+
   collision_model_.removeGeometryObject(name);
   collision_geometry_map_.erase(name);
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
-  rebuildBroadphaseManager();
+  refreshCollisionData();
   return {};
+}
+
+tl::expected<void, std::string> Scene::attachObject(const std::string& object_name,
+                                                    const std::string& parent_frame,
+                                                    const std::vector<std::string>& touch_bodies,
+                                                    const std::optional<Eigen::Matrix4d>& tform) {
+  if (isObjectAttached(object_name)) {
+    return tl::make_unexpected("Object '" + object_name +
+                               "' is already attached. Use reparentAttachedObject to move it.");
+  }
+  return setAttachment(object_name, parent_frame, touch_bodies, tform);
+}
+
+tl::expected<void, std::string> Scene::detachObject(const std::string& object_name) {
+  auto it = attached_object_pairs_.find(object_name);
+  if (it == attached_object_pairs_.end()) {
+    return tl::make_unexpected("Object '" + object_name + "' is not attached. Cannot detach.");
+  }
+
+  const auto geom_idx = collision_geometry_map_.at(object_name);
+  const auto universe_id = model_.getFrameId("universe");
+  placeGeometry(geom_idx, universe_id, getGeometryPlacementInFrame(geom_idx, universe_id));
+  setCollisionPairs(it->second, true);
+  attached_object_pairs_.erase(it);
+  refreshCollisionData();
+  return {};
+}
+
+tl::expected<void, std::string>
+Scene::reparentAttachedObject(const std::string& object_name, const std::string& parent_frame,
+                              const std::vector<std::string>& touch_bodies,
+                              const std::optional<Eigen::Matrix4d>& tform) {
+  if (!isObjectAttached(object_name)) {
+    return tl::make_unexpected("Object '" + object_name + "' is not attached. Cannot reparent.");
+  }
+  return setAttachment(object_name, parent_frame, touch_bodies, tform);
+}
+
+tl::expected<void, std::string> Scene::setAttachment(const std::string& object_name,
+                                                     const std::string& parent_frame,
+                                                     const std::vector<std::string>& touch_bodies,
+                                                     const std::optional<Eigen::Matrix4d>& tform) {
+  auto it = collision_geometry_map_.find(object_name);
+  if (it == collision_geometry_map_.end()) {
+    return tl::make_unexpected("Could not find object '" + object_name + "' to attach.");
+  }
+  const auto geom_idx = it->second;
+
+  const auto maybe_parent_frame_id = getFrameId(parent_frame);
+  if (!maybe_parent_frame_id) {
+    return tl::make_unexpected("Could not attach object '" + object_name +
+                               "': " + maybe_parent_frame_id.error());
+  }
+  const auto parent_frame_id = maybe_parent_frame_id.value();
+
+  // Resolve every body before modifying anything, so a bad name leaves the scene unchanged.
+  std::vector<std::pair<std::string, std::string>> body_pairs = {{object_name, parent_frame}};
+  for (const auto& body : touch_bodies) {
+    body_pairs.emplace_back(object_name, body);
+  }
+  const auto maybe_pairs = getCollisionPairs(body_pairs);
+  if (!maybe_pairs) {
+    return tl::make_unexpected("Could not attach object '" + object_name +
+                               "': " + maybe_pairs.error());
+  }
+
+  const auto frame_T_object =
+      tform ? pinocchio::SE3(*tform) : getGeometryPlacementInFrame(geom_idx, parent_frame_id);
+
+  // Restore any previous attachment's pairs first, so pairs shared with the new attachment are
+  // still recorded below.
+  auto& disabled_pairs = attached_object_pairs_[object_name];
+  setCollisionPairs(disabled_pairs, true);
+  disabled_pairs.clear();
+  for (const auto& pair : maybe_pairs.value()) {
+    if (collision_model_.existCollisionPair(pair)) {
+      collision_model_.removeCollisionPair(pair);
+      disabled_pairs.push_back(pair);
+    }
+  }
+
+  placeGeometry(geom_idx, parent_frame_id, frame_T_object);
+  refreshCollisionData();
+  return {};
+}
+
+void Scene::placeGeometry(pinocchio::GeomIndex geom_idx, pinocchio::FrameIndex frame_id,
+                          const pinocchio::SE3& frame_T_geom) {
+  const auto& frame = model_.frames.at(frame_id);
+  auto& collision_geom = collision_model_.geometryObjects.at(geom_idx);
+  collision_geom.parentFrame = frame_id;
+  collision_geom.parentJoint = frame.parentJoint;
+  collision_geom.placement = frame.placement * frame_T_geom;
+}
+
+pinocchio::SE3 Scene::getGeometryPlacementInFrame(pinocchio::GeomIndex geom_idx,
+                                                  pinocchio::FrameIndex frame_id) const {
+  pinocchio::forwardKinematics(model_, model_data_, cur_state_.positions);
+  pinocchio::updateFramePlacement(model_, model_data_, frame_id);
+  const auto& collision_geom = collision_model_.geometryObjects.at(geom_idx);
+  const auto world_T_geom =
+      model_data_.oMi.at(collision_geom.parentJoint) * collision_geom.placement;
+  return model_data_.oMf.at(frame_id).actInv(world_T_geom);
 }
 
 tl::expected<std::vector<pinocchio::GeomIndex>, std::string>
@@ -1276,32 +1397,50 @@ tl::expected<void, std::string> Scene::setCollisions(const std::string& body1,
 tl::expected<void, std::string>
 Scene::setCollisions(const std::vector<std::pair<std::string, std::string>>& pairs,
                      const bool enable) {
+  // Resolve every pair before modifying anything, so a bad name leaves the scene unchanged.
+  const auto maybe_pairs = getCollisionPairs(pairs);
+  if (!maybe_pairs) {
+    return tl::make_unexpected("Could not set collisions: " + maybe_pairs.error());
+  }
+  setCollisionPairs(maybe_pairs.value(), enable);
+  refreshCollisionData();
+  return {};
+}
+
+tl::expected<std::vector<pinocchio::CollisionPair>, std::string>
+Scene::getCollisionPairs(const std::vector<std::pair<std::string, std::string>>& pairs) {
+  std::vector<pinocchio::CollisionPair> collision_pairs;
   for (const auto& [body1, body2] : pairs) {
     const auto maybe_body1_collision_geom_ids = getCollisionGeometryIds(body1);
     if (!maybe_body1_collision_geom_ids) {
-      return tl::make_unexpected("Could not set collisions: " +
-                                 maybe_body1_collision_geom_ids.error());
+      return tl::make_unexpected(maybe_body1_collision_geom_ids.error());
     }
     const auto maybe_body2_collision_geom_ids = getCollisionGeometryIds(body2);
     if (!maybe_body2_collision_geom_ids) {
-      return tl::make_unexpected("Could not set collisions: " +
-                                 maybe_body2_collision_geom_ids.error());
+      return tl::make_unexpected(maybe_body2_collision_geom_ids.error());
     }
 
     for (const auto& body1_id : maybe_body1_collision_geom_ids.value()) {
       for (const auto& body2_id : maybe_body2_collision_geom_ids.value()) {
-        const auto pair = pinocchio::CollisionPair(body1_id, body2_id);
-        if (enable) {
-          collision_model_.addCollisionPair(pair);
-        } else {
-          collision_model_.removeCollisionPair(pair);
+        if (body1_id == body2_id) {
+          continue;  // Pinocchio throws on a self-collision pair.
         }
+        collision_pairs.emplace_back(body1_id, body2_id);
       }
     }
   }
-  collision_model_data_ = pinocchio::GeometryData(collision_model_);
-  rebuildBroadphaseManager();
-  return {};
+  return collision_pairs;
+}
+
+void Scene::setCollisionPairs(const std::vector<pinocchio::CollisionPair>& pairs,
+                              const bool enable) {
+  for (const auto& pair : pairs) {
+    if (enable) {
+      collision_model_.addCollisionPair(pair);
+    } else {
+      collision_model_.removeCollisionPair(pair);
+    }
+  }
 }
 
 tl::expected<void, std::string> Scene::allowAdjacentLinkCollisions() {

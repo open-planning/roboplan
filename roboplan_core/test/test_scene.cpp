@@ -565,6 +565,221 @@ TEST_F(RoboPlanSceneTest, TestAllowAdjacentLinkCollisions) {
   EXPECT_TRUE(hasCollisionPair(scene_no_srdf, "base_link", "forearm_link"));
 }
 
+TEST_F(RoboPlanSceneTest, TestSetCollisionsLeavesSceneUnchangedOnError) {
+  const auto add_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+
+  const auto result =
+      scene->setCollisions({{"cube", "wrist_3_link"}, {"cube", "nonexistent_link"}}, false);
+  ASSERT_FALSE(result.has_value());
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+}
+
+TEST_F(RoboPlanSceneTest, TestAttachDetachObject) {
+  const auto add_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+  EXPECT_FALSE(scene->isObjectAttached("cube"));
+
+  const auto attach_result = scene->attachObject("cube", "tool0", {"wrist_3_link", "wrist_2_link"});
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+  EXPECT_TRUE(scene->isObjectAttached("cube"));
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "tool0"));
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "wrist_2_link"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "base_link"));
+
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_TRUE(detach_result.has_value()) << detach_result.error();
+  EXPECT_FALSE(scene->isObjectAttached("cube"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "tool0"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_2_link"));
+}
+
+TEST_F(RoboPlanSceneTest, TestAttachDetachPreservesWorldPose) {
+  Eigen::VectorXd q_attach(6);
+  q_attach << 0.1, -1.2, 0.8, -0.9, -1.5, 0.3;
+  Eigen::VectorXd q_detach(6);
+  q_detach << -0.4, -1.0, 1.2, -0.5, -1.0, 0.8;
+
+  Eigen::Matrix4d world_T_cube = Eigen::Matrix4d::Identity();
+  world_T_cube.block<3, 1>(0, 3) = Eigen::Vector3d(0.3, 0.2, 0.5);
+  const auto add_result = scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05),
+                                                world_T_cube, Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+  const auto cube_idx = scene->getCollisionModel().getGeometryId("cube");
+  const auto get_cube_pose = [&](const Eigen::VectorXd& q) -> Eigen::Matrix4d {
+    scene->computeCollisionDistances(q);
+    return scene->getCollisionData().oMg.at(cube_idx).toHomogeneousMatrix();
+  };
+
+  // Without a transform, the cube stays where it is and then moves with the arm.
+  scene->setJointPositions(q_attach);
+  const auto attach_result = scene->attachObject("cube", "tool0");
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+  EXPECT_TRUE(get_cube_pose(q_attach).isApprox(world_T_cube, kTolerance));
+
+  const Eigen::Matrix4d tool0_T_cube =
+      scene->forwardKinematics(q_attach, "tool0").inverse() * world_T_cube;
+  const Eigen::Matrix4d world_T_cube_detached =
+      scene->forwardKinematics(q_detach, "tool0") * tool0_T_cube;
+  EXPECT_TRUE(get_cube_pose(q_detach).isApprox(world_T_cube_detached, kTolerance));
+
+  // Once detached, the cube stays where it was released regardless of the arm.
+  scene->setJointPositions(q_detach);
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_TRUE(detach_result.has_value()) << detach_result.error();
+  EXPECT_EQ(scene->getCollisionModel().geometryObjects.at(cube_idx).parentFrame,
+            scene->getFrameId("universe").value());
+  EXPECT_TRUE(get_cube_pose(q_attach).isApprox(world_T_cube_detached, kTolerance));
+
+  // An explicit transform is relative to the parent frame.
+  Eigen::Matrix4d grasp_tform = Eigen::Matrix4d::Identity();
+  grasp_tform(2, 3) = 0.1;
+  const auto reattach_result = scene->attachObject("cube", "tool0", {}, grasp_tform);
+  ASSERT_TRUE(reattach_result.has_value()) << reattach_result.error();
+  EXPECT_TRUE(get_cube_pose(q_attach).isApprox(
+      scene->forwardKinematics(q_attach, "tool0") * grasp_tform, kTolerance));
+}
+
+TEST_F(RoboPlanSceneTest, TestDetachRestoresOnlyWhatAttachDisabled) {
+  const auto add_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+
+  // This pair was disabled before the attach, so detaching must leave it disabled.
+  const auto disable_result = scene->setCollisions("cube", "wrist_2_link", false);
+  ASSERT_TRUE(disable_result.has_value()) << disable_result.error();
+
+  const auto attach_result = scene->attachObject("cube", "tool0", {"wrist_2_link", "wrist_3_link"});
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_TRUE(detach_result.has_value()) << detach_result.error();
+
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "wrist_2_link"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "tool0"));
+}
+
+TEST_F(RoboPlanSceneTest, TestAttachDetachErrors) {
+  const auto add_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+
+  // Only objects added to the scene can be attached, not robot geometry.
+  const auto robot_result = scene->attachObject("wrist_3_link", "tool0");
+  ASSERT_FALSE(robot_result.has_value());
+  EXPECT_EQ(robot_result.error(), "Could not find object 'wrist_3_link' to attach.");
+
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_FALSE(detach_result.has_value());
+  EXPECT_EQ(detach_result.error(), "Object 'cube' is not attached. Cannot detach.");
+
+  const auto reparent_result = scene->reparentAttachedObject("cube", "tool0");
+  ASSERT_FALSE(reparent_result.has_value());
+  EXPECT_EQ(reparent_result.error(), "Object 'cube' is not attached. Cannot reparent.");
+
+  // A bad touch body fails without disabling any pairs or attaching the object.
+  const auto bad_body_result =
+      scene->attachObject("cube", "tool0", {"wrist_3_link", "nonexistent_link"});
+  ASSERT_FALSE(bad_body_result.has_value());
+  EXPECT_EQ(bad_body_result.error(),
+            "Could not attach object 'cube': Could not get collision geometry IDs: Frame name "
+            "'nonexistent_link' not found in frame_map_.");
+  EXPECT_FALSE(scene->isObjectAttached("cube"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "tool0"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+
+  const auto attach_result = scene->attachObject("cube", "tool0");
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+  const auto attach_twice_result = scene->attachObject("cube", "wrist_3_link");
+  ASSERT_FALSE(attach_twice_result.has_value());
+  EXPECT_EQ(attach_twice_result.error(),
+            "Object 'cube' is already attached. Use reparentAttachedObject to move it.");
+}
+
+TEST_F(RoboPlanSceneTest, TestReparentAttachedObject) {
+  const auto add_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+
+  const auto attach_result = scene->attachObject("cube", "tool0", {"wrist_3_link"});
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+  const auto reparent_result =
+      scene->reparentAttachedObject("cube", "wrist_1_link", {"wrist_3_link"});
+  ASSERT_TRUE(reparent_result.has_value()) << reparent_result.error();
+
+  EXPECT_TRUE(scene->isObjectAttached("cube"));
+  EXPECT_EQ(scene->getCollisionModel()
+                .geometryObjects.at(scene->getCollisionModel().getGeometryId("cube"))
+                .parentFrame,
+            scene->getFrameId("wrist_1_link").value());
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "tool0"));
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "wrist_1_link"));
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+
+  // The pair shared by both attachments is still owned by the attachment, so it is restored.
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_TRUE(detach_result.has_value()) << detach_result.error();
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_1_link"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+}
+
+TEST_F(RoboPlanSceneTest, TestMutatorsRejectAttachedObjects) {
+  const auto add_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_TRUE(add_result.has_value()) << add_result.error();
+  const auto attach_result = scene->attachObject("cube", "tool0");
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+
+  Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
+  const auto update_result = scene->updateGeometryPlacement("cube", "universe", tform);
+  ASSERT_FALSE(update_result.has_value());
+  EXPECT_EQ(update_result.error(),
+            "Object 'cube' is attached. Use reparentAttachedObject to move it.");
+
+  const auto remove_result = scene->removeGeometry("cube");
+  ASSERT_FALSE(remove_result.has_value());
+  EXPECT_EQ(remove_result.error(), "Object 'cube' is attached. Call detachObject first.");
+
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_TRUE(detach_result.has_value()) << detach_result.error();
+  const auto update_after_detach = scene->updateGeometryPlacement("cube", "universe", tform);
+  EXPECT_TRUE(update_after_detach.has_value()) << update_after_detach.error();
+  const auto remove_after_detach = scene->removeGeometry("cube");
+  EXPECT_TRUE(remove_after_detach.has_value()) << remove_after_detach.error();
+}
+
+TEST_F(RoboPlanSceneTest, TestRemovingTouchBodyKeepsAttachmentConsistent) {
+  const auto color = Eigen::Vector4d(0.5, 0.5, 0.5, 0.5);
+  for (const std::string name : {"cube", "tray", "lid"}) {
+    const auto add_result = scene->addBoxGeometry(name, "universe", Box(0.05, 0.05, 0.05),
+                                                  Eigen::Matrix4d::Identity(), color);
+    ASSERT_TRUE(add_result.has_value()) << add_result.error();
+  }
+
+  const auto attach_result = scene->attachObject("cube", "tool0", {"tray", "lid"});
+  ASSERT_TRUE(attach_result.has_value()) << attach_result.error();
+
+  // Removing "tray" shifts the index of "lid", which the attachment must follow.
+  const auto remove_result = scene->removeGeometry("tray");
+  ASSERT_TRUE(remove_result.has_value()) << remove_result.error();
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "lid"));
+
+  const auto detach_result = scene->detachObject("cube");
+  ASSERT_TRUE(detach_result.has_value()) << detach_result.error();
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "lid"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "tool0"));
+}
+
 TEST_F(RoboPlanSceneTest, TestPositionLimitsVector) {
   Eigen::VectorXd expected_lower_limits(6);
   expected_lower_limits << -3.14159, -3.14159, -3.14159, -3.14159, -3.14159, -3.14159;

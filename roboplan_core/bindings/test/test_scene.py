@@ -282,6 +282,75 @@ def test_set_collisions(test_scene: Scene) -> None:
     assert str(exc_info.value) == expected_error
 
 
+def test_attach_detach_object(test_scene: Scene) -> None:
+    q_grasp = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])
+    q_place = np.array([1.0, -1.57, 1.57, 0.0, 0.0, 0.0])
+
+    # Place a box between the gripper fingers, so it collides with them.
+    tool0_T_box = np.eye(4)
+    tool0_T_box[2, 3] = 0.035
+    world_T_box = test_scene.forwardKinematics(q_grasp, "tool0") @ tool0_T_box
+    test_scene.addBoxGeometry(
+        "test_box",
+        "universe",
+        Box(0.065, 0.02, 0.04),
+        world_T_box,
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+    assert test_scene.hasCollisions(q_grasp)
+
+    # Once attached, the box moves with the gripper without colliding with it.
+    test_scene.setJointPositions(q_grasp)
+    test_scene.attachObject("test_box", "tool0", ["wrist_3_link"])
+    assert test_scene.isObjectAttached("test_box")
+    assert not test_scene.hasCollisions(q_grasp)
+    assert not test_scene.hasCollisions(q_place)
+
+    # Once detached, the box stays where it was released.
+    test_scene.setJointPositions(q_place)
+    test_scene.detachObject("test_box")
+    assert not test_scene.isObjectAttached("test_box")
+    assert test_scene.hasCollisions(q_place)
+    assert not test_scene.hasCollisions(q_grasp)
+
+
+def test_attach_detach_errors(test_scene: Scene) -> None:
+    test_scene.addBoxGeometry(
+        "test_box",
+        "universe",
+        Box(0.05, 0.05, 0.05),
+        np.eye(4),
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.detachObject("test_box")
+    assert str(exc_info.value) == "Object 'test_box' is not attached. Cannot detach."
+
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.reparentAttachedObject("test_box", "tool0")
+    assert str(exc_info.value) == "Object 'test_box' is not attached. Cannot reparent."
+
+    test_scene.attachObject("test_box", "tool0")
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.attachObject("test_box", "wrist_3_link")
+    expected_error = (
+        "Object 'test_box' is already attached. Use reparentAttachedObject to move it."
+    )
+    assert str(exc_info.value) == expected_error
+
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.removeGeometry("test_box")
+    expected_error = "Object 'test_box' is attached. Call detachObject first."
+    assert str(exc_info.value) == expected_error
+
+    # Handing the object over to another frame keeps it attached.
+    test_scene.reparentAttachedObject("test_box", "wrist_1_link", tform=np.eye(4))
+    assert test_scene.isObjectAttached("test_box")
+    test_scene.detachObject("test_box")
+    test_scene.removeGeometry("test_box")
+
+
 def test_allow_adjacent_link_collisions() -> None:
     roboplan_examples_dir = Path(get_install_prefix()) / "share"
     roboplan_models_dir = roboplan_examples_dir / "roboplan_example_models" / "models"
