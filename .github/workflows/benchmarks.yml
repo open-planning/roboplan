@@ -1,13 +1,18 @@
-name: RRT Benchmarks
+name: Run Benchmarks
 
 on:
   workflow_call: {}
 
+permissions:
+  contents: read
+
 jobs:
-  rrt_benchmarks:
-    name: Benchmark RRT
+  benchmarks:
+    name: Benchmark
     timeout-minutes: 30
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # gh-pages push (main only; see auto-push below)
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
     steps:
@@ -31,5 +36,16 @@ jobs:
           manifest-path: pyproject.toml
       - name: Build
         run: pixi run -e default install
-      - name: Run RRT benchmarks
-        run: pixi run -e default test_benchmarks
+      - name: Run benchmarks
+        # Create a task set to limit benchmarks to two cores max
+        run: taskset -c 0-1 pixi run -e default test_benchmarks
+      - name: Track benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: pytest
+          output-file-path: pytest_benchmarks.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          alert-threshold: "115%"
+          comment-on-alert: true
+          fail-on-alert: true
