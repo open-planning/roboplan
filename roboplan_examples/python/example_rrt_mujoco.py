@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
 """
-Point-to-point RRT planning on a scene built from a MuJoCo (MJCF) model, executed in MuJoCo.
+RRT pick and place on a scene built from a MuJoCo (MJCF) model, executed in MuJoCo.
 
 Unlike the other planning examples, which build a :class:`Scene` from a URDF/SRDF pair, this one
-constructs the scene directly from an MJCF file using :func:`loadMjcfModel`. The MJCF is fetched
-via ``robot_descriptions`` (the mujoco_menagerie collection), so no local model files are needed.
+constructs the scene directly from an MJCF file using :func:`loadMjcfModel`. The Panda MJCF is
+fetched via ``robot_descriptions`` (the mujoco_menagerie collection), so no local model files are
+needed.
 
-The same MJCF is loaded into MuJoCo, an RRT plan is computed between two joint configurations on
-either side of a wall, and the resulting path is (optionally shortcut and) time-parameterized with
-TOPP-RA into a trajectory. The trajectory is visualized and executed in the MuJoCo viewer by
-driving the robot's position actuators.
+The robot picks up a tall block on one side of a wall and places it on the other. Once grasped,
+the block is attached to the hand in the planning scene, so the RRT plans the transport around the
+wall accounting for the carried block. After placing, the block is detached and the robot plans
+back home around it. Each segment is time-parameterized with TOPP-RA and executed in the MuJoCo
+viewer by driving the robot's position actuators.
 
 Note: MuJoCo's passive viewer must be launched from the main thread on macOS, so run this example
 with ``mjpython example_rrt_mujoco.py`` there. On Linux, plain ``python`` works.
 """
 
-import importlib
 import tempfile
 import time
 
@@ -25,10 +26,13 @@ import mujoco.viewer
 import numpy as np
 import tyro
 import yaml
+from robot_descriptions import panda_mj_description
 
 from roboplan.core import (
     Box,
+    CartesianConfiguration,
     JointConfiguration,
+    JointPath,
     PathShortcutter,
     PathShortcuttingOptions,
     Scene,
@@ -36,15 +40,11 @@ from roboplan.core import (
     loadMjcfModel,
 )
 from roboplan.rrt import RRT, RRTOptions
+from roboplan.simple_ik import SimpleIk, SimpleIkOptions
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOptions
 
-# Friendly names mapped to their ``robot_descriptions`` MJCF module and end-effector frame. These
-# are redundant (7-DOF) arms, which have the extra freedom needed to plan around the floor to most
-# reachable poses.
-ROBOT_DESCRIPTIONS = {
-    "panda": ("panda_mj_description", "hand"),
-    "iiwa14": ("iiwa14_mj_description", "link7"),
-}
+EE_FRAME = "hand"
+FINGER_FRAMES = ["left_finger", "right_finger"]
 
 # MJCF models define no velocity or acceleration limits, so these are applied to every arm joint.
 MAX_JOINT_VELOCITY = 1.0  # rad/s
@@ -58,9 +58,28 @@ FLOOR_THICKNESS = 0.1
 WALL_CENTER = [0.675, 0.2, 0.4]
 WALL_SIZE = [0.65, 0.04, 0.8]
 WALL_RGBA = [0.8, 0.45, 0.3, 0.6]
+# MuJoCo collides with the convex hulls of the robot's meshes, which are larger than the meshes
+# the planner checks, so the wall is padded in the planning scene to keep plans clear of it.
+# It also can be helpful to compensate for slight tracking lag when following planned paths.
+WALL_PADDING = 0.01
 
-# Goals are sampled beyond this x and y (meters), on the far side of the wall from the start.
-GOAL_MIN_XY = (0.45, 0.32)
+# A tall block picked up on one side of the wall and placed on the other (meters).
+BLOCK_SIZE = [0.04, 0.04, 0.2]
+BLOCK_MASS = 0.05  # kg
+BLOCK_RGBA = [0.2, 0.4, 0.8, 1.0]
+PICK_XY = [0.5, -0.1]
+PLACE_XY = [0.4, 0.5]
+
+# The block is grasped from above this far below its top, with the fingertip pads this far along
+# the hand's z axis. Approach and retreat moves go straight up and down by APPROACH_HEIGHT.
+GRASP_DEPTH = 0.02
+HAND_TO_FINGERTIPS = 0.103
+APPROACH_HEIGHT = 0.1
+
+# Gripper actuator commands, and how long to wait for the gripper to open or close (seconds).
+GRIPPER_OPEN = 255.0
+GRIPPER_CLOSED = 0.0
+GRIPPER_WAIT = 1.0
 
 
 def _add_floor_to_scene(scene: Scene, base_link: str) -> None:
@@ -83,14 +102,29 @@ def _add_wall_to_scene(scene: Scene) -> None:
     tform = np.eye(4)
     tform[:3, 3] = WALL_CENTER
     scene.addBoxGeometry(
-        "wall", "universe", Box(*WALL_SIZE), tform, np.array(WALL_RGBA)
+        "wall",
+        "universe",
+        Box(*[dim + 2.0 * WALL_PADDING for dim in WALL_SIZE]),
+        tform,
+        np.array(WALL_RGBA),
     )
     # The wall stands on the floor, so that contact should not count as a collision.
     scene.setCollisions("floor", "wall", False)
 
 
+def _add_block_to_scene(scene: Scene) -> None:
+    """Adds the block to the planning scene, standing on the floor at the pick location."""
+    tform = np.eye(4)
+    tform[:3, 3] = [*PICK_XY, BLOCK_SIZE[2] / 2.0]
+    scene.addBoxGeometry(
+        "block", "universe", Box(*BLOCK_SIZE), tform, np.array(BLOCK_RGBA)
+    )
+    # The block rests on the floor, so that contact should not count as a collision.
+    scene.setCollisions("floor", "block", False)
+
+
 def _build_mujoco_model(mjcf_path: str) -> mujoco.MjModel:
-    """Loads the MJCF into MuJoCo and adds a matching ground plane at z=0 and wall."""
+    """Loads the MJCF into MuJoCo and adds a matching ground plane at z=0, wall, and block."""
     spec = mujoco.MjSpec.from_file(str(mjcf_path))
     if not any(geom.name == "floor" for geom in spec.worldbody.geoms):
         floor = spec.worldbody.add_geom()
@@ -105,27 +139,36 @@ def _build_mujoco_model(mjcf_path: str) -> mujoco.MjModel:
     wall.size = [dim / 2.0 for dim in WALL_SIZE]
     wall.pos = WALL_CENTER
     wall.rgba = WALL_RGBA
+    block = spec.worldbody.add_body()
+    block.name = "block"
+    block.add_freejoint()
+    block_geom = block.add_geom()
+    block_geom.type = mujoco.mjtGeom.mjGEOM_BOX
+    block_geom.size = [dim / 2.0 for dim in BLOCK_SIZE]
+    block_geom.mass = BLOCK_MASS
+    block_geom.rgba = BLOCK_RGBA
+    # The gripper squeezes gently, so the block needs high friction to stay in the grasp,
+    # including torsional friction (condim 4) to keep it from pivoting about the fingertips.
+    block_geom.friction = [1.5, 0.1, 0.0001]
+    block_geom.condim = 4
+    # Stiff, elliptic friction cones keep the block from creeping out of the fingers.
+    spec.option.cone = mujoco.mjtCone.mjCONE_ELLIPTIC
+    spec.option.impratio = 10.0
+    # Start the block standing on the floor at the pick location.
+    home = spec.key("home")
+    home.qpos = [*home.qpos, *PICK_XY, BLOCK_SIZE[2] / 2.0, 1.0, 0.0, 0.0, 0.0]
     return spec.compile()
 
 
-def _home_configuration(
-    scene: Scene, mj_model: mujoco.MjModel
-) -> tuple[np.ndarray, np.ndarray]:
-    """Returns the full joint configuration to start from (in the scene's joint order) and the
-    matching actuator commands.
-
-    Uses the MJCF's ``home`` keyframe when present, otherwise falls back to zeros.
-    """
-    joint_names = scene.getJointNames()
-    q = np.zeros(len(joint_names))
-    ctrl = np.zeros(mj_model.nu)
-    key_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
-    if key_id >= 0:
-        key = mj_model.key(key_id)
-        ctrl[:] = key.ctrl
-        for idx, name in enumerate(joint_names):
-            q[idx] = key.qpos[int(mj_model.joint(name).qposadr[0])]
-    return q, ctrl
+def _home_configuration(scene: Scene, mj_model: mujoco.MjModel) -> np.ndarray:
+    """Returns the MJCF's ``home`` keyframe as a full joint configuration for the scene."""
+    key = mj_model.key("home")
+    return np.array(
+        [
+            key.qpos[int(mj_model.joint(name).qposadr[0])]
+            for name in scene.getJointNames()
+        ]
+    )
 
 
 def _set_joint_limits(scene: Scene, joint_names: list[str]) -> None:
@@ -156,216 +199,223 @@ def _draw_trace(viewer: mujoco.viewer.Handle, points: np.ndarray) -> None:
                 geom, capsule, np.zeros(3), np.zeros(3), np.zeros(9), rgba
             )
             mujoco.mjv_connector(geom, capsule, 0.004, start, end)
-        scn.ngeom = len(points) - 1
-
-
-def _sample_reachable_goal(
-    scene: Scene,
-    ee_frame: str,
-    min_height: float,
-    min_reach: float,
-    max_reach: float,
-    min_xy: tuple[float, float],
-    max_samples: int = 5000,
-) -> np.ndarray | None:
-    """Samples a collision-free goal whose end effector reaches out to a natural, tidy pose.
-
-    Filtering the goal by end-effector placement keeps the demo looking sensible: the arm reaches
-    out and up rather than, say, folding its tool underneath itself.
-    """
-    for _ in range(max_samples):
-        # Check the end-effector placement first, as it is much cheaper than collision checking.
-        q = scene.randomPositions()
-        position = scene.forwardKinematics(q, ee_frame)[:3, 3]
-        reach = np.hypot(position[0], position[1])
-        if (
-            position[2] >= min_height
-            and min_reach <= reach <= max_reach
-            and np.all(position[:2] >= min_xy)
-            and not scene.hasCollisions(q)
-        ):
-            return q
-    return None
+        scn.ngeom = min(len(points) - 1, scn.maxgeom)
 
 
 def main(
-    robot: str = "panda",
     seed: int = 0,
     max_connection_distance: float = 2.0,
     collision_check_step_size: float = 0.05,
     goal_biasing_probability: float = 0.15,
     max_nodes: int = 5000,
     max_planning_time: float = 5.0,
-    include_shortcutting: bool = False,
+    rrt_connect: bool = True,
+    include_shortcutting: bool = True,
     max_shortcutting_iters: int = 100,
-    goal_min_height: float = 0.2,
-    goal_min_reach: float = 0.35,
-    goal_max_reach: float = 0.7,
     playback_speed: float = 1.0,
     loop: bool = True,
 ):
     """
-    Plan an RRT trajectory on an MJCF-derived scene, visualize it, and execute it in MuJoCo.
+    Plan an RRT pick and place of a tall block on an MJCF-derived scene and execute it in MuJoCo.
 
     Parameters:
-        robot: Which robot to load. One of: panda, iiwa14.
-        seed: Seed for sampling the goal configuration and for the RRT.
+        seed: Seed for the IK solver and the RRT.
         max_connection_distance: Maximum connection distance between two search nodes.
         collision_check_step_size: Configuration-space step size for collision checking along edges.
         goal_biasing_probability: Weighting of the goal node during random sampling.
         max_nodes: The maximum number of nodes to add to the search tree.
         max_planning_time: The maximum time (in seconds) to search for a path.
+        rrt_connect: Whether or not to use RRT-Connect.
         include_shortcutting: Whether or not to include path shortcutting for found paths.
         max_shortcutting_iters: The maximum number of path shortcutting iterations.
-        goal_min_height: Minimum end-effector height (meters) for the sampled goal.
-        goal_min_reach: Minimum end-effector horizontal reach (meters) for the sampled goal.
-        goal_max_reach: Maximum end-effector horizontal reach (meters) for the sampled goal.
         playback_speed: Real-time multiplier for executing the trajectory in the viewer.
-        loop: Whether to keep replaying the trajectory until the viewer is closed.
+        loop: Whether to keep resetting and replaying the trajectory until the viewer is closed.
     """
-    if robot not in ROBOT_DESCRIPTIONS:
-        raise SystemExit(
-            f"Unknown robot '{robot}'. Choose one of: {', '.join(ROBOT_DESCRIPTIONS)}"
-        )
-
     # Fetch the MJCF from the mujoco_menagerie via robot_descriptions (downloaded and cached
     # on first use), then build both a RoboPlan scene and a MuJoCo model from the same file.
-    module_name, ee_frame = ROBOT_DESCRIPTIONS[robot]
-    description = importlib.import_module(f"robot_descriptions.{module_name}")
-    mjcf_path = description.MJCF_PATH
+    mjcf_path = panda_mj_description.MJCF_PATH
     print(f"Loading MJCF: {mjcf_path}")
 
-    scene = Scene(robot, loadMjcfModel(mjcf_path))
+    scene = Scene("panda", loadMjcfModel(mjcf_path))
     scene.allowAdjacentLinkCollisions()
     mj_model = _build_mujoco_model(mjcf_path)
     mj_data = mujoco.MjData(mj_model)
 
-    joint_names = scene.getJointNames()
-    for name in joint_names:
-        if scene.getJointInfo(name).num_position_dofs != 1:
-            raise SystemExit(
-                f"This example only supports single-DOF joints, but '{name}' is multi-DOF."
-            )
-
     base_link = scene.getJointGroupInfo("").link_names[0]
     _add_floor_to_scene(scene, base_link)
     _add_wall_to_scene(scene)
+    _add_block_to_scene(scene)
 
     # Map each arm joint to its MuJoCo position actuator. Only joint-transmission actuators are
-    # driven directly; anything else (e.g. the Panda's tendon-driven gripper) is left at its home
-    # command, so the gripper simply holds its pose while the arm moves.
+    # driven by the planner; the tendon-driven gripper is commanded open and closed directly.
     arm_actuator = {}
+    gripper_ctrl = None
     for i in range(mj_model.nu):
         actuator = mj_model.actuator(i)
         if int(actuator.trntype[0]) == mujoco.mjtTrn.mjTRN_JOINT:
             arm_actuator[mj_model.joint(int(actuator.trnid[0])).name] = i
+        else:
+            gripper_ctrl = i
 
     # MJCF models have no SRDF, so define a group of just the driven arm joints to plan for.
+    # The finger joints stay open in the planning scene.
     group_name = "arm"
+    joint_names = scene.getJointNames()
     arm_joints = [name for name in joint_names if name in arm_actuator]
     scene.addGroup(group_name, arm_joints)
     _set_joint_limits(scene, arm_joints)
     q_indices = np.asarray(scene.getJointGroupInfo(group_name).q_indices)
 
-    # Plan from the home configuration to a random, collision-free, nicely-placed goal.
     scene.setRngSeed(seed)
-    q_home, home_ctrl = _home_configuration(scene, mj_model)
+    q_home = _home_configuration(scene, mj_model)
     scene.setJointPositions(q_home)
-    q_goal = _sample_reachable_goal(
-        scene, ee_frame, goal_min_height, goal_min_reach, goal_max_reach, GOAL_MIN_XY
-    )
-    if q_goal is None:
-        raise SystemExit(
-            "Could not sample a collision-free goal within the requested workspace; "
-            "try a different seed or widen the goal reach/height bounds."
-        )
 
-    start = JointConfiguration()
-    start.positions = q_home[q_indices]
-    goal = JointConfiguration()
-    goal.positions = q_goal[q_indices]
-
-    options = RRTOptions(
-        group_name=group_name,
-        max_nodes=max_nodes,
-        max_connection_distance=max_connection_distance,
-        collision_check_step_size=collision_check_step_size,
-        goal_biasing_probability=goal_biasing_probability,
-        max_planning_time=max_planning_time,
+    # Solve IK for top-down grasps above and at the pick and place locations, keeping the hand's
+    # home orientation. Each lower pose is seeded from the one above it, so the straight up and
+    # down moves between them stay short.
+    ik = SimpleIk(
+        scene, SimpleIkOptions(group_name=group_name, max_time=0.1, max_restarts=5)
     )
-    rrt = RRT(scene, options)
+    ik.setRngSeed(seed)
+    hand_rotation = scene.forwardKinematics(q_home, EE_FRAME)[:3, :3]
+    grasp_height = BLOCK_SIZE[2] - GRASP_DEPTH + HAND_TO_FINGERTIPS
+
+    def solve_ik(xy: list[float], height: float, seed_q: np.ndarray) -> np.ndarray:
+        goal = CartesianConfiguration()
+        goal.tip_frame = EE_FRAME
+        goal.tform = np.eye(4)
+        goal.tform[:3, :3] = hand_rotation
+        goal.tform[:3, 3] = [*xy, height]
+        start = JointConfiguration()
+        start.positions = seed_q
+        solution = JointConfiguration()
+        if not ik.solveIk(goal, start, solution):
+            raise SystemExit(f"Could not solve IK for a grasp at {xy}.")
+        return solution.positions
+
+    q_pregrasp = solve_ik(PICK_XY, grasp_height + APPROACH_HEIGHT, q_home[q_indices])
+    q_grasp = solve_ik(PICK_XY, grasp_height, q_pregrasp)
+    q_preplace = solve_ik(PLACE_XY, grasp_height + APPROACH_HEIGHT, q_home[q_indices])
+    q_place = solve_ik(PLACE_XY, grasp_height, q_preplace)
+
+    # The planners snapshot the scene on every call, so they see the block once it is attached.
+    rrt = RRT(
+        scene,
+        RRTOptions(
+            group_name=group_name,
+            max_nodes=max_nodes,
+            max_connection_distance=max_connection_distance,
+            collision_check_step_size=collision_check_step_size,
+            goal_biasing_probability=goal_biasing_probability,
+            max_planning_time=max_planning_time,
+            rrt_connect=rrt_connect,
+        ),
+    )
     rrt.setRngSeed(seed)
-
-    print("Planning...")
-    t_start = time.time()
-    path = rrt.plan(start, goal)
-    print(
-        f"Found a path with {len(path.positions)} waypoints in {time.time() - t_start:.3f} s"
+    shortcutter = PathShortcutter(
+        scene,
+        PathShortcuttingOptions(
+            group_name=group_name,
+            max_step_size=collision_check_step_size,
+            max_iters=max_shortcutting_iters,
+        ),
     )
 
-    if include_shortcutting:
-        shortcutter = PathShortcutter(
-            scene,
-            PathShortcuttingOptions(
-                group_name=group_name,
-                max_step_size=collision_check_step_size,
-                max_iters=max_shortcutting_iters,
-            ),
-        )
+    def rrt_path(q_start: np.ndarray, q_goal: np.ndarray) -> JointPath:
+        start = JointConfiguration()
+        start.positions = q_start
+        goal = JointConfiguration()
+        goal.positions = q_goal
         t_start = time.time()
-        path = shortcutter.shortcut(path)
+        path = rrt.plan(start, goal)
         print(
-            f"Shortcut the path to {len(path.positions)} waypoints in {time.time() - t_start:.3f} s"
+            f"  Found a path with {len(path.positions)} waypoints in {time.time() - t_start:.3f} s"
         )
+        if include_shortcutting:
+            path = shortcutter.shortcut(path)
+            print(f"  Shortcut the path to {len(path.positions)} waypoints")
+        return path
 
-    # Time-parameterize the path into a trajectory sampled at the physics timestep, so playback
-    # takes exactly one MuJoCo step per sample.
+    def straight_path(q_start: np.ndarray, q_goal: np.ndarray) -> JointPath:
+        path = JointPath()
+        path.joint_names = arm_joints
+        path.positions = [q_start, q_goal]
+        return path
+
+    # Time-parameterize each path into a trajectory sampled at the physics timestep, so playback
+    # takes exactly one MuJoCo step per sample, and interleave the gripper commands. TOPP-RA
+    # collision checks the path, so each segment is parameterized with the scene as planned.
     toppra = PathParameterizerTOPPRA(scene, group_name)
-    traj = toppra.generate(
-        path, TOPPRAOptions(dt=mj_model.opt.timestep, mode=SplineFittingMode.Adaptive)
+    toppra_options = TOPPRAOptions(
+        dt=mj_model.opt.timestep, mode=SplineFittingMode.Adaptive
     )
+    wait_steps = round(GRIPPER_WAIT / mj_model.opt.timestep)
+    samples = []  # (arm command, gripper command) at each physics step
+
+    def add_motion(path: JointPath, gripper: float) -> None:
+        traj = toppra.generate(path, toppra_options)
+        samples.extend((q, gripper) for q in traj.positions)
+
+    def add_wait(q: np.ndarray, gripper: float) -> None:
+        samples.extend([(q, gripper)] * wait_steps)
+
+    print("Planning to the block...")
+    add_motion(rrt_path(q_home[q_indices], q_pregrasp), GRIPPER_OPEN)
+    add_motion(straight_path(q_pregrasp, q_grasp), GRIPPER_OPEN)
+    add_wait(q_grasp, GRIPPER_CLOSED)
+
+    # Attach the block to the hand at the grasp, ignoring its contact with the closed fingers.
+    # The block now moves with the hand, so the transport is planned around it.
+    scene.setJointPositions(scene.toFullJointPositions(group_name, q_grasp))
+    scene.attachObject("block", EE_FRAME, FINGER_FRAMES)
+    add_motion(straight_path(q_grasp, q_pregrasp), GRIPPER_CLOSED)
+    # Once lifted, the carried block must also clear the floor.
+    scene.setCollisions("floor", "block", True)
+    print("Planning the transport with the attached block...")
+    add_motion(rrt_path(q_pregrasp, q_preplace), GRIPPER_CLOSED)
+    scene.setCollisions("floor", "block", False)
+    add_motion(straight_path(q_preplace, q_place), GRIPPER_CLOSED)
+    add_wait(q_place, GRIPPER_OPEN)
+
+    # Release the block and retract. Once detached, the block stays where it was placed, and the
+    # unburdened arm can plan home closer around the wall.
+    scene.setJointPositions(scene.toFullJointPositions(group_name, q_place))
+    scene.detachObject("block")
+    add_motion(straight_path(q_place, q_preplace), GRIPPER_OPEN)
+    print("Planning back home around the placed block...")
+    add_motion(rrt_path(q_preplace, q_home[q_indices]), GRIPPER_OPEN)
+    add_wait(q_home[q_indices], GRIPPER_OPEN)
     print(
-        f"Generated a {traj.times[-1]:.2f} s trajectory with {len(traj.times)} samples"
+        f"Generated a {len(samples) * mj_model.opt.timestep:.2f} s trajectory with {len(samples)} samples"
     )
 
-    # The end effector's path along every 10th trajectory sample, drawn in the viewer below.
+    # The end effector's path along every 10th sample, drawn in the viewer below.
     trace = np.array(
         [
             scene.forwardKinematics(
-                scene.toFullJointPositions(group_name, q), ee_frame
+                scene.toFullJointPositions(group_name, q), EE_FRAME
             )[:3, 3]
-            for q in traj.positions[::10]
+            for q, _ in samples[::10]
         ]
     )
 
-    arm_ctrl = [arm_actuator[name] for name in traj.joint_names]
-
-    def reset_to_home() -> None:
-        for idx, name in enumerate(joint_names):
-            mj_data.qpos[int(mj_model.joint(name).qposadr[0])] = q_home[idx]
-        mj_data.qvel[:] = 0.0
-        mj_data.ctrl[:] = home_ctrl
-        mujoco.mj_forward(mj_model, mj_data)
-
+    arm_ctrl = [arm_actuator[name] for name in arm_joints]
     # Execute the trajectory in the viewer by driving the position actuators, pacing playback to
-    # wall-clock time. The robot physically tracks the planned trajectory under MuJoCo dynamics,
-    # then holds the final sample so the servo settles onto the goal.
-    settle_time = 1.0
-    settle_steps = round(settle_time / mj_model.opt.timestep)
-    samples = [*traj.positions, *[traj.positions[-1]] * settle_steps]
-
+    # wall-clock time. The robot physically tracks the planned trajectory under MuJoCo dynamics.
     print("Executing in MuJoCo (close the viewer window to exit)...")
     with mujoco.viewer.launch_passive(
         mj_model, mj_data, show_left_ui=False, show_right_ui=False
     ) as viewer:
         _draw_trace(viewer, trace)
         while viewer.is_running():
-            reset_to_home()
-            for q in samples:
+            mujoco.mj_resetDataKeyframe(mj_model, mj_data, mj_model.key("home").id)
+            mujoco.mj_forward(mj_model, mj_data)
+            for q, gripper in samples:
                 if not viewer.is_running():
                     break
                 step_start = time.perf_counter()
                 mj_data.ctrl[arm_ctrl] = q
+                mj_data.ctrl[gripper_ctrl] = gripper
                 mujoco.mj_step(mj_model, mj_data)
                 viewer.sync()
                 if playback_speed > 0:
