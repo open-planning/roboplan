@@ -44,9 +44,7 @@ jobs:
           output-file-path: pytest_benchmarks.json
           # Limited scope token just for this job
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
-          # REVERT ME, just getting a baseline
-          auto-push: true
-          # auto-push: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+          auto-push: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
           alert-threshold: "115%"
           comment-on-alert: true
           fail-on-alert: true
