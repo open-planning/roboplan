@@ -11,8 +11,6 @@ jobs:
     name: Benchmark
     timeout-minutes: 30
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write # gh-pages push (main only; see auto-push below)
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
     steps:
@@ -44,7 +42,8 @@ jobs:
         with:
           tool: pytest
           output-file-path: pytest_benchmarks.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Limited scope token just for this job
+          github-token: ${{ secrets.BENCHMARK_TOKEN }}
           auto-push: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
           alert-threshold: "115%"
           comment-on-alert: true
