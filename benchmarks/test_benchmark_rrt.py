@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from common import build_scene, get_model_data
 
 from roboplan.core import JointConfiguration, Scene
 from roboplan.rrt import RRT, RRTOptions
@@ -10,6 +9,8 @@ from roboplan.rrt import RRT, RRTOptions
 # The examples are not an installed package, so add their directory to the path to import `common`.
 examples_dir = Path(__file__).parent.parent / "roboplan_examples" / "python"
 sys.path.insert(0, str(examples_dir))
+
+from common import build_scene, get_model_data
 
 
 def solve(scene: Scene, rrt: RRT, q_indices, seed: int = 1234):
