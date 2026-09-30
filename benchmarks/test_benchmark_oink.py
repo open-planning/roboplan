@@ -17,7 +17,7 @@ from roboplan.optimal_ik import (
 examples_dir = Path(__file__).parent.parent / "roboplan_examples" / "python"
 sys.path.insert(0, str(examples_dir))
 
-from common import build_scene, get_model_data, nearby_collision_free_positions
+from common import build_scene, get_model_data
 
 # Streaming control-loop rate
 CONTROL_DT = 1.0 / 500.0
@@ -43,10 +43,11 @@ def oink_benchmark_setup(model_name):
     group_name = model_data.default_joint_group
     q_indices = scene.getJointGroupInfo(group_name).q_indices
 
-    q0_group = nearby_collision_free_positions(
-        scene, group_name, np.array(model_data.starting_joint_config)[q_indices]
-    )
-    scene.setJointPositions(scene.toFullJointPositions(group_name, q0_group))
+    scene.setRngSeed(1234)
+    q0_full = scene.randomCollisionFreePositions()
+    assert q0_full is not None
+    q0_group = q0_full[q_indices]
+    scene.setJointPositions(q0_full)
 
     settings = OinkSettings()
     settings.primal_infeasibility_solving = True
@@ -83,7 +84,13 @@ def oink_benchmark_setup(model_name):
         )
         qs.append(scene.toFullJointPositions(group_name, q_group))
 
-    return {"oink": oink, "tasks": tasks, "constraints": constraints, "scene": scene, "qs": qs}
+    return {
+        "oink": oink,
+        "tasks": tasks,
+        "constraints": constraints,
+        "scene": scene,
+        "qs": qs,
+    }
 
 
 def test_benchmark_oink_solve(benchmark, oink_benchmark_setup):
