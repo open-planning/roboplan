@@ -523,7 +523,8 @@ def test_mimics() -> None:
 
 
 def test_locked_joint_names() -> None:
-    test_scene = Scene("test_scene", urdf=URDF, srdf=SRDF)
+    test_scene = Scene("test_scene", loadUrdfSceneDescriptionFromXml(URDF))
+    test_scene.importSrdf(SRDF)
     # The "arm" group spans revolute_joint (and mimic_joint, which has no DoF of its own), so the
     # only movable joint excluded from the group is continuous_joint.
     assert test_scene.getLockedJointNames("arm") == ["continuous_joint"]

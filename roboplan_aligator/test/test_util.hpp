@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -17,10 +18,16 @@ namespace roboplan::testing {
 inline std::shared_ptr<Scene> makeScene(const std::string& robot_dir, const std::string& urdf,
                                         const std::string& srdf) {
   const auto model_prefix = example_models::get_package_models_dir();
+  const auto urdf_path = model_prefix / robot_dir / urdf;
+  const auto srdf_path = model_prefix / robot_dir / srdf;
   const std::vector<std::filesystem::path> package_paths = {
       example_models::get_package_share_dir()};
-  return std::make_shared<Scene>("test_scene", model_prefix / robot_dir / urdf,
-                                 model_prefix / robot_dir / srdf, package_paths);
+  const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
+  auto scene = std::make_shared<Scene>("test_scene", description);
+  if (const auto imported = scene->importSrdf(loadTextFile(srdf_path)); !imported) {
+    throw std::runtime_error(imported.error());
+  }
+  return scene;
 }
 
 inline std::shared_ptr<Scene> makeUr5Scene() {

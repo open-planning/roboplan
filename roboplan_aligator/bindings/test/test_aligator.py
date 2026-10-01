@@ -12,7 +12,7 @@ from roboplan.aligator import (
     TrajOptResult,
     TrajOptSeed,
 )
-from roboplan.core import JointTrajectory, Scene
+from roboplan.core import JointTrajectory, Scene, loadUrdfSceneDescription
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
 
 GROUP_NAME = "arm"  # SO-101 arm group (gripper joint locked): nq == nv == 5.
@@ -21,12 +21,13 @@ GROUP_NAME = "arm"  # SO-101 arm group (gripper joint locked): nq == nv == 5.
 @pytest.fixture
 def scene() -> Scene:
     models_dir = get_package_models_dir()
-    return Scene(
-        "test_scene",
-        models_dir / "so101_robot_model" / "so101.urdf",
-        models_dir / "so101_robot_model" / "so101.srdf",
-        [get_package_share_dir()],
+    robot_dir = models_dir / "so101_robot_model"
+    description = loadUrdfSceneDescription(
+        robot_dir / "so101.urdf", [get_package_share_dir()]
     )
+    test_scene = Scene("test_scene", description)
+    test_scene.importSrdf((robot_dir / "so101.srdf").read_text())
+    return test_scene
 
 
 def make_optimizer(scene: Scene, **kwargs) -> TrajectoryOptimizer:

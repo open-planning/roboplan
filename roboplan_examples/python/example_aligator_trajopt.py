@@ -29,11 +29,16 @@ import numpy as np
 import pinocchio as pin
 import tyro
 import xacro
+from common import get_model_data
 from pinocchio.visualize import ViserVisualizer
 
 import roboplan.aligator as al
-from common import get_model_data
-from roboplan.core import JointConfiguration, Scene
+from roboplan.core import (
+    JointConfiguration,
+    Scene,
+    loadJointLimitsConfig,
+    loadUrdfSceneDescriptionFromXml,
+)
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRT, RRTOptions, visualizeTree
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOptions
@@ -123,11 +128,12 @@ def main(
 
     scene = Scene(
         "aligator_comparison_scene",
-        urdf=urdf_xml,
-        srdf=srdf_xml,
-        package_paths=package_paths,
-        yaml_config_path=model_data.yaml_config_path,
+        loadUrdfSceneDescriptionFromXml(urdf_xml, package_paths),
     )
+    scene.importJointLimitsFromConfig(
+        loadJointLimitsConfig(model_data.yaml_config_path)
+    )
+    scene.importSrdf(srdf_xml)
     group_name = model_data.default_joint_group
     group_info = scene.getJointGroupInfo(group_name)
     q_indices = group_info.q_indices
