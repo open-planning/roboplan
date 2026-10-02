@@ -22,7 +22,7 @@ jobs:
           - os: ubuntu-26.04
             cache-key: ubuntu-26.04
             clang_tidy: true
-          - os: macos-14
+          - os: macos-latest
             cache-key: macos-arm64
             clang_tidy: false
           - os: windows-latest

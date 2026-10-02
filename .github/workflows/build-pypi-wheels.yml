@@ -130,7 +130,7 @@ jobs:
             artifact: linux-aarch64
             extra_environment: ""
           - name: macOS arm64
-            os: macos-14
+            os: macos-latest
             archs: arm64
             artifact: macos-arm64
             extra_environment: "MACOSX_DEPLOYMENT_TARGET=14.0"
