@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Compare three ways to turn an RRT path into an executable trajectory, on the same start/goal
+"""Compare two ways to turn an RRT path into an executable trajectory, on the same start/goal
 pair:
 
-- **RRT** -- the raw geometric path RRT (optionally RRT-Connect) found. No timing, no dynamics.
-- **RRT + TOPP-RA** (``roboplan_toppra``) -- kinematic time-optimal retiming of that same path
+- **RRT + TOPP-RA** (``roboplan_toppra``) -- kinematic time-optimal retiming of the RRT path
   under velocity/acceleration limits. The path geometry never changes.
 - **RRT + roboplan_aligator** -- the path *reshaped* by full-dynamics trajectory optimization,
   seeded from the RRT path, subject to a torque limit.
 
 RRT runs exactly once per "Plan path" click; that single path seeds both TOPP-RA and
-roboplan_aligator, so all three are compared against the identical RRT solution (no re-planning,
+roboplan_aligator, so both are compared against the identical RRT solution (no re-planning,
 so RRT's own nondeterminism cannot skew the comparison). Click "Plan path", then use the
 per-method "Animate ..." buttons to play each one back in viser. The console prints each method's
 peak required torque -- TOPP-RA's is a post-hoc inverse-dynamics estimate (``pin.rnea``) and can
@@ -80,7 +79,6 @@ def main(
     rrt_connect: bool = True,
     toppra_mode: SplineFittingMode = SplineFittingMode.Adaptive,
     toppra_dt: float = 0.01,
-    path_step_dt: float = 0.4,
     horizon: int = 60,
     aligator_dt: float = 0.05,
     tau_max: float | None = None,
@@ -90,7 +88,7 @@ def main(
     rng_seed: int | None = None,
     include_obstacles: bool = True,
 ):
-    """Compare RRT, RRT + TOPP-RA, and RRT + roboplan_aligator on the same start/goal pair.
+    """Compare RRT + TOPP-RA and RRT + roboplan_aligator on the same start/goal pair.
 
     Parameters:
         model: The name of the model to use.
@@ -102,8 +100,6 @@ def main(
         rrt_connect: Whether or not to use RRT-Connect.
         toppra_mode: The trajectory generation mode for TOPP-RA.
         toppra_dt: Time step for the TOPP-RA-timed trajectory, in seconds.
-        path_step_dt: Seconds to pause at each waypoint when animating the raw RRT path -- it has
-            no timing of its own (just a handful of waypoints), so this is display pacing only.
         horizon: Number of stages for the roboplan_aligator trajectory optimizer.
         aligator_dt: Time step for the roboplan_aligator trajectory optimizer, in seconds.
         tau_max: Symmetric per-joint torque bound [Nm], enforced by roboplan_aligator and compared
@@ -178,7 +174,7 @@ def main(
     viz.display(q_full)
     time.sleep(0.1)
 
-    # Populated by plan_path(): "path" (JointPath), "toppra" (JointTrajectory, group layout),
+    # Populated by plan_path(): "toppra" (JointTrajectory, group layout),
     # "aligator_traj" (JointTrajectory, full-model layout via toRoboplan).
     solved = {}
     animate_queue: queue.Queue = queue.Queue()
@@ -187,7 +183,6 @@ def main(
     animate_buttons = {
         key: viz.viewer.gui.add_button(label)
         for key, label in [
-            ("path", "Animate RRT path"),
             ("toppra", "Animate TOPP-RA"),
             ("aligator", "Animate aligator"),
         ]
@@ -277,17 +272,11 @@ def main(
         )
         aligator_traj = result.toRoboplan(scene, group_name)
 
-        solved["path"] = path
         solved["toppra"] = toppra_traj
         solved["aligator_traj"] = aligator_traj
 
         viz.display(q_full)
         visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
-        # No line trace for the raw RRT path here: visualizePath draws it by interpolating
-        # STRAIGHT LINES IN JOINT SPACE between the path's few, widely-spaced waypoints and
-        # running FK along that -- which visibly zigzags/loops in Cartesian space for a raw,
-        # un-shortcut RRT path. That's inherent to what an RRT path looks like pre-shortcutting,
-        # not a bug; the "Animate RRT path" button still shows the actual path on the robot.
         visualizeJointTrajectory(
             viz,
             scene,
@@ -343,14 +332,7 @@ def main(
         if not animate_queue.empty():
             key = animate_queue.get()
             print(f"Animating {key}...")
-            if key == "path":
-                # The raw path is just a few waypoints with no timing of its own -- pace it
-                # visibly rather than at trajectory-sample speed (that made it look like nothing
-                # was happening).
-                for q in solved["path"].positions:
-                    viz.display(scene.toFullJointPositions(group_name, q))
-                    time.sleep(path_step_dt)
-            elif key == "toppra":
+            if key == "toppra":
                 traj = solved["toppra"]
                 t_prev = 0.0
                 for q, t in zip(traj.positions, traj.times):
