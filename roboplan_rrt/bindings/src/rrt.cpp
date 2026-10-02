@@ -133,7 +133,9 @@ void initRrt(nanobind::module_& m) {
            "fast_return"_a = true, "constraint_projection"_a = ConstraintProjectorOptions())
       .def_rw("group_name", &RRTOptions::group_name,
               "The joint group name to be used by the planner.")
-      .def_rw("max_nodes", &RRTOptions::max_nodes, "The maximum number of nodes to sample.")
+      .def_rw("max_nodes", &RRTOptions::max_nodes,
+              "The maximum number of nodes to sample. This includes the start and one goal root; "
+              "additional goal configurations do not count toward this limit.")
       .def_rw("max_connection_distance", &RRTOptions::max_connection_distance,
               "The maximum configuration distance between two nodes.")
       .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size,
@@ -159,6 +161,11 @@ void initRrt(nanobind::module_& m) {
               "Options for the projection that pulls sampled configurations onto the constraints. "
               "Only used when `plan` is given constraints.");
 
+  nanobind::class_<RRTPlan>(m, "RRTPlan", "The result of planning to one of a set of goals.")
+      .def_ro("path", &RRTPlan::path, "The joint-space path from the start to the reached goal.")
+      .def_ro("goal_index", &RRTPlan::goal_index,
+              "The index of the goal the path ends at, in the order the goals were given.");
+
   nanobind::class_<RRT>(
       m, "RRT", "Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.")
       .def(nanobind::init<const std::shared_ptr<Scene>, const RRTOptions&>(), "scene"_a,
@@ -170,6 +177,14 @@ void initRrt(nanobind::module_& m) {
            "Plan a path from start to goal, optionally subject to constraints that every "
            "configuration on the path must satisfy.",
            "start"_a, "goal"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
+      .def("planToAny", unwrap_expected(&RRT::planToAny),
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Plan a path from start to any one of a set of goals, optionally subject to "
+           "constraints that every configuration on the path must satisfy. Returns the path along "
+           "with the index of the goal it reached. If any goal can be reached by a direct "
+           "connection, that path is returned immediately, even when fast_return is false: the "
+           "first such goal in the order given with fast_return, otherwise the closest one.",
+           "start"_a, "goals"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
       .def("setRngSeed", &RRT::setRngSeed, "Sets the seed for the random number generator (RNG).",
            "seed"_a)
       .def("getNodes", &RRT::getNodes,

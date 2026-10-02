@@ -129,6 +129,103 @@ def test_plan_rrt_star(test_scene: Scene) -> None:
     assert star_length <= rrt_length
 
 
+@pytest.mark.parametrize(
+    "rrt_connect,rrt_star",
+    [(False, False), (True, False), (False, True), (True, True)],
+    ids=["rrt", "rrt_connect", "rrt_star", "rrt_star_connect"],
+)
+def test_plan_multiple_goals(
+    test_scene: Scene, rrt_connect: bool, rrt_star: bool
+) -> None:
+    # Every planner variant must return a path that starts at the start and ends exactly at the
+    # goal whose index it reports.
+    test_scene.setRngSeed(286)
+
+    options = RRTOptions()
+    options.group_name = "arm"
+    options.max_connection_distance = 1.0
+    options.rrt_connect = rrt_connect
+    options.rrt_star = rrt_star
+    if rrt_star:
+        # RRT* only rewires when it runs to budget, so give it a fixed node budget to exhaust.
+        options.fast_return = False
+        options.max_nodes = 300
+
+    rrt = RRT(test_scene, options)
+    rrt.setRngSeed(1234)
+
+    start = JointConfiguration()
+    start.positions = test_scene.randomCollisionFreePositions()
+    goals = []
+    for _ in range(3):
+        goal = JointConfiguration()
+        goal.positions = test_scene.randomCollisionFreePositions()
+        goals.append(goal)
+
+    result = rrt.planToAny(start, goals)
+    assert np.array_equal(result.path.positions[0], start.positions)
+    assert 0 <= result.goal_index < len(goals)
+    assert np.array_equal(result.path.positions[-1], goals[result.goal_index].positions)
+
+
+def test_plan_multiple_goals_considers_every_goal_for_direct_connection(
+    test_scene: Scene,
+) -> None:
+    # Only the second goal is close enough to connect straight from the start, so the planner must
+    # look past the first goal and return the direct two-waypoint path to the second.
+    test_scene.setRngSeed(286)
+
+    options = RRTOptions()
+    options.group_name = "arm"
+    options.max_connection_distance = 0.5
+
+    rrt = RRT(test_scene, options)
+    rrt.setRngSeed(1234)
+
+    start = JointConfiguration()
+    start.positions = test_scene.randomCollisionFreePositions()
+    far_goal = JointConfiguration()
+    far_goal.positions = test_scene.randomCollisionFreePositions()
+    near_goal = JointConfiguration()
+    near_goal.positions = start.positions.copy()
+    near_goal.positions[0] += 0.05
+    assert (
+        test_scene.configurationDistance(start.positions, far_goal.positions)
+        > options.max_connection_distance
+    )
+    assert not test_scene.hasCollisions(near_goal.positions)
+
+    result = rrt.planToAny(start, goals=[far_goal, near_goal])
+    assert result.goal_index == 1
+    assert len(result.path.positions) == 2
+    assert np.array_equal(result.path.positions[0], start.positions)
+    assert np.array_equal(result.path.positions[1], near_goal.positions)
+
+
+def test_plan_multiple_goals_rejects_bad_goals(test_scene: Scene) -> None:
+    test_scene.setRngSeed(286)
+
+    options = RRTOptions()
+    options.group_name = "arm"
+    rrt = RRT(test_scene, options)
+    rrt.setRngSeed(1234)
+
+    start = JointConfiguration()
+    start.positions = test_scene.randomCollisionFreePositions()
+    valid_goal = JointConfiguration()
+    valid_goal.positions = test_scene.randomCollisionFreePositions()
+    invalid_goal = JointConfiguration()
+    invalid_goal.positions = np.full(6, -6.0)
+
+    # An empty goal set has nothing to plan to.
+    with pytest.raises(RuntimeError, match="No goal configurations"):
+        rrt.planToAny(start, [])
+
+    # One bad goal fails the whole request, and the error names which goal it was.
+    with pytest.raises(RuntimeError, match="goal configuration 1"):
+        rrt.planToAny(start, [valid_goal, invalid_goal])
+
+
 @pytest.fixture
 def upright_constraint(test_scene: Scene) -> PoseConstraint:
     """A constraint holding the UR5 tool near vertical, with position and spin left free."""
@@ -256,5 +353,8 @@ def test_plan_rejects_endpoints_off_the_constraint(
     rrt.setRngSeed(1234)
     with pytest.raises(RuntimeError, match="Start configuration does not satisfy"):
         rrt.plan(off, on, [upright_constraint])
-    with pytest.raises(RuntimeError, match="Goal configuration does not satisfy"):
+    with pytest.raises(RuntimeError, match="Goal configuration 0 does not satisfy"):
         rrt.plan(on, off, [upright_constraint])
+    # With several goals, the error names the one that is off the constraint.
+    with pytest.raises(RuntimeError, match="Goal configuration 1 does not satisfy"):
+        rrt.planToAny(on, [on, off], [upright_constraint])

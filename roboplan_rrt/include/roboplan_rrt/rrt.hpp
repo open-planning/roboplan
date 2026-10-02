@@ -27,6 +27,8 @@ struct RRTOptions {
   std::string group_name = "";
 
   /// @brief The maximum number of nodes to sample.
+  /// @details This includes the start and one goal root. Additional goal configurations do not
+  /// count toward this limit.
   size_t max_nodes = 1000;
 
   /// @brief The maximum configuration distance between two nodes.
@@ -76,6 +78,15 @@ struct RRTOptions {
   ConstraintProjectorOptions constraint_projection = ConstraintProjectorOptions();
 };
 
+/// @brief The result of planning to one of a set of goals.
+struct RRTPlan {
+  /// @brief The joint-space path from the start to the reached goal.
+  JointPath path;
+
+  /// @brief The index of the goal the path ends at, in the order the goals were given.
+  size_t goal_index = 0;
+};
+
 /// @brief Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.
 class RRT {
 public:
@@ -101,6 +112,22 @@ public:
   plan(const JointConfiguration& start, const JointConfiguration& goal,
        const std::vector<std::shared_ptr<Constraint>>& constraints = {});
 
+  /// @brief Plan a path from start to one of a set of valid goal configurations.
+  /// @param start The starting joint configuration.
+  /// @param goals The set of goal joint configurations.
+  /// @param constraints Constraints that every configuration on the path must satisfy via
+  /// projection, which is the CBiRRT2 constrained extension (Berenson et al., 2009). The start and
+  /// all goals must already satisfy them. If empty (default), plans without constraints.
+  /// @details The path ends at whichever goal is reached first, or the cheapest one found if
+  /// fast_return is false. One exception: if any goal can be reached by a direct connection, that
+  /// path is returned immediately, even when fast_return is false. With fast_return, this is the
+  /// first such goal in the order given; otherwise, it is the closest one.
+  /// @return The joint-space path from the start to one of the goal configurations, along with the
+  /// index of that goal, if planning succeeds, otherwise an error message.
+  tl::expected<RRTPlan, std::string>
+  planToAny(const JointConfiguration& start, const std::vector<JointConfiguration>& goals,
+            const std::vector<std::shared_ptr<Constraint>>& constraints = {});
+
   /// @brief Sets the seed for the random number generator (RNG).
   /// @details Each plan derives its sampling seed from this generator, so a fixed seed makes
   /// planning reproducible.
@@ -115,6 +142,15 @@ public:
   void initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
                       size_t max_size = 1000);
 
+  /// @brief Initializes the search tree with the specified list of start poses.
+  /// @param tree Reference to an empty tree.
+  /// @param nodes Reference to the nodes vector.
+  /// @param q_inits The root configurations, as full (model-sized) joint positions. Each
+  /// configuration is an independent root.
+  /// @param max_size The number of nodes to reserve space for.
+  void initializeTree(KdTree& tree, std::vector<Node>& nodes,
+                      const std::vector<Eigen::VectorXd>& q_inits, size_t max_size = 1000);
+
   /// @brief Attempt to add node(s) to the provided tree and node set, growing toward `q_sample`.
   /// @param tree The tree to grow.
   /// @param nodes The set of sampled nodes so far.
@@ -123,9 +159,10 @@ public:
   /// @param greedy If true (the RRT-Connect CONNECT step), repeatedly extend toward `q_sample`
   /// until it is reached or an obstacle is hit. If false (a single EXTEND step), stop once
   /// `max_connection_distance` of progress has been made.
+  /// @param node_limit Stop growing once `nodes` holds this many nodes.
   /// @return True if node(s) were added to the tree, false otherwise.
   bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
-                const SceneContext& context, bool greedy);
+                const SceneContext& context, bool greedy, size_t node_limit);
 
   /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
   /// @details The "latest added node" refers to `nodes.back()`. The function will identify the
