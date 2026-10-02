@@ -41,6 +41,10 @@ GRASP_FRAME = "tool0"
 OBJECT_SIZE = (0.04, 0.04, 0.2)
 TOOL0_T_OBJECT = pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.12])).homogeneous
 
+# The object's cross-section is square and the gripper is symmetric, so it can be grasped (and
+# placed) at any quarter turn about its vertical axis.
+GRASP_YAWS = [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]
+
 # Two tables with a divider between them
 TABLE_SIZE = (0.2, 0.2, 0.2)
 TABLE_XYS = [(0.45, -0.35), (0.45, 0.35)]
@@ -176,12 +180,19 @@ def main(
     ik_solver.setRngSeed(rng_seed)
     world_T_base = scene.forwardKinematics(q_home, model_data.base_link)
 
-    def solve_ik(world_T_object: np.ndarray, q_seed: np.ndarray) -> np.ndarray:
+    def solve_ik(
+        world_T_object: np.ndarray, q_seed: np.ndarray, yaw: float
+    ) -> np.ndarray:
+        """Solves for grasping the object, turned by a yaw about its vertical axis."""
         goal = CartesianConfiguration()
         goal.base_frame = model_data.base_link
         goal.tip_frame = GRASP_FRAME
+        object_T_grasp = pin.SE3(pin.utils.rotate("z", yaw), np.zeros(3)).homogeneous
         goal.tform = (
-            np.linalg.inv(world_T_base) @ world_T_object @ np.linalg.inv(TOOL0_T_OBJECT)
+            np.linalg.inv(world_T_base)
+            @ world_T_object
+            @ object_T_grasp
+            @ np.linalg.inv(TOOL0_T_OBJECT)
         )
         start = JointConfiguration()
         start.positions = q_seed
@@ -190,14 +201,23 @@ def main(
             raise RuntimeError(f"Could not solve IK for grasp pose:\n{world_T_object}")
         return solution.positions
 
-    # For each table, solve for the grasp and the pre-grasp above it. The pre-grasp is seeded
-    # from the grasp so that the approach is straight.
+    # For each table and grasp yaw, solve for the grasp and the pre-grasp above it. The
+    # pre-grasp is seeded from the grasp so that the approach is straight. grasps[table] holds
+    # a (q_grasp, q_above) pair for every yaw IK could reach.
     grasps = []
     for xy in TABLE_XYS:
-        world_T_object = get_object_pose_on_table(xy)
-        q_grasp = solve_ik(world_T_object, q_home[q_indices])
-        world_T_object[2, 3] += APPROACH_DISTANCE
-        grasps.append((q_grasp, solve_ik(world_T_object, q_grasp)))
+        table_grasps = []
+        for yaw in GRASP_YAWS:
+            world_T_object = get_object_pose_on_table(xy)
+            try:
+                q_grasp = solve_ik(world_T_object, q_home[q_indices], yaw)
+                world_T_object[2, 3] += APPROACH_DISTANCE
+                table_grasps.append((q_grasp, solve_ik(world_T_object, q_grasp, yaw)))
+            except RuntimeError:
+                continue
+        if not table_grasps:
+            raise RuntimeError(f"Could not solve IK for any grasp at table {xy}.")
+        grasps.append(table_grasps)
 
     rrt = RRT(
         scene,
@@ -217,12 +237,21 @@ def main(
     )
     toppra = PathParameterizerTOPPRA(scene, group_name)
 
-    def move_to(q_goal: np.ndarray, straight: bool = False):
+    def move_to(q_goals: np.ndarray | list[np.ndarray], straight: bool = False) -> int:
         """
         Plans from the current configuration to a goal, straight or with RRT, and animates it.
+
+        With RRT, several goals may be given, and the planner moves to whichever it reaches
+        first. Returns the index of the goal reached.
         """
         q_start = scene.getCurrentJointPositions()[q_indices]
+        if not isinstance(q_goals, list):
+            q_goals = [q_goals]
+        goal_index = 0
+        q_goal = q_goals[0]
         if straight:
+            if len(q_goals) != 1:
+                raise ValueError("Straight-line motion takes a single goal.")
             if hasCollisionsAlongPath(
                 scene,
                 scene.toFullJointPositions(group_name, q_start),
@@ -236,9 +265,15 @@ def main(
         else:
             start = JointConfiguration()
             start.positions = q_start
-            goal = JointConfiguration()
-            goal.positions = q_goal
-            path = shortcutter.shortcut(rrt.plan(start, goal))
+            goals = []
+            for q in q_goals:
+                goal = JointConfiguration()
+                goal.positions = q
+                goals.append(goal)
+            result = rrt.planToAny(start, goals)
+            goal_index = result.goal_index
+            q_goal = q_goals[goal_index]
+            path = shortcutter.shortcut(result.path)
 
         traj = toppra.generate(path, TOPPRAOptions(dt=TRAJ_DT))
         visualizePath(
@@ -252,6 +287,7 @@ def main(
             viz.display(scene.toFullJointPositions(group_name, q))
             time.sleep(TRAJ_DT)
         scene.setJointPositions(scene.toFullJointPositions(group_name, q_goal))
+        return goal_index
 
     run_requested = threading.Event()
     run_button = viz.viewer.gui.add_button("Pick and place")
@@ -262,17 +298,18 @@ def main(
     while True:
         run_requested.wait()
         run_button.disabled = True
-        q_src, q_src_above = grasps[src]
-        q_dst, q_dst_above = grasps[dst]
-
-        move_to(q_src_above)
+        # Approach whichever grasp's pre-grasp the planner reaches first.
+        i = move_to([q_above for _, q_above in grasps[src]])
+        q_src, q_src_above = grasps[src][i]
         move_to(q_src, straight=True)
 
         scene.attachObject(OBJECT_NAME, GRASP_FRAME, ["wrist_3_link"])
         set_viz_parent(viz, OBJECT_NAME, GRASP_FRAME, scene.getCurrentJointPositions())
 
+        # Likewise, place the object at whichever quarter turn the planner reaches first.
         move_to(q_src_above, straight=True)
-        move_to(q_dst_above)
+        i = move_to([q_above for _, q_above in grasps[dst]])
+        q_dst, q_dst_above = grasps[dst][i]
         move_to(q_dst, straight=True)
 
         scene.detachObject(OBJECT_NAME)
