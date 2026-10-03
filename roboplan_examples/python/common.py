@@ -8,10 +8,20 @@ except ModuleNotFoundError:
 
 import numpy as np
 import pinocchio as pin
+import xacro
 from numpy.typing import NDArray
 
-from roboplan.core import Box, Cylinder, Mesh, OcTree, Scene, Sphere
-from roboplan.example_models import get_package_models_dir
+from roboplan.core import (
+    Box,
+    Cylinder,
+    Mesh,
+    OcTree,
+    Scene,
+    Sphere,
+    loadJointLimitsConfig,
+    loadUrdfSceneDescriptionFromXml,
+)
+from roboplan.example_models import get_package_models_dir, get_package_share_dir
 
 
 @dataclass
@@ -503,6 +513,26 @@ def get_model_data():
             ],
         ),
     }
+
+
+def build_scene(model_name: str, with_obstacles: bool = True) -> Scene:
+    """Builds the Scene for `model_name`, same as the examples use."""
+    model_data = get_model_data()[model_name]
+    package_paths = [get_package_share_dir()]
+    urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
+    srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
+
+    scene = Scene(model_name, loadUrdfSceneDescriptionFromXml(urdf_xml, package_paths))
+    scene.importJointLimitsFromConfig(
+        loadJointLimitsConfig(model_data.yaml_config_path)
+    )
+    scene.importSrdf(srdf_xml)
+
+    if with_obstacles:
+        for obstacle in model_data.obstacles:
+            obstacle.addToScene(scene)
+
+    return scene
 
 
 def load_point_cloud(pointcloud_path: Path) -> NDArray:

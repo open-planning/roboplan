@@ -18,3 +18,4 @@ wheelhouse/
 
 # Benchmarking results
 pytest_benchmarks.json
+.benchmarks/
