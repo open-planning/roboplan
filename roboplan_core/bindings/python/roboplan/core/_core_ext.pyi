@@ -496,6 +496,9 @@ class Scene:
     def getJointGroupInfo(self, name: str) -> JointGroupInfo:
         """Get the joint group information of a scene by its name."""
 
+    def getLockedJointNames(self, name: str) -> list[str]:
+        """Get the names of the movable joints excluded from a joint group."""
+
     def importSrdf(self, srdf_xml: str) -> None:
         """Applies groups and disabled collision pairs from an SRDF document."""
 

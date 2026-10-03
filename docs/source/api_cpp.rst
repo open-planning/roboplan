@@ -58,6 +58,12 @@ TOPP-RA
     :members:
     :undoc-members:
 
+Aligator
+--------
+
+.. autodoxygenindex::
+    :project: roboplan_aligator
+
 Cartesian Planning
 ------------------
 
