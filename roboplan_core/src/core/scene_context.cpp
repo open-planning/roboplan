@@ -150,8 +150,7 @@ std::optional<Eigen::VectorXd> SceneContext::randomCollisionFreePositions(size_t
 
 std::optional<Eigen::VectorXd>
 SceneContext::randomCollisionFreePositions(const std::vector<std::string>& joint_names,
-                                           const Eigen::VectorXd& q_reference,
-                                           size_t max_samples) {
+                                           const Eigen::VectorXd& q_reference, size_t max_samples) {
   if (q_reference.size() != model_.nq) {
     throw std::invalid_argument(
         "SceneContext::randomCollisionFreePositions: expected " + std::to_string(model_.nq) +
