@@ -190,8 +190,7 @@ void initRrt(nanobind::module_& m) {
           "Plan a path from start to any one of a set of goals, optionally subject to "
           "constraints that every configuration on the path must satisfy. Returns the path along "
           "with the index of the goal it reached. If any goal can be reached by a direct "
-          "connection, that path is returned immediately, even when fast_return is false: the "
-          "first such goal in the order given with fast_return, otherwise the closest one.",
+          "connection, the closest such goal is returned immediately, regardless of fast_return.",
           "start"_a, "goals"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
       .def("setRngSeed", &RRT::setRngSeed, "Sets the seed for the random number generator (RNG).",
            "seed"_a)

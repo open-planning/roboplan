@@ -119,9 +119,8 @@ public:
   /// projection, which is the CBiRRT2 constrained extension (Berenson et al., 2009). The start and
   /// all goals must already satisfy them. If empty (default), plans without constraints.
   /// @details The path ends at whichever goal is reached first, or the cheapest one found if
-  /// fast_return is false. One exception: if any goal can be reached by a direct connection, that
-  /// path is returned immediately, even when fast_return is false. With fast_return, this is the
-  /// first such goal in the order given; otherwise, it is the closest one.
+  /// fast_return is false. If any goal can be reached by a direct connection, the
+  /// closest such goal is returned immediately, regardless of fast_return.
   /// @return The joint-space path from the start to one of the goal configurations, along with the
   /// index of that goal, if planning succeeds, otherwise an error message.
   tl::expected<RRTPlan, std::string>

@@ -189,42 +189,40 @@ RRT::planToAny(const JointConfiguration& start, std::span<const JointConfigurati
     }
   }
 
-  // Try a direct start-to-goal connection.
-  // Both endpoints were validated above, so only the interior is checked.
-  // With fast_return, the first reachable goal is used. Otherwise the closest reachable goal is.
-  // Either way it is returned without searching. For a single goal the direct path is optimal. With
-  // several, a closer goal whose direct connection is blocked could in principle be reached more
-  // cheaply via a detour. RRT rarely finds a detour that beats a straight-line path, though, so
-  // running the search to look for one would almost always cost time for nothing.
-  std::optional<size_t> best_direct_goal;
-  double best_direct_distance = std::numeric_limits<double>::infinity();
+  // Checks the direct connections, closest goals first, so that the first reachable goal
+  // is the shortest direct connection. Both endpoints were validated above, so only the
+  // interior is checked. For a single goal the direct path is optimal. With several, a
+  // closer goal whose direct connection is blocked could in principle be reached more
+  // cheaply via a detour. RRT rarely finds a detour that beats a straight-line path, though,
+  // so running the search to look for one would almost always cost time for nothing.
+  std::vector<std::pair<double, size_t>> distances;
+  distances.reserve(q_goals.size());
+
   for (size_t i = 0; i < q_goals.size(); ++i) {
-    const auto& q_goal = q_goals[i];
-    const double distance = scene_->configurationDistance(q_start, q_goal);
-    // Skip goals that are out of range, or no better than one already known to be reachable.
-    if (distance > options_.max_connection_distance || distance >= best_direct_distance) {
-      continue;
+    const double distance = scene_->configurationDistance(q_start, q_goals[i]);
+
+    if (distance <= options_.max_connection_distance) {
+      distances.emplace_back(distance, i);
     }
+  }
+
+  std::sort(distances.begin(), distances.end());
+
+  for (const auto& [distance, goal_index] : distances) {
+    const auto& q_goal = q_goals[goal_index];
+
     if (!hasCollisionsAlongPath(*scene_, context, q_start, q_goal,
                                 options_.collision_check_step_size,
                                 options_.collision_check_use_bisection,
                                 /*check_endpoints*/ false) &&
         edgeSatisfiesConstraints(q_start, q_goal)) {
-      best_direct_goal = i;
-      best_direct_distance = distance;
-      if (options_.fast_return) {
-        break;
-      }
+      return RRTPlan{.path = JointPath{.joint_names = joint_group_info_.joint_names,
+                                       .positions = {q_start(q_indices), q_goal(q_indices)}},
+                     .goal_index = goal_index};
     }
   }
-  if (best_direct_goal.has_value()) {
-    return RRTPlan{
-        .path = JointPath{.joint_names = joint_group_info_.joint_names,
-                          .positions = {q_start(q_indices), q_goals[*best_direct_goal](q_indices)}},
-        .goal_index = *best_direct_goal};
-  }
 
-  // Initialize the trees for searching.
+  // No direct goal found. Initialize the trees for searching.
   // When using RRT-Connect we use two trees, one growing from the start, one growing from the goal.
   KdTree start_tree, goal_tree;
   initializeTree(start_tree, start_nodes_, std::span<const Eigen::VectorXd>(&q_start, 1),

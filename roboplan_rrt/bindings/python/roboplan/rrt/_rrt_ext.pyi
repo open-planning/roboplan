@@ -288,7 +288,7 @@ class RRT:
 
     def planToAny(self, start: roboplan.core._core_ext.JointConfiguration, goals: Sequence[roboplan.core._core_ext.JointConfiguration], constraints: Sequence[Constraint] = []) -> RRTPlan:
         """
-        Plan a path from start to any one of a set of goals, optionally subject to constraints that every configuration on the path must satisfy. Returns the path along with the index of the goal it reached. If any goal can be reached by a direct connection, that path is returned immediately, even when fast_return is false: the first such goal in the order given with fast_return, otherwise the closest one.
+        Plan a path from start to any one of a set of goals, optionally subject to constraints that every configuration on the path must satisfy. Returns the path along with the index of the goal it reached. If any goal can be reached by a direct connection, the closest such goal is returned immediately, regardless of fast_return.
         """
 
     def setRngSeed(self, seed: int) -> None:

@@ -304,9 +304,9 @@ TEST_F(RoboPlanRRTTest, PlanMultipleGoalsConsidersEveryGoalForDirectConnection) 
   ASSERT_EQ(goal_index, 1);
 }
 
-TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDirectConnectionPrefersClosestWithoutFastReturn) {
-  // Both goals connect straight from the start. With fast_return the first one listed is taken;
-  // without it the planner must pick the closer one.
+TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDirectConnectionPrefersClosest) {
+  // Both goals connect straight from the start. The farther one is listed first, so the planner
+  // must pick the closer one regardless of fast_return.
   JointConfiguration start, farther_goal, closer_goal;
   start.positions = scene->randomCollisionFreePositions().value();
   farther_goal.positions = start.positions;
@@ -316,27 +316,22 @@ TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDirectConnectionPrefersClosestWithoutFa
   ASSERT_FALSE(scene->hasCollisions(farther_goal.positions));
   ASSERT_FALSE(scene->hasCollisions(closer_goal.positions));
 
-  const auto plan_with = [&](bool fast_return) {
+  for (const bool fast_return : {true, false}) {
+    SCOPED_TRACE("fast_return = " + std::to_string(fast_return));
     RRTOptions options;
     options.group_name = "arm";
     options.max_connection_distance = 0.5;
     options.fast_return = fast_return;
     auto rrt = std::make_unique<RRT>(scene, options);
     rrt->setRngSeed(1234);
-    return rrt->planToAny(start, std::vector<JointConfiguration>{farther_goal, closer_goal});
-  };
 
-  const auto fast_result = plan_with(/*fast_return*/ true);
-  ASSERT_TRUE(fast_result.has_value()) << fast_result.error();
-  ASSERT_EQ(fast_result->path.positions.size(), 2);
-  ASSERT_EQ(fast_result->path.positions[1], farther_goal.positions);
-  ASSERT_EQ(fast_result->goal_index, 0);
-
-  const auto best_result = plan_with(/*fast_return*/ false);
-  ASSERT_TRUE(best_result.has_value()) << best_result.error();
-  ASSERT_EQ(best_result->path.positions.size(), 2);
-  ASSERT_EQ(best_result->path.positions[1], closer_goal.positions);
-  ASSERT_EQ(best_result->goal_index, 1);
+    const auto result =
+        rrt->planToAny(start, std::vector<JointConfiguration>{farther_goal, closer_goal});
+    ASSERT_TRUE(result.has_value()) << result.error();
+    ASSERT_EQ(result->path.positions.size(), 2);
+    ASSERT_EQ(result->path.positions[1], closer_goal.positions);
+    ASSERT_EQ(result->goal_index, 1);
+  }
 }
 
 TEST_F(RoboPlanRRTTest, PlanMultipleGoalsRejectsBadGoals) {
