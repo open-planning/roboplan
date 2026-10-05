@@ -199,6 +199,11 @@ at well-conditioned configurations (singular values :math:`\gg \sqrt{\lambda}`),
 Tasks **at the same priority level** are combined linearly through their weights (no projection between them).
 The decision variable remains :math:`\Delta q`; only the per-task Jacobian is projected.
 
+Constraints whose ``ranksAboveTasks()`` returns true (e.g., ``RelativePoseConstraint``) have their rows placed at the top of :math:`J_{\text{stack}}`, as if they were a priority-0 task.
+Otherwise, a lower priority could move joints that the constraint couples back into a higher-priority task.
+For example, a priority-2 ConfigurationTask would hold back an arm that a RelativePoseConstraint drags along with a priority-1 FrameTask, which degrades that FrameTask's tracking.
+Joint limits and barriers leave this off; their rows bound individual joints, so stacking them would leave no nullspace for lower priorities.
+
 Tasks
 ^^^^^
 
@@ -419,6 +424,7 @@ The error :math:`e = [R^{*T}(p_{ab} - p^*),\ \log_3(R^{*T} R_{ab})]` is expresse
    -\text{tol} - e \leq J_e \Delta q \leq \text{tol} - e
 
 An infinite tolerance leaves that axis free.
+Lower-priority tasks are projected out of all six rows regardless of tolerance (see Task Priorities and Nullspace Projection).
 See ``roboplan_examples/python/example_oink_relative_pose.py``.
 
 Barrier Details

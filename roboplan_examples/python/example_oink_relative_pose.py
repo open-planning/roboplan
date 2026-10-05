@@ -19,6 +19,8 @@ from roboplan.core import (
 from roboplan.example_models import get_package_share_dir
 from roboplan.filters import SE3LowPassFilter
 from roboplan.optimal_ik import (
+    ConfigurationTask,
+    ConfigurationTaskOptions,
     FrameTask,
     FrameTaskOptions,
     Oink,
@@ -35,6 +37,7 @@ def main(
     position_tolerance: float = 0.005,
     orientation_tolerance: float = 0.05,
     bar_radius: float = 0.02,
+    config_task_weight: float = 0.05,
     self_collision_num_pairs: int = 4,
     control_freq: float = 100.0,
     host: str = "localhost",
@@ -53,6 +56,7 @@ def main(
         position_tolerance: Per-axis relative position tolerance, in meters.
         orientation_tolerance: Per-axis relative orientation tolerance, in radians.
         bar_radius: Radius of the held bar, in meters.
+        config_task_weight: Weight of a priority-2 ConfigurationTask pulling toward the start.
         self_collision_num_pairs: Number of closest collision pairs constrained by the
             self-collision barrier; 0 disables the barrier.
         control_freq: Control loop frequency in Hz.
@@ -143,6 +147,13 @@ def main(
         goal.tform = scene.forwardKinematics(q_start, name)
         frame_tasks.append(FrameTask(oink, scene, goal, task_options))
 
+    config_task = ConfigurationTask(
+        oink,
+        q_start[oink.q_indices],
+        np.full(oink.num_variables, config_task_weight),
+        ConfigurationTaskOptions(priority=2),
+    )
+
     # The bar frame starts midway between the grippers, world-aligned, with the bar along y.
     # The bar is rigidly attached to the left gripper, and the marker tracks the bar frame. Each
     # gripper's target is the marker pose composed with its fixed offset from the bar.
@@ -185,6 +196,7 @@ def main(
                     3, np.deg2rad(rot_slider.value)
                 )
 
+    config_checkbox = viz.viewer.gui.add_checkbox("Configuration task", True)
     error_text = viz.viewer.gui.add_markdown("")
     reset_button = viz.viewer.gui.add_button("Reset Marker")
 
@@ -218,9 +230,14 @@ def main(
                 for task in frame_tasks:
                     task.setTargetFrameTransform(T_marker @ bar_T_tcp[task.frame_name])
 
+                tasks = (
+                    frame_tasks + [config_task]
+                    if config_checkbox.value
+                    else frame_tasks
+                )
                 q = scene.getCurrentJointPositions()
                 try:
-                    oink.solveIk(q, frame_tasks, constraints, barriers, delta_q, 1e-3)
+                    oink.solveIk(q, tasks, constraints, barriers, delta_q, 1e-3)
                 except RuntimeError as e:
                     delta_q[:] = 0.0
                     print(f"Warning: IK solver failed: {e}")

@@ -121,6 +121,15 @@ struct Constraints {
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const = 0;
+
+  /// @brief Whether lower-priority tasks are projected out of this constraint's rows, as if it
+  /// were a task above priority 1.
+  ///
+  /// Enable this for task-space constraints that couple joints across tasks (e.g. a relative pose
+  /// between two arms). Otherwise a lower-priority task could move joints that the constraint
+  /// couples back into a higher-priority task. Leave it off for per-joint bounds like position or
+  /// velocity limits, whose rows would remove the entire nullspace.
+  virtual bool ranksAboveTasks() const { return false; }
 };
 
 /// @brief Abstract base class for Control Barrier Functions

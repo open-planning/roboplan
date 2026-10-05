@@ -8,6 +8,7 @@
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/constraints/relative_pose.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
+#include <roboplan_oink/tasks/configuration.hpp>
 #include <roboplan_oink/tasks/frame.hpp>
 #include <test_utils.hpp>
 
@@ -92,6 +93,41 @@ TEST_F(RelativePoseConstraintTest, HoldsRelativePoseWithinTolerance) {
     const Eigen::Vector3d moved = scene_->forwardKinematics(q, "tool0").topRightCorner<3, 1>() -
                                   initial_tool.topRightCorner<3, 1>();
     EXPECT_GT(moved.y(), 0.05) << "tolerance " << tolerance;
+  }
+}
+
+TEST_F(RelativePoseConstraintTest, LowerPriorityTaskDoesNotFightConstraint) {
+  // The wrist is in the forearm task's nullspace, but holding the tool orientation couples it back
+  // to the forearm. A priority-2 configuration task holding the wrist still must not drag the
+  // forearm off its target through the constraint.
+  Eigen::VectorXd q_goal = q_;
+  q_goal.head(3) += Eigen::Vector3d(0.2, 0.2, -0.2);
+  CartesianConfiguration goal;
+  goal.tip_frame = "forearm_link";
+  goal.tform = scene_->forwardKinematics(q_goal, "forearm_link");
+  std::vector<std::shared_ptr<Task>> tasks = {
+      std::make_shared<FrameTask>(*oink_, *scene_, goal, FrameTaskOptions{}),
+      std::make_shared<ConfigurationTask>(*oink_, q_,
+                                          Eigen::VectorXd::Constant(oink_->num_variables, 0.05),
+                                          ConfigurationTaskOptions{.priority = 2})};
+
+  for (const double tolerance : {0.0, 0.01}) {
+    std::vector<std::shared_ptr<Constraints>> constraints = {
+        std::make_shared<RelativePoseConstraint>(
+            *oink_, *scene_, "base_link", "tool0",
+            scene_->forwardKinematics(q_, "base_link").inverse() *
+                scene_->forwardKinematics(q_, "tool0"),
+            Eigen::Vector3d::Constant(10.0), Eigen::Vector3d::Constant(tolerance))};
+    Eigen::VectorXd q = q_;
+    Eigen::VectorXd delta_q(oink_->num_variables);
+    for (int i = 0; i < 20; ++i) {
+      ASSERT_TRUE(oink_->solveIk(q, tasks, constraints, {}, delta_q, 1e-12));
+      q = pinocchio::integrate(scene_->getModel(), q, delta_q);
+    }
+    const Eigen::Vector3d error =
+        scene_->forwardKinematics(q, "forearm_link").topRightCorner<3, 1>() -
+        goal.tform.topRightCorner<3, 1>();
+    EXPECT_LT(error.norm(), 1e-5) << "tolerance " << tolerance;
   }
 }
 

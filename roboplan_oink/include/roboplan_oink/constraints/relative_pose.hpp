@@ -37,6 +37,8 @@ struct RelativePoseConstraint : public Constraints {
   /// @brief Returns 6 (3 position + 3 orientation rows).
   int getNumConstraints(const SceneContext& context) const override;
 
+  bool ranksAboveTasks() const override { return true; }
+
   tl::expected<void, std::string>
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,

@@ -194,49 +194,10 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     context.updateFramePlacements(q);
   }
 
-  // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
-  // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
-  sorted_tasks.clear();
-  for (const auto& task : tasks) {
-    if (task)
-      sorted_tasks.push_back(task.get());
-  }
-  std::stable_sort(sorted_tasks.begin(), sorted_tasks.end(),
-                   [](Task* a, Task* b) { return a->priority < b->priority; });
-
   // Reset Hessian and Gradient.
   H.setZero();
   H.diagonal().setConstant(regularization);
   c.setZero();
-
-  // Cumulative nullspace projector and Jacobian stack.
-  // This is only built up if there are 2+ priority levels — otherwise N stays at identity.
-  nullspace_projector.setIdentity(num_variables, num_variables);
-  jacobian_stack.resize(0, num_variables);
-
-  // Walk tasks in priority order (1 = highest). Each is projected through the current
-  // nullspace_projector (all strictly-higher priorities); on crossing into a new priority level,
-  // rebuild the projector from everything stacked so far. The lowest level, at the back, is never
-  // appended to `jacobian_stack` since no further level projects against it.
-  const int lowest_priority = sorted_tasks.empty() ? 0 : sorted_tasks.back()->priority;
-  const Task* prev_task = nullptr;
-  for (Task* task : sorted_tasks) {
-    if (prev_task && task->priority != prev_task->priority) {
-      rebuildNullspaceProjector(regularization);
-    }
-    auto result = addTaskContribution(context, task);
-    if (!result.has_value()) {
-      return tl::make_unexpected(result.error());
-    }
-    // Stacked Jacobians are only needed for levels above the lowest priority.
-    if (task->priority < lowest_priority) {
-      const int n = static_cast<int>(task->jacobian_container.rows());
-      const int prev = static_cast<int>(jacobian_stack.rows());
-      jacobian_stack.conservativeResize(prev + n, num_variables);
-      jacobian_stack.middleRows(prev, n) = task->jacobian_container;
-    }
-    prev_task = task;
-  }
 
   // Compute barrier values and Jacobians once, then add objective contributions.
   if (barrier_H_contribution.rows() != num_variables) {
@@ -334,6 +295,60 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     constraint_workspace_lower.segment(row_offset, num_rows).setConstant(-kInfinity);
 
     row_offset += num_rows;
+  }
+
+  // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
+  // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
+  sorted_tasks.clear();
+  for (const auto& task : tasks) {
+    if (task)
+      sorted_tasks.push_back(task.get());
+  }
+  std::stable_sort(sorted_tasks.begin(), sorted_tasks.end(),
+                   [](Task* a, Task* b) { return a->priority < b->priority; });
+
+  // Cumulative nullspace projector and Jacobian stack.
+  // This is only built up if there are 2+ priority levels — otherwise N stays at identity.
+  nullspace_projector.setIdentity(num_variables, num_variables);
+  jacobian_stack.resize(0, num_variables);
+
+  // Seed the stack with constraints that rank above every task. Otherwise a lower priority could
+  // move joints that the constraint couples back into a higher-priority task.
+  if (!sorted_tasks.empty() && sorted_tasks.front()->priority != sorted_tasks.back()->priority) {
+    int constraint_row = 0;
+    for (size_t i = 0; i < constraints.size(); ++i) {
+      const int n = constraint_sizes.at(i);
+      if (constraints.at(i)->ranksAboveTasks()) {
+        const int prev = static_cast<int>(jacobian_stack.rows());
+        jacobian_stack.conservativeResize(prev + n, num_variables);
+        jacobian_stack.middleRows(prev, n) = constraint_workspace_A.middleRows(constraint_row, n);
+      }
+      constraint_row += n;
+    }
+  }
+
+  // Walk tasks in priority order (1 = highest). Each is projected through the current
+  // nullspace_projector (all strictly-higher priorities); on crossing into a new priority level,
+  // rebuild the projector from everything stacked so far. The lowest level, at the back, is never
+  // appended to `jacobian_stack` since no further level projects against it.
+  const int lowest_priority = sorted_tasks.empty() ? 0 : sorted_tasks.back()->priority;
+  const Task* prev_task = nullptr;
+  for (Task* task : sorted_tasks) {
+    if (prev_task && task->priority != prev_task->priority) {
+      rebuildNullspaceProjector(regularization);
+    }
+    auto result = addTaskContribution(context, task);
+    if (!result.has_value()) {
+      return tl::make_unexpected(result.error());
+    }
+    // Stacked Jacobians are only needed for levels above the lowest priority.
+    if (task->priority < lowest_priority) {
+      const int n = static_cast<int>(task->jacobian_container.rows());
+      const int prev = static_cast<int>(jacobian_stack.rows());
+      jacobian_stack.conservativeResize(prev + n, num_variables);
+      jacobian_stack.middleRows(prev, n) = task->jacobian_container;
+    }
+    prev_task = task;
   }
 
   // Clear sizes for next iteration
