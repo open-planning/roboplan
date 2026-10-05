@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 try:
     import coal
@@ -12,6 +13,9 @@ from numpy.typing import NDArray
 
 from roboplan.core import Box, Cylinder, Mesh, OcTree, Scene, Sphere
 from roboplan.example_models import get_package_models_dir
+
+if TYPE_CHECKING:
+    from pinocchio.visualize import ViserVisualizer
 
 
 @dataclass
@@ -35,6 +39,26 @@ class ObstacleConfig:
 
     disabled_collisions: list[str] | None = None
     """Optional list of disabled collision bodies."""
+
+    @classmethod
+    def box(
+        cls,
+        name: str,
+        size: tuple[float, float, float],
+        xyz: tuple[float, float, float],
+        color: list[float],
+        disabled_collisions: list[str] | None = None,
+        parent_frame: str = "universe",
+    ) -> "ObstacleConfig":
+        """Creates an axis-aligned box obstacle centered at a position in the parent frame."""
+        return cls(
+            name=name,
+            geom=coal.Box(*size),
+            parent_frame=parent_frame,
+            tform=pin.SE3(np.eye(3), np.array(xyz)).homogeneous,
+            color=np.array(color),
+            disabled_collisions=disabled_collisions,
+        )
 
     def addToScene(self, scene: Scene) -> None:
         """Helper function to add the obstacle to the scene."""
@@ -116,6 +140,48 @@ class ObstacleConfig:
         if isinstance(self.geom, Path):
             geom_obj.meshPath = str(self.geom)
         return geom_obj
+
+
+def _set_viz_parent(viz: "ViserVisualizer", name: str, frame_name: str, q: NDArray):
+    """
+    Reparents a geometry in the visualizer's Pinocchio models, keeping its current world pose.
+
+    The scene and the visualizer keep separate Pinocchio models because Pinocchio/coal don't
+    have nanobindings yet, so attaching in the scene doesn't move the object in the visualizer.
+    """
+    pin.forwardKinematics(viz.model, viz.data, q)
+    frame_id = viz.model.getFrameId(frame_name)
+    joint_id = viz.model.frames[frame_id].parentJoint
+    for geom_model in (viz.collision_model, viz.visual_model):
+        geom_obj = geom_model.geometryObjects[geom_model.getGeometryId(name)]
+        world_T_geom = viz.data.oMi[geom_obj.parentJoint] * geom_obj.placement
+        geom_obj.parentFrame = frame_id
+        geom_obj.parentJoint = joint_id
+        geom_obj.placement = viz.data.oMi[joint_id].actInv(world_T_geom)
+
+
+def attach_object(
+    scene: Scene,
+    viz: "ViserVisualizer",
+    name: str,
+    frame_name: str,
+    allowed_collision_links: list[str],
+) -> None:
+    """
+    Attaches an object to a frame at the current joint positions, in both the scene and the
+    visualizer, keeping its current world pose.
+    """
+    scene.attachObject(name, frame_name, allowed_collision_links)
+    _set_viz_parent(viz, name, frame_name, scene.getCurrentJointPositions())
+
+
+def detach_object(scene: Scene, viz: "ViserVisualizer", name: str) -> None:
+    """
+    Detaches an object back to the world, in both the scene and the visualizer, keeping its
+    current world pose.
+    """
+    scene.detachObject(name)
+    _set_viz_parent(viz, name, "universe", scene.getCurrentJointPositions())
 
 
 @dataclass
@@ -498,6 +564,75 @@ def get_model_data():
                         "rear_right_wheel_link",
                         "test_box",
                         "test_sphere",
+                    ],
+                ),
+            ],
+        ),
+        "tiago_pro": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR / "tiago_pro_robot_model" / "tiago_pro.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR / "tiago_pro_robot_model" / "tiago_pro.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "tiago_pro_robot_model"
+            / "tiago_pro_config.yaml",
+            default_joint_group="base_arms_torso",
+            ee_names=["gripper_left_grasping_link", "gripper_right_grasping_link"],
+            base_link="universe",
+            starting_joint_config=[
+                # nq=31 with Pinocchio mimic joints (gripper finger mimics collapsed).
+                # Planar base (x, y, cos(yaw), sin(yaw)), 4 continuous wheel joints (cos, sin
+                # each), then the SRDF home pose.
+                0.0,
+                0.0,
+                1.0,
+                0.0,  # base_joint
+                1.0,
+                0.0,  # wheel_front_left_joint
+                1.0,
+                0.0,  # wheel_front_right_joint
+                1.0,
+                0.0,  # wheel_rear_left_joint
+                1.0,
+                0.0,  # wheel_rear_right_joint
+                0.1,  # torso_lift_joint
+                # Left arm
+                0.36,
+                -1.83,
+                0.47,
+                -2.35,
+                0.0,
+                -1.2,
+                0.0,
+                0.07,  # gripper_left_finger_joint (open)
+                # Right arm
+                -0.36,
+                -1.83,
+                -0.47,
+                -2.35,
+                0.0,
+                -1.2,
+                0.0,
+                0.07,  # gripper_right_finger_joint (open)
+                0.0,  # head_1_joint
+                0.0,  # head_2_joint
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=coal.Box(3.0, 3.0, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=[
+                        "base_link",
+                        "base_dock_link",
+                        "wheel_front_left_link",
+                        "wheel_front_right_link",
+                        "wheel_rear_left_link",
+                        "wheel_rear_right_link",
+                        "suspension_front_left_link",
+                        "suspension_front_right_link",
+                        "suspension_rear_left_link",
+                        "suspension_rear_right_link",
                     ],
                 ),
             ],

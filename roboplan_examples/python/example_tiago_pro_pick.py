@@ -32,29 +32,58 @@ from roboplan.simple_ik import SimpleIk, SimpleIkOptions
 from roboplan.toppra import PathParameterizerTOPPRA, TOPPRAOptions
 from roboplan.visualization import visualizePath
 
-MODEL_NAME = "ur5"
+MODEL_NAME = "tiago_pro"
+GROUP_NAME = "arm_right"
 
 OBJECT_NAME = "object"
-GRASP_FRAME = "tool0"
+GRASP_FRAME = "gripper_right_grasping_link"
+FINGER_JOINT = "gripper_right_finger_joint"
+HAND_LINKS = [
+    f"gripper_right_{link}_link"
+    for link in (
+        "base",
+        "base_finger_left",
+        "base_finger_right",
+        "inner_finger_left",
+        "inner_finger_right",
+        "outer_finger_left",
+        "outer_finger_right",
+        "fingertip_left",
+        "fingertip_right",
+    )
+]
+BASE_LINKS = [
+    "base_link",
+    "base_dock_link",
+    *[
+        f"{link}_{side}_link"
+        for link in ("wheel", "suspension")
+        for side in ("front_left", "front_right", "rear_left", "rear_right")
+    ],
+]
 
-# The object is a box held between the UR5 gripper fingers
-OBJECT_SIZE = (0.04, 0.04, 0.2)
-TOOL0_T_OBJECT = pin.SE3(np.eye(3), np.array([0.0, 0.0, 0.12])).homogeneous
+# The object is an upright box, grasped top-down near its top. The grasping frame's x axis
+# points out of the gripper, so it is turned to point down.
+OBJECT_SIZE = (0.04, 0.04, 0.12)
+OBJECT_T_TCP = pin.SE3(
+    pin.utils.rotate("y", np.pi / 2), np.array([0.0, 0.0, 0.03])
+).homogeneous
+FINGER_OPEN = 0.07
+FINGER_CLOSED = 0.04
 
-# Two tables with a divider between them
-TABLE_SIZE = (0.2, 0.2, 0.2)
-TABLE_XYS = [(0.45, -0.35), (0.45, 0.35)]
-DIVIDER_SIZE = (0.3, 0.02, 0.4)
+# A table in front of the robot, within reach of the right arm.
+TABLE_XY = (0.6, -0.2)
+TABLE_SIZE = (0.4, 0.4, 0.6)
 
 APPROACH_DISTANCE = 0.1
 COLLISION_CHECK_STEP_SIZE = 0.02
 TRAJ_DT = 0.01
 
 
-def get_object_pose_on_table(table_xy: tuple[float, float]) -> np.ndarray:
-    """Returns the world pose of the object resting on a table, gripper-down."""
+def get_object_pose_on_table() -> np.ndarray:
+    """Returns the world pose of the object resting on the table."""
     z = TABLE_SIZE[2] + OBJECT_SIZE[2] / 2.0 + 0.002
-    return pin.SE3(pin.utils.rotate("x", np.pi), np.array([*table_xy, z])).homogeneous
+    return pin.SE3(np.eye(3), np.array([*TABLE_XY, z])).homogeneous
 
 
 def main(
@@ -64,7 +93,7 @@ def main(
     rng_seed: int = 1337,
 ):
     """
-    Carry an object back and forth between two tables.
+    Pick an object up off a table with the TIAGo Pro's right arm, then put it back down.
 
     Parameters:
         max_planning_time: The maximum time (in seconds) to search for a path.
@@ -73,21 +102,21 @@ def main(
         rng_seed: The seed for the IK solver's and RRT planner's random number generators.
     """
     model_data = get_model_data()[MODEL_NAME]
-    group_name = model_data.default_joint_group
     package_paths = [get_package_share_dir()]
 
     urdf_xml = xacro.process_file(model_data.urdf_path).toxml()
     srdf_xml = xacro.process_file(model_data.srdf_path).toxml()
 
     scene = Scene(
-        "pick_and_place_scene",
+        "tiago_pro_pick_scene",
         loadUrdfSceneDescriptionFromXml(urdf_xml, package_paths),
     )
     scene.importJointLimitsFromConfig(
         loadJointLimitsConfig(model_data.yaml_config_path)
     )
     scene.importSrdf(srdf_xml)
-    q_indices = scene.getJointGroupInfo(group_name).q_indices
+    q_indices = scene.getJointGroupInfo(GROUP_NAME).q_indices
+    finger_indices = scene.getJointPositionIndices([FINGER_JOINT])
 
     # Build a separate Pinocchio model with mimic joints for viz.
     model = pin.buildModelFromXML(urdf_xml, mimic=True)
@@ -99,33 +128,26 @@ def main(
     )
 
     # Obstacles are added to the scene and the visualization models separately (see above).
-    grey, brown = [0.5, 0.5, 0.5, 0.5], [0.6, 0.4, 0.2, 0.8]
     obstacles = [
         ObstacleConfig.box(
-            "ground_plane", (1.5, 1.5, 0.2), (0, 0, -0.1), grey, ["base_link"]
+            "ground_plane",
+            (3.0, 3.0, 0.2),
+            (0, 0, -0.1),
+            [0.5, 0.5, 0.5, 0.5],
+            BASE_LINKS,
         ),
         ObstacleConfig.box(
-            "divider",
-            DIVIDER_SIZE,
-            (0.45, 0.0, DIVIDER_SIZE[2] / 2.0),
-            [0.0, 0.0, 1.0, 0.5],
+            "table",
+            TABLE_SIZE,
+            (*TABLE_XY, TABLE_SIZE[2] / 2.0),
+            [0.6, 0.4, 0.2, 0.8],
             ["ground_plane"],
         ),
-        *[
-            ObstacleConfig.box(
-                f"table_{i}",
-                TABLE_SIZE,
-                (*xy, TABLE_SIZE[2] / 2.0),
-                brown,
-                ["ground_plane"],
-            )
-            for i, xy in enumerate(TABLE_XYS)
-        ],
         ObstacleConfig(
             name=OBJECT_NAME,
             geom=coal.Box(*OBJECT_SIZE),
             parent_frame="universe",
-            tform=get_object_pose_on_table(TABLE_XYS[0]),
+            tform=get_object_pose_on_table(),
             color=np.array([1.0, 0.5, 0.0, 1.0]),
         ),
     ]
@@ -142,18 +164,20 @@ def main(
 
     ik_solver = SimpleIk(
         scene,
-        SimpleIkOptions(group_name=group_name, max_iters=200, check_collisions=True),
+        SimpleIkOptions(
+            group_name=GROUP_NAME,
+            max_iters=200,
+            max_restarts=10,
+            check_collisions=True,
+        ),
     )
     ik_solver.setRngSeed(rng_seed)
-    world_T_base = scene.forwardKinematics(q_home, model_data.base_link)
 
     def solve_ik(world_T_object: np.ndarray, q_seed: np.ndarray) -> np.ndarray:
         goal = CartesianConfiguration()
-        goal.base_frame = model_data.base_link
+        goal.base_frame = ""  # The world frame
         goal.tip_frame = GRASP_FRAME
-        goal.tform = (
-            np.linalg.inv(world_T_base) @ world_T_object @ np.linalg.inv(TOOL0_T_OBJECT)
-        )
+        goal.tform = world_T_object @ OBJECT_T_TCP
         start = JointConfiguration()
         start.positions = q_seed
         solution = JointConfiguration()
@@ -161,19 +185,18 @@ def main(
             raise RuntimeError(f"Could not solve IK for grasp pose:\n{world_T_object}")
         return solution.positions
 
-    # For each table, solve for the grasp and the pre-grasp above it. The pre-grasp is seeded
-    # from the grasp so that the approach is straight.
-    grasps = []
-    for xy in TABLE_XYS:
-        world_T_object = get_object_pose_on_table(xy)
-        q_grasp = solve_ik(world_T_object, q_home[q_indices])
-        world_T_object[2, 3] += APPROACH_DISTANCE
-        grasps.append((q_grasp, solve_ik(world_T_object, q_grasp)))
+    # Solve for the grasp and the pre-grasp above it. The pre-grasp is seeded from the grasp so
+    # that the approach is straight.
+    world_T_object = get_object_pose_on_table()
+    q_grasp = solve_ik(world_T_object, q_home[q_indices])
+    world_T_above = world_T_object.copy()
+    world_T_above[2, 3] += APPROACH_DISTANCE
+    q_above = solve_ik(world_T_above, q_grasp)
 
     rrt = RRT(
         scene,
         RRTOptions(
-            group_name=group_name,
+            group_name=GROUP_NAME,
             collision_check_step_size=COLLISION_CHECK_STEP_SIZE,
             max_planning_time=max_planning_time,
             rrt_connect=True,
@@ -183,10 +206,10 @@ def main(
     shortcutter = PathShortcutter(
         scene,
         PathShortcuttingOptions(
-            group_name=group_name, max_step_size=COLLISION_CHECK_STEP_SIZE
+            group_name=GROUP_NAME, max_step_size=COLLISION_CHECK_STEP_SIZE
         ),
     )
-    toppra = PathParameterizerTOPPRA(scene, group_name)
+    toppra = PathParameterizerTOPPRA(scene, GROUP_NAME)
 
     def move_to(q_goal: np.ndarray, straight: bool = False):
         """
@@ -196,13 +219,13 @@ def main(
         if straight:
             if hasCollisionsAlongPath(
                 scene,
-                scene.toFullJointPositions(group_name, q_start),
-                scene.toFullJointPositions(group_name, q_goal),
+                scene.toFullJointPositions(GROUP_NAME, q_start),
+                scene.toFullJointPositions(GROUP_NAME, q_goal),
                 COLLISION_CHECK_STEP_SIZE / 4.0,
             ):
                 raise RuntimeError("Straight-line motion is in collision.")
             path = JointPath()
-            path.joint_names = scene.getJointGroupInfo(group_name).joint_names
+            path.joint_names = scene.getJointGroupInfo(GROUP_NAME).joint_names
             path.positions = [q_start, q_goal]
         else:
             start = JointConfiguration()
@@ -212,47 +235,56 @@ def main(
             path = shortcutter.shortcut(rrt.plan(start, goal))
 
         traj = toppra.generate(path, TOPPRAOptions(dt=TRAJ_DT))
-        visualizePath(
-            viz,
-            scene,
-            path,
-            [GRASP_FRAME],
-            COLLISION_CHECK_STEP_SIZE,
-        )
+        visualizePath(viz, scene, path, [GRASP_FRAME], COLLISION_CHECK_STEP_SIZE)
         for q in traj.positions:
-            viz.display(scene.toFullJointPositions(group_name, q))
+            viz.display(scene.toFullJointPositions(GROUP_NAME, q))
             time.sleep(TRAJ_DT)
-        scene.setJointPositions(scene.toFullJointPositions(group_name, q_goal))
+        scene.setJointPositions(scene.toFullJointPositions(GROUP_NAME, q_goal))
+
+    def set_fingers(position: float, duration: float = 0.5):
+        """Opens or closes the gripper, animating the motion."""
+        q_start = scene.getCurrentJointPositions()
+        q = q_start.copy()
+        for alpha in np.linspace(0.0, 1.0, int(duration / TRAJ_DT)):
+            q[finger_indices] = (1.0 - alpha) * q_start[
+                finger_indices
+            ] + alpha * position
+            viz.display(q)
+            time.sleep(TRAJ_DT)
+        scene.setJointPositions(q)
 
     run_requested = threading.Event()
-    run_button = viz.viewer.gui.add_button("Pick and place")
+    run_button = viz.viewer.gui.add_button("Pick")
     run_button.on_click(lambda _: run_requested.set())
 
-    # Each run carries the object from one table to the other, then the next run carries it back.
-    src, dst = 0, 1
     while True:
         run_requested.wait()
         run_button.disabled = True
-        q_src, q_src_above = grasps[src]
-        q_dst, q_dst_above = grasps[dst]
 
-        move_to(q_src_above)
-        move_to(q_src, straight=True)
+        # Approach the object from above, grasp it, lift it straight up, and bring it back to
+        # the home position.
+        move_to(q_above)
+        move_to(q_grasp, straight=True)
 
-        attach_object(scene, viz, OBJECT_NAME, GRASP_FRAME, ["wrist_3_link"])
+        set_fingers(FINGER_CLOSED)
+        attach_object(scene, viz, OBJECT_NAME, GRASP_FRAME, HAND_LINKS)
 
-        move_to(q_src_above, straight=True)
-        move_to(q_dst_above)
-        move_to(q_dst, straight=True)
+        move_to(q_above, straight=True)
+        move_to(q_home[q_indices])
 
+        # Put the object back down where it was, so that the pick can be run again.
+        move_to(q_above)
+        move_to(q_grasp, straight=True)
+
+        # Open the gripper before detaching, since closed fingers overlap the object slightly.
+        set_fingers(FINGER_OPEN)
         detach_object(scene, viz, OBJECT_NAME)
 
-        move_to(q_dst_above, straight=True)
+        move_to(q_above, straight=True)
         move_to(q_home[q_indices])
 
         viz.viewer.scene.remove_by_name("/path")
 
-        src, dst = dst, src
         run_requested.clear()
         run_button.disabled = False
 
