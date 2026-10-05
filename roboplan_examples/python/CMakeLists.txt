@@ -12,5 +12,5 @@ install(
            example_rrt.py
            example_scene.py
            example_teleop.py
-           example_tiago_pro_pick.py
+           example_tiago_pro_handover.py
   DESTINATION lib/roboplan_examples)

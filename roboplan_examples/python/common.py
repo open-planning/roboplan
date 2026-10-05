@@ -175,6 +175,21 @@ def attach_object(
     _set_viz_parent(viz, name, frame_name, scene.getCurrentJointPositions())
 
 
+def reparent_object(
+    scene: Scene,
+    viz: "ViserVisualizer",
+    name: str,
+    frame_name: str,
+    allowed_collision_links: list[str],
+) -> None:
+    """
+    Moves an attached object to another frame at the current joint positions, such as when
+    handing it over, in both the scene and the visualizer, keeping its current world pose.
+    """
+    scene.reparentAttachedObject(name, frame_name, allowed_collision_links)
+    _set_viz_parent(viz, name, frame_name, scene.getCurrentJointPositions())
+
+
 def detach_object(scene: Scene, viz: "ViserVisualizer", name: str) -> None:
     """
     Detaches an object back to the world, in both the scene and the visualizer, keeping its
@@ -633,6 +648,29 @@ def get_model_data():
                         "suspension_front_right_link",
                         "suspension_rear_left_link",
                         "suspension_rear_right_link",
+                    ],
+                ),
+                ObstacleConfig(
+                    name="test_sphere",
+                    geom=coal.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([-1.0, 0.75, 0.5])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                    disabled_collisions=["test_box"],
+                ),
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=coal.Box(5.0, 5.0, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1255])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=[
+                        "front_left_wheel_link",
+                        "front_right_wheel_link",
+                        "rear_left_wheel_link",
+                        "rear_right_wheel_link",
+                        "test_box",
+                        "test_sphere",
                     ],
                 ),
             ],
