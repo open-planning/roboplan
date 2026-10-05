@@ -76,6 +76,7 @@ add_library(
   src/constraints/position_limit.cpp
   src/constraints/velocity_limit.cpp
   src/constraints/acceleration_limit.cpp
+  src/constraints/relative_pose.cpp
   src/barriers/position_barrier.cpp
   src/barriers/self_collision_barrier.cpp)
 target_include_directories(

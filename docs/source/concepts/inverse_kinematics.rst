@@ -406,6 +406,21 @@ Call ``setLastVelocity(v_prev)`` once per control step (before solving) with the
    The braking bounds are never allowed to tighten past what :math:`a_{\max}` can actually achieve in one step, so a row can never come out infeasible.
    Without that clamp, a joint approaching a limit (or one that has just overshot its target) could be asked for a deceleration it cannot deliver, and the QP would resolve the contradiction arbitrarily.
 
+RelativePoseConstraint
+""""""""""""""""""""""
+
+Keeps the pose :math:`T_{ab}` of frame :math:`b` relative to frame :math:`a` within a per-axis tolerance of a target :math:`T^*`.
+This is useful, for example, to move two end effectors in tandem while holding a rigid object.
+
+The error :math:`e = [R^{*T}(p_{ab} - p^*),\ \log_3(R^{*T} R_{ab})]` is expressed in the target frame and linearized:
+
+.. math::
+
+   -\text{tol} - e \leq J_e \Delta q \leq \text{tol} - e
+
+An infinite tolerance leaves that axis free.
+See ``roboplan_examples/python/example_oink_relative_pose.py``.
+
 Barrier Details
 ^^^^^^^^^^^^^^^
 

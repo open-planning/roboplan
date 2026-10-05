@@ -272,6 +272,43 @@ class AccelerationLimit(Constraints):
     @delta_q_target.setter
     def delta_q_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None) -> None: ...
 
+class RelativePoseConstraint(Constraints):
+    """
+    Constraint that keeps the pose of frame_b relative to frame_a within a per-axis
+    position/orientation tolerance of target_pose (tolerances are in the target frame).
+    """
+
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_a: str, frame_b: str, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], position_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., orientation_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
+
+    @property
+    def frame_a(self) -> str:
+        """Reference frame name."""
+
+    @property
+    def frame_b(self) -> str:
+        """Constrained frame name."""
+
+    @property
+    def target_pose(self) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
+        """Target pose of frame_b in frame_a (4x4)."""
+
+    @target_pose.setter
+    def target_pose(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], /) -> None: ...
+
+    @property
+    def position_tolerance(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """Per-axis position tolerance (meters)."""
+
+    @position_tolerance.setter
+    def position_tolerance(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
+
+    @property
+    def orientation_tolerance(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """Per-axis orientation tolerance (radians)."""
+
+    @orientation_tolerance.setter
+    def orientation_tolerance(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
+
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
 
