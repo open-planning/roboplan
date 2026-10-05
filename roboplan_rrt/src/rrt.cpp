@@ -91,12 +91,12 @@ void RRT::initializeStateSpace() {
 tl::expected<JointPath, std::string>
 RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
           const std::vector<std::shared_ptr<Constraint>>& constraints) {
-  return planToAny(start, std::vector<JointConfiguration>{goal}, constraints)
+  return planToAny(start, std::span<const JointConfiguration>(&goal, 1), constraints)
       .map([](RRTPlan&& result) { return std::move(result.path); });
 }
 
 tl::expected<RRTPlan, std::string>
-RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfiguration>& goals,
+RRT::planToAny(const JointConfiguration& start, std::span<const JointConfiguration> goals,
                const std::vector<std::shared_ptr<Constraint>>& constraints) {
   const auto start_time = std::chrono::steady_clock::now();
 
@@ -157,7 +157,7 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
     return tl::make_unexpected("No goal configurations provided, cannot plan!");
   }
 
-  for (std::size_t i = 0; i < q_goals.size(); i++) {
+  for (std::size_t i = 0; i < q_goals.size(); ++i) {
     const auto& q_goal = q_goals[i];
 
     if (!scene_->isValidConfiguration(q_goal)) {
@@ -180,7 +180,7 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
                                  "plan! Project it onto the constraints first.");
     }
 
-    for (std::size_t i = 0; i < q_goals.size(); i++) {
+    for (std::size_t i = 0; i < q_goals.size(); ++i) {
       if (!constraint_projector_->satisfies(q_goals[i])) {
         return tl::make_unexpected("Goal configuration " + std::to_string(i) +
                                    " does not satisfy the constraints, cannot plan! Project it "
@@ -198,7 +198,7 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
   // running the search to look for one would almost always cost time for nothing.
   std::optional<size_t> best_direct_goal;
   double best_direct_distance = std::numeric_limits<double>::infinity();
-  for (size_t i = 0; i < q_goals.size(); i++) {
+  for (size_t i = 0; i < q_goals.size(); ++i) {
     const auto& q_goal = q_goals[i];
     const double distance = scene_->configurationDistance(q_start, q_goal);
     // Skip goals that are out of range, or no better than one already known to be reachable.
@@ -227,13 +227,10 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
   // Initialize the trees for searching.
   // When using RRT-Connect we use two trees, one growing from the start, one growing from the goal.
   KdTree start_tree, goal_tree;
-  initializeTree(start_tree, start_nodes_, q_start, options_.max_nodes);
+  initializeTree(start_tree, start_nodes_, std::span<const Eigen::VectorXd>(&q_start, 1),
+                 options_.max_nodes);
 
-  // The total node limit for this plan. With a single goal the budget has always included both
-  // tree roots. Additional goals are free, so that passing many goals (e.g., several IK solutions)
-  // does not eat into the sampling budget.
-  const size_t node_limit = options_.max_nodes + q_goals.size() - 1;
-  size_t goal_tree_size = options_.rrt_connect ? node_limit : q_goals.size();
+  size_t goal_tree_size = options_.rrt_connect ? options_.max_nodes : q_goals.size();
   initializeTree(goal_tree, goal_nodes_, q_goals, goal_tree_size);
 
   bool grow_start_tree = true;
@@ -261,7 +258,7 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
     }
 
     // Check loop termination criteria.
-    if (start_nodes_.size() + goal_nodes_.size() >= node_limit) {
+    if (start_nodes_.size() + goal_nodes_.size() >= options_.max_nodes) {
       if (best_path.has_value()) {
         return to_result(std::move(*best_path));
       }
@@ -281,10 +278,8 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
     // the other, so we sample uniformly at random and let the trees reach for one another rather
     // than repeatedly aiming at the fixed opposite endpoint.
     if (!options_.rrt_connect && uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
-      // Don't call the random number generator when there's only one goal. This keeps the the
-      // same random sequence (and so produces the same paths for a given seed) as before the
-      // addition of the multi-goal API.
-      q_sample = q_goals.size() == 1 ? q_goals.front() : q_goals[q_goal_dist(rng_gen_)];
+      const size_t goal_index = q_goals.size() == 1 ? 0 : q_goal_dist(rng_gen_);
+      q_sample = q_goals[goal_index];
     } else {
       // Randomize only the planning group's DOFs in-place; non-group entries keep their values.
       context.randomizeJointPositions(joint_group_info_.joint_names, q_sample);
@@ -292,7 +287,7 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
 
     // Extend the growing tree a single step toward the sample (EXTEND).
     // If nothing was added, resample and try again.
-    if (!growTree(tree, nodes, q_sample, context, /*greedy*/ false, node_limit)) {
+    if (!growTree(tree, nodes, q_sample, context, /*greedy*/ false)) {
       continue;
     }
 
@@ -300,8 +295,7 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
     // (the CONNECT step), so the two trees actively reach for each other. The connection itself is
     // verified and turned into a path by joinTrees below.
     if (options_.rrt_connect) {
-      growTree(target_tree, target_nodes, nodes.back().config, context, /*greedy*/ true,
-               node_limit);
+      growTree(target_tree, target_nodes, nodes.back().config, context, /*greedy*/ true);
     }
 
     // Check if the trees can be connected from the latest added node.
@@ -328,13 +322,8 @@ RRT::planToAny(const JointConfiguration& start, const std::vector<JointConfigura
   return tl::make_unexpected("Unable to find a path!");
 }
 
-void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
-                         size_t max_size) {
-  initializeTree(tree, nodes, std::vector<Eigen::VectorXd>{q_init}, max_size);
-}
-
 void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes,
-                         const std::vector<Eigen::VectorXd>& q_inits, size_t max_size) {
+                         std::span<const Eigen::VectorXd> q_inits, size_t max_size) {
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   const auto& q_indices = joint_group_info_.q_indices;
@@ -349,7 +338,7 @@ void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes,
 }
 
 bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
-                   const SceneContext& context, bool greedy, size_t node_limit) {
+                   const SceneContext& context, bool greedy) {
   const auto& q_indices = joint_group_info_.q_indices;
   const bool constrained = constraint_projector_.has_value();
 
@@ -446,7 +435,7 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
     if (!greedy && distance_grown >= options_.max_connection_distance) {
       break;
     }
-    if (nodes.size() >= node_limit) {
+    if (nodes.size() >= options_.max_nodes) {
       break;
     }
   }

@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,8 +28,7 @@ struct RRTOptions {
   std::string group_name = "";
 
   /// @brief The maximum number of nodes to sample.
-  /// @details This includes the start and one goal root. Additional goal configurations do not
-  /// count toward this limit.
+  /// @details This includes the start and all goal configurations.
   size_t max_nodes = 1000;
 
   /// @brief The maximum configuration distance between two nodes.
@@ -125,7 +125,7 @@ public:
   /// @return The joint-space path from the start to one of the goal configurations, along with the
   /// index of that goal, if planning succeeds, otherwise an error message.
   tl::expected<RRTPlan, std::string>
-  planToAny(const JointConfiguration& start, const std::vector<JointConfiguration>& goals,
+  planToAny(const JointConfiguration& start, std::span<const JointConfiguration> goals,
             const std::vector<std::shared_ptr<Constraint>>& constraints = {});
 
   /// @brief Sets the seed for the random number generator (RNG).
@@ -134,14 +134,6 @@ public:
   /// @param seed The seed to set.
   void setRngSeed(unsigned int seed);
 
-  /// @brief Initializes the search tree with the specified start pose.
-  /// @param tree Reference to an empty tree.
-  /// @param nodes Reference to the nodes vector.
-  /// @param q_init The root configuration, as full (model-sized) joint positions.
-  /// @param max_size The number of nodes to reserve space for.
-  void initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
-                      size_t max_size = 1000);
-
   /// @brief Initializes the search tree with the specified list of start poses.
   /// @param tree Reference to an empty tree.
   /// @param nodes Reference to the nodes vector.
@@ -149,7 +141,7 @@ public:
   /// configuration is an independent root.
   /// @param max_size The number of nodes to reserve space for.
   void initializeTree(KdTree& tree, std::vector<Node>& nodes,
-                      const std::vector<Eigen::VectorXd>& q_inits, size_t max_size = 1000);
+                      std::span<const Eigen::VectorXd> q_inits, size_t max_size = 1000);
 
   /// @brief Attempt to add node(s) to the provided tree and node set, growing toward `q_sample`.
   /// @param tree The tree to grow.
@@ -159,10 +151,9 @@ public:
   /// @param greedy If true (the RRT-Connect CONNECT step), repeatedly extend toward `q_sample`
   /// until it is reached or an obstacle is hit. If false (a single EXTEND step), stop once
   /// `max_connection_distance` of progress has been made.
-  /// @param node_limit Stop growing once `nodes` holds this many nodes.
   /// @return True if node(s) were added to the tree, false otherwise.
   bool growTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,
-                const SceneContext& context, bool greedy, size_t node_limit);
+                const SceneContext& context, bool greedy);
 
   /// @brief Attempts to connect the `target_tree` to the latest added node in `nodes`.
   /// @details The "latest added node" refers to `nodes.back()`. The function will identify the

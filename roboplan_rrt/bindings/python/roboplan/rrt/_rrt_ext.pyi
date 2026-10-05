@@ -172,7 +172,7 @@ class RRTOptions:
     @property
     def max_nodes(self) -> int:
         """
-        The maximum number of nodes to sample. This includes the start and one goal root; additional goal configurations do not count toward this limit.
+        The maximum number of nodes to sample. This includes the start and all goal configurations.
         """
 
     @max_nodes.setter

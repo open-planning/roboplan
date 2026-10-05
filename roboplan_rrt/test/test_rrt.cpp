@@ -294,7 +294,8 @@ TEST_F(RoboPlanRRTTest, PlanMultipleGoalsConsidersEveryGoalForDirectConnection) 
             options.max_connection_distance);
   ASSERT_FALSE(scene->hasCollisions(near_goal.positions));
 
-  const auto maybe_result = rrt->planToAny(start, {far_goal, near_goal});
+  JointConfiguration goals[] = {far_goal, near_goal};
+  const auto maybe_result = rrt->planToAny(start, goals);
   ASSERT_TRUE(maybe_result.has_value()) << maybe_result.error();
   const auto& [path, goal_index] = maybe_result.value();
   ASSERT_EQ(path.positions.size(), 2);
@@ -322,7 +323,7 @@ TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDirectConnectionPrefersClosestWithoutFa
     options.fast_return = fast_return;
     auto rrt = std::make_unique<RRT>(scene, options);
     rrt->setRngSeed(1234);
-    return rrt->planToAny(start, {farther_goal, closer_goal});
+    return rrt->planToAny(start, std::vector<JointConfiguration>{farther_goal, closer_goal});
   };
 
   const auto fast_result = plan_with(/*fast_return*/ true);
@@ -336,31 +337,6 @@ TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDirectConnectionPrefersClosestWithoutFa
   ASSERT_EQ(best_result->path.positions.size(), 2);
   ASSERT_EQ(best_result->path.positions[1], closer_goal.positions);
   ASSERT_EQ(best_result->goal_index, 1);
-}
-
-TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDoesNotSpendNodeBudgetOnGoals) {
-  // Extra goal roots are free: even with more goals than max_nodes, the planner still gets to grow
-  // its full node budget rather than giving up before sampling anything.
-  RRTOptions options;
-  options.group_name = "arm";
-  options.max_connection_distance = 0.1;
-  options.max_nodes = 50;
-  options.fast_return = false;
-  options.max_planning_time = 5.0;
-  auto rrt = std::make_unique<RRT>(scene, options);
-  rrt->setRngSeed(1234);
-
-  JointConfiguration start;
-  start.positions = scene->randomCollisionFreePositions().value();
-  std::vector<JointConfiguration> goals(60);
-  for (auto& goal : goals) {
-    goal.positions = scene->randomCollisionFreePositions().value();
-  }
-
-  // Whether a path is found doesn't matter here, only how many nodes were grown.
-  std::ignore = rrt->planToAny(start, goals);
-  const auto [start_nodes, goal_nodes] = rrt->getNodes();
-  EXPECT_EQ(start_nodes.size() + goal_nodes.size() - (goals.size() - 1), options.max_nodes);
 }
 
 TEST_F(RoboPlanRRTTest, PlanMultipleGoalsRejectsBadGoals) {
@@ -380,7 +356,8 @@ TEST_F(RoboPlanRRTTest, PlanMultipleGoalsRejectsBadGoals) {
   EXPECT_NE(empty_result.error().find("No goal configurations"), std::string::npos);
 
   // One bad goal fails the whole request, and the error names which goal it was.
-  const auto invalid_result = rrt->planToAny(start, {valid_goal, invalid_goal});
+  const auto invalid_result =
+      rrt->planToAny(start, std::vector<JointConfiguration>{valid_goal, invalid_goal});
   ASSERT_FALSE(invalid_result.has_value());
   EXPECT_NE(invalid_result.error().find("goal configuration 1"), std::string::npos)
       << invalid_result.error();
@@ -424,23 +401,21 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   // Initialize the search to the start configuration.
   KdTree tree;
   std::vector<Node> nodes;
-  rrt->initializeTree(tree, nodes, q_start);
+  rrt->initializeTree(tree, nodes, std::span<const Eigen::VectorXd>(&q_start, 1));
 
   // A single EXTEND step adds exactly one node at the expected configuration,
   // which is exactly options.max_connection_distance away.
-  ASSERT_TRUE(
-      rrt->growTree(tree, nodes, q_end, scene_context, /*greedy*/ false, options.max_nodes));
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_end, scene_context, /*greedy*/ false));
   ASSERT_EQ(nodes.size(), 2);
   ASSERT_EQ(nodes.back().config, q_extend_expected);
 
   // Reset the search tree and enable RRT-Connect.
   options.rrt_connect = true;
   auto rrt_connect = std::make_unique<RRT>(scene, options);
-  rrt_connect->initializeTree(tree, nodes, q_start);
+  rrt_connect->initializeTree(tree, nodes, std::span<const Eigen::VectorXd>(&q_start, 1));
 
   // A greedy CONNECT step will add exactly 6 nodes and reach q_end.
-  ASSERT_TRUE(
-      rrt_connect->growTree(tree, nodes, q_end, scene_context, /*greedy*/ true, options.max_nodes));
+  ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, scene_context, /*greedy*/ true));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
 }
@@ -468,8 +443,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTreeWithMultipleRoots) {
   EXPECT_EQ(nodes[1].parent_id, -1);
 
   // Growing extends from whichever root is nearest the target, here the second one.
-  ASSERT_TRUE(
-      rrt->growTree(tree, nodes, q_target, scene_context, /*greedy*/ false, options.max_nodes));
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_target, scene_context, /*greedy*/ false));
   ASSERT_EQ(nodes.size(), 3);
   EXPECT_EQ(nodes.back().config, q_target);
   EXPECT_EQ(nodes.back().parent_id, 1);
@@ -503,17 +477,17 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   // Initialize the search to the start configuration.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
-  rrt->initializeTree(start_tree, start_nodes, q_start);
-  rrt->initializeTree(goal_tree, goal_nodes, q_goal);
+  rrt->initializeTree(start_tree, start_nodes, std::span<const Eigen::VectorXd>(&q_start, 1));
+  rrt->initializeTree(goal_tree, goal_nodes, std::span<const Eigen::VectorXd>(&q_goal, 1));
 
   // The nodes should both be appended directly to the start and goal nodes.
-  ASSERT_TRUE(rrt->growTree(start_tree, start_nodes, q_start_nearest, scene_context,
-                            /*greedy*/ false, options.max_nodes));
+  ASSERT_TRUE(
+      rrt->growTree(start_tree, start_nodes, q_start_nearest, scene_context, /*greedy*/ false));
   ASSERT_EQ(start_nodes.size(), 2);
   ASSERT_EQ(start_nodes.back().config, q_start_nearest);
 
-  ASSERT_TRUE(rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, scene_context, /*greedy*/ false,
-                            options.max_nodes));
+  ASSERT_TRUE(
+      rrt->growTree(goal_tree, goal_nodes, q_goal_nearest, scene_context, /*greedy*/ false));
   ASSERT_EQ(goal_nodes.size(), 2);
   ASSERT_EQ(goal_nodes.back().config, q_goal_nearest);
 
@@ -696,11 +670,13 @@ TEST_F(RoboPlanConstrainedRRTTest, PlanRejectsEndpointsOffTheConstraint) {
   on.positions = q_on(q_indices);
   off.positions = q_off(q_indices);
 
+  JointConfiguration goals[] = {on, off};
+
   ASSERT_FALSE(rrt->plan(off, on, constraints).has_value());
   ASSERT_FALSE(rrt->plan(on, off, constraints).has_value());
 
   // A single goal off the constraint fails a multi-goal request, and the error names it.
-  const auto multi_result = rrt->planToAny(on, {on, off}, constraints);
+  const auto multi_result = rrt->planToAny(on, goals, constraints);
   ASSERT_FALSE(multi_result.has_value());
   EXPECT_NE(multi_result.error().find("Goal configuration 1 does not satisfy"), std::string::npos)
       << multi_result.error();

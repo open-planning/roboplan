@@ -134,8 +134,8 @@ void initRrt(nanobind::module_& m) {
       .def_rw("group_name", &RRTOptions::group_name,
               "The joint group name to be used by the planner.")
       .def_rw("max_nodes", &RRTOptions::max_nodes,
-              "The maximum number of nodes to sample. This includes the start and one goal root; "
-              "additional goal configurations do not count toward this limit.")
+              "The maximum number of nodes to sample. This includes the start and all goal "
+              "configurations.")
       .def_rw("max_connection_distance", &RRTOptions::max_connection_distance,
               "The maximum configuration distance between two nodes.")
       .def_rw("collision_check_step_size", &RRTOptions::collision_check_step_size,
@@ -177,14 +177,22 @@ void initRrt(nanobind::module_& m) {
            "Plan a path from start to goal, optionally subject to constraints that every "
            "configuration on the path must satisfy.",
            "start"_a, "goal"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
-      .def("planToAny", unwrap_expected(&RRT::planToAny),
-           nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Plan a path from start to any one of a set of goals, optionally subject to "
-           "constraints that every configuration on the path must satisfy. Returns the path along "
-           "with the index of the goal it reached. If any goal can be reached by a direct "
-           "connection, that path is returned immediately, even when fast_return is false: the "
-           "first such goal in the order given with fast_return, otherwise the closest one.",
-           "start"_a, "goals"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
+      // nanobind doesn't (currently) support std::span, so instead accept a list and have it
+      // be converted to a std::span implicitly.
+      .def(
+          "planToAny",
+          [](RRT& self, const JointConfiguration& start,
+             const std::vector<JointConfiguration>& goals,
+             const std::vector<std::shared_ptr<Constraint>>& constraints) {
+            return handle_expected(self.planToAny(start, goals, constraints));
+          },
+          nanobind::call_guard<nanobind::gil_scoped_release>(),
+          "Plan a path from start to any one of a set of goals, optionally subject to "
+          "constraints that every configuration on the path must satisfy. Returns the path along "
+          "with the index of the goal it reached. If any goal can be reached by a direct "
+          "connection, that path is returned immediately, even when fast_return is false: the "
+          "first such goal in the order given with fast_return, otherwise the closest one.",
+          "start"_a, "goals"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
       .def("setRngSeed", &RRT::setRngSeed, "Sets the seed for the random number generator (RNG).",
            "seed"_a)
       .def("getNodes", &RRT::getNodes,
