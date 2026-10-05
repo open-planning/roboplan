@@ -55,7 +55,9 @@ class CartesianConfiguration:
 
     @property
     def base_frame(self) -> str:
-        """The name of the base (or reference) frame."""
+        """
+        The name of the base (or reference) frame. An empty frame name means the world frame.
+        """
 
     @base_frame.setter
     def base_frame(self, arg: str, /) -> None: ...
@@ -310,7 +312,9 @@ class CartesianPath:
 
     @property
     def base_frames(self) -> list[str]:
-        """The names of the base frames."""
+        """
+        The names of the base frames. An empty frame name means the world frame.
+        """
 
     @base_frames.setter
     def base_frames(self, arg: Sequence[str], /) -> None: ...
@@ -342,7 +346,9 @@ class CartesianTrajectory:
 
     @property
     def base_frames(self) -> list[str]:
-        """The names of the base frames."""
+        """
+        The names of the base frames. An empty frame name means the world frame.
+        """
 
     @base_frames.setter
     def base_frames(self, arg: Sequence[str], /) -> None: ...

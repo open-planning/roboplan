@@ -428,4 +428,31 @@ TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {
   ASSERT_FALSE(result.has_value());
 }
 
+TEST_F(CartesianPlannerTest, EmptyBaseFrame) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+
+  const Eigen::Matrix4d start = scene_->forwardKinematics(q_start.positions, kTipFrame);
+  std::vector<Eigen::Matrix4d> waypoints;
+  for (int i = 0; i < 3; ++i) {
+    Eigen::Matrix4d pose = start;
+    pose(0, 3) += i * 0.025;
+    waypoints.push_back(pose);
+  }
+  const CartesianPath path({""}, {kTipFrame}, {waypoints});  // Empty base frame means world
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const Eigen::VectorXd q_full_final =
+      scene_->toFullJointPositions(kGroup, result->positions.back());
+  const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame);
+  EXPECT_LE((fk_final.block<3, 1>(0, 3) - waypoints.back().block<3, 1>(0, 3)).norm(),
+            options.max_position_error + 1e-6);
+}
+
 }  // namespace roboplan

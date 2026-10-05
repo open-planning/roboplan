@@ -42,8 +42,9 @@ void init_core_types(nanobind::module_& m) {
       .def(nanobind::init<>())
       .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>(),
            "base_frame"_a, "tip_frame"_a, "tform"_a)
-      .def_rw("base_frame", &CartesianConfiguration::base_frame,
-              "The name of the base (or reference) frame.")
+      .def_rw(
+          "base_frame", &CartesianConfiguration::base_frame,
+          "The name of the base (or reference) frame. An empty frame name means the world frame.")
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame,
               "The name of the tip (or target) frame.")
       .def_rw("tform", &CartesianConfiguration::tform,
@@ -137,7 +138,8 @@ void init_core_types(nanobind::module_& m) {
       .def(nanobind::init<const std::vector<std::string>&, const std::vector<std::string>&,
                           const std::vector<std::vector<Eigen::Matrix4d>>&>(),
            nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("tforms"))
-      .def_rw("base_frames", &CartesianPath::base_frames, "The names of the base frames.")
+      .def_rw("base_frames", &CartesianPath::base_frames,
+              "The names of the base frames. An empty frame name means the world frame.")
       .def_rw("tip_frames", &CartesianPath::tip_frames, "The names of the tip frames.")
       .def_rw("tforms", &CartesianPath::tforms,
               "The Cartesian transforms from each base frame to each tip frame.")
@@ -154,7 +156,8 @@ void init_core_types(nanobind::module_& m) {
                           std::vector<std::vector<Eigen::Matrix4d>>>(),
            nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("times"),
            nanobind::arg("tforms"))
-      .def_rw("base_frames", &CartesianTrajectory::base_frames, "The names of the base frames.")
+      .def_rw("base_frames", &CartesianTrajectory::base_frames,
+              "The names of the base frames. An empty frame name means the world frame.")
       .def_rw("tip_frames", &CartesianTrajectory::tip_frames, "The names of the tip frames.")
       .def_rw("times", &CartesianTrajectory::times, "The list of times.")
       .def_rw("tforms", &CartesianTrajectory::tforms,
