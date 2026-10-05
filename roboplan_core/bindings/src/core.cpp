@@ -217,8 +217,15 @@ void init_core_scene(nanobind::module_& m) {
            "seed"_a)
       .def("randomPositions", nanobind::overload_cast<>(&Scene::randomPositions),
            "Generates random positions for the robot model.")
-      .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<size_t>(&Scene::randomCollisionFreePositions),
            "Generates random collision-free positions for the robot model.", "max_samples"_a = 1000)
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<const std::vector<std::string>&, const Eigen::VectorXd&, size_t>(
+               &Scene::randomCollisionFreePositions),
+           "Generates random collision-free positions, randomizing only the specified joints and "
+           "taking all others from the reference configuration.",
+           "joint_names"_a, "q_reference"_a, "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions,
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
       .def("isValidConfiguration", &Scene::isValidConfiguration,
@@ -406,10 +413,19 @@ void init_core_scene(nanobind::module_& m) {
            "Sets the seed of this context's random number generator.", "seed"_a)
       .def("randomPositions", &SceneContext::randomPositions,
            "Generates random positions using this context's RNG.")
-      .def("randomCollisionFreePositions", &SceneContext::randomCollisionFreePositions,
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<size_t>(&SceneContext::randomCollisionFreePositions),
            nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Generates random collision-free positions using this context's RNG and scratch.",
            "max_samples"_a = 1000)
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<const std::vector<std::string>&, const Eigen::VectorXd&, size_t>(
+               &SceneContext::randomCollisionFreePositions),
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Generates random collision-free positions using this context's RNG and scratch, "
+           "randomizing only the specified joints and taking all others from the reference "
+           "configuration.",
+           "joint_names"_a, "q_reference"_a, "max_samples"_a = 1000)
       .def("getJointPositions", &SceneContext::getJointPositions,
            "This context's current joint positions.")
       .def("setJointPositions", &SceneContext::setJointPositions,

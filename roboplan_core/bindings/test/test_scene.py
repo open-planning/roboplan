@@ -126,6 +126,17 @@ def test_random_positions(test_scene: Scene) -> None:
     assert np.all(np.equal(orig_seeded_positions, new_seeded_positions))
 
 
+def test_random_collision_free_positions_for_joint_subset(test_scene: Scene) -> None:
+    # Only the requested joints are sampled; every other entry comes from the reference.
+    joint_names = ["wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
+    q_reference = np.array([0.5, -1.0, 1.0, 0.0, 0.0, 0.0])
+    q = test_scene.randomCollisionFreePositions(joint_names, q_reference)
+    assert q is not None
+    np.testing.assert_array_equal(q[:3], q_reference[:3])
+    assert not np.array_equal(q[3:], q_reference[3:])
+    assert not test_scene.hasCollisions(q)
+
+
 def test_collision_check(test_scene: Scene) -> None:
     # Collision free
     q_free = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])

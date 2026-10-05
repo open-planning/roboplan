@@ -117,7 +117,9 @@ bool SimpleIk::solveIk(const std::vector<CartesianConfiguration>& goals,
   bool timed_out = false;
   while (attempt <= options_.max_restarts && !timed_out) {
     if (attempt > 0) {
-      const auto maybe_q_random = context.randomCollisionFreePositions();
+      // Only randomize the group's joints, since the solver can't move the others.
+      const auto maybe_q_random =
+          context.randomCollisionFreePositions(joint_group_info_.joint_names, q_seed);
       if (!maybe_q_random) {
         throw std::runtime_error("Failed to generate random collision free positions for IK.");
       }

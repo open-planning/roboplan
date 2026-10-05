@@ -113,6 +113,18 @@ public:
   /// @return The random positions, if successful, else std::nullopt.
   std::optional<Eigen::VectorXd> randomCollisionFreePositions(size_t max_samples = 1000);
 
+  /// @brief Generates random collision-free positions for a subset of the joints, using this
+  /// context's RNG and scratch.
+  /// @details Only the degrees of freedom belonging to `joint_names` are sampled; all other
+  /// entries are taken from `q_reference`.
+  /// @param joint_names The names of the joints to randomize.
+  /// @param q_reference The full configuration supplying the joints that are not randomized.
+  /// @param max_samples The maximum number of samples to attempt.
+  /// @return The random positions, if successful, else std::nullopt.
+  std::optional<Eigen::VectorXd>
+  randomCollisionFreePositions(const std::vector<std::string>& joint_names,
+                               const Eigen::VectorXd& q_reference, size_t max_samples = 1000);
+
   /// @brief This context's current joint positions (size model.nq).
   const Eigen::VectorXd& getJointPositions() const { return q_; }
 
