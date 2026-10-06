@@ -128,7 +128,8 @@ struct Constraints {
   /// Enable this for task-space constraints that couple joints across tasks (e.g. a relative pose
   /// between two arms). Otherwise a lower-priority task could move joints that the constraint
   /// couples back into a higher-priority task. Leave it off for per-joint bounds like position or
-  /// velocity limits, whose rows would remove the entire nullspace.
+  /// velocity limits, whose rows would remove the entire nullspace. Bounded rows are projected out
+  /// as if they were equalities, even when inactive; rows with both bounds infinite are skipped.
   virtual bool ranksAboveTasks() const { return false; }
 };
 

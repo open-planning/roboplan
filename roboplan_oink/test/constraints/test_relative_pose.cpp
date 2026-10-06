@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 
@@ -129,6 +130,38 @@ TEST_F(RelativePoseConstraintTest, LowerPriorityTaskDoesNotFightConstraint) {
         goal.tform.topRightCorner<3, 1>();
     EXPECT_LT(error.norm(), 1e-5) << "tolerance " << tolerance;
   }
+}
+
+TEST_F(RelativePoseConstraintTest, InfiniteToleranceAxesStayInLowerPriorityNullspace) {
+  // Only the tool orientation is constrained, so a priority-2 task can still move the tool position
+  // even though the constraint ranks above all tasks.
+  const double inf = std::numeric_limits<double>::infinity();
+  std::vector<std::shared_ptr<Constraints>> constraints = {std::make_shared<RelativePoseConstraint>(
+      *oink_, *scene_, "base_link", "tool0",
+      scene_->forwardKinematics(q_, "base_link").inverse() * scene_->forwardKinematics(q_, "tool0"),
+      Eigen::Vector3d::Constant(inf), Eigen::Vector3d::Zero())};
+
+  CartesianConfiguration shoulder_goal;
+  shoulder_goal.tip_frame = "shoulder_link";
+  shoulder_goal.tform = scene_->forwardKinematics(q_, "shoulder_link");
+  CartesianConfiguration tool_goal;
+  tool_goal.tip_frame = "tool0";
+  tool_goal.tform = scene_->forwardKinematics(q_, "tool0");
+  tool_goal.tform(2, 3) += 0.05;
+  std::vector<std::shared_ptr<Task>> tasks = {
+      std::make_shared<FrameTask>(*oink_, *scene_, shoulder_goal, FrameTaskOptions{}),
+      std::make_shared<FrameTask>(*oink_, *scene_, tool_goal,
+                                  FrameTaskOptions{.orientation_cost = 0.0, .priority = 2})};
+
+  Eigen::VectorXd q = q_;
+  Eigen::VectorXd delta_q(oink_->num_variables);
+  for (int i = 0; i < 50; ++i) {
+    ASSERT_TRUE(oink_->solveIk(q, tasks, constraints, {}, delta_q, 1e-12));
+    q = pinocchio::integrate(scene_->getModel(), q, delta_q);
+  }
+  const Eigen::Vector3d error = scene_->forwardKinematics(q, "tool0").topRightCorner<3, 1>() -
+                                tool_goal.tform.topRightCorner<3, 1>();
+  EXPECT_LT(error.norm(), 1e-3);
 }
 
 }  // namespace roboplan

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
@@ -313,17 +314,30 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
   jacobian_stack.resize(0, num_variables);
 
   // Seed the stack with constraints that rank above every task. Otherwise a lower priority could
-  // move joints that the constraint couples back into a higher-priority task.
+  // move joints that the constraint couples back into a higher-priority task. Bounded rows are
+  // stacked as equalities; unbounded rows constrain nothing, so they are skipped.
   if (!sorted_tasks.empty() && sorted_tasks.front()->priority != sorted_tasks.back()->priority) {
+    // Count the stacked rows first so the (still empty) stack is sized once.
+    const auto is_stacked = [&](size_t i, int r) {
+      return constraints.at(i)->ranksAboveTasks() && !(std::isinf(constraint_workspace_lower(r)) &&
+                                                       std::isinf(constraint_workspace_upper(r)));
+    };
+    int num_stacked = 0;
     int constraint_row = 0;
     for (size_t i = 0; i < constraints.size(); ++i) {
-      const int n = constraint_sizes.at(i);
-      if (constraints.at(i)->ranksAboveTasks()) {
-        const int prev = static_cast<int>(jacobian_stack.rows());
-        jacobian_stack.conservativeResize(prev + n, num_variables);
-        jacobian_stack.middleRows(prev, n) = constraint_workspace_A.middleRows(constraint_row, n);
+      for (int j = 0; j < constraint_sizes.at(i); ++j, ++constraint_row) {
+        num_stacked += is_stacked(i, constraint_row);
       }
-      constraint_row += n;
+    }
+    jacobian_stack.resize(num_stacked, num_variables);
+    int stack_row = 0;
+    constraint_row = 0;
+    for (size_t i = 0; i < constraints.size(); ++i) {
+      for (int j = 0; j < constraint_sizes.at(i); ++j, ++constraint_row) {
+        if (is_stacked(i, constraint_row)) {
+          jacobian_stack.row(stack_row++) = constraint_workspace_A.row(constraint_row);
+        }
+      }
     }
   }
 

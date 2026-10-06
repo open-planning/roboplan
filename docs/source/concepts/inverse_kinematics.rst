@@ -200,6 +200,7 @@ Tasks **at the same priority level** are combined linearly through their weights
 The decision variable remains :math:`\Delta q`; only the per-task Jacobian is projected.
 
 Constraints whose ``ranksAboveTasks()`` returns true (e.g., ``RelativePoseConstraint``) have their rows placed at the top of :math:`J_{\text{stack}}`, as if they were a priority-0 task.
+Bounded rows are stacked as equalities, even when inactive; rows with both bounds infinite are skipped.
 Otherwise, a lower priority could move joints that the constraint couples back into a higher-priority task.
 For example, a priority-2 ConfigurationTask would hold back an arm that a RelativePoseConstraint drags along with a priority-1 FrameTask, which degrades that FrameTask's tracking.
 Joint limits and barriers leave this off; their rows bound individual joints, so stacking them would leave no nullspace for lower priorities.
