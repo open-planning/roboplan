@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include <Eigen/Core>
@@ -27,11 +28,15 @@ namespace roboplan::detail {
 /// @param lower Inequality lower bounds (total_rows).
 /// @param upper Inequality upper bounds (total_rows).
 /// @param delta_q Pre-allocated output buffer for the solution.
+/// @param primal_guess Optional primal warm start, used with the previous solve's inequality duals
+/// (which do not depend on the variables' basis) instead of warm starting from the previous result.
 /// @return void on success, error message on failure.
 tl::expected<void, std::string>
 solveQp(QpSolverPtr& solver, const OinkSettings& settings, bool init_required, int num_variables,
         int total_rows, const Eigen::MatrixXd& H, const Eigen::VectorXd& c,
-        const Eigen::MatrixXd& A, const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,
-        Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q);
+        Eigen::Ref<const Eigen::MatrixXd> A, Eigen::Ref<const Eigen::VectorXd> lower,
+        Eigen::Ref<const Eigen::VectorXd> upper,
+        Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+        std::optional<Eigen::Ref<const Eigen::VectorXd>> primal_guess = std::nullopt);
 
 }  // namespace roboplan::detail

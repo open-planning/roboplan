@@ -3,6 +3,8 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <tl/expected.hpp>
 
@@ -121,16 +123,6 @@ struct Constraints {
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const = 0;
-
-  /// @brief Whether lower-priority tasks are projected out of this constraint's rows, as if it
-  /// were a task above priority 1.
-  ///
-  /// Enable this for task-space constraints that couple joints across tasks (e.g. a relative pose
-  /// between two arms). Otherwise a lower-priority task could move joints that the constraint
-  /// couples back into a higher-priority task. Leave it off for per-joint bounds like position or
-  /// velocity limits, whose rows would remove the entire nullspace. Bounded rows are projected out
-  /// as if they were equalities, even when inactive; rows with both bounds infinite are skipped.
-  virtual bool ranksAboveTasks() const { return false; }
 };
 
 /// @brief Abstract base class for Control Barrier Functions
@@ -445,23 +437,18 @@ struct Oink {
 
 private:
   /// @brief Compute `task`'s Jacobian and error, and add its contribution to the QP Hessian
-  /// and gradient (projecting through the current `nullspace_projector` for hierarchical
-  /// priorities).
+  /// and gradient of its priority level.
   /// @param context The context supplying the configuration and the scratch.
   /// @param task The task to add to the QP objective.
   /// @return void if successful, else an error message describing the failure.
   tl::expected<void, std::string> addTaskContribution(const SceneContext& context, Task* task);
 
-  /// @brief Rebuild `nullspace_projector` from the current `jacobian_stack` via a damped
-  /// pseudoinverse, so subsequent priority levels are projected into the nullspace of
-  /// everything stacked so far.
-  /// @param lambda_sq Damping factor for the pseudoinverse.
-  void rebuildNullspaceProjector(double lambda_sq);
-
 public:
-  // QP solver (ProxQP dense backend). Reconstructed whenever the constraint row count
-  // changes, since ProxQP fixes the problem dimensions at construction.
-  detail::QpSolverPtr solver;
+  // One QP solver (ProxQP dense backend) per priority level, with the (variables, rows) it was
+  // built for. Each is reconstructed whenever these change, since ProxQP fixes the problem
+  // dimensions at construction.
+  std::vector<detail::QpSolverPtr> solvers;
+  std::vector<std::pair<int, int>> solver_dims;
   OinkSettings settings;
 
   // Problem dimensions
@@ -473,9 +460,12 @@ public:
   /// @brief Velocity indices of the joint group (used to scatter delta_q back into model.nv space).
   Eigen::VectorXi v_indices;
 
-  // Pre-allocated accumulated QP matrices
+  // Pre-allocated QP objective of the current priority level, and the regularization and barrier
+  // terms shared by all levels.
   Eigen::MatrixXd H;
   Eigen::VectorXd c;
+  Eigen::MatrixXd H_base;
+  Eigen::VectorXd c_base;
 
   // Pre-allocated constraint matrices
   Eigen::MatrixXd constraint_workspace_A;
@@ -492,16 +482,26 @@ public:
   Eigen::MatrixXd barrier_H_contribution;
   Eigen::VectorXd barrier_c_contribution;
 
-  // Cumulative unweighted Jacobian stack of the priority levels processed so far, and the
-  // nullspace projector N built from it (damped pseudoinverse), which projects the NEXT
-  // priority level's Jacobian into the higher levels' nullspace.
-  Eigen::MatrixXd jacobian_stack;
-  Eigen::MatrixXd nullspace_projector;
+  // Nullspace cascade scratch: the basis Z of the directions the levels solved so far leave free,
+  // the previous level's solution, the current level's QP in z (δq = δq_{k-1} + Z·z) and its warm
+  // start, and the stacked weighted Jacobian of the level just solved.
+  Eigen::MatrixXd nullspace_basis;
+  Eigen::VectorXd previous_delta_q;
+  Eigen::MatrixXd level_H;
+  Eigen::VectorXd level_c;
+  Eigen::MatrixXd level_A;
+  Eigen::VectorXd level_offset;
+  Eigen::VectorXd level_lower;
+  Eigen::VectorXd level_upper;
+  Eigen::VectorXd level_z;
+  Eigen::VectorXd level_guess;
+  std::vector<Eigen::VectorXd> level_solutions;  // δq after each level, from the previous solve
+  Eigen::MatrixXd level_jacobian;
 
-  // Per-task scratch: W·J·N and W·(α·e). Resized per task (dims depend on task rows); steady-state
+  // Per-task scratch: W·J and W·(α·e). Resized per task (dims depend on task rows); steady-state
   // calls reuse the existing allocation when sizes match across iterations and across solveIk
   // calls.
-  Eigen::MatrixXd projected_weighted_jacobian;
+  Eigen::MatrixXd weighted_jacobian;
   Eigen::VectorXd weighted_error;
 
   // Pre-allocated, priority-sorted view into the tasks passed to solveIk. Reusing this buffer
