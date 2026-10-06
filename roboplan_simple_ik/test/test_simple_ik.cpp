@@ -122,4 +122,51 @@ TEST_F(RoboPlanSimpleIkTest, CollisionChecking) {
   EXPECT_FALSE(ik->solveIk(goal, start, solution));
 }
 
+TEST_F(RoboPlanSimpleIkTest, RestartsOnlyRandomizeGroupJoints) {
+  // When the group is a subset of the model, random restarts must keep the joints outside the
+  // group at their current values, since the solver cannot move them.
+
+  // Plan with every arm joint except the shoulder pan, which is held away from zero.
+  const std::string sub_group_name = "arm_without_pan";
+  ASSERT_TRUE(scene->addGroupFromChain(sub_group_name, "shoulder_link", "tool0").has_value());
+  const Eigen::VectorXd q_arm{{1.0, -1.0, 1.0, -1.5, -1.5, 0.0}};
+  const auto q_goal = scene->toFullJointPositions(kGroupName, q_arm);
+  scene->setJointPositions(q_goal);
+
+  // The goal is reachable by the 5-DOF group only with the pan joint at its current value.
+  CartesianConfiguration goal;
+  goal.base_frame = kBaseFrame;
+  goal.tip_frame = kTipFrame;
+  goal.tform = scene->forwardKinematics(q_goal, kTipFrame, kBaseFrame);
+
+  // Block the elbow of the seed's IK branch so the first attempt fails and a restart is needed.
+  Eigen::Matrix4d obstacle_tform = Eigen::Matrix4d::Identity();
+  obstacle_tform.block<3, 1>(0, 3) =
+      scene->forwardKinematics(q_goal, "forearm_link").block<3, 1>(0, 3);
+  ASSERT_TRUE(scene
+                  ->addSphereGeometry("elbow_obstacle", "universe", Sphere(0.1), obstacle_tform,
+                                      Eigen::Vector4d(0.5, 0.5, 0.5, 0.5))
+                  .has_value());
+  ASSERT_TRUE(scene->hasCollisions(q_goal));
+
+  SimpleIkOptions options;
+  options.group_name = sub_group_name;
+  options.max_time = kMaxSolveTime;
+  options.max_restarts = 50;
+  auto ik = std::make_unique<SimpleIk>(scene, options);
+  ik->setRngSeed(286);
+
+  JointConfiguration start;
+  start.positions = q_arm.tail(5);
+  JointConfiguration solution;
+  ASSERT_TRUE(ik->solveIk(goal, start, solution));
+
+  // The solution must reach the goal and be collision free with the pan joint left untouched.
+  const auto q_solution = scene->toFullJointPositions(sub_group_name, solution.positions);
+  EXPECT_DOUBLE_EQ(q_solution[0], q_goal[0]);
+  const auto achieved = scene->forwardKinematics(q_solution, kTipFrame, kBaseFrame);
+  EXPECT_TRUE(achieved.isApprox(goal.tform, 1e-2));
+  EXPECT_FALSE(scene->hasCollisions(q_solution));
+}
+
 }  // namespace roboplan

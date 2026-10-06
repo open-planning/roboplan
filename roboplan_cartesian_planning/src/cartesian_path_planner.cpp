@@ -357,12 +357,18 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
       return tl::make_unexpected("Could not resolve tip frame '" + reference.tip_frame +
                                  "': " + maybe_tip_id.error());
     }
-    try {
-      reference.world_T_base =
-          oink_->getContext().forwardKinematics(q_start_full, path.base_frames.at(f));
-    } catch (const std::exception& e) {
-      return tl::make_unexpected(std::string("Could not resolve base frame '") +
-                                 path.base_frames.at(f) + "': " + e.what());
+
+    const auto& base_frame = path.base_frames.at(f);
+    if (base_frame.empty()) {
+      // An empty base frame means the waypoints are already in the world frame.
+      reference.world_T_base = Eigen::Matrix4d::Identity();
+    } else {
+      try {
+        reference.world_T_base = oink_->getContext().forwardKinematics(q_start_full, base_frame);
+      } catch (const std::exception& e) {
+        return tl::make_unexpected(std::string("Could not resolve base frame '") + base_frame +
+                                   "': " + e.what());
+      }
     }
   }
 

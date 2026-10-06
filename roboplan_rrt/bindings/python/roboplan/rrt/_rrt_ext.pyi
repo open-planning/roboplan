@@ -171,7 +171,9 @@ class RRTOptions:
 
     @property
     def max_nodes(self) -> int:
-        """The maximum number of nodes to sample."""
+        """
+        The maximum number of nodes to sample. This includes the start and all goal configurations.
+        """
 
     @max_nodes.setter
     def max_nodes(self, arg: int, /) -> None: ...
@@ -256,6 +258,19 @@ class RRTOptions:
     @constraint_projection.setter
     def constraint_projection(self, arg: ConstraintProjectorOptions, /) -> None: ...
 
+class RRTPlan:
+    """The result of planning to one of a set of goals."""
+
+    @property
+    def path(self) -> roboplan.core._core_ext.JointPath:
+        """The joint-space path from the start to the reached goal."""
+
+    @property
+    def goal_index(self) -> int:
+        """
+        The index of the goal the path ends at, in the order the goals were given.
+        """
+
 class RRT:
     """
     Motion planner based on the Rapidly-exploring Random Tree (RRT) algorithm.
@@ -269,6 +284,11 @@ class RRT:
     def plan(self, start: roboplan.core._core_ext.JointConfiguration, goal: roboplan.core._core_ext.JointConfiguration, constraints: Sequence[Constraint] = []) -> roboplan.core._core_ext.JointPath:
         """
         Plan a path from start to goal, optionally subject to constraints that every configuration on the path must satisfy.
+        """
+
+    def planToAny(self, start: roboplan.core._core_ext.JointConfiguration, goals: Sequence[roboplan.core._core_ext.JointConfiguration], constraints: Sequence[Constraint] = []) -> RRTPlan:
+        """
+        Plan a path from start to any one of a set of goals, optionally subject to constraints that every configuration on the path must satisfy. Returns the path along with the index of the goal it reached. If any goal can be reached by a direct connection, the closest such goal is returned immediately, regardless of fast_return.
         """
 
     def setRngSeed(self, seed: int) -> None:

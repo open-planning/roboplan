@@ -34,7 +34,7 @@ struct JointConfiguration {
 /// @details This comprises a transform, as well as the names of the frames in
 /// the robot model.
 struct CartesianConfiguration {
-  /// @brief The name of the base (or reference) frame.
+  /// @brief The name of the base (or reference) frame. An empty frame name means the world frame.
   std::string base_frame;
 
   /// @brief The name of the tip (or target) frame.
@@ -183,12 +183,15 @@ struct CartesianPath {
   CartesianPath() = default;
 
   /// @brief Constructor.
+  /// @param base_frames A list of base (or reference) frame names. An empty frame
+  /// name means the world frame.
   CartesianPath(const std::vector<std::string>& base_frames,
                 const std::vector<std::string>& tip_frames,
                 const std::vector<std::vector<Eigen::Matrix4d>>& tforms)
       : base_frames(base_frames), tip_frames(tip_frames), tforms(tforms) {}
 
-  /// @brief The names of the base (or reference) frames.
+  /// @brief The names of the base (or reference) frames. An empty frame name means the world
+  /// frame.
   std::vector<std::string> base_frames;
 
   /// @brief The names of the tip (or target) frames.
@@ -211,12 +214,14 @@ struct CartesianTrajectory {
   CartesianTrajectory() = default;
 
   /// @brief Constructor.
+  /// @param base_frames A list of base (or reference) frame names. An empty frame
+  /// name means the world frame.
   CartesianTrajectory(const std::vector<std::string>& base_frames,
                       const std::vector<std::string>& tip_frames, const std::vector<double>& times,
                       const std::vector<std::vector<Eigen::Matrix4d>>& tforms)
       : base_frames(base_frames), tip_frames(tip_frames), times(times), tforms(tforms) {}
 
-  /// @brief The names of the base (or reference) frames.
+  /// @brief The names of the base (or reference) frames. An empty frame name means the world frame.
   std::vector<std::string> base_frames;
 
   /// @brief The names of the tip (or target) frames.
