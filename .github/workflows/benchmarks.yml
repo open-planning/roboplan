@@ -51,5 +51,6 @@ jobs:
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
           auto-push: ${{ inputs.push_to_pages }}
           alert-threshold: "115%"
-          comment-on-alert: true
+          # We can't comment on forks, so just let the job fail
+          comment-on-alert: false
           fail-on-alert: true
