@@ -702,8 +702,9 @@ CartesianPathPlanner::computePeakLimitRatios(const JointTrajectory& trajectory) 
         continue;
       }
       for (Eigen::Index i = 0; i < value.size(); ++i) {
-        // Skip joints with negligible limits to avoid divide-by-zero.
-        if (std::abs(limit(i)) > kEps) {
+        // Skip joints with negligible limits to avoid divide-by-zero, and unlimited joints
+        // (infinite, or the max-double default used when no limit is set).
+        if (std::abs(limit(i)) > kEps && std::abs(limit(i)) < std::numeric_limits<double>::max()) {
           ratio = std::max(ratio, std::abs(value(i)) / std::abs(limit(i)));
         }
       }
