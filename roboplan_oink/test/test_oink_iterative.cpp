@@ -183,8 +183,9 @@ TEST_F(SolveIterativeIkTest, ReachesGoalWithBarriers) {
           SelfCollisionBarrierOptions{
               .n_collision_pairs = 4, .gain = 5.0, .safe_displacement_gain = 0.0, .d_min = 0.02})};
   // Collision distances make each step slow, so give the solve more time than the default.
-  const auto solution = oink_->solveIterativeIk(q_, {frameTask(q_goal)}, {}, constraints, barriers,
-                                                IterativeSolveOptions{.max_time = 10.0});
+  const auto solution =
+      oink_->solveIterativeIk(q_, {frameTask(q_goal)}, {}, constraints, barriers,
+                              IterativeSolveOptions{.max_time = 10.0, .check_collisions = true});
   ASSERT_TRUE(solution) << solution.error();
   expectReaches(solution, q_goal);
   EXPECT_FALSE(scene_->hasCollisions(*solution));

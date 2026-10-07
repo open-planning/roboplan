@@ -163,6 +163,7 @@ Oink::Oink(const Scene& scene, const std::string& group_name)
     throw std::runtime_error("Oink: joint group '" + group_name +
                              "' not found: " + maybe_group_info.error());
   }
+  joint_names = maybe_group_info->joint_names;
   q_indices = maybe_group_info->q_indices;
   v_indices = maybe_group_info->v_indices;
   num_variables = static_cast<int>(v_indices.size());
@@ -626,6 +627,9 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
         error = kInfinity;
       }
     }
+    if (options.check_collisions && context_->hasCollisions(q)) {
+      error = kInfinity;
+    }
     return error;
   };
 
@@ -634,7 +638,7 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
   Eigen::VectorXd delta_q_full = Eigen::VectorXd::Zero(scene.getModel().nv);
   for (size_t attempt = 0; attempt <= options.max_restarts; ++attempt) {
     if (attempt > 0) {
-      q(q_indices) = context_->randomPositions()(q_indices);
+      context_->randomizeJointPositions(joint_names, q);
     }
     double best_error = kInfinity;
     double error = kInfinity;
