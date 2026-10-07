@@ -47,5 +47,7 @@ jobs:
     name: Benchmarks
     uses: ./.github/workflows/benchmarks.yml
     with:
-      push_to_pages: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+      # REVERT ME ONCE WE'RE DONE TESTING
+      push_to_pages: true
+      # push_to_pages: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
     secrets: inherit
