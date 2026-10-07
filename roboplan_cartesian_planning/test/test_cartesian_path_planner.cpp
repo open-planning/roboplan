@@ -415,6 +415,27 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   EXPECT_LE(peak_velocity_ratio, 1.1);
 }
 
+TEST_F(CartesianPlannerTest, PeakLimitRatiosSkipUnlimitedJoints) {
+  // Without the YAML config the URDF provides no acceleration limits.
+  const auto model_prefix = example_models::get_package_models_dir();
+  auto scene = std::make_shared<Scene>(
+      "no_accel_limits",
+      loadUrdfSceneDescription(model_prefix / "ur_robot_model" / "ur5_gripper.urdf",
+                               {example_models::get_package_share_dir()}));
+  ASSERT_TRUE(
+      scene->importSrdf(loadTextFile(model_prefix / "ur_robot_model" / "ur5_gripper.srdf")));
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  CartesianPathPlanner planner(scene, options);
+
+  JointTrajectory traj;
+  traj.velocities = {Eigen::VectorXd::Constant(6, 0.1)};
+  traj.accelerations = {Eigen::VectorXd::Constant(6, 1.0)};
+  const auto [peak_velocity_ratio, peak_acceleration_ratio] = planner.computePeakLimitRatios(traj);
+  EXPECT_GT(peak_velocity_ratio, 0.0);
+  EXPECT_EQ(peak_acceleration_ratio, 0.0);
+}
+
 TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;

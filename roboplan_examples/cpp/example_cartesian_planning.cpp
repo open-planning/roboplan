@@ -18,10 +18,12 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto model_prefix = share_prefix / "roboplan_example_models" / "models";
   const auto urdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.urdf";
   const auto srdf_path = model_prefix / "ur_robot_model" / "ur5_gripper.srdf";
+  const auto yaml_config_path = model_prefix / "ur_robot_model" / "ur5_config.yaml";
   const std::vector<std::filesystem::path> package_paths = {share_prefix};
 
   const auto description = loadUrdfSceneDescription(urdf_path, package_paths);
   auto scene = std::make_shared<Scene>("example_cartesian_scene", description);
+  scene->importJointLimitsFromConfig(loadJointLimitsConfig(yaml_config_path));
   if (const auto imported = scene->importSrdf(loadTextFile(srdf_path)); !imported) {
     throw std::runtime_error(imported.error());
   }
