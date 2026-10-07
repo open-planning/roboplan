@@ -55,7 +55,9 @@ def solve_many(
     return successes
 
 
-@pytest.fixture(scope="session", params=["so101", "kinova", "ur5", "franka", "dual"])
+@pytest.fixture(
+    scope="session", params=["so101", "kinova", "ur5", "franka", "dual", "tiago_pro"]
+)
 def benchmark_setup(request):
     """Scene and joint group for each model, same scene the examples use."""
     model_name = request.param

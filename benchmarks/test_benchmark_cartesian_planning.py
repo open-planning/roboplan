@@ -46,7 +46,7 @@ def make_square_path(
 
 # Only benchmarking a subset of available models, but these give some
 # variability and succeed with the paths above.
-@pytest.fixture(scope="session", params=["ur5", "franka", "stretch"])
+@pytest.fixture(scope="session", params=["ur5", "franka", "stretch", "tiago_pro"])
 def model_name(request):
     return request.param
 
