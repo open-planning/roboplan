@@ -50,6 +50,9 @@ endif()
 # coal::coal via $<TARGET_PROPERTY:...>, which CMake resolves in the consuming
 # target's directory, so coal::coal must be visible to every sibling package.
 find_package(pinocchio 4.1.0 REQUIRED)
+# Likewise tl::expected, which roboplan::roboplan links publicly when a system
+# copy is found (roboplan_core falls back to its bundled header otherwise).
+find_package(tl-expected QUIET)
 
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_common"
                  "roboplan_common")
