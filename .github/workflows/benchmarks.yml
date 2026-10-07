@@ -50,7 +50,9 @@ jobs:
           # Limited scope token just for this job
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
           auto-push: ${{ inputs.push_to_pages }}
+          # GitHub free tier runners are inconsistent, so we are upping the limits
+          # and not failing if things seem slow.
           alert-threshold: "200%"
-          # We can't comment on forks, so just let the job fail
           comment-on-alert: false
           fail-on-alert: false
+          summary-always: true
