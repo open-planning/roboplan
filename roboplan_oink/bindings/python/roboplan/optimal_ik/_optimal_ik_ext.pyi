@@ -543,6 +543,71 @@ class OinkSettings:
     @primal_infeasibility_solving.setter
     def primal_infeasibility_solving(self, arg: bool, /) -> None: ...
 
+class IterativeSolveOptions:
+    """Options for Oink.solveIterativeIk()."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def max_iters(self) -> int:
+        """Max iterations for one try of the solver."""
+
+    @max_iters.setter
+    def max_iters(self, arg: int, /) -> None: ...
+
+    @property
+    def max_time(self) -> float:
+        """Max total computation time, in seconds."""
+
+    @max_time.setter
+    def max_time(self, arg: float, /) -> None: ...
+
+    @property
+    def max_restarts(self) -> int:
+        """Maximum number of random restarts until success."""
+
+    @max_restarts.setter
+    def max_restarts(self, arg: int, /) -> None: ...
+
+    @property
+    def max_task_error_norm(self) -> float:
+        """The maximum weighted error norm of any goal task at the solution."""
+
+    @max_task_error_norm.setter
+    def max_task_error_norm(self, arg: float, /) -> None: ...
+
+    @property
+    def max_constraint_violation_norm(self) -> float:
+        """The maximum norm of any constraint violation at the solution."""
+
+    @max_constraint_violation_norm.setter
+    def max_constraint_violation_norm(self, arg: float, /) -> None: ...
+
+    @property
+    def regularization(self) -> float:
+        """Tikhonov regularization weight passed to each solveIk() step."""
+
+    @regularization.setter
+    def regularization(self, arg: float, /) -> None: ...
+
+    @property
+    def check_collisions(self) -> bool:
+        """
+        Whether to also require the solution to be collision-free over every collision pair.
+        """
+
+    @check_collisions.setter
+    def check_collisions(self, arg: bool, /) -> None: ...
+
+    @property
+    def fast_return(self) -> bool:
+        """
+        If true, returns the first configuration within the tolerances; otherwise keeps iterating while the error still improves.
+        """
+
+    @fast_return.setter
+    def fast_return(self, arg: bool, /) -> None: ...
+
 class Oink:
     """Optimal Inverse Kinematics solver."""
 
@@ -574,6 +639,10 @@ class Oink:
     @property
     def num_variables(self) -> int:
         """Number of optimization variables."""
+
+    @property
+    def joint_names(self) -> list[str]:
+        """Names of the joints in the joint group."""
 
     @property
     def q_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
@@ -680,6 +749,11 @@ class Oink:
             constraints: List of constraints to satisfy.
             delta_q: Pre-allocated numpy array for output (size = num_variables).
             regularization: Tikhonov regularization weight (default: 1e-12).
+        """
+
+    def solveIterativeIk(self, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], goal_tasks: Sequence[Task], extra_tasks: Sequence[Task] = [], constraints: Sequence[Constraints] = [], barriers: Sequence[Barrier] = [], options: IterativeSolveOptions = ...) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Iterates solveIk() from q_start until every goal task is reached, with random restarts. Returns the full configuration; raises RuntimeError on failure.
         """
 
     @overload

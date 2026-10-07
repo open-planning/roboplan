@@ -29,14 +29,32 @@ RelativePoseConstraint::RelativePoseConstraint(const Oink& oink, const Scene& sc
 
 int RelativePoseConstraint::getNumConstraints(const SceneContext& /*context*/) const { return 6; }
 
-Eigen::Matrix<double, 6, 1>
-RelativePoseConstraint::computeError(const SceneContext& context) const {
+namespace {
+
+/// @brief The raw 6D error [e_pos, e_rot] of frame_b relative to frame_a, in the target frame.
+Eigen::Matrix<double, 6, 1> poseError(const RelativePoseConstraint& constraint,
+                                      const SceneContext& context) {
   const auto& data = context.getData();
   const pinocchio::SE3 T_err =
-      pinocchio::SE3(target_pose).actInv(data.oMf[frame_a_id].actInv(data.oMf[frame_b_id]));
+      pinocchio::SE3(constraint.target_pose)
+          .actInv(data.oMf[constraint.frame_a_id].actInv(data.oMf[constraint.frame_b_id]));
   Eigen::Matrix<double, 6, 1> error;
   error << T_err.translation(), pinocchio::log3(T_err.rotation());
   return error;
+}
+
+Eigen::Matrix<double, 6, 1> toleranceBox(const RelativePoseConstraint& constraint) {
+  Eigen::Matrix<double, 6, 1> tolerance;
+  tolerance << constraint.position_tolerance, constraint.orientation_tolerance;
+  return tolerance;
+}
+
+}  // namespace
+
+Eigen::VectorXd RelativePoseConstraint::computeViolation(const SceneContext& context) const {
+  const Eigen::Matrix<double, 6, 1> error = poseError(*this, context);
+  const Eigen::Matrix<double, 6, 1> tolerance = toleranceBox(*this);
+  return error - error.cwiseMax(-tolerance).cwiseMin(tolerance);
 }
 
 tl::expected<void, std::string> RelativePoseConstraint::computeQpConstraints(
@@ -62,9 +80,8 @@ tl::expected<void, std::string> RelativePoseConstraint::computeQpConstraints(
       Jlog * data.oMf[frame_b_id].rotation().transpose() *
       full_jacobian.bottomRows<3>()(Eigen::placeholders::all, v_indices);
 
-  const Eigen::Matrix<double, 6, 1> error = computeError(context);
-  Eigen::Matrix<double, 6, 1> tolerance;
-  tolerance << position_tolerance, orientation_tolerance;
+  const Eigen::Matrix<double, 6, 1> error = poseError(*this, context);
+  const Eigen::Matrix<double, 6, 1> tolerance = toleranceBox(*this);
   lower_bounds = -tolerance - error;
   upper_bounds = tolerance - error;
   return {};

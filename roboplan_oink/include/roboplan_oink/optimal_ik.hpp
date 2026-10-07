@@ -20,6 +20,36 @@ namespace roboplan {
 /// @brief Infinity value used for unbounded QP constraint bounds.
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
+/// @brief Options for Oink::solveIterativeIk().
+struct IterativeSolveOptions {
+  /// @brief Max iterations for one try of the solver.
+  size_t max_iters = 100;
+
+  /// @brief Max total computation time, in seconds.
+  double max_time = 0.05;
+
+  /// @brief Maximum number of random restarts until success.
+  size_t max_restarts = 2;
+
+  /// @brief The maximum weighted error norm ||W e|| of any goal task at the solution.
+  double max_task_error_norm = 0.001;
+
+  /// @brief The maximum norm of any Constraints::computeViolation() at the solution.
+  double max_constraint_violation_norm = 1e-4;
+
+  /// @brief Tikhonov regularization weight passed to each solveIk() step.
+  double regularization = 1e-12;
+
+  /// @brief Whether to also require the solution to be collision-free over every collision pair.
+  /// @details A SelfCollisionBarrier only evaluates its closest pairs, so this is the full check.
+  bool check_collisions = false;
+
+  /// @brief If true, returns the first configuration within the tolerances.
+  /// @details Otherwise keeps iterating while the error still improves, so the result is as
+  /// accurate as the solver can make it.
+  bool fast_return = true;
+};
+
 /// @brief Abstract base class for IK tasks.
 ///
 /// Each task owns pre-allocated storage for Jacobian, error, and H_dense matrices.
@@ -140,6 +170,14 @@ struct Constraints {
   computeQpConstraints(const SceneContext& context, Eigen::Ref<Eigen::MatrixXd> constraint_matrix,
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const = 0;
+
+  /// @brief Per-row violation of the constraint at the context's configuration: how far each row
+  /// lies outside its bounds, zero when satisfied.
+  /// @details Per-step constraints (velocity, position limits) hold by construction after a step
+  /// is integrated, so the default returns an empty vector.
+  virtual Eigen::VectorXd computeViolation(const SceneContext& /*context*/) const {
+    return Eigen::VectorXd();
+  }
 };
 
 /// @brief Abstract base class for Control Barrier Functions
@@ -391,6 +429,30 @@ struct Oink {
           Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
           double regularization = 1e-12);
 
+  /// @brief Iterates solveIk() from `q_start` until every goal task is reached.
+  /// @details Repeats solveIk -> integrate -> clamp until every goal task is within tolerance,
+  /// every constraint violation is within tolerance, and every barrier is non-negative at the
+  /// result. When the error stops improving short of that, it restarts from a random configuration
+  /// of the joint group; hard constraints such as RelativePoseConstraint pull the random seed back
+  /// onto their manifold as the iteration proceeds. Collision avoidance is opt-in through a
+  /// SelfCollisionBarrier. The context's RNG draws the restarts; seed it through
+  /// getContext().setRngSeed().
+  /// @param q_start The configuration to start from (size model.nq).
+  /// @param goal_tasks The tasks whose targets must be reached.
+  /// @param extra_tasks Tasks solved alongside the goals but not required to converge (e.g. a
+  ///        nullspace ConfigurationTask).
+  /// @param constraints Constraints applied at every step and checked at the solution.
+  /// @param barriers Barriers applied at every step and checked at the solution.
+  /// @param options Iteration, tolerance, and restart options.
+  /// @return The configuration reaching the goals (size model.nq), else an error message.
+  tl::expected<Eigen::VectorXd, std::string>
+  solveIterativeIk(const Eigen::VectorXd& q_start,
+                   const std::vector<std::shared_ptr<Task>>& goal_tasks,
+                   const std::vector<std::shared_ptr<Task>>& extra_tasks,
+                   const std::vector<std::shared_ptr<Constraints>>& constraints,
+                   const std::vector<std::shared_ptr<Barrier>>& barriers,
+                   const IterativeSolveOptions& options = {});
+
   /// @brief Validate delta_q against barriers using forward kinematics.
   ///
   /// Post-solve safety check that evaluates the actual barrier values at the candidate
@@ -473,6 +535,9 @@ public:
 
   // Problem dimensions
   int num_variables;
+
+  /// @brief Names of the joints in the joint group.
+  std::vector<std::string> joint_names;
 
   /// @brief Position indices of the joint group (used to scatter group q into model.nq space).
   Eigen::VectorXi q_indices;

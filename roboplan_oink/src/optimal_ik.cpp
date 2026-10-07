@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -13,6 +14,10 @@
 namespace {
 // Minimum squared norm threshold to avoid division by zero in barrier regularization
 constexpr double kMinNormSq = 1e-12;
+// Relative error improvement below which an iterative solve counts as having stagnated.
+constexpr double kStagnationImprovement = 0.99;
+// Consecutive stagnant iterations after which an iterative solve attempt stops.
+constexpr int kMaxStagnantIters = 5;
 }  // namespace
 
 namespace roboplan {
@@ -174,6 +179,7 @@ Oink::Oink(const Scene& scene, const std::string& group_name)
     throw std::runtime_error("Oink: joint group '" + group_name +
                              "' not found: " + maybe_group_info.error());
   }
+  joint_names = maybe_group_info->joint_names;
   q_indices = maybe_group_info->q_indices;
   v_indices = maybe_group_info->v_indices;
   num_variables = static_cast<int>(v_indices.size());
@@ -594,6 +600,98 @@ tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& co
   c_out.noalias() += weighted_jacobian.transpose() * weighted_error;
 
   return {};
+}
+
+tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
+    const Eigen::VectorXd& q_start, const std::vector<std::shared_ptr<Task>>& goal_tasks,
+    const std::vector<std::shared_ptr<Task>>& extra_tasks,
+    const std::vector<std::shared_ptr<Constraints>>& constraints,
+    const std::vector<std::shared_ptr<Barrier>>& barriers, const IterativeSolveOptions& options) {
+  const auto start_time = std::chrono::steady_clock::now();
+  const std::chrono::duration<double> timeout(options.max_time);
+  const Scene& scene = context_->getScene();
+
+  std::vector<std::shared_ptr<Task>> tasks(goal_tasks.begin(), goal_tasks.end());
+  tasks.insert(tasks.end(), extra_tasks.begin(), extra_tasks.end());
+
+  // Worst error at `q` over the goal tasks, constraints, and barriers, each relative to its own
+  // tolerance, so a value of at most 1 means `q` is a solution.
+  const auto normalizedError = [&](const Eigen::VectorXd& q) -> tl::expected<double, std::string> {
+    context_->setJointPositions(q);
+    context_->updateFramePlacements(q);
+    double error = 0.0;
+    for (const auto& task : goal_tasks) {
+      if (const auto result = task->computeError(*context_); !result) {
+        return tl::make_unexpected(result.error());
+      }
+      error = std::max(error,
+                       (task->weight * task->error_container).norm() / options.max_task_error_norm);
+    }
+    for (const auto& constraint : constraints) {
+      error = std::max(error, constraint->computeViolation(*context_).norm() /
+                                  options.max_constraint_violation_norm);
+    }
+    for (const auto& barrier : barriers) {
+      const auto h = barrier->evaluateAtConfiguration(context_->getModel(), context_->getData(), q);
+      if (!h) {
+        return tl::make_unexpected(h.error());
+      }
+      if (*h < 0.0) {
+        error = kInfinity;
+      }
+    }
+    if (options.check_collisions && context_->hasCollisions(q)) {
+      error = kInfinity;
+    }
+    return error;
+  };
+
+  Eigen::VectorXd q = q_start;
+  Eigen::VectorXd delta_q(num_variables);
+  Eigen::VectorXd delta_q_full = Eigen::VectorXd::Zero(scene.getModel().nv);
+  for (size_t attempt = 0; attempt <= options.max_restarts; ++attempt) {
+    if (attempt > 0) {
+      context_->randomizeJointPositions(joint_names, q);
+    }
+    double best_error = kInfinity;
+    double error = kInfinity;
+    int stagnant = 0;
+    for (size_t iter = 0; iter < options.max_iters; ++iter) {
+      if (std::chrono::steady_clock::now() - start_time > timeout) {
+        return tl::make_unexpected("Iterative IK solve timed out");
+      }
+      delta_q.setZero();
+      if (const auto result =
+              solveIk(q, tasks, constraints, barriers, delta_q, options.regularization);
+          !result) {
+        return tl::make_unexpected(result.error());
+      }
+      delta_q_full(v_indices) = delta_q;
+      q = scene.clampToValidConfiguration(scene.integrate(q, delta_q_full));
+
+      const auto result = normalizedError(q);
+      if (!result) {
+        return tl::make_unexpected(result.error());
+      }
+      error = *result;
+      if (error <= 1.0 && options.fast_return) {
+        return q;
+      }
+      // Give up on this attempt once the error plateaus. Without fast_return a healthy solve
+      // plateaus at the solver's own precision and is accepted below if it is within tolerance.
+      if (error < best_error * kStagnationImprovement) {
+        best_error = error;
+        stagnant = 0;
+      } else if (++stagnant >= kMaxStagnantIters) {
+        break;
+      }
+    }
+    if (error <= 1.0) {
+      return q;
+    }
+  }
+  return tl::make_unexpected("Iterative IK solve failed within " +
+                             std::to_string(options.max_restarts + 1) + " attempts");
 }
 
 }  // namespace roboplan
