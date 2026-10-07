@@ -406,7 +406,10 @@ The error :math:`e = [R^{*T}(p_{ab} - p^*),\ \log_3(R^{*T} R_{ab})]` is expresse
    -\text{tol} - e \leq J_e \Delta q \leq \text{tol} - e
 
 An infinite tolerance leaves that axis free.
-See ``roboplan_examples/python/example_oink_relative_pose.py``.
+
+A heavily weighted FrameTask with ``base_frame`` set to frame :math:`a` does the same job without the hard tolerance.
+Prefer the constraint when the tolerance must hold; prefer the task when the pair may be dragged out of reach, since a hard constraint cannot be damped there.
+``roboplan_examples/python/example_oink_relative_pose.py`` compares the two.
 
 Barrier Details
 ^^^^^^^^^^^^^^^
