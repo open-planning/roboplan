@@ -42,9 +42,10 @@ struct RelativePoseConstraint : public Constraints {
                        Eigen::Ref<Eigen::VectorXd> lower_bounds,
                        Eigen::Ref<Eigen::VectorXd> upper_bounds) const override;
 
-  /// @brief Computes the current 6D error [e_pos, e_rot] of frame_b relative to frame_a.
+  /// @brief The 6D error [e_pos, e_rot] of frame_b relative to frame_a, less the tolerance box:
+  /// zero on the axes inside their tolerance, the signed excess on those outside.
   /// @param context The context whose frame placements to read.
-  Eigen::Matrix<double, 6, 1> computeError(const SceneContext& context) const;
+  Eigen::VectorXd computeViolation(const SceneContext& context) const override;
 
   std::string frame_a;
   std::string frame_b;

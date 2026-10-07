@@ -668,3 +668,25 @@ Usage Example
 
    q_next = scene.integrate(scene.getCurrentJointPositions(), delta_q_full)
    scene.setJointPositions(q_next)
+
+Iterative Solves
+^^^^^^^^^^^^^^^^
+
+``solveIk`` computes one step.
+``solveIterativeIk`` repeats it from a start configuration until every *goal task* is within tolerance, every constraint's ``computeViolation`` is within tolerance, and every barrier is non-negative, restarting from a random configuration when the error stops improving short of that.
+Tasks that only regularize, such as a nullspace ``ConfigurationTask``, go in ``extra_tasks`` so they are solved but not required to converge.
+Collision avoidance is opt-in through a ``SelfCollisionBarrier``; note that its safe-displacement term biases each step, so set ``safe_displacement_gain=0`` when the goal must be reached exactly.
+
+.. code-block:: python
+
+   from roboplan.optimal_ik import IterativeSolveOptions
+
+   options = IterativeSolveOptions()
+   options.max_restarts = 5
+   q_solution = oink.solveIterativeIk(
+       q_start, [frame_task], extra_tasks=[posture_task],
+       constraints=constraints, barriers=barriers, options=options,
+   )  # raises RuntimeError if no solution is found
+
+A hard ``RelativePoseConstraint`` pulls a random restart back onto its manifold, so a bimanual grasp can be solved with one goal task for one hand and the constraint holding the other.
+``fast_return=False`` keeps iterating past the tolerances while the error still improves; the Cartesian planner uses this to resolve each path sample to the solver's precision.

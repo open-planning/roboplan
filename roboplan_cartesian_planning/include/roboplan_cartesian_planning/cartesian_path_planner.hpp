@@ -232,42 +232,22 @@ private:
 
   /// @brief Builds the parts of the OInK problem that do not depend on the path or seed, once,
   /// at construction time.
-  /// @details Populates the reused solver-input buffers (constraints_, barriers_) and the group
-  /// velocity limits. When `components` is provided this also assembles the full task list
-  /// (tracking tasks followed by extra tasks) and caches the tracking tasks (tracking_tasks_) for
-  /// per-plan() wiring, since the caller's objectives are fixed; otherwise the per-end-effector
-  /// tasks_ are (re)built per plan() because they depend on the path's frames and the seed.
+  /// @details Populates the reused solver-input buffers (extra_tasks_, constraints_, barriers_)
+  /// and the group velocity limits. When `components` is provided this also caches the tracking
+  /// tasks (tracking_tasks_) for per-plan() wiring, since the caller's objectives are fixed;
+  /// otherwise the per-end-effector tasks are (re)built per plan() because they depend on the
+  /// path's frames and the seed.
   /// @param components The caller-supplied objectives, or std::nullopt for the default setup.
   /// @throws std::runtime_error if the joint velocity limits cannot be resolved (default setup).
   void buildStaticSolverComponents(const std::optional<CartesianPlannerComponents>& components);
 
-  /// @brief Builds the per-end-effector geometric reference for every frame in the path, and wires
-  /// the tracking tasks into the reused solver task list (tasks_).
+  /// @brief Builds the per-end-effector geometric reference for every frame in the path, each
+  /// wired to its tracking task.
   /// @details In the custom-components mode the tasks are the caller's (validated to match the
   /// path's tip-frame order); otherwise one priority-1 FrameTask per end-effector plus a
   /// priority-2 nullspace ConfigurationTask are (re)built from the seed configuration.
   tl::expected<std::vector<FrameReference>, std::string>
   buildFrameReferences(const CartesianPath& path, const Eigen::VectorXd& q_start_full);
-
-  /// @brief Runs one differential-IK step that retargets every frame to its pose at path parameter
-  /// `s` from the configuration `q`. Writes the candidate configuration, the group step `delta_q`,
-  /// and the worst-case (max over frames) FK pose error. Does not commit.
-  tl::expected<void, std::string> solveStep(const std::vector<FrameReference>& references,
-                                            const Eigen::VectorXd& q, double s,
-                                            Eigen::VectorXd& q_candidate, Eigen::VectorXd& delta_q,
-                                            double& position_error, double& orientation_error);
-
-  /// @brief Iterates the differential IK at a fixed `s` until every frame is within the pose
-  /// tolerance, updating `q` in place.
-  /// @details This is what keeps the resolved path on the Cartesian path: each sample is solved to
-  /// convergence rather than tracked by a single step, so the robot never trails the reference and
-  /// no throttling or lag-recovery is needed.
-  /// The tolerance here should be far tighter than the path tolerance: see kIkConvergenceFraction.
-  /// @param position_tolerance Residual position error a sample must reach.
-  /// @param orientation_tolerance Residual orientation error a sample must reach.
-  tl::expected<void, std::string> converge(const std::vector<FrameReference>& references, double s,
-                                           double position_tolerance, double orientation_tolerance,
-                                           Eigen::VectorXd& q);
 
   /// @brief Stage one: resolves the Cartesian path into a purely geometric joint path.
   /// @details Samples the path by arc length at a density set by the pose tolerance, solving IK to
@@ -307,13 +287,13 @@ private:
   /// @details Cached at construction so buildFrameReferences() can wire each reference to its task
   /// on every plan() call; a non-empty value also marks the custom-components mode (in which the
   /// default OInK setup is bypassed). The other caller-supplied objectives are consumed into
-  /// oink_/tasks_/constraints_/barriers_ at construction, so they do not need to be retained.
+  /// oink_/extra_tasks_/constraints_/barriers_ at construction, so they do not need to be retained.
   std::vector<std::shared_ptr<FrameTask>> tracking_tasks_;
 
-  /// @brief Reused solver task list passed to Oink::solveIk each control step.
-  /// @details Assembled once at construction in the custom-components mode; rebuilt in place each
-  /// plan() in the default mode (the per-end-effector FrameTasks depend on the path and seed).
-  std::vector<std::shared_ptr<Task>> tasks_;
+  /// @brief Tasks solved alongside the tracking tasks but not required to converge.
+  /// @details The caller's extra tasks in the custom-components mode; the nullspace
+  /// ConfigurationTask, rebuilt each plan() from the seed, in the default mode.
+  std::vector<std::shared_ptr<Task>> extra_tasks_;
 
   /// @brief Constraints passed to the solver each step. Built once at construction.
   std::vector<std::shared_ptr<Constraints>> constraints_;
