@@ -45,7 +45,12 @@ struct Task {
     jacobian_container = Eigen::MatrixXd::Zero(task_rows, num_vars);
     error_container = Eigen::VectorXd::Zero(task_rows);
     H_dense = Eigen::MatrixXd::Zero(num_vars, num_vars);
+    delta_q_prev = Eigen::VectorXd::Zero(num_vars);
   }
+
+  /// @brief Records the displacement applied on the previous step (see delta_q_prev).
+  /// @throws std::invalid_argument on a size mismatch.
+  void setLastDisplacement(const Eigen::VectorXd& delta_q_prev_in);
 
   /// @brief Compute the task Jacobian and store in jacobian_container.
   /// @param context The context supplying the configuration and the kinematics scratch to write.
@@ -90,6 +95,18 @@ struct Task {
   const int priority = 1;         // Priority level (1 = highest; lower priorities are projected
                                   // into the nullspace of higher ones)
   int num_variables = 0;          // Number of optimization variables
+
+  /// @brief Singular values of the weighted Jacobian below this are damped: the corresponding
+  /// Hessian eigenvalues are floored at threshold², so the step gain in a near-singular direction
+  /// never exceeds 1/threshold. Lower priority levels may use those directions, at a cost of
+  /// ‖W J Δq‖²/threshold². 0 disables both.
+  double singularity_threshold = 0.0;
+
+  /// @brief Displacement applied on the previous step (zero until setLastDisplacement()).
+  /// With it, the task is a critically damped second-order tracker,
+  ///     Δq = (1 - β) Δq_prev + α J⁺ e,  β = min(1, 2·sqrt(α)),
+  /// which is the plain first-order step whenever α >= 1/4 or this is never set.
+  Eigen::VectorXd delta_q_prev;
 
   /// @brief Pre-allocated Jacobian container (task_rows × num_variables).
   Eigen::MatrixXd jacobian_container;
@@ -436,12 +453,15 @@ struct Oink {
   SceneContext& getContext() { return *context_; }
 
 private:
-  /// @brief Compute `task`'s Jacobian and error, and add its contribution to the QP Hessian
-  /// and gradient of its priority level.
+  /// @brief Compute `task`'s Jacobian and error, and add its contribution to a QP objective.
   /// @param context The context supplying the configuration and the scratch.
   /// @param task The task to add to the QP objective.
+  /// @param H_out Hessian the task's JᵀJ (plus its damping) is added to.
+  /// @param c_out Gradient the task's Jᵀe term is added to.
   /// @return void if successful, else an error message describing the failure.
-  tl::expected<void, std::string> addTaskContribution(const SceneContext& context, Task* task);
+  tl::expected<void, std::string> addTaskContribution(const SceneContext& context, Task* task,
+                                                      Eigen::MatrixXd& H_out,
+                                                      Eigen::VectorXd& c_out);
 
 public:
   // One QP solver (ProxQP dense backend) per priority level, with the (variables, rows) it was
@@ -497,6 +517,8 @@ public:
   Eigen::VectorXd level_guess;
   std::vector<Eigen::VectorXd> level_solutions;  // δq after each level, from the previous solve
   Eigen::MatrixXd level_jacobian;
+  Eigen::MatrixXd nullspace_penalty_H;  // Σ ρ·JᵀJ of the levels solved so far, and
+  Eigen::VectorXd nullspace_penalty_c;  // the matching -ρ·JᵀJ·Δq* linear terms
 
   // Per-task scratch: W·J and W·(α·e). Resized per task (dims depend on task rows); steady-state
   // calls reuse the existing allocation when sizes match across iterations and across solveIk

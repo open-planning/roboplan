@@ -31,6 +31,20 @@ class Task:
     def num_variables(self) -> int:
         """Number of optimization variables."""
 
+    @property
+    def singularity_threshold(self) -> float:
+        """
+        Singular values of the weighted Jacobian below this are damped (0 = off).
+        """
+
+    @singularity_threshold.setter
+    def singularity_threshold(self, arg: float, /) -> None: ...
+
+    def setLastDisplacement(self, delta_q_prev: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Records the previous step's displacement, which makes the task a critically damped second-order tracker when task_gain < 1/4.
+        """
+
 class FrameTaskOptions:
     """Parameters for FrameTask."""
 
@@ -320,6 +334,10 @@ class Barrier:
         """Barrier gain (gamma)."""
 
     @property
+    def barrier_values(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """h(q) values from the last evaluation."""
+
+    @property
     def dt(self) -> float:
         """Timestep."""
 
@@ -465,6 +483,10 @@ class SelfCollisionBarrier(Barrier):
         """
         Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. None disables culling.
         """
+
+    @property
+    def closest_pair_indices(self) -> list[int]:
+        """Collision pair indices constrained in the last evaluation."""
 
 class OinkSettings:
     """Solver settings for the Oink QP (ProxQP)."""

@@ -33,7 +33,12 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("priority", &Task::priority,
               "Priority level (1 = highest; lower priorities are projected into the nullspace of "
               "higher priorities).")
-      .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.");
+      .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.")
+      .def_rw("singularity_threshold", &Task::singularity_threshold,
+              "Singular values of the weighted Jacobian below this are damped (0 = off).")
+      .def("setLastDisplacement", &Task::setLastDisplacement, "delta_q_prev"_a,
+           "Records the previous step's displacement, which makes the task a critically damped "
+           "second-order tracker when task_gain < 1/4.");
 
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
       .def(nanobind::init<double, double, double, double, double, double, int>(),
@@ -158,6 +163,7 @@ void init_optimal_ik(nanobind::module_& m) {
       .def("getNumBarriers", &Barrier::getNumBarriers, "scene"_a,
            "Get the number of barrier constraints.")
       .def_ro("gain", &Barrier::gain, "Barrier gain (gamma).")
+      .def_ro("barrier_values", &Barrier::barrier_values, "h(q) values from the last evaluation.")
       .def_ro("dt", &Barrier::dt, "Timestep.")
       .def_ro("safe_displacement_gain", &Barrier::safe_displacement_gain,
               "Gain for safe displacement regularization.")
@@ -227,7 +233,9 @@ void init_optimal_ik(nanobind::module_& m) {
           "d_max", &SelfCollisionBarrier::d_max,
           "Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding "
           "boxes are farther apart than this skip exact narrow-phase distance. None disables "
-          "culling.");
+          "culling.")
+      .def_ro("closest_pair_indices", &SelfCollisionBarrier::closest_pair_indices,
+              "Collision pair indices constrained in the last evaluation.");
 
   nanobind::class_<OinkSettings>(m, "OinkSettings", "Solver settings for the Oink QP (ProxQP).")
       .def(nanobind::init<>())

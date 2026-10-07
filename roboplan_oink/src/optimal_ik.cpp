@@ -4,7 +4,7 @@
 #include <optional>
 #include <utility>
 
-#include <Eigen/QR>
+#include <Eigen/Eigenvalues>
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -13,9 +13,6 @@
 namespace {
 // Minimum squared norm threshold to avoid division by zero in barrier regularization
 constexpr double kMinNormSq = 1e-12;
-// Singular values of a priority level's weighted Jacobian below this leave that direction free
-// for the lower levels.
-constexpr double kNullspaceTolerance = 1e-6;
 }  // namespace
 
 namespace roboplan {
@@ -120,6 +117,15 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const SceneContext& 
   return {};
 }
 
+void Task::setLastDisplacement(const Eigen::VectorXd& delta_q_prev_in) {
+  if (delta_q_prev_in.size() != delta_q_prev.size()) {
+    throw std::invalid_argument("Task: delta_q_prev size (" +
+                                std::to_string(delta_q_prev_in.size()) + ") does not match " +
+                                std::to_string(delta_q_prev.size()));
+  }
+  delta_q_prev = delta_q_prev_in;
+}
+
 tl::expected<void, std::string> Task::computeQpObjective(const SceneContext& context,
                                                          Eigen::MatrixXd& H, Eigen::VectorXd& c) {
   auto jacobian_result = computeJacobian(context);
@@ -130,6 +136,13 @@ tl::expected<void, std::string> Task::computeQpObjective(const SceneContext& con
   auto error_result = computeError(context);
   if (!error_result.has_value()) {
     return tl::make_unexpected("Failed to compute error: " + error_result.error());
+  }
+  // Carry (1 - β) of the previous task-space velocity, so the QP solves
+  //     min ‖J (Δq - (1 - β) Δq_prev) + α e‖²  ⇒  Δq = (1 - β) Δq_prev + α J⁺ e,
+  // folded into the error as e - ((1 - β) / α) · J · Δq_prev.
+  const double beta = std::min(1.0, 2.0 * std::sqrt(gain));
+  if (beta < 1.0) {
+    error_container.noalias() -= ((1.0 - beta) / gain) * (jacobian_container * delta_q_prev);
   }
 
   // Apply weights: J_w = W*J, e_w = -α*W*e
@@ -312,6 +325,8 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
   // Every level keeps the constraints and barriers, so an inequality restricts a lower level
   // only where it is active.
   nullspace_basis.setIdentity(num_variables, num_variables);
+  nullspace_penalty_H.setZero(num_variables, num_variables);
+  nullspace_penalty_c.setZero(num_variables);
   size_t level_begin = 0;
   for (size_t level = 0;; ++level) {
     size_t level_end = level_begin;
@@ -323,7 +338,7 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     H = H_base;
     c = c_base;
     for (size_t i = level_begin; i < level_end; ++i) {
-      auto result = addTaskContribution(context, sorted_tasks[i]);
+      auto result = addTaskContribution(context, sorted_tasks[i], H, c);
       if (!result.has_value()) {
         return tl::make_unexpected(result.error());
       }
@@ -348,6 +363,8 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     } else {
       // Substitute δq = δq_{k-1} + Z·z into this level's objective and constraints.
       previous_delta_q = delta_q;
+      H += nullspace_penalty_H;
+      c += nullspace_penalty_c;
       level_H.noalias() = nullspace_basis.transpose() * H * nullspace_basis;
       level_c.noalias() = nullspace_basis.transpose() * (H * previous_delta_q + c);
       level_A.noalias() = constraint_workspace_A * nullspace_basis;
@@ -396,17 +413,32 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
       level_jacobian.middleRows(row, n).noalias() = task->weight * task->jacobian_container;
       row += n;
     }
-    // A rank-revealing QR of (J·Z)^T splits its columns into the range (first `rank` columns of Q)
-    // and the nullspace (the rest).
-    const Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(
-        (level_jacobian * nullspace_basis).transpose());
-    const int rank = static_cast<int>(
-        (qr.matrixQR().diagonal().cwiseAbs().array() > kNullspaceTolerance).count());
-    if (rank == num_free) {
+    // Split the directions of Z by the singular values of J·Z (eigenvalues of its Gram matrix,
+    // ascending): those above the level's singularity threshold are its range and leave Z (exact
+    // lexicographic ordering); the rest stay for the lower levels, which pay
+    // ‖J (Δq - Δq*)‖²/threshold² for using them, so a direction opens up gradually as it becomes
+    // singular instead of switching at the threshold. Without a threshold, only the numerically
+    // zero singular values are left free.
+    double threshold = 0.0;
+    for (size_t i = level_begin; i < level_end; ++i) {
+      threshold = std::max(threshold, sorted_tasks[i]->singularity_threshold);
+    }
+    level_A.noalias() = level_jacobian * nullspace_basis;
+    level_H.noalias() = level_A.transpose() * level_A;
+    const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(level_H);
+    const double cutoff = threshold > 0.0 ? threshold * threshold
+                                          : eig.eigenvalues().maxCoeff() * num_free *
+                                                std::numeric_limits<double>::epsilon();
+    const int free = static_cast<int>((eig.eigenvalues().array() <= cutoff).count());
+    if (free == 0) {
       return result;  // No freedom left for the lower levels.
     }
-    const Eigen::MatrixXd q_matrix = qr.householderQ();
-    nullspace_basis = (nullspace_basis * q_matrix.rightCols(num_free - rank)).eval();
+    if (threshold > 0.0) {
+      level_H.noalias() = level_jacobian.transpose() * level_jacobian / (threshold * threshold);
+      nullspace_penalty_H += level_H;
+      nullspace_penalty_c.noalias() -= level_H * delta_q;
+    }
+    nullspace_basis = (nullspace_basis * eig.eigenvectors().leftCols(free)).eval();
     level_begin = level_end;
   }
 }
@@ -518,7 +550,9 @@ tl::expected<void, std::string> Oink::enforceBarriers(
   return {};
 }
 
-tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& context, Task* task) {
+tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& context, Task* task,
+                                                          Eigen::MatrixXd& H_out,
+                                                          Eigen::VectorXd& c_out) {
   auto jacobian_result = task->computeJacobian(context);
   if (!jacobian_result.has_value()) {
     return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
@@ -526,6 +560,14 @@ tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& co
   auto error_result = task->computeError(context);
   if (!error_result.has_value()) {
     return tl::make_unexpected("Failed to compute error: " + error_result.error());
+  }
+  // Carry (1 - β) of the previous task-space velocity, so the QP solves
+  //     min ‖J (Δq - (1 - β) Δq_prev) + α e‖²  ⇒  Δq = (1 - β) Δq_prev + α J⁺ e,
+  // folded into the error as e - ((1 - β) / α) · J · Δq_prev.
+  const double beta = std::min(1.0, 2.0 * std::sqrt(task->gain));
+  if (beta < 1.0) {
+    task->error_container.noalias() -=
+        ((1.0 - beta) / task->gain) * (task->jacobian_container * task->delta_q_prev);
   }
 
   weighted_jacobian.noalias() = task->weight * task->jacobian_container;
@@ -535,8 +577,21 @@ tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& co
 
   task->H_dense.noalias() = weighted_jacobian.transpose() * weighted_jacobian;
   task->H_dense.diagonal().array() += mu;
-  H += task->H_dense;
-  c.noalias() += weighted_jacobian.transpose() * weighted_error;
+
+  // Selective singularity damping: floor the Hessian's eigenvalues at threshold², which damps
+  // only the near-singular directions of W·J and leaves the well-conditioned ones untouched.
+  if (task->singularity_threshold > 0.0) {
+    const double threshold_sq = task->singularity_threshold * task->singularity_threshold;
+    const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(task->H_dense);
+    if (eig.eigenvalues().minCoeff() < threshold_sq) {
+      task->H_dense.noalias() = eig.eigenvectors() *
+                                eig.eigenvalues().cwiseMax(threshold_sq).asDiagonal() *
+                                eig.eigenvectors().transpose();
+    }
+  }
+
+  H_out += task->H_dense;
+  c_out.noalias() += weighted_jacobian.transpose() * weighted_error;
 
   return {};
 }

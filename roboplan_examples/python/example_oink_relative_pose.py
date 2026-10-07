@@ -33,7 +33,8 @@ from roboplan.optimal_ik import (
 
 
 def main(
-    use_relative_pose_constraint: bool = True,
+    use_constraint: bool = True,
+    relative_task_weight: float = 100.0,
     position_tolerance: float = 0.005,
     orientation_tolerance: float = 0.05,
     bar_radius: float = 0.02,
@@ -44,17 +45,22 @@ def main(
     port: str = "8000",
 ):
     """
-    Move both arms of the dual Franka in tandem with a RelativePoseConstraint.
+    Move both arms of the dual Franka in tandem, holding the right gripper at a fixed pose
+    relative to the left one.
 
     The grippers hold a bar, and a marker sits at its center.
     Moving the marker drags both grippers along.
 
     Parameters:
-        use_relative_pose_constraint: If true, only the left gripper tracks the marker and the
-            constraint carries the right gripper along. If false, each gripper tracks the marker
-            with its own FrameTask and no constraint couples them.
-        position_tolerance: Per-axis relative position tolerance, in meters.
-        orientation_tolerance: Per-axis relative orientation tolerance, in radians.
+        use_constraint: If true, the coupling is a hard RelativePoseConstraint with the given
+            tolerances. If false, it is a FrameTask of the right gripper relative to the left
+            one, weighted by relative_task_weight.
+        relative_task_weight: Weight of the relative FrameTask (used when use_constraint is
+            false).
+        position_tolerance: Per-axis relative position tolerance, in meters (used when
+            use_constraint is true).
+        orientation_tolerance: Per-axis relative orientation tolerance, in radians (used when
+            use_constraint is true).
         bar_radius: Radius of the held bar, in meters.
         config_task_weight: Weight of a priority-2 ConfigurationTask pulling toward the start.
         self_collision_num_pairs: Number of closest collision pairs constrained by the
@@ -104,24 +110,25 @@ def main(
         [scene.getJointInfo(name).limits.max_velocity for name in joint_names]
     )
 
-    # Hold the right gripper at its starting pose relative to the left gripper.
     T_left = scene.forwardKinematics(q_start, left_tcp)
     T_right = scene.forwardKinematics(q_start, right_tcp)
-    relative_pose = RelativePoseConstraint(
-        oink,
-        scene,
-        left_tcp,
-        right_tcp,
-        np.linalg.inv(T_left) @ T_right,
-        position_tolerance=np.full(3, position_tolerance),
-        orientation_tolerance=np.full(3, orientation_tolerance),
-    )
+    left_T_right = np.linalg.inv(T_left) @ T_right
     constraints = [
         PositionLimit(oink, gain=1.0),
         VelocityLimit(oink, dt, v_max),
     ]
-    if use_relative_pose_constraint:
-        constraints.append(relative_pose)
+    if use_constraint:
+        constraints.append(
+            RelativePoseConstraint(
+                oink,
+                scene,
+                left_tcp,
+                right_tcp,
+                left_T_right,
+                position_tolerance=np.full(3, position_tolerance),
+                orientation_tolerance=np.full(3, orientation_tolerance),
+            )
+        )
     barriers = []
     if self_collision_num_pairs > 0:
         barriers.append(
@@ -137,15 +144,36 @@ def main(
             )
         )
 
-    task_options = FrameTaskOptions(
-        position_cost=1.0, orientation_cost=0.1, task_gain=1.0, lm_damping=0.01
+    goal = CartesianConfiguration()
+    goal.tip_frame = left_tcp
+    goal.tform = T_left
+    marker_task = FrameTask(
+        oink,
+        scene,
+        goal,
+        FrameTaskOptions(
+            position_cost=1.0, orientation_cost=0.1, task_gain=1.0, lm_damping=0.01
+        ),
     )
-    frame_tasks = []
-    for name in (left_tcp,) if use_relative_pose_constraint else (left_tcp, right_tcp):
+    tasks = [marker_task]
+    if not use_constraint:
         goal = CartesianConfiguration()
-        goal.tip_frame = name
-        goal.tform = scene.forwardKinematics(q_start, name)
-        frame_tasks.append(FrameTask(oink, scene, goal, task_options))
+        goal.tip_frame = right_tcp
+        goal.base_frame = left_tcp
+        goal.tform = left_T_right
+        tasks.append(
+            FrameTask(
+                oink,
+                scene,
+                goal,
+                FrameTaskOptions(
+                    position_cost=relative_task_weight,
+                    orientation_cost=relative_task_weight,
+                    task_gain=1.0,
+                    lm_damping=0.01,
+                ),
+            )
+        )
 
     config_task = ConfigurationTask(
         oink,
@@ -153,16 +181,14 @@ def main(
         np.full(oink.num_variables, config_task_weight),
         ConfigurationTaskOptions(priority=2),
     )
+    tasks.append(config_task)
 
     # The bar frame starts midway between the grippers, world-aligned, with the bar along y.
-    # The bar is rigidly attached to the left gripper, and the marker tracks the bar frame. Each
-    # gripper's target is the marker pose composed with its fixed offset from the bar.
+    # The bar is rigidly attached to the left gripper, and the marker tracks the bar frame. The
+    # left gripper's target is the marker pose composed with its fixed offset from the bar.
     T_bar = pin.SE3(np.eye(3), 0.5 * (T_left[:3, 3] + T_right[:3, 3])).homogeneous
-    bar_T_tcp = {
-        left_tcp: np.linalg.inv(T_bar) @ T_left,
-        right_tcp: np.linalg.inv(T_bar) @ T_right,
-    }
-    left_T_bar = np.linalg.inv(bar_T_tcp[left_tcp])
+    bar_T_left = np.linalg.inv(T_bar) @ T_left
+    left_T_bar = np.linalg.inv(bar_T_left)
     bar_T_cylinder = pin.SE3(pin.utils.rotate("x", np.pi / 2), np.zeros(3)).homogeneous
     bar = viz.viewer.scene.add_cylinder(
         "/bar",
@@ -173,32 +199,12 @@ def main(
     marker = viz.viewer.scene.add_transform_controls(
         "/ik_marker", depth_test=False, scale=0.2, disable_sliders=True
     )
+    marker.position = T_bar[:3, 3]
+    marker.wxyz = pin.Quaternion(T_bar[:3, :3]).coeffs()[[3, 0, 1, 2]]
     marker_target = T_bar
     reference_filter = SE3LowPassFilter(tau=0.1)
-
-    if use_relative_pose_constraint:
-        pos_slider = viz.viewer.gui.add_slider(
-            "Position tol. (mm)", 0.0, 50.0, 0.5, position_tolerance * 1000.0
-        )
-        rot_slider = viz.viewer.gui.add_slider(
-            "Orientation tol. (deg)", 0.0, 30.0, 0.5, np.rad2deg(orientation_tolerance)
-        )
-
-        @pos_slider.on_update
-        def _(_):
-            with scene_lock:
-                relative_pose.position_tolerance = np.full(3, pos_slider.value / 1000.0)
-
-        @rot_slider.on_update
-        def _(_):
-            with scene_lock:
-                relative_pose.orientation_tolerance = np.full(
-                    3, np.deg2rad(rot_slider.value)
-                )
-
-    config_checkbox = viz.viewer.gui.add_checkbox("Configuration task", True)
+    reference_filter.reset(T_bar)
     error_text = viz.viewer.gui.add_markdown("")
-    reset_button = viz.viewer.gui.add_button("Reset Marker")
 
     @marker.on_update
     def _(_):
@@ -207,16 +213,6 @@ def main(
             marker_target = pin.SE3(
                 pin.Quaternion(marker.wxyz[[1, 2, 3, 0]]), marker.position
             ).homogeneous
-
-    @reset_button.on_click
-    def reset_marker(_):
-        nonlocal marker_target
-        with scene_lock:
-            q = scene.getCurrentJointPositions()
-            marker_target = scene.forwardKinematics(q, left_tcp) @ left_T_bar
-            reference_filter.reset(marker_target)
-            marker.position = marker_target[:3, 3]
-            marker.wxyz = pin.Quaternion(marker_target[:3, :3]).coeffs()[[3, 0, 1, 2]]
 
     running = True
 
@@ -227,14 +223,7 @@ def main(
             loop_start = time.time()
             with scene_lock:
                 T_marker = reference_filter.update(marker_target, dt)
-                for task in frame_tasks:
-                    task.setTargetFrameTransform(T_marker @ bar_T_tcp[task.frame_name])
-
-                tasks = (
-                    frame_tasks + [config_task]
-                    if config_checkbox.value
-                    else frame_tasks
-                )
+                marker_task.setTargetFrameTransform(T_marker @ bar_T_left)
                 q = scene.getCurrentJointPositions()
                 try:
                     oink.solveIk(q, tasks, constraints, barriers, delta_q, 1e-3)
@@ -250,9 +239,7 @@ def main(
                 scene.setJointPositions(q)
                 T_l = scene.forwardKinematics(q, left_tcp)
                 T_r = scene.forwardKinematics(q, right_tcp)
-                T_err = pin.SE3(
-                    np.linalg.inv(relative_pose.target_pose) @ np.linalg.inv(T_l) @ T_r
-                )
+                T_err = pin.SE3(np.linalg.inv(left_T_right) @ np.linalg.inv(T_l) @ T_r)
                 T_cylinder = T_l @ left_T_bar @ bar_T_cylinder
 
             if loop_start - last_display >= 1.0 / 30.0:
@@ -267,7 +254,6 @@ def main(
                 last_display = loop_start
             time.sleep(max(0.0, dt - (time.time() - loop_start)))
 
-    reset_marker(None)
     viz.display(q_start)
     control_thread = threading.Thread(target=control_loop, daemon=True)
     control_thread.start()
