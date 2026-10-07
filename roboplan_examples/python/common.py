@@ -642,6 +642,13 @@ def get_model_data():
             ],
             obstacles=[
                 ObstacleConfig(
+                    name="test_sphere",
+                    geom=coal.Sphere(0.3),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([-1.0, 0.75, 0.5])).homogeneous,
+                    color=np.array([1.0, 0.0, 0.0, 0.5]),
+                ),
+                ObstacleConfig(
                     name="ground_plane",
                     geom=coal.Box(3.0, 3.0, 0.2),
                     parent_frame="universe",
@@ -658,28 +665,6 @@ def get_model_data():
                         "suspension_front_right_link",
                         "suspension_rear_left_link",
                         "suspension_rear_right_link",
-                    ],
-                ),
-                ObstacleConfig(
-                    name="test_sphere",
-                    geom=coal.Sphere(0.3),
-                    parent_frame="universe",
-                    tform=pin.SE3(np.eye(3), np.array([-1.0, 0.75, 0.5])).homogeneous,
-                    color=np.array([1.0, 0.0, 0.0, 0.5]),
-                    disabled_collisions=["test_box"],
-                ),
-                ObstacleConfig(
-                    name="ground_plane",
-                    geom=coal.Box(5.0, 5.0, 0.2),
-                    parent_frame="universe",
-                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1255])).homogeneous,
-                    color=np.array([0.5, 0.5, 0.5, 0.5]),
-                    disabled_collisions=[
-                        "front_left_wheel_link",
-                        "front_right_wheel_link",
-                        "rear_left_wheel_link",
-                        "rear_right_wheel_link",
-                        "test_box",
                         "test_sphere",
                     ],
                 ),
