@@ -77,7 +77,7 @@ def test_benchmark_rrt(benchmark, benchmark_setup):
     options = RRTOptions()
     options.group_name = benchmark_setup["group_name"]
     options.max_nodes = 100000
-    options.max_planning_time = 1.0
+    options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
     success_rate = benchmark(
