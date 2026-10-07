@@ -12,7 +12,7 @@ jobs:
     name: Check package versions
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.package.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,12 +43,24 @@ jobs:
           }
           if len(set(versions.values())) != 1:
               raise SystemExit(f"Package versions differ: {versions}")
-          print(f"version={next(iter(versions.values()))}")
+          print(f"release_version={next(iter(versions.values()))}")
           PY
+      - name: Choose build version
+        id: version
+        env:
+          RELEASE_VERSION: ${{ steps.package.outputs.release_version }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          # Non-release builds get a local +dev version so in-repo pins can never resolve to a PyPI release.
+          if [ "$IS_TAG" = true ]; then
+            echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$RELEASE_VERSION+dev" >> "$GITHUB_OUTPUT"
+          fi
       - name: Check tag matches package version
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.release_version }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if ! [[ "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -73,6 +85,10 @@ jobs:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Set package versions
+        env:
+          VERSION: ${{ needs.check_version.outputs.version }}
+        run: python3 scripts/set_version.py "$VERSION"
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -97,6 +113,10 @@ jobs:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Set package versions
+        env:
+          VERSION: ${{ needs.check_version.outputs.version }}
+        run: python3 scripts/set_version.py "$VERSION"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -156,6 +176,10 @@ jobs:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Set package versions
+        env:
+          VERSION: ${{ needs.check_version.outputs.version }}
+        run: python3 scripts/set_version.py "$VERSION"
       - uses: actions/download-artifact@v5
         with:
           pattern: python-distributions-bootstrap-*
@@ -213,13 +237,17 @@ jobs:
   build_sdist:
     name: Build source distributions
     runs-on: ubuntu-latest
-    needs: [build_common_wheels, build_metapackage, build_wheels]
+    needs: [check_version, build_common_wheels, build_metapackage, build_wheels]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Set package versions
+        env:
+          VERSION: ${{ needs.check_version.outputs.version }}
+        run: python3 scripts/set_version.py "$VERSION"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
