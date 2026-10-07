@@ -3,7 +3,7 @@
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio 4.1.0 REQUIRED)
 find_package(yaml-cpp REQUIRED)
-if("@ROBOPLAN_EXPECTED_PACKAGE@")
+if(NOT "@ROBOPLAN_EXPECTED_PACKAGE@" STREQUAL "")
   find_package(@ROBOPLAN_EXPECTED_PACKAGE@ REQUIRED)
 endif()
 

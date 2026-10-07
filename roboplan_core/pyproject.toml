@@ -38,8 +38,10 @@ config = { extra-args = ["-DBUILD_PYTHON_BINDINGS=ON", "-DGENERATE_PYTHON_STUBS=
 
 # Conda package "host dependencies"; libraries required to build the package
 [tool.pixi.package.host-dependencies]
+cpp-expected = ">=1.1"
 eigen = ">=3.4"
 pinocchio = ">=4.1.0,<5"
+tinyxml2 = "*"
 yaml-cpp = ">=0.8.0,<0.9"
 python = { workspace = true }
 nanobind = { workspace = true }
@@ -47,6 +49,11 @@ gtest = { workspace = true }
 pytest = { workspace = true }
 # TBD: move the benchmarks closer to the code they're benchmarking? make benchmarks their own package?
 pytest-benchmark = { workspace = true }
+
+# roboplan's public headers include <tl/expected.hpp>; cpp-expected is
+# header-only and has no run exports of its own.
+[tool.pixi.package.run-dependencies]
+cpp-expected = ">=1.1"
 
 [tool.pixi.package.run-exports.weak]
 roboplan-core = { pin-subpackage = true }
