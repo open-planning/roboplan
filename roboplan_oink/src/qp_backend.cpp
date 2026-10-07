@@ -9,8 +9,10 @@ void QpDeleter::operator()(proxsuite::proxqp::dense::QP<double>* solver) const {
 tl::expected<void, std::string>
 solveQp(QpSolverPtr& solver, const OinkSettings& settings, bool init_required, int num_variables,
         int total_rows, const Eigen::MatrixXd& H, const Eigen::VectorXd& c,
-        const Eigen::MatrixXd& A, const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,
-        Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q) {
+        Eigen::Ref<const Eigen::MatrixXd> A, Eigen::Ref<const Eigen::VectorXd> lower,
+        Eigen::Ref<const Eigen::VectorXd> upper,
+        Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
+        std::optional<Eigen::Ref<const Eigen::VectorXd>> primal_guess) {
   using proxsuite::nullopt;
   using proxsuite::proxqp::InitialGuessStatus;
   using proxsuite::proxqp::QPSolverOutput;
@@ -40,7 +42,15 @@ solveQp(QpSolverPtr& solver, const OinkSettings& settings, bool init_required, i
     }
   }
 
-  solver->solve();
+  if (primal_guess && !init_required) {
+    const Eigen::VectorXd dual_guess = solver->results.z;
+    solver->solve(*primal_guess, nullopt,
+                  total_rows > 0
+                      ? proxsuite::optional<proxsuite::proxqp::dense::VecRef<double>>(dual_guess)
+                      : nullopt);
+  } else {
+    solver->solve();
+  }
 
   // PROXQP_SOLVED_CLOSEST_PRIMAL_FEASIBLE is returned when the QP was primal-infeasible and
   // settings.primal_infeasibility_solving is enabled: the solution minimizes the constraint

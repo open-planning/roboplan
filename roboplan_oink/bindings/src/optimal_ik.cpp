@@ -12,6 +12,7 @@
 #include <roboplan_oink/barriers/self_collision_barrier.hpp>
 #include <roboplan_oink/constraints/acceleration_limit.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
+#include <roboplan_oink/constraints/relative_pose.hpp>
 #include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
 #include <roboplan_oink/tasks/configuration.hpp>
@@ -32,7 +33,12 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("priority", &Task::priority,
               "Priority level (1 = highest; lower priorities are projected into the nullspace of "
               "higher priorities).")
-      .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.");
+      .def_ro("num_variables", &Task::num_variables, "Number of optimization variables.")
+      .def_rw("singularity_threshold", &Task::singularity_threshold,
+              "Singular values of the weighted Jacobian below this are damped (0 = off).")
+      .def("setLastDisplacement", &Task::setLastDisplacement, "delta_q_prev"_a,
+           "Records the previous step's displacement, which makes the task a critically damped "
+           "second-order tracker when task_gain < 1/4.");
 
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
       .def(nanobind::init<double, double, double, double, double, double, int>(),
@@ -135,10 +141,29 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_rw("delta_q_target", &AccelerationLimit::delta_q_target,
               "Remaining displacement to the task target, or None to disable target braking.");
 
+  nanobind::class_<RelativePoseConstraint, Constraints>(
+      m, "RelativePoseConstraint",
+      "Constraint that keeps the pose of frame_b relative to frame_a within a per-axis\n"
+      "position/orientation tolerance of target_pose (tolerances are in the target frame).")
+      .def(nanobind::init<const Oink&, const Scene&, const std::string&, const std::string&,
+                          const Eigen::Matrix4d&, const Eigen::Vector3d&, const Eigen::Vector3d&>(),
+           "oink"_a, "scene"_a, "frame_a"_a, "frame_b"_a, "target_pose"_a,
+           "position_tolerance"_a = Eigen::Vector3d::Zero(),
+           "orientation_tolerance"_a = Eigen::Vector3d::Zero())
+      .def_ro("frame_a", &RelativePoseConstraint::frame_a, "Reference frame name.")
+      .def_ro("frame_b", &RelativePoseConstraint::frame_b, "Constrained frame name.")
+      .def_rw("target_pose", &RelativePoseConstraint::target_pose,
+              "Target pose of frame_b in frame_a (4x4).")
+      .def_rw("position_tolerance", &RelativePoseConstraint::position_tolerance,
+              "Per-axis position tolerance (meters).")
+      .def_rw("orientation_tolerance", &RelativePoseConstraint::orientation_tolerance,
+              "Per-axis orientation tolerance (radians).");
+
   nanobind::class_<Barrier>(m, "Barrier", "Abstract base class for Control Barrier Functions.")
       .def("getNumBarriers", &Barrier::getNumBarriers, "scene"_a,
            "Get the number of barrier constraints.")
       .def_ro("gain", &Barrier::gain, "Barrier gain (gamma).")
+      .def_ro("barrier_values", &Barrier::barrier_values, "h(q) values from the last evaluation.")
       .def_ro("dt", &Barrier::dt, "Timestep.")
       .def_ro("safe_displacement_gain", &Barrier::safe_displacement_gain,
               "Gain for safe displacement regularization.")
@@ -208,7 +233,9 @@ void init_optimal_ik(nanobind::module_& m) {
           "d_max", &SelfCollisionBarrier::d_max,
           "Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding "
           "boxes are farther apart than this skip exact narrow-phase distance. None disables "
-          "culling.");
+          "culling.")
+      .def_ro("closest_pair_indices", &SelfCollisionBarrier::closest_pair_indices,
+              "Collision pair indices constrained in the last evaluation.");
 
   nanobind::class_<OinkSettings>(m, "OinkSettings", "Solver settings for the Oink QP (ProxQP).")
       .def(nanobind::init<>())

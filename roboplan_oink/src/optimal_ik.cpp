@@ -1,5 +1,10 @@
 #include <algorithm>
+#include <cmath>
 #include <limits>
+#include <optional>
+#include <utility>
+
+#include <Eigen/Eigenvalues>
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
@@ -112,6 +117,15 @@ tl::expected<void, std::string> Barrier::computeQpObjective(const SceneContext& 
   return {};
 }
 
+void Task::setLastDisplacement(const Eigen::VectorXd& delta_q_prev_in) {
+  if (delta_q_prev_in.size() != delta_q_prev.size()) {
+    throw std::invalid_argument("Task: delta_q_prev size (" +
+                                std::to_string(delta_q_prev_in.size()) + ") does not match " +
+                                std::to_string(delta_q_prev.size()));
+  }
+  delta_q_prev = delta_q_prev_in;
+}
+
 tl::expected<void, std::string> Task::computeQpObjective(const SceneContext& context,
                                                          Eigen::MatrixXd& H, Eigen::VectorXd& c) {
   auto jacobian_result = computeJacobian(context);
@@ -122,6 +136,13 @@ tl::expected<void, std::string> Task::computeQpObjective(const SceneContext& con
   auto error_result = computeError(context);
   if (!error_result.has_value()) {
     return tl::make_unexpected("Failed to compute error: " + error_result.error());
+  }
+  // Carry (1 - β) of the previous task-space velocity, so the QP solves
+  //     min ‖J (Δq - (1 - β) Δq_prev) + α e‖²  ⇒  Δq = (1 - β) Δq_prev + α J⁺ e,
+  // folded into the error as e - ((1 - β) / α) · J · Δq_prev.
+  const double beta = std::min(1.0, 2.0 * std::sqrt(gain));
+  if (beta < 1.0) {
+    error_container.noalias() -= ((1.0 - beta) / gain) * (jacobian_container * delta_q_prev);
   }
 
   // Apply weights: J_w = W*J, e_w = -α*W*e
@@ -194,49 +215,10 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     context.updateFramePlacements(q);
   }
 
-  // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
-  // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
-  sorted_tasks.clear();
-  for (const auto& task : tasks) {
-    if (task)
-      sorted_tasks.push_back(task.get());
-  }
-  std::stable_sort(sorted_tasks.begin(), sorted_tasks.end(),
-                   [](Task* a, Task* b) { return a->priority < b->priority; });
-
-  // Reset Hessian and Gradient.
-  H.setZero();
-  H.diagonal().setConstant(regularization);
-  c.setZero();
-
-  // Cumulative nullspace projector and Jacobian stack.
-  // This is only built up if there are 2+ priority levels — otherwise N stays at identity.
-  nullspace_projector.setIdentity(num_variables, num_variables);
-  jacobian_stack.resize(0, num_variables);
-
-  // Walk tasks in priority order (1 = highest). Each is projected through the current
-  // nullspace_projector (all strictly-higher priorities); on crossing into a new priority level,
-  // rebuild the projector from everything stacked so far. The lowest level, at the back, is never
-  // appended to `jacobian_stack` since no further level projects against it.
-  const int lowest_priority = sorted_tasks.empty() ? 0 : sorted_tasks.back()->priority;
-  const Task* prev_task = nullptr;
-  for (Task* task : sorted_tasks) {
-    if (prev_task && task->priority != prev_task->priority) {
-      rebuildNullspaceProjector(regularization);
-    }
-    auto result = addTaskContribution(context, task);
-    if (!result.has_value()) {
-      return tl::make_unexpected(result.error());
-    }
-    // Stacked Jacobians are only needed for levels above the lowest priority.
-    if (task->priority < lowest_priority) {
-      const int n = static_cast<int>(task->jacobian_container.rows());
-      const int prev = static_cast<int>(jacobian_stack.rows());
-      jacobian_stack.conservativeResize(prev + n, num_variables);
-      jacobian_stack.middleRows(prev, n) = task->jacobian_container;
-    }
-    prev_task = task;
-  }
+  // Objective terms shared by every priority level: Tikhonov regularization and barriers.
+  H_base.setZero(num_variables, num_variables);
+  H_base.diagonal().setConstant(regularization);
+  c_base.setZero(num_variables);
 
   // Compute barrier values and Jacobians once, then add objective contributions.
   if (barrier_H_contribution.rows() != num_variables) {
@@ -254,9 +236,19 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
       return tl::make_unexpected("Failed to compute barrier Jacobian: " + jacobian_result.error());
     }
     barrier->formatQpObjective(context, barrier_H_contribution, barrier_c_contribution);
-    H += barrier_H_contribution;
-    c += barrier_c_contribution;
+    H_base += barrier_H_contribution;
+    c_base += barrier_c_contribution;
   }
+
+  // Build a flat, priority-sorted view into `tasks` so we can walk levels in one pass.
+  // The buffer is a pre-allocated member of Oink, so steady-state calls hit no heap.
+  sorted_tasks.clear();
+  for (const auto& task : tasks) {
+    if (task)
+      sorted_tasks.push_back(task.get());
+  }
+  std::stable_sort(sorted_tasks.begin(), sorted_tasks.end(),
+                   [](Task* a, Task* b) { return a->priority < b->priority; });
 
   // Cache the row count of each constraint and barrier. Rows are in dq space, which is the
   // decision variable itself.
@@ -274,30 +266,21 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
     barrier_sizes.push_back(num_rows);
     total_barrier_rows += num_rows;
   }
+  last_constraint_rows = total_constraint_rows;
+  last_barrier_rows = total_barrier_rows;
 
   // Total inequality rows = constraints (box) + barriers (one-sided: -inf <= G*dq <= h)
   const int total_rows = total_constraint_rows + total_barrier_rows;
-
-  const bool init_required = !solver || (total_constraint_rows != last_constraint_rows ||
-                                         total_barrier_rows != last_barrier_rows);
-
-  // Resize constraint workspace if dimensions changed
-  if (init_required) {
+  if (constraint_workspace_A.rows() != total_rows) {
     constraint_workspace_A.resize(total_rows, num_variables);
     constraint_workspace_lower.resize(total_rows);
     constraint_workspace_upper.resize(total_rows);
-    last_constraint_rows = total_constraint_rows;
-    last_barrier_rows = total_barrier_rows;
   }
 
   // Fill constraint matrices block by block
   int row_offset = 0;
   for (size_t i = 0; i < constraints.size(); ++i) {
     const int num_rows = constraint_sizes.at(i);
-
-    if (row_offset + num_rows > total_rows) {
-      return tl::make_unexpected("Internal error: constraint row offset exceeds total rows");
-    }
 
     Eigen::Ref<Eigen::MatrixXd> constraint_A_view =
         constraint_workspace_A.middleRows(row_offset, num_rows);
@@ -320,10 +303,6 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
   for (size_t i = 0; i < barriers.size(); ++i) {
     const int num_rows = barrier_sizes.at(i);
 
-    if (row_offset + num_rows > total_rows) {
-      return tl::make_unexpected("Internal error: barrier row offset exceeds total rows");
-    }
-
     Eigen::Ref<Eigen::MatrixXd> barrier_G_view =
         constraint_workspace_A.middleRows(row_offset, num_rows);
     Eigen::Ref<Eigen::VectorXd> barrier_h_view =
@@ -340,9 +319,128 @@ Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>
   constraint_sizes.clear();
   barrier_sizes.clear();
 
-  return detail::solveQp(solver, settings, init_required, num_variables, total_rows, H, c,
-                         constraint_workspace_A, constraint_workspace_lower,
-                         constraint_workspace_upper, delta_q);
+  // Solve one QP per priority level (1 = highest), as a cascade. Level k searches only the
+  // nullspace Z of every higher-priority task's weighted Jacobian, δq = δq_{k-1} + Z·z,
+  // so the task velocities W·J·δq that the higher levels achieved are preserved exactly.
+  // Every level keeps the constraints and barriers, so an inequality restricts a lower level
+  // only where it is active.
+  nullspace_basis.setIdentity(num_variables, num_variables);
+  nullspace_penalty_H.setZero(num_variables, num_variables);
+  nullspace_penalty_c.setZero(num_variables);
+  size_t level_begin = 0;
+  for (size_t level = 0;; ++level) {
+    size_t level_end = level_begin;
+    while (level_end < sorted_tasks.size() &&
+           sorted_tasks[level_end]->priority == sorted_tasks[level_begin]->priority) {
+      ++level_end;
+    }
+
+    H = H_base;
+    c = c_base;
+    for (size_t i = level_begin; i < level_end; ++i) {
+      auto result = addTaskContribution(context, sorted_tasks[i], H, c);
+      if (!result.has_value()) {
+        return tl::make_unexpected(result.error());
+      }
+    }
+
+    // ProxQP fixes the problem dimensions at construction, so each level keeps its own solver
+    // and rebuilds it only when that level's dimensions change.
+    const int num_free = static_cast<int>(nullspace_basis.cols());
+    if (solvers.size() <= level) {
+      solvers.resize(level + 1);
+      solver_dims.resize(level + 1, {-1, -1});
+    }
+    const bool init_required =
+        !solvers[level] || solver_dims[level] != std::pair{num_free, total_rows};
+    solver_dims[level] = {num_free, total_rows};
+
+    tl::expected<void, std::string> result;
+    if (level == 0) {
+      result = detail::solveQp(solvers[level], settings, init_required, num_variables, total_rows,
+                               H, c, constraint_workspace_A, constraint_workspace_lower,
+                               constraint_workspace_upper, delta_q);
+    } else {
+      // Substitute δq = δq_{k-1} + Z·z into this level's objective and constraints.
+      previous_delta_q = delta_q;
+      H += nullspace_penalty_H;
+      c += nullspace_penalty_c;
+      level_H.noalias() = nullspace_basis.transpose() * H * nullspace_basis;
+      level_c.noalias() = nullspace_basis.transpose() * (H * previous_delta_q + c);
+      level_A.noalias() = constraint_workspace_A * nullspace_basis;
+      level_offset.noalias() = constraint_workspace_A * previous_delta_q;
+      level_lower = constraint_workspace_lower - level_offset;
+      level_upper = constraint_workspace_upper - level_offset;
+      level_z.resize(num_free);
+      // Z is only unique up to rotation, so it can differ between solves and the previous z is no
+      // warm start. Map this level's previous solution through the current Z instead.
+      const bool has_guess = level < level_solutions.size();
+      if (has_guess) {
+        level_guess.noalias() =
+            nullspace_basis.transpose() * (level_solutions[level] - previous_delta_q);
+      }
+      OinkSettings level_settings = settings;
+      level_settings.warm_start = false;
+      result = detail::solveQp(solvers[level], level_settings, init_required, num_free, total_rows,
+                               level_H, level_c, level_A, level_lower, level_upper, level_z,
+                               has_guess && settings.warm_start
+                                   ? std::optional<Eigen::Ref<const Eigen::VectorXd>>(level_guess)
+                                   : std::nullopt);
+      if (result.has_value()) {
+        delta_q = previous_delta_q + nullspace_basis * level_z;
+      }
+    }
+    if (!result.has_value()) {
+      return result;
+    }
+    if (level_solutions.size() <= level) {
+      level_solutions.resize(level + 1);
+    }
+    level_solutions[level] = delta_q;
+    if (level_end == sorted_tasks.size()) {
+      return result;
+    }
+
+    // Shrink the basis to the nullspace of this level's weighted task Jacobians.
+    int level_rows = 0;
+    for (size_t i = level_begin; i < level_end; ++i) {
+      level_rows += static_cast<int>(sorted_tasks[i]->jacobian_container.rows());
+    }
+    level_jacobian.resize(level_rows, num_variables);
+    for (size_t i = level_begin, row = 0; i < level_end; ++i) {
+      const Task* task = sorted_tasks[i];
+      const auto n = task->jacobian_container.rows();
+      level_jacobian.middleRows(row, n).noalias() = task->weight * task->jacobian_container;
+      row += n;
+    }
+    // Split the directions of Z by the singular values of J·Z (eigenvalues of its Gram matrix,
+    // ascending): those above the level's singularity threshold are its range and leave Z (exact
+    // lexicographic ordering); the rest stay for the lower levels, which pay
+    // ‖J (Δq - Δq*)‖²/threshold² for using them, so a direction opens up gradually as it becomes
+    // singular instead of switching at the threshold. Without a threshold, only the numerically
+    // zero singular values are left free.
+    double threshold = 0.0;
+    for (size_t i = level_begin; i < level_end; ++i) {
+      threshold = std::max(threshold, sorted_tasks[i]->singularity_threshold);
+    }
+    level_A.noalias() = level_jacobian * nullspace_basis;
+    level_H.noalias() = level_A.transpose() * level_A;
+    const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(level_H);
+    const double cutoff = threshold > 0.0 ? threshold * threshold
+                                          : eig.eigenvalues().maxCoeff() * num_free *
+                                                std::numeric_limits<double>::epsilon();
+    const int free = static_cast<int>((eig.eigenvalues().array() <= cutoff).count());
+    if (free == 0) {
+      return result;  // No freedom left for the lower levels.
+    }
+    if (threshold > 0.0) {
+      level_H.noalias() = level_jacobian.transpose() * level_jacobian / (threshold * threshold);
+      nullspace_penalty_H += level_H;
+      nullspace_penalty_c.noalias() -= level_H * delta_q;
+    }
+    nullspace_basis = (nullspace_basis * eig.eigenvectors().leftCols(free)).eval();
+    level_begin = level_end;
+  }
 }
 
 // Overload: tasks, constraints, and barriers, solved at the scene's current joint positions.
@@ -452,7 +550,9 @@ tl::expected<void, std::string> Oink::enforceBarriers(
   return {};
 }
 
-tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& context, Task* task) {
+tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& context, Task* task,
+                                                          Eigen::MatrixXd& H_out,
+                                                          Eigen::VectorXd& c_out) {
   auto jacobian_result = task->computeJacobian(context);
   if (!jacobian_result.has_value()) {
     return tl::make_unexpected("Failed to compute Jacobian: " + jacobian_result.error());
@@ -461,34 +561,39 @@ tl::expected<void, std::string> Oink::addTaskContribution(const SceneContext& co
   if (!error_result.has_value()) {
     return tl::make_unexpected("Failed to compute error: " + error_result.error());
   }
+  // Carry (1 - β) of the previous task-space velocity, so the QP solves
+  //     min ‖J (Δq - (1 - β) Δq_prev) + α e‖²  ⇒  Δq = (1 - β) Δq_prev + α J⁺ e,
+  // folded into the error as e - ((1 - β) / α) · J · Δq_prev.
+  const double beta = std::min(1.0, 2.0 * std::sqrt(task->gain));
+  if (beta < 1.0) {
+    task->error_container.noalias() -=
+        ((1.0 - beta) / task->gain) * (task->jacobian_container * task->delta_q_prev);
+  }
 
-  // min ||W J (N z) + W alpha e||^2 with delta_q = N z (z lives in the priority's nullspace).
-  // We absorb the parameterization into a projected effective Jacobian and keep the
-  // optimization variable as dq, so the same QP can be reused regardless of priority count.
-  projected_weighted_jacobian.noalias() =
-      task->weight * task->jacobian_container * nullspace_projector;
+  weighted_jacobian.noalias() = task->weight * task->jacobian_container;
   weighted_error.noalias() = task->weight * (task->gain * task->error_container);
 
   const double mu = task->lm_damping * weighted_error.squaredNorm();
 
-  task->H_dense.noalias() = projected_weighted_jacobian.transpose() * projected_weighted_jacobian;
+  task->H_dense.noalias() = weighted_jacobian.transpose() * weighted_jacobian;
   task->H_dense.diagonal().array() += mu;
-  H += task->H_dense;
-  c.noalias() += projected_weighted_jacobian.transpose() * weighted_error;
+
+  // Selective singularity damping: floor the Hessian's eigenvalues at threshold², which damps
+  // only the near-singular directions of W·J and leaves the well-conditioned ones untouched.
+  if (task->singularity_threshold > 0.0) {
+    const double threshold_sq = task->singularity_threshold * task->singularity_threshold;
+    const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(task->H_dense);
+    if (eig.eigenvalues().minCoeff() < threshold_sq) {
+      task->H_dense.noalias() = eig.eigenvectors() *
+                                eig.eigenvalues().cwiseMax(threshold_sq).asDiagonal() *
+                                eig.eigenvectors().transpose();
+    }
+  }
+
+  H_out += task->H_dense;
+  c_out.noalias() += weighted_jacobian.transpose() * weighted_error;
 
   return {};
-}
-
-void Oink::rebuildNullspaceProjector(double lambda_sq) {
-  // Damped pseudoinverse using `lambda_sq` (caller passes the QP's Tikhonov regularization).
-  // At well-conditioned configurations (sigma >> sqrt(lambda_sq)) this is numerically the
-  // standard nullspace projector; near singularities the damping preserves SPD-ness of
-  // (J J^T + lambda_sq I).
-  Eigen::MatrixXd jjt_damped = jacobian_stack * jacobian_stack.transpose();
-  jjt_damped.diagonal().array() += lambda_sq;
-  const Eigen::MatrixXd jjt_inv_j = jjt_damped.llt().solve(jacobian_stack);
-  nullspace_projector.setIdentity(num_variables, num_variables);
-  nullspace_projector.noalias() -= jacobian_stack.transpose() * jjt_inv_j;
 }
 
 }  // namespace roboplan

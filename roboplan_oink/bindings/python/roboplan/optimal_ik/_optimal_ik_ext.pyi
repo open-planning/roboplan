@@ -31,6 +31,20 @@ class Task:
     def num_variables(self) -> int:
         """Number of optimization variables."""
 
+    @property
+    def singularity_threshold(self) -> float:
+        """
+        Singular values of the weighted Jacobian below this are damped (0 = off).
+        """
+
+    @singularity_threshold.setter
+    def singularity_threshold(self, arg: float, /) -> None: ...
+
+    def setLastDisplacement(self, delta_q_prev: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
+        """
+        Records the previous step's displacement, which makes the task a critically damped second-order tracker when task_gain < 1/4.
+        """
+
 class FrameTaskOptions:
     """Parameters for FrameTask."""
 
@@ -272,6 +286,43 @@ class AccelerationLimit(Constraints):
     @delta_q_target.setter
     def delta_q_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None) -> None: ...
 
+class RelativePoseConstraint(Constraints):
+    """
+    Constraint that keeps the pose of frame_b relative to frame_a within a per-axis
+    position/orientation tolerance of target_pose (tolerances are in the target frame).
+    """
+
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_a: str, frame_b: str, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], position_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., orientation_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
+
+    @property
+    def frame_a(self) -> str:
+        """Reference frame name."""
+
+    @property
+    def frame_b(self) -> str:
+        """Constrained frame name."""
+
+    @property
+    def target_pose(self) -> Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]:
+        """Target pose of frame_b in frame_a (4x4)."""
+
+    @target_pose.setter
+    def target_pose(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], /) -> None: ...
+
+    @property
+    def position_tolerance(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """Per-axis position tolerance (meters)."""
+
+    @position_tolerance.setter
+    def position_tolerance(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
+
+    @property
+    def orientation_tolerance(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+        """Per-axis orientation tolerance (radians)."""
+
+    @orientation_tolerance.setter
+    def orientation_tolerance(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], /) -> None: ...
+
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
 
@@ -281,6 +332,10 @@ class Barrier:
     @property
     def gain(self) -> float:
         """Barrier gain (gamma)."""
+
+    @property
+    def barrier_values(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """h(q) values from the last evaluation."""
 
     @property
     def dt(self) -> float:
@@ -428,6 +483,10 @@ class SelfCollisionBarrier(Barrier):
         """
         Maximum distance (meters) at which a collision pair is tracked; pairs whose bounding boxes are farther apart than this skip exact narrow-phase distance. None disables culling.
         """
+
+    @property
+    def closest_pair_indices(self) -> list[int]:
+        """Collision pair indices constrained in the last evaluation."""
 
 class OinkSettings:
     """Solver settings for the Oink QP (ProxQP)."""

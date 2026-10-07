@@ -119,17 +119,17 @@ The OInK solver uses Quadratic Programming (QP) to compute joint displacements t
 QP Problem Formulation
 ^^^^^^^^^^^^^^^^^^^^^^
 
-OInK solves the following QP at each control step:
+OInK solves the following QP at each control step, once per task priority level :math:`p` (see Task Priorities):
 
 .. math::
 
-   \min_{\Delta q} \quad \underbrace{\frac{1}{2} \sum_{k} \| W_k (J_k N_k \Delta q + \alpha_k e_k) \|^2}_{\text{Tasks}} + \underbrace{\frac{\lambda}{2} \|\Delta q\|^2}_{\text{Regularization}} + \underbrace{\sum_{b} \frac{r_b}{2\|J_b\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2}_{\text{Barrier Regularization}}
+   \min_{\Delta q} \quad \underbrace{\frac{1}{2} \sum_{k \in p} \| W_k (J_k \Delta q + \alpha_k e_k) \|^2}_{\text{Tasks}} + \underbrace{\frac{\lambda}{2} \|\Delta q\|^2}_{\text{Regularization}} + \underbrace{\sum_{b} \frac{r_b}{2\|J_b\|^2} \|\Delta q - \Delta q_{\text{safe}}\|^2}_{\text{Barrier Regularization}}
 
 Subject to:
 
 .. math::
 
-   \underbrace{l \leq G_c \Delta q \leq u}_{\text{Hard Constraints}} \quad \text{and} \quad \underbrace{G_b \Delta q \leq h_b}_{\text{Barrier Constraints}}
+   \underbrace{l \leq G_c \Delta q \leq u}_{\text{Hard Constraints}} \quad \text{and} \quad \underbrace{G_b \Delta q \leq h_b}_{\text{Barrier Constraints}} \quad \text{and} \quad \underbrace{W_k J_k \Delta q = W_k J_k \Delta q_{p_k}^*,\ \forall k : p_k < p}_{\text{Higher Priorities}}
 
 Reformulated as:
 
@@ -141,11 +141,11 @@ Where:
 
 .. math::
 
-   H = \lambda I + \sum_k (N_k^T J_k^T W_k^T W_k J_k N_k + \mu_k I) + \sum_b \frac{r_b}{\|J_b\|^2} I
+   H = \lambda I + \sum_{k \in p} (J_k^T W_k^T W_k J_k + \mu_k I) + \sum_b \frac{r_b}{\|J_b\|^2} I
 
 .. math::
 
-   c = \sum_k (-\alpha_k N_k^T J_k^T W_k^T W_k e_k) + \sum_b \frac{-r_b}{\|J_b\|^2} \Delta q_{\text{safe}}
+   c = \sum_{k \in p} (-\alpha_k J_k^T W_k^T W_k e_k) + \sum_b \frac{-r_b}{\|J_b\|^2} \Delta q_{\text{safe}}
 
 +---------------------+----------------------------------------------+--------------+
 | Symbol              | Description                                  | Source       |
@@ -157,8 +157,8 @@ Where:
 +---------------------+----------------------------------------------+--------------+
 | :math:`\alpha_k`    | Task gain (low-pass filter)                  | Tasks        |
 +---------------------+----------------------------------------------+--------------+
-| :math:`N_k`         | Cumulative nullspace projector for           | Tasks        |
-|                     | priority level :math:`k` (:math:`N_1 = I`)   | (priority)   |
+|:math:`\Delta q_p^*` | Solution of priority level :math:`p`         | Tasks        |
+|                     |                                              | (priority)   |
 +---------------------+----------------------------------------------+--------------+
 | :math:`\mu_k`       | Levenberg-Marquardt damping,                 | Tasks        |
 |                     | :math:`\mu_k = \lambda_{\text{LM},k}         |              |
@@ -174,30 +174,17 @@ Where:
 |                     | Jacobian                                     |              |
 +---------------------+----------------------------------------------+--------------+
 
-Task Priorities and Nullspace Projection
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Task Priorities
+^^^^^^^^^^^^^^^
 
 Each task carries an integer ``priority`` (default ``1`` = highest).
-Tasks at a lower priority level (higher priority *number*) are projected into the nullspace of all higher-priority tasks, so their contribution is structurally zero in the higher-priority directions.
+Priority levels are solved as a lexicographic cascade of QPs, highest first.
+Each level keeps all constraints and barriers, and searches only the nullspace :math:`Z` of every higher-priority task's weighted Jacobian, :math:`\Delta q = \Delta q_{p-1}^* + Z z`.
+This holds the weighted task velocity :math:`W_k J_k \Delta q` of every higher-priority task exactly at the value its level achieved.
+A lower level can therefore only use the freedom the higher levels leave, and an inequality constraint restricts it only where that constraint is active.
+A single-priority problem is a single QP; each extra level costs one more QP solve.
 
-For each priority level :math:`k`, the QP uses a *projected* Jacobian :math:`J_k N_k`,
-where :math:`N_k` is the cumulative nullspace projector built from the row-stacked Jacobians of all priority levels :math:`1, \ldots, k-1`.
-:math:`N_1 = I` (no projection at the top level), so a single-priority problem reduces to the standard weighted-sum QP.
-
-The projector is computed via a damped pseudoinverse:
-
-.. math::
-
-   N_k = I - J_{\text{stack}}^T \left( J_{\text{stack}} J_{\text{stack}}^T
-                                       + \lambda I \right)^{-1} J_{\text{stack}}
-
-where :math:`J_{\text{stack}}` is the vertical stack of all priority-level Jacobians strictly above :math:`k`,
-and the same Tikhonov regularization :math:`\lambda` from the QP is reused as the damping.
-The damping keeps :math:`(J J^T + \lambda I)` SPD even at singular configurations;
-at well-conditioned configurations (singular values :math:`\gg \sqrt{\lambda}`), the expression reduces to the standard nullspace projector :math:`I - J^+ J`.
-
-Tasks **at the same priority level** are combined linearly through their weights (no projection between them).
-The decision variable remains :math:`\Delta q`; only the per-task Jacobian is projected.
+Tasks **at the same priority level** are combined linearly through their weights.
 
 Tasks
 ^^^^^
@@ -406,6 +393,24 @@ Call ``setLastVelocity(v_prev)`` once per control step (before solving) with the
    The braking bounds are never allowed to tighten past what :math:`a_{\max}` can actually achieve in one step, so a row can never come out infeasible.
    Without that clamp, a joint approaching a limit (or one that has just overshot its target) could be asked for a deceleration it cannot deliver, and the QP would resolve the contradiction arbitrarily.
 
+RelativePoseConstraint
+""""""""""""""""""""""
+
+Keeps the pose :math:`T_{ab}` of frame :math:`b` relative to frame :math:`a` within a per-axis tolerance of a target :math:`T^*`.
+This is useful, for example, to move two end effectors in tandem while holding a rigid object.
+
+The error :math:`e = [R^{*T}(p_{ab} - p^*),\ \log_3(R^{*T} R_{ab})]` is expressed in the target frame and linearized:
+
+.. math::
+
+   -\text{tol} - e \leq J_e \Delta q \leq \text{tol} - e
+
+An infinite tolerance leaves that axis free.
+
+A heavily weighted FrameTask with ``base_frame`` set to frame :math:`a` does the same job without the hard tolerance.
+Prefer the constraint when the tolerance must hold; prefer the task when the pair may be dragged out of reach, since a hard constraint cannot be damped there.
+``roboplan_examples/python/example_oink_relative_pose.py`` compares the two.
+
 Barrier Details
 ^^^^^^^^^^^^^^^
 
@@ -609,8 +614,8 @@ Usage Example
        max_position_error=0.1,               # keeps the CBF linearization valid
    ))
 
-   # Lower-priority posture regularization. priority=2 projects it into the FrameTask
-   # nullspace, so it only uses the redundant DoF the EE task leaves free.
+   # Lower-priority posture regularization. priority=2 solves it after the FrameTask,
+   # so it only uses the redundant DoF the EE task leaves free.
    posture_task = ConfigurationTask(
        oink,
        q_nominal[oink.q_indices],
