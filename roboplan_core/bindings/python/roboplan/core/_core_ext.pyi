@@ -55,7 +55,9 @@ class CartesianConfiguration:
 
     @property
     def base_frame(self) -> str:
-        """The name of the base (or reference) frame."""
+        """
+        The name of the base (or reference) frame. An empty frame name means the world frame.
+        """
 
     @base_frame.setter
     def base_frame(self, arg: str, /) -> None: ...
@@ -310,7 +312,9 @@ class CartesianPath:
 
     @property
     def base_frames(self) -> list[str]:
-        """The names of the base frames."""
+        """
+        The names of the base frames. An empty frame name means the world frame.
+        """
 
     @base_frames.setter
     def base_frames(self, arg: Sequence[str], /) -> None: ...
@@ -342,7 +346,9 @@ class CartesianTrajectory:
 
     @property
     def base_frames(self) -> list[str]:
-        """The names of the base frames."""
+        """
+        The names of the base frames. An empty frame name means the world frame.
+        """
 
     @base_frames.setter
     def base_frames(self, arg: Sequence[str], /) -> None: ...
@@ -446,8 +452,15 @@ class Scene:
     def randomPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Generates random positions for the robot model."""
 
+    @overload
     def randomCollisionFreePositions(self, max_samples: int = 1000) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None:
         """Generates random collision-free positions for the robot model."""
+
+    @overload
+    def randomCollisionFreePositions(self, joint_names: Sequence[str], q_reference: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_samples: int = 1000) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None:
+        """
+        Generates random collision-free positions, randomizing only the specified joints and taking all others from the reference configuration.
+        """
 
     def hasCollisions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], debug: bool = False) -> bool:
         """Checks collisions at specified joint positions."""
@@ -634,9 +647,16 @@ class SceneContext:
     def randomPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Generates random positions using this context's RNG."""
 
+    @overload
     def randomCollisionFreePositions(self, max_samples: int = 1000) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None:
         """
         Generates random collision-free positions using this context's RNG and scratch.
+        """
+
+    @overload
+    def randomCollisionFreePositions(self, joint_names: Sequence[str], q_reference: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_samples: int = 1000) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None:
+        """
+        Generates random collision-free positions using this context's RNG and scratch, randomizing only the specified joints and taking all others from the reference configuration.
         """
 
     def getJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:

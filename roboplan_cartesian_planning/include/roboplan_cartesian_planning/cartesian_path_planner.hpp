@@ -192,6 +192,7 @@ public:
   /// @param trajectory The joint trajectory to evaluate (e.g., the output of plan()).
   /// @return A pair of {peak velocity ratio, peak acceleration ratio}.
   /// Values <= 1.0 mean the respective joint limits are respected.
+  /// Joints without a limit are skipped, so a ratio is 0.0 if no joint has that limit.
   std::pair<double, double> computePeakLimitRatios(const JointTrajectory& trajectory) const;
 
   /// @brief Computes the achieved Cartesian path length (meters) traced by the path's tip frames.

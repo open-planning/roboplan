@@ -247,4 +247,43 @@ TEST_F(RoboPlanSceneContextTest, AttachAndDetachInvalidateContexts) {
   EXPECT_FALSE(before_detach.isGeometryCurrent());
 }
 
+TEST_F(RoboPlanSceneContextTest, RandomCollisionFreePositionsForJointSubset) {
+  // Only the requested joints are sampled; every other entry comes from the reference.
+  const std::vector<std::string> joint_names = {"wrist_1_joint", "wrist_2_joint", "wrist_3_joint"};
+  const Eigen::VectorXd q_reference{{0.5, -1.0, 1.0, 0.0, 0.0, 0.0}};
+  ASSERT_FALSE(scene->hasCollisions(q_reference));
+  const auto [lower, upper] = scene->getPositionLimitVectors().value();
+
+  SceneContext context(*scene);
+  context.setRngSeed(42);
+  for (int i = 0; i < kNumSamples; ++i) {
+    const auto maybe_scene_q = scene->randomCollisionFreePositions(joint_names, q_reference);
+    const auto maybe_context_q = context.randomCollisionFreePositions(joint_names, q_reference);
+    for (const auto& maybe_q : {maybe_scene_q, maybe_context_q}) {
+      ASSERT_TRUE(maybe_q.has_value());
+      const auto& q = maybe_q.value();
+      EXPECT_TRUE(q.head(3).isApprox(q_reference.head(3), 0.0));
+      EXPECT_FALSE(q.tail(3).isApprox(q_reference.tail(3)));
+      EXPECT_TRUE((q.array() >= lower.array()).all() && (q.array() <= upper.array()).all());
+      EXPECT_FALSE(scene->hasCollisions(q));
+    }
+  }
+
+  // The reference must be a full configuration.
+  EXPECT_THROW(scene->randomCollisionFreePositions(joint_names, q_reference.head(3)),
+               std::invalid_argument);
+  EXPECT_THROW(context.randomCollisionFreePositions(joint_names, q_reference.head(3)),
+               std::invalid_argument);
+
+  // Wrap the whole robot in a box so no sample can be collision free.
+  ASSERT_TRUE(scene
+                  ->addBoxGeometry("wall", "universe", Box(4.0, 4.0, 4.0),
+                                   Eigen::Matrix4d::Identity(), Eigen::Vector4d(0.5, 0.5, 0.5, 0.5))
+                  .has_value());
+  EXPECT_FALSE(scene->randomCollisionFreePositions(joint_names, q_reference, 10).has_value());
+  SceneContext enclosed_context(*scene);
+  EXPECT_FALSE(
+      enclosed_context.randomCollisionFreePositions(joint_names, q_reference, 10).has_value());
+}
+
 }  // namespace roboplan

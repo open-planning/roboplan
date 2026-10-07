@@ -29,24 +29,39 @@ find_package(ament_cmake QUIET)
 
 set(TARGETS_LIST roboplan)
 
-# Add tl_expected from source only if not found.
-find_package(tl_expected QUIET)
-if(NOT tl_expected_FOUND)
-  add_library(tl_expected INTERFACE)
+# tl::expected: the system copy if there is one (Debian/Ubuntu libexpected-dev
+# and conda-forge cpp-expected install the tl-expected CMake package), otherwise
+# the bundled header from third_party/. Either way it is provided as the
+# exported roboplan::tl_expected target, which downstream packages (e.g.
+# roboplan_ros) use.
+add_library(tl_expected INTERFACE)
+find_package(tl-expected QUIET)
+if(TARGET tl::expected)
+  target_link_libraries(tl_expected INTERFACE tl::expected)
+  set(ROBOPLAN_EXPECTED_PACKAGE tl-expected)
+else()
+  message(STATUS "tl-expected not found, using the bundled tl/expected.hpp")
   target_include_directories(
-    tl_expected INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    tl_expected INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party>
                           $<INSTALL_INTERFACE:include>)
-  list(APPEND TARGETS_LIST tl_expected)
+  install(DIRECTORY third_party/tl DESTINATION include)
+  set(ROBOPLAN_EXPECTED_PACKAGE "")
 endif()
+list(APPEND TARGETS_LIST tl_expected)
 
-# Add tinyxml2 from source only if not found.
+# tinyxml2: the system copy if there is one, otherwise the bundled sources from
+# third_party/ (linked privately, so its header is not installed).
 find_package(tinyxml2_vendor QUIET)
 find_package(TinyXML2 QUIET)
 if(NOT tinyxml2_vendor_FOUND
    AND NOT TinyXML2_FOUND
    AND NOT TARGET tinyxml2::tinyxml2)
-  add_library(tinyxml2 include/tinyxml2/tinyxml2.cpp
-                       include/tinyxml2/tinyxml2.h)
+  message(STATUS "tinyxml2 not found, using the bundled sources")
+  add_library(tinyxml2 third_party/tinyxml2/tinyxml2.cpp
+                       third_party/tinyxml2/tinyxml2.h)
+  target_include_directories(
+    tinyxml2
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/tinyxml2>)
   add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
   list(APPEND TARGETS_LIST tinyxml2)
 endif()
@@ -68,7 +83,7 @@ target_include_directories(
 target_link_libraries(
   roboplan
   INTERFACE Eigen3::Eigen
-  PUBLIC pinocchio::pinocchio
+  PUBLIC pinocchio::pinocchio tl_expected
   PRIVATE tinyxml2::tinyxml2 console_bridge::console_bridge)
 if(yaml-cpp_VERSION VERSION_LESS "0.8") # for Ubuntu 22.04
   target_link_libraries(roboplan PUBLIC yaml-cpp)

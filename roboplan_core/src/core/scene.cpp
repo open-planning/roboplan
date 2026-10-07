@@ -406,8 +406,20 @@ void Scene::randomizeJointPositions(std::mt19937& rng_gen,
 }
 
 std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_samples) {
+  return randomCollisionFreePositions(joint_names_, Eigen::VectorXd::Zero(model_.nq), max_samples);
+}
+
+std::optional<Eigen::VectorXd>
+Scene::randomCollisionFreePositions(const std::vector<std::string>& joint_names,
+                                    const Eigen::VectorXd& q_reference, size_t max_samples) {
+  if (q_reference.size() != model_.nq) {
+    throw std::invalid_argument(
+        "Scene::randomCollisionFreePositions: expected " + std::to_string(model_.nq) +
+        " configuration values (model.nq), got " + std::to_string(q_reference.size()) + ".");
+  }
+  Eigen::VectorXd positions = q_reference;
   for (size_t idx = 0; idx < max_samples; ++idx) {
-    const auto positions = randomPositions();
+    randomizeJointPositions(rng_gen_, joint_names, positions);
     if (!hasCollisions(positions)) {
       return positions;
     }

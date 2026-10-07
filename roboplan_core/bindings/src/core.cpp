@@ -42,8 +42,9 @@ void init_core_types(nanobind::module_& m) {
       .def(nanobind::init<>())
       .def(nanobind::init<const std::string&, const std::string&, const Eigen::Matrix4d&>(),
            "base_frame"_a, "tip_frame"_a, "tform"_a)
-      .def_rw("base_frame", &CartesianConfiguration::base_frame,
-              "The name of the base (or reference) frame.")
+      .def_rw(
+          "base_frame", &CartesianConfiguration::base_frame,
+          "The name of the base (or reference) frame. An empty frame name means the world frame.")
       .def_rw("tip_frame", &CartesianConfiguration::tip_frame,
               "The name of the tip (or target) frame.")
       .def_rw("tform", &CartesianConfiguration::tform,
@@ -137,7 +138,8 @@ void init_core_types(nanobind::module_& m) {
       .def(nanobind::init<const std::vector<std::string>&, const std::vector<std::string>&,
                           const std::vector<std::vector<Eigen::Matrix4d>>&>(),
            nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("tforms"))
-      .def_rw("base_frames", &CartesianPath::base_frames, "The names of the base frames.")
+      .def_rw("base_frames", &CartesianPath::base_frames,
+              "The names of the base frames. An empty frame name means the world frame.")
       .def_rw("tip_frames", &CartesianPath::tip_frames, "The names of the tip frames.")
       .def_rw("tforms", &CartesianPath::tforms,
               "The Cartesian transforms from each base frame to each tip frame.")
@@ -154,7 +156,8 @@ void init_core_types(nanobind::module_& m) {
                           std::vector<std::vector<Eigen::Matrix4d>>>(),
            nanobind::arg("base_frames"), nanobind::arg("tip_frames"), nanobind::arg("times"),
            nanobind::arg("tforms"))
-      .def_rw("base_frames", &CartesianTrajectory::base_frames, "The names of the base frames.")
+      .def_rw("base_frames", &CartesianTrajectory::base_frames,
+              "The names of the base frames. An empty frame name means the world frame.")
       .def_rw("tip_frames", &CartesianTrajectory::tip_frames, "The names of the tip frames.")
       .def_rw("times", &CartesianTrajectory::times, "The list of times.")
       .def_rw("tforms", &CartesianTrajectory::tforms,
@@ -217,8 +220,15 @@ void init_core_scene(nanobind::module_& m) {
            "seed"_a)
       .def("randomPositions", nanobind::overload_cast<>(&Scene::randomPositions),
            "Generates random positions for the robot model.")
-      .def("randomCollisionFreePositions", &Scene::randomCollisionFreePositions,
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<size_t>(&Scene::randomCollisionFreePositions),
            "Generates random collision-free positions for the robot model.", "max_samples"_a = 1000)
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<const std::vector<std::string>&, const Eigen::VectorXd&, size_t>(
+               &Scene::randomCollisionFreePositions),
+           "Generates random collision-free positions, randomizing only the specified joints and "
+           "taking all others from the reference configuration.",
+           "joint_names"_a, "q_reference"_a, "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions,
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
       .def("isValidConfiguration", &Scene::isValidConfiguration,
@@ -406,10 +416,19 @@ void init_core_scene(nanobind::module_& m) {
            "Sets the seed of this context's random number generator.", "seed"_a)
       .def("randomPositions", &SceneContext::randomPositions,
            "Generates random positions using this context's RNG.")
-      .def("randomCollisionFreePositions", &SceneContext::randomCollisionFreePositions,
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<size_t>(&SceneContext::randomCollisionFreePositions),
            nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Generates random collision-free positions using this context's RNG and scratch.",
            "max_samples"_a = 1000)
+      .def("randomCollisionFreePositions",
+           nanobind::overload_cast<const std::vector<std::string>&, const Eigen::VectorXd&, size_t>(
+               &SceneContext::randomCollisionFreePositions),
+           nanobind::call_guard<nanobind::gil_scoped_release>(),
+           "Generates random collision-free positions using this context's RNG and scratch, "
+           "randomizing only the specified joints and taking all others from the reference "
+           "configuration.",
+           "joint_names"_a, "q_reference"_a, "max_samples"_a = 1000)
       .def("getJointPositions", &SceneContext::getJointPositions,
            "This context's current joint positions.")
       .def("setJointPositions", &SceneContext::setJointPositions,

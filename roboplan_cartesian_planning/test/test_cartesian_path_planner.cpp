@@ -415,6 +415,27 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   EXPECT_LE(peak_velocity_ratio, 1.1);
 }
 
+TEST_F(CartesianPlannerTest, PeakLimitRatiosSkipUnlimitedJoints) {
+  // Without the YAML config the URDF provides no acceleration limits.
+  const auto model_prefix = example_models::get_package_models_dir();
+  auto scene = std::make_shared<Scene>(
+      "no_accel_limits",
+      loadUrdfSceneDescription(model_prefix / "ur_robot_model" / "ur5_gripper.urdf",
+                               {example_models::get_package_share_dir()}));
+  ASSERT_TRUE(
+      scene->importSrdf(loadTextFile(model_prefix / "ur_robot_model" / "ur5_gripper.srdf")));
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  CartesianPathPlanner planner(scene, options);
+
+  JointTrajectory traj;
+  traj.velocities = {Eigen::VectorXd::Constant(6, 0.1)};
+  traj.accelerations = {Eigen::VectorXd::Constant(6, 1.0)};
+  const auto [peak_velocity_ratio, peak_acceleration_ratio] = planner.computePeakLimitRatios(traj);
+  EXPECT_GT(peak_velocity_ratio, 0.0);
+  EXPECT_EQ(peak_acceleration_ratio, 0.0);
+}
+
 TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;
@@ -426,6 +447,33 @@ TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {
 
   const auto result = planner.plan(path, q_start);
   ASSERT_FALSE(result.has_value());
+}
+
+TEST_F(CartesianPlannerTest, EmptyBaseFrame) {
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  CartesianPathPlanner planner(scene_, options);
+
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+
+  const Eigen::Matrix4d start = scene_->forwardKinematics(q_start.positions, kTipFrame);
+  std::vector<Eigen::Matrix4d> waypoints;
+  for (int i = 0; i < 3; ++i) {
+    Eigen::Matrix4d pose = start;
+    pose(0, 3) += i * 0.025;
+    waypoints.push_back(pose);
+  }
+  const CartesianPath path({""}, {kTipFrame}, {waypoints});  // Empty base frame means world
+
+  const auto result = planner.plan(path, q_start);
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const Eigen::VectorXd q_full_final =
+      scene_->toFullJointPositions(kGroup, result->positions.back());
+  const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame);
+  EXPECT_LE((fk_final.block<3, 1>(0, 3) - waypoints.back().block<3, 1>(0, 3)).norm(),
+            options.max_position_error + 1e-6);
 }
 
 }  // namespace roboplan

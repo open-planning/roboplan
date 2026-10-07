@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <stdexcept>
 
@@ -90,6 +91,13 @@ void RRT::initializeStateSpace() {
 tl::expected<JointPath, std::string>
 RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
           const std::vector<std::shared_ptr<Constraint>>& constraints) {
+  return planToAny(start, std::span<const JointConfiguration>(&goal, 1), constraints)
+      .map([](RRTPlan&& result) { return std::move(result.path); });
+}
+
+tl::expected<RRTPlan, std::string>
+RRT::planToAny(const JointConfiguration& start, std::span<const JointConfiguration> goals,
+               const std::vector<std::shared_ptr<Constraint>>& constraints) {
   const auto start_time = std::chrono::steady_clock::now();
 
   // Snapshot the scene into this plan's private context. Collision checks and configuration
@@ -102,8 +110,26 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
 
   const auto& q_indices = joint_group_info_.q_indices;
   auto q_start = context.toFullJointPositions(options_.group_name, start.positions);
-  auto q_goal = context.toFullJointPositions(options_.group_name, goal.positions);
   auto q_sample = q_start;
+
+  std::vector<Eigen::VectorXd> q_goals;
+  q_goals.reserve(goals.size());
+  std::transform(goals.begin(), goals.end(), std::back_inserter(q_goals), [&](const auto& goal) {
+    return context.toFullJointPositions(options_.group_name, goal.positions);
+  });
+
+  // A path from the trees ends on an exact copy of the goal root it reached, so that goal's index
+  // is recovered by matching the final waypoint. With duplicate goals, the first match is reported.
+  const auto to_result = [&](JointPath&& path) -> RRTPlan {
+    const auto& q_end = path.positions.back();
+    const auto it = std::find_if(q_goals.begin(), q_goals.end(),
+                                 [&](const auto& q_goal) { return q_end == q_goal(q_indices); });
+    if (it == q_goals.end()) {
+      throw std::runtime_error("RRT path does not end at any of the requested goals.");
+    }
+    return RRTPlan{.path = std::move(path),
+                   .goal_index = static_cast<size_t>(std::distance(q_goals.begin(), it))};
+  };
 
   // Set up constraint projection for this plan, if any constraints were requested. Everything
   // downstream keys off whether this holds a value.
@@ -122,51 +148,93 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
   if (!scene_->isValidConfiguration(q_start)) {
     return tl::make_unexpected("Invalid start configuration requested, cannot plan!");
   }
-  if (!scene_->isValidConfiguration(q_goal)) {
-    return tl::make_unexpected("Invalid goal configuration requested, cannot plan!");
-  }
+
   if (context.hasCollisions(q_start)) {
     return tl::make_unexpected("Start configuration is in collision, cannot plan!");
   }
-  if (context.hasCollisions(q_goal)) {
-    return tl::make_unexpected("Goal configuration is in collision, cannot plan!");
+
+  if (q_goals.empty()) {
+    return tl::make_unexpected("No goal configurations provided, cannot plan!");
   }
 
-  // The trees are rooted at the start and goal, so a path can only stay on the constraints if
-  // those two configurations already do. Projecting them here would silently move the endpoints
+  for (std::size_t i = 0; i < q_goals.size(); ++i) {
+    const auto& q_goal = q_goals[i];
+
+    if (!scene_->isValidConfiguration(q_goal)) {
+      return tl::make_unexpected("Invalid goal configuration " + std::to_string(i) +
+                                 " requested, cannot plan!");
+    }
+
+    if (context.hasCollisions(q_goal)) {
+      return tl::make_unexpected("Goal configuration " + std::to_string(i) +
+                                 " is in collision, cannot plan!");
+    }
+  }
+
+  // The trees are rooted at the start and goals, so a path can only stay on the constraints if
+  // those configurations already do. Projecting them here would silently move the endpoints
   // the caller asked for, so report it instead and let them project first.
   if (constraint_projector_.has_value()) {
     if (!constraint_projector_->satisfies(q_start)) {
       return tl::make_unexpected("Start configuration does not satisfy the constraints, cannot "
                                  "plan! Project it onto the constraints first.");
     }
-    if (!constraint_projector_->satisfies(q_goal)) {
-      return tl::make_unexpected("Goal configuration does not satisfy the constraints, cannot "
-                                 "plan! Project it onto the constraints first.");
+
+    for (std::size_t i = 0; i < q_goals.size(); ++i) {
+      if (!constraint_projector_->satisfies(q_goals[i])) {
+        return tl::make_unexpected("Goal configuration " + std::to_string(i) +
+                                   " does not satisfy the constraints, cannot plan! Project it "
+                                   "onto the constraints first.");
+      }
     }
   }
 
-  // Try a direct start-to-goal connection.
-  // Both endpoints were validated above, so only the interior is checked.
-  if ((scene_->configurationDistance(q_start, q_goal) <= options_.max_connection_distance) &&
-      (!hasCollisionsAlongPath(*scene_, context, q_start, q_goal,
-                               options_.collision_check_step_size,
-                               options_.collision_check_use_bisection,
-                               /*check_endpoints*/ false)) &&
-      edgeSatisfiesConstraints(q_start, q_goal)) {
-    return JointPath{.joint_names = joint_group_info_.joint_names,
-                     .positions = {q_start(q_indices), q_goal(q_indices)}};
+  // Checks the direct connections, closest goals first, so that the first reachable goal
+  // is the shortest direct connection. Both endpoints were validated above, so only the
+  // interior is checked. For a single goal the direct path is optimal. With several, a
+  // closer goal whose direct connection is blocked could in principle be reached more
+  // cheaply via a detour. RRT rarely finds a detour that beats a straight-line path, though,
+  // so running the search to look for one would almost always cost time for nothing.
+  std::vector<std::pair<double, size_t>> distances;
+  distances.reserve(q_goals.size());
+
+  for (size_t i = 0; i < q_goals.size(); ++i) {
+    const double distance = scene_->configurationDistance(q_start, q_goals[i]);
+
+    if (distance <= options_.max_connection_distance) {
+      distances.emplace_back(distance, i);
+    }
   }
 
-  // Initialize the trees for searching.
+  std::sort(distances.begin(), distances.end());
+
+  for (const auto& [distance, goal_index] : distances) {
+    const auto& q_goal = q_goals[goal_index];
+
+    if (!hasCollisionsAlongPath(*scene_, context, q_start, q_goal,
+                                options_.collision_check_step_size,
+                                options_.collision_check_use_bisection,
+                                /*check_endpoints*/ false) &&
+        edgeSatisfiesConstraints(q_start, q_goal)) {
+      return RRTPlan{.path = JointPath{.joint_names = joint_group_info_.joint_names,
+                                       .positions = {q_start(q_indices), q_goal(q_indices)}},
+                     .goal_index = goal_index};
+    }
+  }
+
+  // No direct goal found. Initialize the trees for searching.
   // When using RRT-Connect we use two trees, one growing from the start, one growing from the goal.
   KdTree start_tree, goal_tree;
-  initializeTree(start_tree, start_nodes_, q_start, options_.max_nodes);
+  initializeTree(start_tree, start_nodes_, std::span<const Eigen::VectorXd>(&q_start, 1),
+                 options_.max_nodes);
 
-  size_t goal_tree_size = options_.rrt_connect ? options_.max_nodes : 1;
-  initializeTree(goal_tree, goal_nodes_, q_goal, goal_tree_size);
+  size_t goal_tree_size = options_.rrt_connect ? options_.max_nodes : q_goals.size();
+  initializeTree(goal_tree, goal_nodes_, q_goals, goal_tree_size);
 
   bool grow_start_tree = true;
+
+  // Initialize a uniform distribution for sampling goal configurations during goal biasing.
+  std::uniform_int_distribution<size_t> q_goal_dist(0, q_goals.size() - 1);
 
   // Only used when fast_return is disabled: planning keeps growing (and, for RRT*, rewiring) past
   // the first solution until the budget runs out, then returns the lowest-cost path found.
@@ -181,7 +249,7 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
       // Without fast_return, the budget running out is the normal stopping condition: return the
       // best path found so far, if any.
       if (best_path.has_value()) {
-        return best_path.value();
+        return to_result(std::move(*best_path));
       }
       return tl::make_unexpected("RRT timed out after " +
                                  std::to_string(options_.max_planning_time) + " seconds.");
@@ -190,7 +258,7 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
     // Check loop termination criteria.
     if (start_nodes_.size() + goal_nodes_.size() >= options_.max_nodes) {
       if (best_path.has_value()) {
-        return best_path.value();
+        return to_result(std::move(*best_path));
       }
       return tl::make_unexpected("Added maximum number of nodes (" +
                                  std::to_string(options_.max_nodes) + ").");
@@ -208,7 +276,8 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
     // the other, so we sample uniformly at random and let the trees reach for one another rather
     // than repeatedly aiming at the fixed opposite endpoint.
     if (!options_.rrt_connect && uniform_dist_(rng_gen_) <= options_.goal_biasing_probability) {
-      q_sample = q_goal;
+      const size_t goal_index = q_goals.size() == 1 ? 0 : q_goal_dist(rng_gen_);
+      q_sample = q_goals[goal_index];
     } else {
       // Randomize only the planning group's DOFs in-place; non-group entries keep their values.
       context.randomizeJointPositions(joint_group_info_.joint_names, q_sample);
@@ -234,7 +303,7 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
       // With fast_return, return the first path found. Otherwise keep the cheapest path seen and
       // keep growing (and, for RRT*, rewiring) until the budget is exhausted.
       if (options_.fast_return) {
-        return std::move(path);
+        return to_result(std::move(path));
       }
       if (path_cost < best_cost) {
         best_cost = path_cost;
@@ -251,16 +320,19 @@ RRT::plan(const JointConfiguration& start, const JointConfiguration& goal,
   return tl::make_unexpected("Unable to find a path!");
 }
 
-void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_init,
-                         size_t max_size) {
+void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes,
+                         std::span<const Eigen::VectorXd> q_inits, size_t max_size) {
   tree = KdTree{};  // Resets the reference.
   tree.init_tree(state_space_.get_runtime_dim(), state_space_);
   const auto& q_indices = joint_group_info_.q_indices;
-  tree.addPoint(collapse(q_init(q_indices)), 0);
 
   nodes.clear();
   nodes.reserve(max_size);
-  nodes.emplace_back(q_init, -1);
+
+  for (const auto& q_init : q_inits) {
+    tree.addPoint(collapse(q_init(q_indices)), static_cast<int>(nodes.size()));
+    nodes.emplace_back(q_init, -1);
+  }
 }
 
 bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd& q_sample,

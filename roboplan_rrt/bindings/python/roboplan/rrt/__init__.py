@@ -42,7 +42,10 @@ def visualizeTree(
 
     start_segments = []
     for frame_name in frame_names:
-        for node in start_nodes[1:]:
+        for node in start_nodes:
+            # Roots have no incoming edge. A tree may have several (e.g., one per goal).
+            if node.parent_id < 0:
+                continue
             q_start = start_nodes[node.parent_id].config
             q_end = node.config
             frame_path = computeFramePath(
@@ -55,7 +58,10 @@ def visualizeTree(
 
     goal_segments = []
     for frame_name in frame_names:
-        for node in goal_nodes[1:]:
+        for node in goal_nodes:
+            # Roots have no incoming edge. A tree may have several (e.g., one per goal).
+            if node.parent_id < 0:
+                continue
             q_start = goal_nodes[node.parent_id].config
             q_end = node.config
             frame_path = computeFramePath(

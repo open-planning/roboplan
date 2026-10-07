@@ -193,6 +193,18 @@ public:
   /// @return The random positions, if successful, else std::nullopt.
   std::optional<Eigen::VectorXd> randomCollisionFreePositions(size_t max_samples = 1000);
 
+  /// @brief Generates random collision-free positions for a subset of the joints.
+  /// @details Only the degrees of freedom belonging to `joint_names` are sampled; all other
+  /// entries are taken from `q_reference`. This is useful when an algorithm can only move a
+  /// planning group, so joints outside of it must keep their current values.
+  /// @param joint_names The names of the joints to randomize.
+  /// @param q_reference The full configuration supplying the joints that are not randomized.
+  /// @param max_samples The maximum number of samples to attempt.
+  /// @return The random positions, if successful, else std::nullopt.
+  std::optional<Eigen::VectorXd>
+  randomCollisionFreePositions(const std::vector<std::string>& joint_names,
+                               const Eigen::VectorXd& q_reference, size_t max_samples = 1000);
+
   /// @brief Checks collisions at specified joint positions.
   /// @param q The joint positions.
   /// @param debug If true, prints every colliding pair instead of stopping at the first collision.

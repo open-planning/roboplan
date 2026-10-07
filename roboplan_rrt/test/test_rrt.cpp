@@ -6,7 +6,9 @@
 #include <memory>
 #include <numbers>
 #include <stdexcept>
+#include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 #include <pinocchio/math/rpy.hpp>
@@ -227,6 +229,135 @@ TEST_F(RoboPlanRRTTest, InvalidConfigurations) {
   ASSERT_FALSE(path.has_value());
 }
 
+TEST_F(RoboPlanRRTTest, PlanMultipleGoals) {
+  // Every planner variant must return a path that starts at the start and ends exactly at the
+  // goal whose index it reports.
+  JointConfiguration start;
+  start.positions = scene->randomCollisionFreePositions().value();
+  std::vector<JointConfiguration> goals(3);
+  for (auto& goal : goals) {
+    goal.positions = scene->randomCollisionFreePositions().value();
+  }
+
+  struct Variant {
+    const char* name;
+    bool rrt_connect;
+    bool rrt_star;
+  };
+  for (const auto& variant : {Variant{"RRT", false, false}, Variant{"RRT-Connect", true, false},
+                              Variant{"RRT*", false, true}, Variant{"RRT*-Connect", true, true}}) {
+    SCOPED_TRACE(variant.name);
+    RRTOptions options;
+    options.group_name = "arm";
+    options.max_connection_distance = 1.0;
+    options.rrt_connect = variant.rrt_connect;
+    options.rrt_star = variant.rrt_star;
+    // RRT* only rewires when it runs to budget, so give it a fixed node budget to exhaust.
+    if (variant.rrt_star) {
+      options.fast_return = false;
+      options.max_nodes = 300;
+    }
+    auto rrt = std::make_unique<RRT>(scene, options);
+    rrt->setRngSeed(1234);
+
+    const auto maybe_result = rrt->planToAny(start, goals);
+    ASSERT_TRUE(maybe_result.has_value()) << maybe_result.error();
+    const auto& [path, goal_index] = maybe_result.value();
+    ASSERT_EQ(path.positions[0], start.positions);
+    ASSERT_LT(goal_index, goals.size());
+    ASSERT_EQ(path.positions.back(), goals[goal_index].positions);
+
+    // Every goal is a root of the goal tree.
+    const auto [start_nodes, goal_nodes] = rrt->getNodes();
+    ASSERT_GE(goal_nodes.size(), goals.size());
+    for (size_t i = 0; i < goals.size(); ++i) {
+      EXPECT_EQ(goal_nodes[i].parent_id, -1);
+    }
+  }
+}
+
+TEST_F(RoboPlanRRTTest, PlanMultipleGoalsConsidersEveryGoalForDirectConnection) {
+  // Only the second goal is close enough to connect straight from the start, so the planner must
+  // look past the first goal and return the direct two-waypoint path to the second.
+  RRTOptions options;
+  options.group_name = "arm";
+  options.max_connection_distance = 0.5;
+  auto rrt = std::make_unique<RRT>(scene, options);
+  rrt->setRngSeed(1234);
+
+  JointConfiguration start, far_goal, near_goal;
+  start.positions = scene->randomCollisionFreePositions().value();
+  far_goal.positions = scene->randomCollisionFreePositions().value();
+  near_goal.positions = start.positions;
+  near_goal.positions(0) += 0.05;
+  ASSERT_GT(scene->configurationDistance(start.positions, far_goal.positions),
+            options.max_connection_distance);
+  ASSERT_FALSE(scene->hasCollisions(near_goal.positions));
+
+  JointConfiguration goals[] = {far_goal, near_goal};
+  const auto maybe_result = rrt->planToAny(start, goals);
+  ASSERT_TRUE(maybe_result.has_value()) << maybe_result.error();
+  const auto& [path, goal_index] = maybe_result.value();
+  ASSERT_EQ(path.positions.size(), 2);
+  ASSERT_EQ(path.positions[0], start.positions);
+  ASSERT_EQ(path.positions[1], near_goal.positions);
+  ASSERT_EQ(goal_index, 1);
+}
+
+TEST_F(RoboPlanRRTTest, PlanMultipleGoalsDirectConnectionPrefersClosest) {
+  // Both goals connect straight from the start. The farther one is listed first, so the planner
+  // must pick the closer one regardless of fast_return.
+  JointConfiguration start, farther_goal, closer_goal;
+  start.positions = scene->randomCollisionFreePositions().value();
+  farther_goal.positions = start.positions;
+  farther_goal.positions(0) += 0.2;
+  closer_goal.positions = start.positions;
+  closer_goal.positions(0) -= 0.05;
+  ASSERT_FALSE(scene->hasCollisions(farther_goal.positions));
+  ASSERT_FALSE(scene->hasCollisions(closer_goal.positions));
+
+  for (const bool fast_return : {true, false}) {
+    SCOPED_TRACE("fast_return = " + std::to_string(fast_return));
+    RRTOptions options;
+    options.group_name = "arm";
+    options.max_connection_distance = 0.5;
+    options.fast_return = fast_return;
+    auto rrt = std::make_unique<RRT>(scene, options);
+    rrt->setRngSeed(1234);
+
+    const auto result =
+        rrt->planToAny(start, std::vector<JointConfiguration>{farther_goal, closer_goal});
+    ASSERT_TRUE(result.has_value()) << result.error();
+    ASSERT_EQ(result->path.positions.size(), 2);
+    ASSERT_EQ(result->path.positions[1], closer_goal.positions);
+    ASSERT_EQ(result->goal_index, 1);
+  }
+}
+
+TEST_F(RoboPlanRRTTest, PlanMultipleGoalsRejectsBadGoals) {
+  RRTOptions options;
+  options.group_name = "arm";
+  auto rrt = std::make_unique<RRT>(scene, options);
+  rrt->setRngSeed(1234);
+
+  JointConfiguration start, valid_goal, invalid_goal;
+  start.positions = scene->randomCollisionFreePositions().value();
+  valid_goal.positions = scene->randomCollisionFreePositions().value();
+  invalid_goal.positions = Eigen::VectorXd{{-6, -6, -6, -6, -6, -6}};
+
+  // An empty goal set has nothing to plan to.
+  const auto empty_result = rrt->planToAny(start, std::vector<JointConfiguration>{});
+  ASSERT_FALSE(empty_result.has_value());
+  EXPECT_NE(empty_result.error().find("No goal configurations"), std::string::npos);
+
+  // One bad goal fails the whole request, and the error names which goal it was.
+  const auto invalid_result =
+      rrt->planToAny(start, std::vector<JointConfiguration>{valid_goal, invalid_goal});
+  ASSERT_FALSE(invalid_result.has_value());
+  EXPECT_NE(invalid_result.error().find("goal configuration 1"), std::string::npos)
+      << invalid_result.error();
+}
+
 TEST_F(RoboPlanRRTTest, PlanningTimeout) {
   // Set planning timeout to be impossibly short.
   RRTOptions options;
@@ -265,7 +396,7 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   // Initialize the search to the start configuration.
   KdTree tree;
   std::vector<Node> nodes;
-  rrt->initializeTree(tree, nodes, q_start);
+  rrt->initializeTree(tree, nodes, std::span<const Eigen::VectorXd>(&q_start, 1));
 
   // A single EXTEND step adds exactly one node at the expected configuration,
   // which is exactly options.max_connection_distance away.
@@ -276,12 +407,46 @@ TEST_F(RoboPlanRRTTest, TestGrowTree) {
   // Reset the search tree and enable RRT-Connect.
   options.rrt_connect = true;
   auto rrt_connect = std::make_unique<RRT>(scene, options);
-  rrt_connect->initializeTree(tree, nodes, q_start);
+  rrt_connect->initializeTree(tree, nodes, std::span<const Eigen::VectorXd>(&q_start, 1));
 
   // A greedy CONNECT step will add exactly 6 nodes and reach q_end.
   ASSERT_TRUE(rrt_connect->growTree(tree, nodes, q_end, scene_context, /*greedy*/ true));
   ASSERT_EQ(nodes.size(), 6);
   ASSERT_EQ(nodes.back().config, q_end);
+}
+
+TEST_F(RoboPlanRRTTest, TestGrowTreeWithMultipleRoots) {
+  RRTOptions options;
+  options.group_name = "arm";
+  options.max_connection_distance = 0.1;
+  auto rrt = std::make_unique<RRT>(scene, options);
+
+  const Eigen::VectorXd q_root_a{{0, 0, 0, 0, 0, 0}};
+  const Eigen::VectorXd q_root_b{{0.4, 0, 0, 0, 0, 0}};
+  const Eigen::VectorXd q_target{{0.5, 0, 0, 0, 0, 0}};
+
+  const SceneContext scene_context(*scene);
+
+  // Each configuration becomes its own root, indexed in the order given.
+  KdTree tree;
+  std::vector<Node> nodes;
+  rrt->initializeTree(tree, nodes, std::vector<Eigen::VectorXd>{q_root_a, q_root_b});
+  ASSERT_EQ(nodes.size(), 2);
+  EXPECT_EQ(nodes[0].config, q_root_a);
+  EXPECT_EQ(nodes[0].parent_id, -1);
+  EXPECT_EQ(nodes[1].config, q_root_b);
+  EXPECT_EQ(nodes[1].parent_id, -1);
+
+  // Growing extends from whichever root is nearest the target, here the second one.
+  ASSERT_TRUE(rrt->growTree(tree, nodes, q_target, scene_context, /*greedy*/ false));
+  ASSERT_EQ(nodes.size(), 3);
+  EXPECT_EQ(nodes.back().config, q_target);
+  EXPECT_EQ(nodes.back().parent_id, 1);
+
+  // The path back from the new node ends at the root it grew from.
+  const auto path = rrt->getPath(nodes, nodes.back());
+  ASSERT_EQ(path.positions.size(), 2);
+  EXPECT_EQ(path.positions.back(), q_root_b);
 }
 
 TEST_F(RoboPlanRRTTest, TestJoinTrees) {
@@ -307,8 +472,8 @@ TEST_F(RoboPlanRRTTest, TestJoinTrees) {
   // Initialize the search to the start configuration.
   KdTree start_tree, goal_tree;
   std::vector<Node> start_nodes, goal_nodes;
-  rrt->initializeTree(start_tree, start_nodes, q_start);
-  rrt->initializeTree(goal_tree, goal_nodes, q_goal);
+  rrt->initializeTree(start_tree, start_nodes, std::span<const Eigen::VectorXd>(&q_start, 1));
+  rrt->initializeTree(goal_tree, goal_nodes, std::span<const Eigen::VectorXd>(&q_goal, 1));
 
   // The nodes should both be appended directly to the start and goal nodes.
   ASSERT_TRUE(
@@ -500,8 +665,16 @@ TEST_F(RoboPlanConstrainedRRTTest, PlanRejectsEndpointsOffTheConstraint) {
   on.positions = q_on(q_indices);
   off.positions = q_off(q_indices);
 
+  JointConfiguration goals[] = {on, off};
+
   ASSERT_FALSE(rrt->plan(off, on, constraints).has_value());
   ASSERT_FALSE(rrt->plan(on, off, constraints).has_value());
+
+  // A single goal off the constraint fails a multi-goal request, and the error names it.
+  const auto multi_result = rrt->planToAny(on, goals, constraints);
+  ASSERT_FALSE(multi_result.has_value());
+  EXPECT_NE(multi_result.error().find("Goal configuration 1 does not satisfy"), std::string::npos)
+      << multi_result.error();
 }
 
 TEST_F(RoboPlanConstrainedRRTTest, PlannedPathStaysOnTheConstraint) {
