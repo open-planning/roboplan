@@ -591,6 +591,15 @@ class IterativeSolveOptions:
     def regularization(self, arg: float, /) -> None: ...
 
     @property
+    def check_collisions(self) -> bool:
+        """
+        Whether to also require the solution to be collision-free over every collision pair.
+        """
+
+    @check_collisions.setter
+    def check_collisions(self, arg: bool, /) -> None: ...
+
+    @property
     def fast_return(self) -> bool:
         """
         If true, returns the first configuration within the tolerances; otherwise keeps iterating while the error still improves.
@@ -630,6 +639,10 @@ class Oink:
     @property
     def num_variables(self) -> int:
         """Number of optimization variables."""
+
+    @property
+    def joint_names(self) -> list[str]:
+        """Names of the joints in the joint group."""
 
     @property
     def q_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:

@@ -676,6 +676,7 @@ Iterative Solves
 ``solveIterativeIk`` repeats it from a start configuration until every *goal task* is within tolerance, every constraint's ``computeViolation`` is within tolerance, and every barrier is non-negative, restarting from a random configuration when the error stops improving short of that.
 Tasks that only regularize, such as a nullspace ``ConfigurationTask``, go in ``extra_tasks`` so they are solved but not required to converge.
 Collision avoidance is opt-in through a ``SelfCollisionBarrier``; note that its safe-displacement term biases each step, so set ``safe_displacement_gain=0`` when the goal must be reached exactly.
+The barrier only evaluates its closest pairs, so ``check_collisions=True`` adds a full collision check of the solution.
 
 .. code-block:: python
 

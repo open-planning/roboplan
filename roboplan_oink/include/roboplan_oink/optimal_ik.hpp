@@ -40,6 +40,10 @@ struct IterativeSolveOptions {
   /// @brief Tikhonov regularization weight passed to each solveIk() step.
   double regularization = 1e-12;
 
+  /// @brief Whether to also require the solution to be collision-free over every collision pair.
+  /// @details A SelfCollisionBarrier only evaluates its closest pairs, so this is the full check.
+  bool check_collisions = false;
+
   /// @brief If true, returns the first configuration within the tolerances.
   /// @details Otherwise keeps iterating while the error still improves, so the result is as
   /// accurate as the solver can make it.
@@ -531,6 +535,9 @@ public:
 
   // Problem dimensions
   int num_variables;
+
+  /// @brief Names of the joints in the joint group.
+  std::vector<std::string> joint_names;
 
   /// @brief Position indices of the joint group (used to scatter group q into model.nq space).
   Eigen::VectorXi q_indices;

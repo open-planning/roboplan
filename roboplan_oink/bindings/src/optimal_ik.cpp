@@ -268,6 +268,9 @@ void init_optimal_ik(nanobind::module_& m) {
               "The maximum norm of any constraint violation at the solution.")
       .def_rw("regularization", &IterativeSolveOptions::regularization,
               "Tikhonov regularization weight passed to each solveIk() step.")
+      .def_rw("check_collisions", &IterativeSolveOptions::check_collisions,
+              "Whether to also require the solution to be collision-free over every collision "
+              "pair.")
       .def_rw("fast_return", &IterativeSolveOptions::fast_return,
               "If true, returns the first configuration within the tolerances; otherwise keeps "
               "iterating while the error still improves.");
@@ -286,6 +289,7 @@ void init_optimal_ik(nanobind::module_& m) {
               "QP solver settings. Changes take effect the next time the solver is rebuilt "
               "(i.e., when the constraint dimensions change).")
       .def_ro("num_variables", &Oink::num_variables, "Number of optimization variables.")
+      .def_ro("joint_names", &Oink::joint_names, "Names of the joints in the joint group.")
       .def_ro("q_indices", &Oink::q_indices, "Position indices of the joint group.")
       .def_ro("v_indices", &Oink::v_indices, "Velocity indices of the joint group.")
       .def(
