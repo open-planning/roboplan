@@ -115,7 +115,7 @@ test = { cmd = "ctest -V --test-dir build{{ '/' + package_name if package_name }
 
 test_py  = { cmd = "python -m pytest --capture=no */bindings/test roboplan_examples/test" }
 test_all = { depends-on = ["test_py", "test"] }
-test_benchmarks = { cmd = "python -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json --benchmark-disable-gc --benchmark-warmup=on --benchmark-group-by=func", env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1" } }
+test_benchmarks = { cmd = "python -m pytest benchmarks/ --benchmark-json pytest_benchmarks.json --benchmark-disable-gc --benchmark-warmup=on --benchmark-group-by=func --benchmark-min-rounds=20", env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1" } }
 
 # Clang-tidy against the superbuild's single compile_commands.json. Pass a
 # package name to scope to just that package's sources.
