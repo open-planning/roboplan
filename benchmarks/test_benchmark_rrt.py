@@ -12,6 +12,9 @@ sys.path.insert(0, str(examples_dir))
 
 from common import build_scene, get_model_data
 
+# These have way more DoFs and take longer to run, so just run them half the times.
+ITERATIONS_BY_MODEL = {"dual": 5, "tiago_pro": 5}
+
 
 def solve(scene: Scene, rrt: RRT, q_indices, seed: int = 1234):
     """
@@ -80,12 +83,13 @@ def test_benchmark_rrt(benchmark, benchmark_setup):
     options.max_planning_time = 10.0
     rrt = RRT(scene, options)
 
+    iterations = ITERATIONS_BY_MODEL.get(benchmark_setup["model_name"], 10)
     success_rate = benchmark(
         solve_many,
         scene,
         rrt,
         benchmark_setup["q_indices"],
-        iterations=10,
+        iterations=iterations,
     )
     assert success_rate >= 0.95
 
