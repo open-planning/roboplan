@@ -31,22 +31,23 @@ set(TARGETS_LIST roboplan)
 
 # tl::expected: the system copy if there is one (Debian/Ubuntu libexpected-dev
 # and conda-forge cpp-expected install the tl-expected CMake package), otherwise
-# the bundled header from third_party/.
+# the bundled header from third_party/. Either way it is provided as the
+# exported roboplan::tl_expected target, which downstream packages (e.g.
+# roboplan_ros) use.
+add_library(tl_expected INTERFACE)
 find_package(tl-expected QUIET)
 if(TARGET tl::expected)
-  set(ROBOPLAN_EXPECTED_TARGET tl::expected)
+  target_link_libraries(tl_expected INTERFACE tl::expected)
   set(ROBOPLAN_EXPECTED_PACKAGE tl-expected)
 else()
   message(STATUS "tl-expected not found, using the bundled tl/expected.hpp")
-  add_library(tl_expected INTERFACE)
   target_include_directories(
     tl_expected INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party>
                           $<INSTALL_INTERFACE:include>)
   install(DIRECTORY third_party/tl DESTINATION include)
-  list(APPEND TARGETS_LIST tl_expected)
-  set(ROBOPLAN_EXPECTED_TARGET tl_expected)
   set(ROBOPLAN_EXPECTED_PACKAGE "")
 endif()
+list(APPEND TARGETS_LIST tl_expected)
 
 # tinyxml2: the system copy if there is one, otherwise the bundled sources from
 # third_party/ (linked privately, so its header is not installed).
@@ -82,7 +83,7 @@ target_include_directories(
 target_link_libraries(
   roboplan
   INTERFACE Eigen3::Eigen
-  PUBLIC pinocchio::pinocchio ${ROBOPLAN_EXPECTED_TARGET}
+  PUBLIC pinocchio::pinocchio tl_expected
   PRIVATE tinyxml2::tinyxml2 console_bridge::console_bridge)
 if(yaml-cpp_VERSION VERSION_LESS "0.8") # for Ubuntu 22.04
   target_link_libraries(roboplan PUBLIC yaml-cpp)
