@@ -43,6 +43,9 @@ jobs:
     name: Pixi ROS
     uses: ./.github/workflows/pixi_ros_build_and_test.yml
 
-  rrt_benchmarks:
+  benchmarks:
     name: Benchmarks
-    uses: ./.github/workflows/rrt_benchmarks.yml
+    uses: ./.github/workflows/benchmarks.yml
+    with:
+      push_to_pages: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+    secrets: inherit

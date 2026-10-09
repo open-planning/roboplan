@@ -1,0 +1,58 @@
+name: Run Benchmarks
+
+on:
+  workflow_call:
+    inputs:
+      push_to_pages:
+        description: "Whether or not benchmarks should be committed and pushed to gh-pages"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  benchmarks:
+    name: Benchmark
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: ubuntu-24.04-benchmarks-sccache-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            ubuntu-24.04-benchmarks-sccache-main
+            ubuntu-24.04-benchmarks-sccache
+      - uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          cache: true
+          cache-write: ${{ inputs.push_to_pages }}
+          frozen: true
+          manifest-path: pyproject.toml
+      - name: Build
+        run: pixi run -e default install
+      - name: Run benchmarks
+        # Create a task set to limit benchmarks to two cores max
+        run: taskset -c 0-1 pixi run -e default test_benchmarks
+      - name: Track benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: pytest
+          output-file-path: pytest_benchmarks.json
+          # Limited scope token just for this job
+          github-token: ${{ secrets.BENCHMARK_TOKEN }}
+          auto-push: ${{ inputs.push_to_pages }}
+          # GitHub free tier runners are inconsistent, so we are upping the limits
+          # and not failing if things seem slow.
+          alert-threshold: "200%"
+          comment-on-alert: false
+          fail-on-alert: false
+          summary-always: true
