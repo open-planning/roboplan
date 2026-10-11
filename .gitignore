@@ -18,3 +18,7 @@ wheelhouse/
 
 # Benchmarking results
 pytest_benchmarks.json
+
+# Local vendored checkouts for API source verification (fetched by CMake
+# FetchContent during the actual build, not tracked as submodules).
+/external/aligator/

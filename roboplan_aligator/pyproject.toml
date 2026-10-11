@@ -1,0 +1,47 @@
+[build-system]
+requires = ["scikit-build-core >=0.10", "nanobind >=1.3.2", "roboplan-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "roboplan-aligator"
+version = "0.5.1"
+description = "Trajectory optimization (aligator proximal-DDP) satellite for RoboPlan."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Sebastian Jahr", email = "sebastian.jahr@tuta.io" },
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = ["roboplan-core"]
+
+[project.urls]
+Homepage = "https://github.com/sea-bass/roboplan"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.define.BUILD_PYTHON_BINDINGS = "ON"
+cmake.define.BUILD_TESTING = "OFF"
+# PEP 420 namespace package: no top-level roboplan/__init__.py is shipped.
+
+[tool.pixi.package]
+publish = true
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-cmake", version = "*" }
+config = { extra-args = ["-DBUILD_PYTHON_BINDINGS=ON", "-DGENERATE_PYTHON_STUBS=OFF", "-DBUILD_TESTING=OFF"]}
+
+# Conda package "host dependencies"; dependencies required at both build-time and run-time.
+# aligator itself is intentionally NOT listed here: roboplan_aligator is pinned to a specific
+# post-release aligator commit (see API_NOTES.md), so find_package(aligator CONFIG) must keep
+# missing in the pixi env and fall through to CMakeLists.txt's FetchContent pin.
+[tool.pixi.package.host-dependencies]
+roboplan-core = { path = "../roboplan_core" }
+python = { workspace = true }
+nanobind = { workspace = true }
+gtest = { workspace = true }
+
+[tool.pixi.package.run-exports.weak]
+roboplan-aligator = { pin-subpackage = true }
