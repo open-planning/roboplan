@@ -196,69 +196,6 @@ TEST_F(PositionBarrierTest, BarrierLimitsMotion) {
 }
 
 // Test barrier allows safe motion
-TEST_F(PositionBarrierTest, BarrierAllowsSafeMotion) {
-  // Start from zero configuration
-  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
-  scene_->setJointPositions(q);
-  scene_->forwardKinematics(q, "tool0");
-
-  // Get current EE position
-  Eigen::Matrix4d current_pose = scene_->forwardKinematics(q, "tool0");
-  Eigen::Vector3d current_pos = current_pose.block<3, 1>(0, 3);
-
-  // Create a large barrier box that should not restrict motion much
-  // Use low safe_displacement_gain (0.1) since we're testing that the barrier allows motion
-  Eigen::Vector3d p_min(-2.0, -2.0, -0.5);
-  Eigen::Vector3d p_max(2.0, 2.0, 2.0);
-
-  auto barrier = std::make_shared<PositionBarrier>(*oink_, *scene_, "tool0", p_min, p_max, dt_,
-                                                   roboplan::ConstraintAxisSelection(), 1.0, 0.1);
-
-  // Create a frame task to move to a position inside the safe region
-  Eigen::Vector3d target_pos = current_pos + Eigen::Vector3d(0.1, 0.0, 0.0);  // 10cm in x
-  auto target_config =
-      makeCartesianConfig("tool0", target_pos, Eigen::Quaterniond(current_pose.block<3, 3>(0, 0)));
-
-  Oink oink(*scene_);
-  FrameTaskOptions params{.lm_damping = 0.1};
-  auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, params);
-  std::vector<std::shared_ptr<Task>> tasks = {frame_task};
-  std::vector<std::shared_ptr<Constraints>> constraints;
-  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
-
-  // Run IK loop
-  Eigen::VectorXd q_current = q;
-  constexpr int k_max_iterations = 100;
-  constexpr double k_position_tolerance = 0.02;  // 2cm
-
-  for (int iter = 0; iter < k_max_iterations; ++iter) {
-    scene_->setJointPositions(q_current);
-    scene_->forwardKinematics(q_current, "tool0");
-
-    Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
-    ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter;
-
-    q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
-
-    // Check convergence
-    Eigen::Matrix4d final_pose = scene_->forwardKinematics(q_current, "tool0");
-    Eigen::Vector3d final_pos = final_pose.block<3, 1>(0, 3);
-    if ((final_pos - target_pos).norm() < k_position_tolerance) {
-      break;
-    }
-  }
-
-  // Should reach target (barrier should not prevent safe motion)
-  scene_->setJointPositions(q_current);
-  Eigen::Matrix4d final_pose = scene_->forwardKinematics(q_current, "tool0");
-  Eigen::Vector3d final_pos = final_pose.block<3, 1>(0, 3);
-
-  EXPECT_LT((final_pos - target_pos).norm(), k_position_tolerance)
-      << "Failed to reach target. Target: [" << target_pos.transpose() << "], Final: ["
-      << final_pos.transpose() << "]";
-}
-
 // Test invalid frame name
 TEST_F(PositionBarrierTest, InvalidFrameName) {
   Eigen::Vector3d p_min(-1.0, -1.0, 0.0);

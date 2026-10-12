@@ -252,6 +252,26 @@ void init_optimal_ik(nanobind::module_& m) {
               "least-squares sense instead of failing, so solveIk() always returns a usable\n"
               "displacement.");
 
+  nanobind::class_<IterativeSolveOptions>(m, "IterativeSolveOptions",
+                                          "Options for Oink.solveIterativeIk().")
+      .def(nanobind::init<>())
+      .def_rw("max_iters", &IterativeSolveOptions::max_iters,
+              "Max iterations for one try of the solver.")
+      .def_rw("max_time", &IterativeSolveOptions::max_time,
+              "Max total computation time, in seconds.")
+      .def_rw("max_restarts", &IterativeSolveOptions::max_restarts,
+              "Maximum number of random restarts until success.")
+      .def_rw("max_task_error_norm", &IterativeSolveOptions::max_task_error_norm,
+              "The maximum weighted error norm of any goal task at the solution.")
+      .def_rw("max_constraint_violation_norm",
+              &IterativeSolveOptions::max_constraint_violation_norm,
+              "The maximum norm of any constraint violation at the solution.")
+      .def_rw("regularization", &IterativeSolveOptions::regularization,
+              "Tikhonov regularization weight passed to each solveIk() step.")
+      .def_rw("fast_return", &IterativeSolveOptions::fast_return,
+              "If true, returns the first configuration within the tolerances; otherwise keeps "
+              "iterating while the error still improves.");
+
   nanobind::class_<Oink>(m, "Oink", "Optimal Inverse Kinematics solver.")
       .def(nanobind::init<const Scene&, const std::string&>(), nanobind::keep_alive<1, 2>(),
            "scene"_a, "group_name"_a, "Constructor for a named joint group.")
@@ -395,6 +415,28 @@ void init_optimal_ik(nanobind::module_& m) {
           "    constraints: List of constraints to satisfy.\n"
           "    delta_q: Pre-allocated numpy array for output (size = num_variables).\n"
           "    regularization: Tikhonov regularization weight (default: 1e-12).")
+      .def(
+          "solveIterativeIk",
+          [](Oink& self, const Eigen::VectorXd& q_start,
+             const std::vector<std::shared_ptr<Task>>& goal_tasks,
+             const std::vector<std::shared_ptr<Task>>& extra_tasks,
+             const std::vector<std::shared_ptr<Constraints>>& constraints,
+             const std::vector<std::shared_ptr<Barrier>>& barriers,
+             const IterativeSolveOptions& options) {
+            auto result = self.solveIterativeIk(q_start, goal_tasks, extra_tasks, constraints,
+                                                barriers, options);
+            if (!result) {
+              throw std::runtime_error("Iterative IK solve failed: " + result.error());
+            }
+            return *result;
+          },
+          nanobind::call_guard<nanobind::gil_scoped_release>(), "q_start"_a, "goal_tasks"_a,
+          "extra_tasks"_a = std::vector<std::shared_ptr<Task>>{},
+          "constraints"_a = std::vector<std::shared_ptr<Constraints>>{},
+          "barriers"_a = std::vector<std::shared_ptr<Barrier>>{},
+          "options"_a = IterativeSolveOptions{},
+          "Iterates solveIk() from q_start until every goal task is reached, with random "
+          "restarts. Returns the full configuration; raises RuntimeError on failure.")
       .def(
           "enforceBarriers",
           [](Oink& self, const Eigen::VectorXd& q,
