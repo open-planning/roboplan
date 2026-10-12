@@ -25,9 +25,6 @@ namespace {
 /// @brief Small epsilon for distance/angle/limit comparisons and strict-inequality slack.
 constexpr double kEps = 1e-9;
 
-/// @brief Maximum number of differential-IK iterations spent converging onto one path sample.
-constexpr int kMaxIkConvergenceIters = 500;
-
 /// @brief Hard cap on the number of waypoints handed to TOPP-RA, bounding the
 /// time-parameterization problem size (and hence planning time) for pathologically long paths.
 constexpr size_t kMaxToppraWaypoints = 10000;
@@ -43,23 +40,8 @@ constexpr int kMaxBlendAttempts = 3;
 /// IK work for a pathologically long path or a very tight pose tolerance.
 constexpr size_t kMaxResolutionSamples = 100000;
 
-/// @brief Fraction of one resolution step that a sample's residual IK error must fall below.
-/// @details The resolved path must be shaped by the commanded motion, not by where each IK solve
-/// happened to stop. Converging only to the path tolerance leaves a residual comparable to (or
-/// larger than) the step between samples, so consecutive solutions scatter within the tolerance
-/// ball and the path arrives at the time parameterization full of kinks it must stop at. Requiring
-/// the residual to be far smaller than the step makes successive samples differ by real motion.
-constexpr double kIkConvergenceFraction = 0.01;
-
-/// @brief Relative error improvement below which an IK solve counts as having stagnated.
-constexpr double kStagnationImprovement = 0.99;
-
-/// @brief Consecutive stagnant iterations after which a sample stops iterating.
-/// @details The target above is deliberately tighter than the solver's own achievable precision, so
-/// a well-conditioned sample plateaus rather than reaching it. Stopping on the plateau takes the
-/// best solution available and lets the caller's path tolerance decide whether it is good enough,
-/// instead of failing a path that is resolved far more accurately than asked for.
-constexpr int kMaxStagnantIters = 5;
+/// @brief Maximum number of differential-IK iterations spent converging onto one path sample.
+constexpr int kMaxIkConvergenceIters = 500;
 
 /// @brief Fraction of the pose tolerance the reference advances between IK seeding samples.
 /// @details This walk exists so every IK solve starts from a near neighbor, which keeps the
@@ -155,14 +137,10 @@ void CartesianPathPlanner::buildStaticSolverComponents(
   const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
 
   if (components) {
-    // Caller-supplied setup: the solver objectives are fixed, so assemble them once.
-    // The tracking tasks are prepended so they are always solved; everything else passes through.
+    // Caller-supplied setup: the solver objectives are fixed, so take them once.
     // Cache the tracking tasks for per-plan() wiring in buildFrameReferences().
     tracking_tasks_ = components->tracking_tasks;
-    tasks_.clear();
-    tasks_.reserve(tracking_tasks_.size() + components->extra_tasks.size());
-    tasks_.insert(tasks_.end(), tracking_tasks_.begin(), tracking_tasks_.end());
-    tasks_.insert(tasks_.end(), components->extra_tasks.begin(), components->extra_tasks.end());
+    extra_tasks_ = components->extra_tasks;
     constraints_ = components->constraints;
     barriers_ = components->barriers;
 
@@ -376,7 +354,7 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
   // Constraints and barriers were assembled once at construction (see buildStaticSolverComponents).
   if (!tracking_tasks_.empty()) {
     // Caller-supplied setup: map each pre-assembled tracking task to its path frame (matched by
-    // order) and validate the ordering. The solver task list (tasks_) is already built.
+    // order) and validate the ordering.
     for (size_t f = 0; f < num_frames; ++f) {
       const auto& tracking_task = tracking_tasks_.at(f);
       if (tracking_task->frame_name != references.at(f).tip_frame) {
@@ -393,11 +371,9 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
 
   // Default setup: (re)build one priority-1 frame task per end-effector tracking its reference
   // pose, plus a priority-2 configuration task that gently regularizes redundant joints toward
-  // the seed using only the nullspace the frame tasks leave free. Reuse the tasks_ buffer.
+  // the seed using only the nullspace the frame tasks leave free.
   Oink& oink = *oink_;
   const int num_variables = oink.num_variables;
-  tasks_.clear();
-  tasks_.reserve(num_frames + 1);
   for (size_t f = 0; f < num_frames; ++f) {
     CartesianConfiguration target;
     target.base_frame = "";  // FrameTask interprets the target tform in the world frame.
@@ -410,7 +386,6 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
     frame_options.lm_damping = options_.lm_damping;
     frame_options.priority = 1;
     references.at(f).task = std::make_shared<FrameTask>(oink, *scene_, target, frame_options);
-    tasks_.push_back(references.at(f).task);
   }
 
   const Eigen::VectorXd joint_weights =
@@ -418,89 +393,9 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
   ConfigurationTaskOptions config_options;
   config_options.priority = 2;
   const Eigen::VectorXd target_q = q_start_full(oink.q_indices);
-  tasks_.push_back(
-      std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, config_options));
+  extra_tasks_ = {
+      std::make_shared<ConfigurationTask>(oink, target_q, joint_weights, config_options)};
   return references;
-}
-
-tl::expected<void, std::string>
-CartesianPathPlanner::solveStep(const std::vector<FrameReference>& references,
-                                const Eigen::VectorXd& q, double s, Eigen::VectorXd& q_candidate,
-                                Eigen::VectorXd& delta_q, double& position_error,
-                                double& orientation_error) {
-  Oink& oink = *oink_;
-
-  // Retarget every tracking task, then solve at the committed configuration. `q` is passed to the
-  // solver directly rather than written into the scene, so the configuration this planner is
-  // solving at is never visible to (or overwritable by) anything else sharing the Scene.
-  for (const auto& reference : references) {
-    reference.task->setTargetFrameTransform(reference.target(s));
-  }
-  delta_q.setZero();
-  const auto result =
-      oink.solveIk(q, tasks_, constraints_, barriers_, delta_q, options_.regularization);
-  if (!result) {
-    return tl::make_unexpected(result.error());
-  }
-  const Eigen::VectorXd delta_q_full = scene_->toFullJointVelocities(options_.group_name, delta_q);
-  q_candidate = scene_->integrate(q, delta_q_full);
-
-  // Worst-case pose error across all tracked frames.
-  position_error = 0.0;
-  orientation_error = 0.0;
-  for (const auto& reference : references) {
-    const Eigen::Matrix4d fk =
-        oink_->getContext().forwardKinematics(q_candidate, reference.tip_frame);
-    const auto [frame_position_error, frame_orientation_error] = poseError(fk, reference.target(s));
-    position_error = std::max(position_error, frame_position_error);
-    orientation_error = std::max(orientation_error, frame_orientation_error);
-  }
-  return {};
-}
-
-tl::expected<void, std::string>
-CartesianPathPlanner::converge(const std::vector<FrameReference>& references, double s,
-                               double position_tolerance, double orientation_tolerance,
-                               Eigen::VectorXd& q) {
-  Eigen::VectorXd delta_q(oink_->num_variables);
-  Eigen::VectorXd q_candidate;
-  double position_error = 0.0;
-  double orientation_error = 0.0;
-  double best_error = std::numeric_limits<double>::infinity();
-  int stagnant = 0;
-  for (int i = 0; i < kMaxIkConvergenceIters; ++i) {
-    const auto step =
-        solveStep(references, q, s, q_candidate, delta_q, position_error, orientation_error);
-    if (!step) {
-      return tl::make_unexpected(step.error());
-    }
-    // Clamp away solver-epsilon overshoot of the position limits, since the QP only satisfies its
-    // constraints to within the solver tolerance.
-    q = scene_->clampToValidConfiguration(q_candidate);
-    if (position_error <= position_tolerance && orientation_error <= orientation_tolerance) {
-      return {};
-    }
-    // Stop once the solve plateaus: the target is tighter than the solver's own precision, so this
-    // is the normal exit for a healthy sample.
-    const double error = std::max(position_error / std::max(position_tolerance, kEps),
-                                  orientation_error / std::max(orientation_tolerance, kEps));
-    if (error < best_error * kStagnationImprovement) {
-      best_error = error;
-      stagnant = 0;
-    } else if (++stagnant >= kMaxStagnantIters) {
-      break;
-    }
-  }
-
-  // The tight target is there to make the path smooth, not to gate success; accept the best
-  // solution found as long as it honors the tolerance the caller actually asked for.
-  if (position_error <= options_.max_position_error &&
-      orientation_error <= options_.max_orientation_error) {
-    return {};
-  }
-  return tl::make_unexpected("position error " + std::to_string(position_error) +
-                             " m, orientation error " + std::to_string(orientation_error) +
-                             " rad exceed the path tolerance");
 }
 
 tl::expected<std::vector<Eigen::VectorXd>, std::string>
@@ -526,25 +421,42 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   const size_t num_steps =
       std::clamp<size_t>(static_cast<size_t>(std::ceil(steps)), 1, kMaxResolutionSamples);
 
-  // Converge each sample far tighter than the deviation it is there to bound, so the resolved path
-  // is shaped by the commanded motion rather than by residual IK error.
-  const double converge_position = kIkConvergenceFraction * options_.max_position_error;
-  const double converge_orientation = kIkConvergenceFraction * options_.max_orientation_error;
+  // Each sample is solved to convergence rather than tracked by a single step, so the robot never
+  // trails the reference and no throttling or lag-recovery is needed. The solve keeps iterating
+  // past the path tolerance until the error plateaus, so the resolved path is shaped by the
+  // commanded motion rather than by residual IK error. A random restart would break the path's
+  // continuity, so none are allowed.
+  std::vector<std::shared_ptr<Task>> tracking_tasks;
+  for (const auto& reference : *references) {
+    tracking_tasks.push_back(reference.task);
+  }
+  IterativeSolveOptions ik_options;
+  ik_options.max_iters = kMaxIkConvergenceIters;
+  ik_options.max_time = std::numeric_limits<double>::infinity();
+  ik_options.max_restarts = 0;
+  ik_options.max_task_error_norm =
+      std::min(options_.max_position_error, options_.max_orientation_error);
+  ik_options.regularization = options_.regularization;
+  ik_options.fast_return = false;
 
   std::vector<double> parameters(num_steps + 1);
   std::vector<Eigen::VectorXd> walked(num_steps + 1);
   Eigen::VectorXd q = q_start_full;
   for (size_t k = 0; k <= num_steps; ++k) {
     const double s = static_cast<double>(k) / static_cast<double>(num_steps);
-    if (const auto converged = converge(*references, s, converge_position, converge_orientation, q);
-        !converged) {
+    for (const auto& reference : *references) {
+      reference.task->setTargetFrameTransform(reference.target(s));
+    }
+    const auto solution = oink_->solveIterativeIk(q, tracking_tasks, extra_tasks_, constraints_,
+                                                  barriers_, ik_options);
+    if (!solution) {
       return tl::make_unexpected(
-          "Could not resolve path fraction " + std::to_string(s) + ": " + converged.error() +
+          "Could not resolve path fraction " + std::to_string(s) + ": " + solution.error() +
           ". The path may leave the reachable workspace or pass through a singularity" +
           (k == 0 ? ", or q_start may be too far from the first waypoint." : "."));
     }
     parameters.at(k) = s;
-    walked.at(k) = q;
+    walked.at(k) = q = *solution;
   }
 
   // Choose the fewest waypoints that still describe the motion. Every waypoint handed to the time

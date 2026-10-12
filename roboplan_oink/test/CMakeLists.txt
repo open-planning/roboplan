@@ -13,6 +13,12 @@ target_link_libraries(
   test_oink PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
                     roboplan_example_models::roboplan_example_models)
 
+add_executable(test_oink_iterative test_oink_iterative.cpp)
+set_property(TARGET test_oink_iterative PROPERTY CXX_STANDARD 20)
+target_link_libraries(
+  test_oink_iterative PRIVATE roboplan_oink GTest::gmock_main GTest::gtest_main
+                              roboplan_example_models::roboplan_example_models)
+
 add_executable(test_frame_task tasks/test_frame_task.cpp)
 set_property(TARGET test_frame_task PROPERTY CXX_STANDARD 20)
 target_link_libraries(
@@ -70,6 +76,7 @@ target_link_libraries(
 find_package(ament_cmake_gtest QUIET)
 if(ament_cmake_gtest_FOUND)
   ament_add_gtest_test(test_oink)
+  ament_add_gtest_test(test_oink_iterative)
   ament_add_gtest_test(test_frame_task)
   ament_add_gtest_test(test_configuration_task)
   ament_add_gtest_test(test_velocity_limit)
@@ -81,6 +88,7 @@ if(ament_cmake_gtest_FOUND)
 else()
   include(GoogleTest)
   gtest_add_tests(TARGET test_oink)
+  gtest_add_tests(TARGET test_oink_iterative)
   gtest_add_tests(TARGET test_frame_task)
   gtest_add_tests(TARGET test_configuration_task)
   gtest_add_tests(TARGET test_position_limit)

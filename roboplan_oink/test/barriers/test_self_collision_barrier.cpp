@@ -3,30 +3,14 @@
 #include <memory>
 #include <stdexcept>
 
-#include <pinocchio/algorithm/joint-configuration.hpp>
-
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/barriers/self_collision_barrier.hpp>
-#include <roboplan_oink/constraints/velocity_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
-#include <roboplan_oink/tasks/frame.hpp>
 #include <test_utils.hpp>
 
 namespace {
 constexpr double kTolerance = 1e-6;
-
-roboplan::CartesianConfiguration makeCartesianConfig(const std::string& frame_name,
-                                                     const Eigen::Vector3d& position,
-                                                     const Eigen::Quaterniond& orientation) {
-  roboplan::CartesianConfiguration config;
-  config.tip_frame = frame_name;
-  Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
-  tform.block<3, 3>(0, 0) = orientation.toRotationMatrix();
-  tform.block<3, 1>(0, 3) = position;
-  config.tform = tform;
-  return config;
-}
 }  // namespace
 
 namespace roboplan {
@@ -323,49 +307,6 @@ TEST_F(SelfCollisionBarrierTest, ResizesWorkspaceWhenPairCountGrows) {
   EXPECT_EQ(barrier->getNumBarriers(posed(*oink_, *scene_)), barrier->n_collision_pairs);
   EXPECT_EQ(static_cast<int>(barrier->closest_pair_indices.size()), barrier->n_collision_pairs);
   EXPECT_TRUE(barrier->barrier_values.allFinite());
-}
-
-TEST_F(SelfCollisionBarrierTest, IkSolvesWithBarrier) {
-  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
-  scene_->setJointPositions(q);
-  scene_->forwardKinematics(q, "tool0");
-
-  Eigen::Matrix4d current_pose = scene_->forwardKinematics(q, "tool0");
-  Eigen::Vector3d current_pos = current_pose.block<3, 1>(0, 3);
-  Eigen::Quaterniond current_orientation(current_pose.block<3, 3>(0, 0));
-
-  // Modest target offset so the task remains within reach.
-  Eigen::Vector3d target_pos = current_pos + Eigen::Vector3d(0.05, 0.05, 0.05);
-  auto target_config = makeCartesianConfig("tool0", target_pos, current_orientation);
-
-  Oink oink(*scene_);
-  FrameTaskOptions task_params{.task_gain = 0.5, .lm_damping = 0.1};
-  auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, task_params);
-
-  Eigen::VectorXd v_max = Eigen::VectorXd::Constant(num_variables_, 1.0);
-  auto vel_limit = std::make_shared<VelocityLimit>(oink, dt_, v_max);
-
-  auto barrier = std::make_shared<SelfCollisionBarrier>(
-      *oink_, *scene_, dt_,
-      SelfCollisionBarrierOptions{.n_collision_pairs = num_pairs_, .gain = 5.0, .d_min = 0.02});
-
-  std::vector<std::shared_ptr<Task>> tasks = {frame_task};
-  std::vector<std::shared_ptr<Constraints>> constraints = {vel_limit};
-  std::vector<std::shared_ptr<Barrier>> barriers = {barrier};
-
-  Eigen::VectorXd q_current = q;
-  for (int iter = 0; iter < 20; ++iter) {
-    scene_->setJointPositions(q_current);
-    scene_->forwardKinematics(q_current, "tool0");
-
-    Eigen::VectorXd delta_q(num_variables_);
-    auto result = oink.solveIk(*scene_, tasks, constraints, barriers, delta_q);
-    ASSERT_TRUE(result.has_value()) << "IK failed at iteration " << iter << ": " << result.error();
-    q_current = pinocchio::integrate(scene_->getModel(), q_current, delta_q);
-  }
-
-  // The robot should not collide with itself at the end of the loop.
-  EXPECT_FALSE(scene_->hasCollisions(q_current));
 }
 
 }  // namespace roboplan
