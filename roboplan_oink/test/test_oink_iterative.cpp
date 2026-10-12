@@ -2,6 +2,8 @@
 #include <limits>
 #include <memory>
 
+#include <pinocchio/algorithm/joint-configuration.hpp>
+
 #include <roboplan/core/pose_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -79,21 +81,48 @@ TEST_F(SolveIterativeIkTest, ConfigurationTaskConvergesToTarget) {
   EXPECT_LT((*solution - q_goal).norm(), 1e-3);
 }
 
-TEST_F(SolveIterativeIkTest, ExtraTaskYieldsToGoalOnlyAtLowerPriority) {
-  // A posture task holding the start pose fights the goal at equal priority, but is confined to
-  // the goal's nullspace at priority 2.
-  Eigen::VectorXd q_goal = q_;
-  q_goal.head(6).array() += 0.2;
+// A posture task holding the start pose fights the goal at equal priority, but is confined to the
+// goal's nullspace at priority 2. Uses the 7-DOF Kinova so that nullspace is not empty; on a 6-DOF
+// arm the posture task would simply be skipped.
+TEST(SolveIterativeIkKinovaTest, ExtraTaskYieldsToGoalOnlyAtLowerPriority) {
+  const auto model_dir = example_models::get_package_models_dir() / "kinova_robot_model";
+  Scene scene("test_scene", loadUrdfSceneDescription(model_dir / "kinova_robotiq.urdf",
+                                                     {example_models::get_package_share_dir()}));
+  scene.importJointLimitsFromConfig(
+      loadJointLimitsConfig(model_dir / "kinova_robotiq_config.yaml"));
+  ASSERT_TRUE(scene.importSrdf(loadTextFile(model_dir / "kinova_robotiq.srdf")));
+  const std::string group = "manipulator";
+  const std::string frame = "end_effector_link";
+  Oink oink(scene, group);
+
+  // The SRDF "Home" pose and a goal 0.2 rad away on every arm joint, integrated from neutral so
+  // the continuous joints get their cos/sin form.
+  Eigen::VectorXd home(7);
+  home << 0.0, 0.26, 3.14, -2.27, 0.0, 0.96, 1.57;
+  const Eigen::VectorXd zero_v = Eigen::VectorXd::Zero(scene.getModel().nv);
+  const Eigen::VectorXd q_start = scene.integrate(pinocchio::neutral(scene.getModel()),
+                                                  scene.toFullJointVelocities(group, home, zero_v));
+  const Eigen::VectorXd q_goal = scene.integrate(
+      q_start, scene.toFullJointVelocities(group, Eigen::VectorXd::Constant(7, 0.2), zero_v));
+  const Eigen::Matrix4d goal_pose = scene.forwardKinematics(q_goal, frame);
+  auto frame_task = std::make_shared<FrameTask>(
+      oink, scene,
+      CartesianConfiguration{.base_frame = "", .tip_frame = frame, .tform = goal_pose});
+
   for (const int priority : {1, 2}) {
-    auto posture = std::make_shared<ConfigurationTask>(
-        *oink_, q_(oink_->q_indices), Eigen::VectorXd::Ones(nv_),
-        ConfigurationTaskOptions{.priority = priority});
-    const auto solution = oink_->solveIterativeIk(q_, {frameTask(q_goal)}, {posture}, {}, {},
-                                                  IterativeSolveOptions{.max_restarts = 0});
+    auto posture =
+        std::make_shared<ConfigurationTask>(oink, q_start(oink.q_indices), Eigen::VectorXd::Ones(7),
+                                            ConfigurationTaskOptions{.priority = priority});
+    const auto solution = oink.solveIterativeIk(q_start, {frame_task}, {posture}, {}, {},
+                                                IterativeSolveOptions{.max_restarts = 0});
     if (priority == 1) {
       EXPECT_FALSE(solution);
     } else {
-      expectReaches(solution, q_goal);
+      ASSERT_TRUE(solution) << solution.error();
+      const auto [position_error, orientation_error] =
+          poseError(scene.forwardKinematics(*solution, frame), goal_pose);
+      EXPECT_LE(position_error, 1e-3);
+      EXPECT_LE(orientation_error, 1e-3);
     }
   }
 }
