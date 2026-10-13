@@ -69,7 +69,7 @@ TEST_F(RelativePoseConstraintTest, HoldsRelativePoseWithinTolerance) {
     const Eigen::Matrix4d T_ab =
         scene_->forwardKinematics(q_, "forearm_link").inverse() * initial_tool;
     auto constraint = std::make_shared<RelativePoseConstraint>(
-        *oink_, *scene_, "forearm_link", "tool0", T_ab, Eigen::Vector3d::Constant(tolerance),
+        *oink_, *scene_, "forearm_link", "tool0", T_ab, 1.0, Eigen::Vector3d::Constant(tolerance),
         Eigen::Vector3d::Constant(tolerance));
 
     // Drag tool0 sideways; the wrist must stay locked to the forearm (up to the tolerance).
@@ -118,7 +118,7 @@ TEST_F(RelativePoseConstraintTest, LowerPriorityTaskDoesNotFightConstraint) {
             *oink_, *scene_, "base_link", "tool0",
             scene_->forwardKinematics(q_, "base_link").inverse() *
                 scene_->forwardKinematics(q_, "tool0"),
-            Eigen::Vector3d::Constant(10.0), Eigen::Vector3d::Constant(tolerance))};
+            1.0, Eigen::Vector3d::Constant(10.0), Eigen::Vector3d::Constant(tolerance))};
     Eigen::VectorXd q = q_;
     Eigen::VectorXd delta_q(oink_->num_variables);
     for (int i = 0; i < 20; ++i) {
@@ -132,6 +132,50 @@ TEST_F(RelativePoseConstraintTest, LowerPriorityTaskDoesNotFightConstraint) {
   }
 }
 
+TEST_F(RelativePoseConstraintTest, GainRemovesFractionOfExcessPerStep) {
+  EXPECT_THROW(RelativePoseConstraint(*oink_, *scene_, "base_link", "tool0",
+                                      Eigen::Matrix4d::Identity(), 0.0),
+               std::invalid_argument);
+
+  // Target the tool pose from a configuration 0.2 rad away on every joint, so the constraint
+  // starts well outside its box.
+  Eigen::VectorXd q_goal = q_;
+  q_goal.head(6).array() += 0.2;
+  const Eigen::Matrix4d T_target = scene_->forwardKinematics(q_goal, "base_link").inverse() *
+                                   scene_->forwardKinematics(q_goal, "tool0");
+  std::vector<std::shared_ptr<Task>> tasks = {std::make_shared<ConfigurationTask>(
+      *oink_, q_, Eigen::VectorXd::Constant(oink_->num_variables, 1e-3))};
+
+  const double gain = 0.5;
+  auto constraint = std::make_shared<RelativePoseConstraint>(
+      *oink_, *scene_, "base_link", "tool0", T_target, gain, Eigen::Vector3d::Constant(0.01),
+      Eigen::Vector3d::Constant(0.01));
+  std::vector<std::shared_ptr<Constraints>> constraints = {constraint};
+  Eigen::VectorXd q = q_;
+  Eigen::VectorXd delta_q(oink_->num_variables);
+  Eigen::VectorXd prev_excess = Eigen::VectorXd::Zero(6);
+  for (int i = 0; i < 30; ++i) {
+    scene_->setJointPositions(q);
+    const Eigen::VectorXd error = constraint->computeError(posed(*oink_, *scene_));
+    const Eigen::VectorXd excess = error - error.cwiseMax(-0.01).cwiseMin(0.01);
+    // Each step removes at least the gain's share of the excess (up to linearization error),
+    // and gain < 1 means it does not remove all of it at once.
+    const double prev = prev_excess.cwiseAbs().maxCoeff();
+    if (prev > 1e-4) {
+      EXPECT_LE(excess.cwiseAbs().maxCoeff(), (1.0 - gain + 0.05) * prev) << "iteration " << i;
+      if (i == 1) {
+        EXPECT_GT(excess.cwiseAbs().maxCoeff(), 0.1 * prev);
+      }
+    }
+    prev_excess = excess;
+    ASSERT_TRUE(oink_->solveIk(q, tasks, constraints, {}, delta_q, 1e-6));
+    q = pinocchio::integrate(scene_->getModel(), q, delta_q);
+  }
+  scene_->setJointPositions(q);
+  const Eigen::VectorXd error = constraint->computeError(posed(*oink_, *scene_));
+  EXPECT_LE(error.cwiseAbs().maxCoeff(), 0.01 + 1e-4);
+}
+
 TEST_F(RelativePoseConstraintTest, InfiniteToleranceAxesStayInLowerPriorityNullspace) {
   // Only the tool orientation is constrained, so a priority-2 task can still move the tool position
   // even though the constraint ranks above all tasks.
@@ -139,7 +183,7 @@ TEST_F(RelativePoseConstraintTest, InfiniteToleranceAxesStayInLowerPriorityNulls
   std::vector<std::shared_ptr<Constraints>> constraints = {std::make_shared<RelativePoseConstraint>(
       *oink_, *scene_, "base_link", "tool0",
       scene_->forwardKinematics(q_, "base_link").inverse() * scene_->forwardKinematics(q_, "tool0"),
-      Eigen::Vector3d::Constant(inf), Eigen::Vector3d::Zero())};
+      1.0, Eigen::Vector3d::Constant(inf), Eigen::Vector3d::Zero())};
 
   CartesianConfiguration shoulder_goal;
   shoulder_goal.tip_frame = "shoulder_link";

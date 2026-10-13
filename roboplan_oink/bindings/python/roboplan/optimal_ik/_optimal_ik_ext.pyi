@@ -287,7 +287,7 @@ class RelativePoseConstraint(Constraints):
     position/orientation tolerance of target_pose (tolerances are in the target frame).
     """
 
-    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_a: str, frame_b: str, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], position_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., orientation_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_a: str, frame_b: str, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], gain: float = 1.0, position_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., orientation_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
 
     @property
     def frame_a(self) -> str:
@@ -303,6 +303,13 @@ class RelativePoseConstraint(Constraints):
 
     @target_pose.setter
     def target_pose(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], /) -> None: ...
+
+    @property
+    def gain(self) -> float:
+        """Fraction of the excess error to remove per step (0 < gain <= 1)."""
+
+    @gain.setter
+    def gain(self, arg: float, /) -> None: ...
 
     @property
     def position_tolerance(self) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:

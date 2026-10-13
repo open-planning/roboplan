@@ -143,14 +143,17 @@ void init_optimal_ik(nanobind::module_& m) {
       "Constraint that keeps the pose of frame_b relative to frame_a within a per-axis\n"
       "position/orientation tolerance of target_pose (tolerances are in the target frame).")
       .def(nanobind::init<const Oink&, const Scene&, const std::string&, const std::string&,
-                          const Eigen::Matrix4d&, const Eigen::Vector3d&, const Eigen::Vector3d&>(),
-           "oink"_a, "scene"_a, "frame_a"_a, "frame_b"_a, "target_pose"_a,
+                          const Eigen::Matrix4d&, double, const Eigen::Vector3d&,
+                          const Eigen::Vector3d&>(),
+           "oink"_a, "scene"_a, "frame_a"_a, "frame_b"_a, "target_pose"_a, "gain"_a = 1.0,
            "position_tolerance"_a = Eigen::Vector3d::Zero(),
            "orientation_tolerance"_a = Eigen::Vector3d::Zero())
       .def_ro("frame_a", &RelativePoseConstraint::frame_a, "Reference frame name.")
       .def_ro("frame_b", &RelativePoseConstraint::frame_b, "Constrained frame name.")
       .def_rw("target_pose", &RelativePoseConstraint::target_pose,
               "Target pose of frame_b in frame_a (4x4).")
+      .def_rw("gain", &RelativePoseConstraint::gain,
+              "Fraction of the excess error to remove per step (0 < gain <= 1).")
       .def_rw("position_tolerance", &RelativePoseConstraint::position_tolerance,
               "Per-axis position tolerance (meters).")
       .def_rw("orientation_tolerance", &RelativePoseConstraint::orientation_tolerance,

@@ -403,8 +403,11 @@ The error :math:`e = [R^{*T}(p_{ab} - p^*),\ \log_3(R^{*T} R_{ab})]` is expresse
 
 .. math::
 
-   -\text{tol} - e \leq J_e \Delta q \leq \text{tol} - e
+   -\text{tol} - e + (1 - g)\min(v, 0) \leq J_e \Delta q \leq \text{tol} - e + (1 - g)\max(v, 0)
 
+where :math:`v` is the excess error outside the tolerance box and :math:`g` is the gain.
+Inside the box the error stays inside; outside it, each step removes at least a fraction :math:`g` of the excess.
+A gain below 1 lets a constraint that starts far from satisfied close the error over several steps instead of demanding it all at once.
 An infinite tolerance leaves that axis free.
 
 A heavily weighted FrameTask with ``base_frame`` set to frame :math:`a` does the same job without the hard tolerance.

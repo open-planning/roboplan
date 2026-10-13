@@ -9,10 +9,10 @@ namespace roboplan {
 RelativePoseConstraint::RelativePoseConstraint(const Oink& oink, const Scene& scene,
                                                const std::string& frame_a,
                                                const std::string& frame_b,
-                                               const Eigen::Matrix4d& target_pose,
+                                               const Eigen::Matrix4d& target_pose, double gain,
                                                const Eigen::Vector3d& position_tolerance,
                                                const Eigen::Vector3d& orientation_tolerance)
-    : frame_a(frame_a), frame_b(frame_b), target_pose(target_pose),
+    : frame_a(frame_a), frame_b(frame_b), target_pose(target_pose), gain(gain),
       position_tolerance(position_tolerance), orientation_tolerance(orientation_tolerance),
       v_indices(oink.v_indices), full_jacobian(Eigen::MatrixXd::Zero(6, scene.getModel().nv)) {
   const auto maybe_a = scene.getFrameId(frame_a);
@@ -22,6 +22,9 @@ RelativePoseConstraint::RelativePoseConstraint(const Oink& oink, const Scene& sc
   const auto maybe_b = scene.getFrameId(frame_b);
   if (!maybe_b) {
     throw std::runtime_error("RelativePoseConstraint: " + maybe_b.error());
+  }
+  if (gain <= 0.0 || gain > 1.0) {
+    throw std::invalid_argument("RelativePoseConstraint: gain must be in (0, 1]");
   }
   frame_a_id = maybe_a.value();
   frame_b_id = maybe_b.value();
@@ -65,8 +68,9 @@ tl::expected<void, std::string> RelativePoseConstraint::computeQpConstraints(
   const Eigen::Matrix<double, 6, 1> error = computeError(context);
   Eigen::Matrix<double, 6, 1> tolerance;
   tolerance << position_tolerance, orientation_tolerance;
-  lower_bounds = -tolerance - error;
-  upper_bounds = tolerance - error;
+  const Eigen::Matrix<double, 6, 1> excess = error - error.cwiseMax(-tolerance).cwiseMin(tolerance);
+  lower_bounds = -tolerance - error + (1.0 - gain) * excess.cwiseMin(0.0);
+  upper_bounds = tolerance - error + (1.0 - gain) * excess.cwiseMax(0.0);
   return {};
 }
 

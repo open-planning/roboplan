@@ -17,7 +17,10 @@ namespace roboplan {
 /// Linearizing e(q + δq) ≈ e + J_e δq, each of the 6 rows is bounded by its tolerance:
 ///     -tol - e <= J_e δq <= tol - e
 ///
-/// so the error stays inside the tolerance box, and is pulled back into it if it starts outside.
+/// so the error stays inside the tolerance box. Outside the box, with v the excess error beyond
+/// the tolerance, each step must remove at least a fraction `gain` of it:
+///     -tol - e + (1 - gain)·min(v, 0) <= J_e δq <= tol - e + (1 - gain)·max(v, 0)
+///
 /// Use an infinite tolerance to leave an axis free.
 struct RelativePoseConstraint : public Constraints {
   /// @brief Constructor.
@@ -26,11 +29,13 @@ struct RelativePoseConstraint : public Constraints {
   /// @param frame_a Name of the reference frame.
   /// @param frame_b Name of the constrained frame.
   /// @param target_pose Target pose of frame_b in frame_a (4x4 homogeneous transform).
+  /// @param gain Fraction of the excess error to remove per step (0 < gain <= 1).
   /// @param position_tolerance Per-axis position tolerance (meters), in the target frame.
   /// @param orientation_tolerance Per-axis rotation tolerance (radians), in the target frame.
   /// @throws std::runtime_error if either frame is not found in the scene.
   RelativePoseConstraint(const Oink& oink, const Scene& scene, const std::string& frame_a,
                          const std::string& frame_b, const Eigen::Matrix4d& target_pose,
+                         double gain = 1.0,
                          const Eigen::Vector3d& position_tolerance = Eigen::Vector3d::Zero(),
                          const Eigen::Vector3d& orientation_tolerance = Eigen::Vector3d::Zero());
 
@@ -51,6 +56,7 @@ struct RelativePoseConstraint : public Constraints {
   pinocchio::FrameIndex frame_a_id;
   pinocchio::FrameIndex frame_b_id;
   Eigen::Matrix4d target_pose;
+  double gain;
   Eigen::Vector3d position_tolerance;
   Eigen::Vector3d orientation_tolerance;
   Eigen::VectorXi v_indices;
