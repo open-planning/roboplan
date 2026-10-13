@@ -431,8 +431,7 @@ struct Oink {
   /// result. When the error stops improving short of that, it restarts from a random configuration
   /// of the joint group; hard constraints such as RelativePoseConstraint pull the random seed back
   /// onto their manifold as the iteration proceeds. Collision avoidance is opt-in through a
-  /// SelfCollisionBarrier. The context's RNG draws the restarts; seed it through
-  /// getContext().setRngSeed().
+  /// SelfCollisionBarrier. The restarts are drawn from the RNG seeded by setRngSeed().
   /// @param q_start The configuration to start from (size model.nq).
   /// @param goal_tasks The tasks whose targets must be reached.
   /// @param extra_tasks Tasks solved alongside the goals but not required to converge (e.g. a
@@ -493,6 +492,10 @@ struct Oink {
   /// geometry changes, call refreshContext() (the context does not auto-sync, and will report the
   /// mismatch rather than answer against geometry it was not sized for).
   const SceneContext& getContext() const { return *context_; }
+
+  /// @brief Sets the seed for the random number generator (RNG) for random restarts.
+  /// @param seed The seed to set.
+  void setRngSeed(unsigned int seed) { context_->setRngSeed(seed); }
 
   /// @brief Re-snapshots the solver's context from `scene`, picking up its current collision
   /// geometry.

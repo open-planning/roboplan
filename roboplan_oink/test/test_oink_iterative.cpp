@@ -227,7 +227,7 @@ TEST_F(SolveIterativeIkTest, RestartsFromBadSeed) {
   Eigen::VectorXd q_bad = Eigen::VectorXd::Zero(q_.size());
   q_bad.head(6) << 0.0, -3.0, 3.0, -3.0, 0.0, 0.0;
 
-  oink_->getContext().setRngSeed(42);
+  oink_->setRngSeed(42);
   expectReaches(oink_->solveIterativeIk(
                     q_bad, {frameTask(q_goal)}, {}, limits_, {},
                     IterativeSolveOptions{.max_iters = 20, .max_time = 1.0, .max_restarts = 20}),
