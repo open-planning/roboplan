@@ -44,9 +44,13 @@ if(NOT TARGET nanoflann::nanoflann)
     SOURCE_SUBDIR
     include)
   FetchContent_MakeAvailable(nanoflann)
-  add_library(nanoflann::nanoflann INTERFACE IMPORTED)
-  target_include_directories(nanoflann::nanoflann
+  # A regular (not IMPORTED) target, so the include directory is passed as -I
+  # and wins over an older nanoflann in a system prefix, such as an outdated ROS
+  # nanoflann_vendor under /opt/ros, which only appears as -isystem.
+  add_library(nanoflann INTERFACE)
+  target_include_directories(nanoflann
                              INTERFACE ${nanoflann_SOURCE_DIR}/include)
+  add_library(nanoflann::nanoflann ALIAS nanoflann)
 endif()
 
 # Add libraries

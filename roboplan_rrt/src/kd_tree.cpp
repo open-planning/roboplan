@@ -6,6 +6,8 @@
 
 #include <nanoflann.hpp>
 
+static_assert(NANOFLANN_VERSION >= 0x020000, "nanoflann >= 2.0 is required for manifold metrics");
+
 namespace roboplan {
 namespace {
 
