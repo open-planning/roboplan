@@ -216,7 +216,21 @@ class Constraints:
 class PositionLimit(Constraints):
     """Constraint to enforce joint position limits."""
 
-    def __init__(self, oink: Oink, gain: float = 1.0) -> None: ...
+    def __init__(self, oink: Oink, gain: float = 1.0, joint_lower_limits: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] = ..., joint_upper_limits: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] = ..., max_pullback: float = 0.0) -> None:
+        """
+        Create a position limit constraint.
+
+        Args:
+            oink: The Oink solver this constraint will be used with.
+            gain: Scaling factor for how aggressively to steer away from limits.
+            joint_lower_limits: Lower limits in group joint order (size num_variables).
+                If empty, the scene model's joint limits are used.
+            joint_upper_limits: Upper limits in group joint order (size num_variables).
+                If empty, the scene model's joint limits are used.
+            max_pullback: Maximum amount per step a joint outside the limits is pulled
+                back inside them (scaled by gain). 0 keeps joints outside the limits
+                from moving further out, without pulling them back.
+        """
 
     @property
     def config_limit_gain(self) -> float:
@@ -224,6 +238,13 @@ class PositionLimit(Constraints):
 
     @config_limit_gain.setter
     def config_limit_gain(self, arg: float, /) -> None: ...
+
+    @property
+    def max_pullback(self) -> float:
+        """Maximum per-step pullback for joints outside the limits."""
+
+    @max_pullback.setter
+    def max_pullback(self, arg: float, /) -> None: ...
 
 class VelocityLimit(Constraints):
     """Constraint to enforce joint velocity limits."""

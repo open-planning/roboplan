@@ -177,7 +177,7 @@ struct Constraints {
 
   /// @brief Per-row violation of the constraint at the context's configuration: how far each row
   /// lies outside its bounds, zero when satisfied.
-  /// @details Per-step constraints (velocity, position limits) hold by construction after a step
+  /// @details Per-step constraints (e.g. velocity limits) hold by construction after a step
   /// is integrated, so the default returns an empty vector.
   virtual Eigen::VectorXd computeViolation(const SceneContext& /*context*/) const {
     return Eigen::VectorXd();

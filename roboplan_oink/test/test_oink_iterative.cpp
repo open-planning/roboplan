@@ -71,6 +71,36 @@ TEST_F(SolveIterativeIkTest, ReachesGoal) {
   expectReaches(oink_->solveIterativeIk(q_, {frameTask(q_goal)}, {}, limits_, {}), q_goal);
 }
 
+TEST_F(SolveIterativeIkTest, PositionLimitPullsStartBackInsideCustomLimits) {
+  // Custom limits 0.3 rad around q_, with the start 0.2 rad past the upper limit on joint 0.
+  const Eigen::VectorXd lower = q_.head(nv_).array() - 0.3;
+  const Eigen::VectorXd upper = q_.head(nv_).array() + 0.3;
+  Eigen::VectorXd q_start = q_;
+  q_start[0] = upper[0] + 0.2;
+  Eigen::VectorXd q_goal = q_;
+  q_goal.head(6).array() += 0.1;
+
+  auto limit = std::make_shared<PositionLimit>(*oink_, 1.0, lower, upper, /*max_pullback*/ 0.05);
+  const auto solution = oink_->solveIterativeIk(q_start, {frameTask(q_goal)}, {}, {limit}, {},
+                                                IterativeSolveOptions{.max_restarts = 0});
+  expectReaches(solution, q_goal);
+  EXPECT_TRUE((solution->array() >= lower.array() - 1e-4).all());
+  EXPECT_TRUE((solution->array() <= upper.array() + 1e-4).all());
+}
+
+TEST_F(SolveIterativeIkTest, PositionLimitRejectsSolutionOutsideCustomLimits) {
+  // The start already reaches the goal, but joint 0 is outside the custom limits.
+  const Eigen::VectorXd lower = q_.head(nv_).array() - 0.3;
+  Eigen::VectorXd upper = q_.head(nv_).array() + 0.3;
+  upper[0] = q_[0] - 0.1;
+  for (const double max_pullback : {0.0, 0.05}) {
+    auto limit = std::make_shared<PositionLimit>(*oink_, 1.0, lower, upper, max_pullback);
+    EXPECT_FALSE(oink_->solveIterativeIk(q_, {frameTask(q_)}, {}, {limit}, {},
+                                         IterativeSolveOptions{.max_restarts = 0}))
+        << "max_pullback " << max_pullback;
+  }
+}
+
 TEST_F(SolveIterativeIkTest, ConfigurationTaskConvergesToTarget) {
   Eigen::VectorXd q_goal = q_;
   q_goal.head(3) += Eigen::Vector3d(0.3, -0.2, 0.4);

@@ -108,9 +108,25 @@ void init_optimal_ik(nanobind::module_& m) {
 
   nanobind::class_<PositionLimit, Constraints>(m, "PositionLimit",
                                                "Constraint to enforce joint position limits.")
-      .def(nanobind::init<const Oink&, double>(), "oink"_a, "gain"_a = 1.0)
+      .def(nanobind::init<const Oink&, double, const Eigen::VectorXd&, const Eigen::VectorXd&,
+                          double>(),
+           "oink"_a, "gain"_a = 1.0, "joint_lower_limits"_a = Eigen::VectorXd(),
+           "joint_upper_limits"_a = Eigen::VectorXd(), "max_pullback"_a = 0.0,
+           "Create a position limit constraint.\n\n"
+           "Args:\n"
+           "    oink: The Oink solver this constraint will be used with.\n"
+           "    gain: Scaling factor for how aggressively to steer away from limits.\n"
+           "    joint_lower_limits: Lower limits in group joint order (size num_variables).\n"
+           "        If empty, the scene model's joint limits are used.\n"
+           "    joint_upper_limits: Upper limits in group joint order (size num_variables).\n"
+           "        If empty, the scene model's joint limits are used.\n"
+           "    max_pullback: Maximum amount per step a joint outside the limits is pulled\n"
+           "        back inside them (scaled by gain). 0 keeps joints outside the limits\n"
+           "        from moving further out, without pulling them back.")
       .def_rw("config_limit_gain", &PositionLimit::config_limit_gain,
-              "Gain for position limit enforcement.");
+              "Gain for position limit enforcement.")
+      .def_rw("max_pullback", &PositionLimit::max_pullback,
+              "Maximum per-step pullback for joints outside the limits.");
 
   nanobind::class_<VelocityLimit, Constraints>(m, "VelocityLimit",
                                                "Constraint to enforce joint velocity limits.")

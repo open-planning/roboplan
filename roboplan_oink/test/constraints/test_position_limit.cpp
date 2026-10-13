@@ -4,10 +4,13 @@
 #include <Eigen/Dense>
 #include <memory>
 
+#include <pinocchio/algorithm/joint-configuration.hpp>
+
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
 #include <roboplan_oink/optimal_ik.hpp>
+#include <roboplan_oink/tasks/configuration.hpp>
 #include <test_utils.hpp>
 
 namespace roboplan {
@@ -485,6 +488,232 @@ TEST_F(KinovaPositionLimitTest, BoundsAtNeutral) {
       ASSERT_LE(upper_bounds[i], 3.0);
     }
   }
+}
+
+// Computes the QP bounds of `constraint` at the scene's current joint positions.
+void computeBounds(const PositionLimit& constraint, Oink& oink, const Scene& scene,
+                   Eigen::VectorXd& lower_bounds, Eigen::VectorXd& upper_bounds) {
+  const int n = oink.num_variables;
+  Eigen::MatrixXd constraint_matrix(n, n);
+  lower_bounds.resize(n);
+  upper_bounds.resize(n);
+  ASSERT_TRUE(
+      constraint
+          .computeQpConstraints(posed(oink, scene), constraint_matrix, lower_bounds, upper_bounds)
+          .has_value());
+}
+
+TEST_F(PositionLimitTest, ConstructionStoresMaxPullback) {
+  PositionLimit constraint(*oink_);
+  EXPECT_EQ(constraint.max_pullback, 0.0);
+
+  PositionLimit constraint2(*oink_, 0.5, Eigen::VectorXd(), Eigen::VectorXd(), 0.1);
+  EXPECT_EQ(constraint2.max_pullback, 0.1);
+}
+
+TEST_F(PositionLimitTest, ConstructionRejectsInvalidArguments) {
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(num_variables_, 0.5);
+  const Eigen::VectorXd wrong_size = Eigen::VectorXd::Zero(num_variables_ + 1);
+
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, wrong_size, upper), std::invalid_argument);
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, lower, wrong_size), std::invalid_argument);
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, upper, lower), std::invalid_argument);
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, lower, upper, -0.1), std::invalid_argument);
+  EXPECT_NO_THROW(PositionLimit(*oink_, 1.0, lower, upper, 0.1));
+}
+
+TEST_F(PositionLimitTest, CustomLimitsDefineBounds) {
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(num_variables_, 0.5);
+  scene_->setJointPositions(Eigen::VectorXd::Constant(num_variables_, 0.1));
+
+  PositionLimit constraint(*oink_, 0.5, lower, upper);
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+
+  for (int i = 0; i < num_variables_; ++i) {
+    EXPECT_NEAR(upper_bounds[i], 0.5 * (0.5 - 0.1), 1e-12);
+    EXPECT_NEAR(lower_bounds[i], -0.5 * (0.1 + 0.5), 1e-12);
+  }
+}
+
+TEST_F(PositionLimitTest, OnlyLowerCustomLimitUsesModelUpperLimit) {
+  const auto& model = scene_->getModel();
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd q = Eigen::VectorXd::Constant(num_variables_, 0.1);
+  scene_->setJointPositions(q);
+
+  PositionLimit constraint(*oink_, 1.0, lower);
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+
+  for (int i = 0; i < num_variables_; ++i) {
+    EXPECT_NEAR(lower_bounds[i], -(q[i] + 0.5), 1e-12);
+    ASSERT_TRUE(std::isfinite(model.upperPositionLimit[i]));
+    EXPECT_NEAR(upper_bounds[i], model.upperPositionLimit[i] - q[i], 1e-12);
+  }
+}
+
+// With the default max_pullback of 0, a joint outside the limits may not move further out, but
+// is not required to move back in, which is the original behavior.
+TEST_F(PositionLimitTest, ZeroMaxPullbackDoesNotPullBack) {
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(num_variables_, 0.5);
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q[0] = 0.8;   // above the upper limit
+  q[1] = -0.7;  // below the lower limit
+  scene_->setJointPositions(q);
+
+  PositionLimit constraint(*oink_, 1.0, lower, upper);
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+
+  EXPECT_DOUBLE_EQ(upper_bounds[0], 0.0);
+  EXPECT_NEAR(lower_bounds[0], -(0.8 + 0.5), 1e-12);
+  EXPECT_DOUBLE_EQ(lower_bounds[1], 0.0);
+  EXPECT_NEAR(upper_bounds[1], 0.5 + 0.7, 1e-12);
+}
+
+TEST_F(PositionLimitTest, MaxPullbackPullsJointsBackInside) {
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(num_variables_, 0.5);
+  const double gain = 0.5;
+  const double max_pullback = 0.1;
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q[0] = 0.8;    // 0.3 above the upper limit: the pullback is clamped to max_pullback
+  q[1] = 0.55;   // 0.05 above the upper limit: within max_pullback
+  q[2] = -0.8;   // 0.3 below the lower limit
+  q[3] = -0.55;  // 0.05 below the lower limit
+  scene_->setJointPositions(q);
+
+  PositionLimit constraint(*oink_, gain, lower, upper, max_pullback);
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+
+  EXPECT_NEAR(upper_bounds[0], -gain * max_pullback, 1e-12);
+  EXPECT_NEAR(upper_bounds[1], -gain * 0.05, 1e-12);
+  EXPECT_NEAR(lower_bounds[2], gain * max_pullback, 1e-12);
+  EXPECT_NEAR(lower_bounds[3], gain * 0.05, 1e-12);
+  for (int i = 0; i < num_variables_; ++i) {
+    EXPECT_LE(lower_bounds[i], upper_bounds[i]) << "joint " << i;
+  }
+}
+
+TEST_F(PositionLimitTest, ComputeViolation) {
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(num_variables_, 0.5);
+  PositionLimit constraint(*oink_, 1.0, lower, upper, 0.1);
+
+  // Called before computeQpConstraints, so the limits must be loaded on demand.
+  Eigen::VectorXd q = Eigen::VectorXd::Constant(num_variables_, 0.2);
+  scene_->setJointPositions(q);
+  Eigen::VectorXd violation = constraint.computeViolation(posed(*oink_, *scene_));
+  ASSERT_EQ(violation.size(), num_variables_);
+  EXPECT_TRUE(violation.isZero());
+
+  q[0] = 0.8;
+  q[1] = -0.7;
+  scene_->setJointPositions(q);
+  violation = constraint.computeViolation(posed(*oink_, *scene_));
+  EXPECT_NEAR(violation[0], 0.3, 1e-12);
+  EXPECT_NEAR(violation[1], 0.2, 1e-12);
+  EXPECT_TRUE(violation.tail(num_variables_ - 2).isZero());
+}
+
+TEST_F(PositionLimitTest, ComputeViolationWithModelLimits) {
+  // With no custom limits, the model limits are loaded on demand.
+  PositionLimit constraint(*oink_);
+  const Eigen::VectorXd violation = constraint.computeViolation(posed(*oink_, *scene_));
+  ASSERT_EQ(violation.size(), num_variables_);
+  EXPECT_TRUE(violation.isZero());
+}
+
+// Starting outside the custom limits, a solveIk() step with a task that holds the current
+// configuration moves each joint back by exactly the allowed pullback.
+TEST_F(PositionLimitTest, SolveIkPullsBackByMaxPullback) {
+  const Eigen::VectorXd lower = Eigen::VectorXd::Constant(num_variables_, -0.5);
+  const Eigen::VectorXd upper = Eigen::VectorXd::Constant(num_variables_, 0.5);
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(num_variables_);
+  q[0] = 0.8;
+  q[1] = 0.55;
+  auto hold = std::make_shared<ConfigurationTask>(*oink_, q, Eigen::VectorXd::Ones(num_variables_));
+
+  for (const double max_pullback : {0.0, 0.1}) {
+    auto constraint = std::make_shared<PositionLimit>(*oink_, 1.0, lower, upper, max_pullback);
+    Eigen::VectorXd delta_q = Eigen::VectorXd::Zero(num_variables_);
+    ASSERT_TRUE(oink_->solveIk(q, {hold}, {constraint}, {}, delta_q));
+    EXPECT_NEAR(delta_q[0], -max_pullback, 1e-6) << "max_pullback " << max_pullback;
+    EXPECT_NEAR(delta_q[1], -std::min(max_pullback, 0.05), 1e-6) << "max_pullback " << max_pullback;
+    EXPECT_NEAR(delta_q.tail(num_variables_ - 2).norm(), 0.0, 1e-6);
+  }
+}
+
+// The Kinova gripper group's joint has velocity index 7 and position index 11 (the arm's continuous
+// joints take two position entries each), so the group-ordered limits only match the right joint
+// if the constraint maps between group, collapsed, and model indices correctly.
+class KinovaGripperPositionLimitTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    const auto model_dir = example_models::get_package_models_dir() / "kinova_robot_model";
+    scene_ = std::make_shared<Scene>(
+        "test_scene", loadUrdfSceneDescription(model_dir / "kinova_robotiq.urdf",
+                                               {example_models::get_package_share_dir()}));
+    scene_->importJointLimitsFromConfig(
+        loadJointLimitsConfig(model_dir / "kinova_robotiq_config.yaml"));
+    if (const auto imported = scene_->importSrdf(loadTextFile(model_dir / "kinova_robotiq.srdf"));
+        !imported) {
+      throw std::runtime_error(imported.error());
+    }
+    oink_ = std::make_shared<Oink>(*scene_, "gripper");
+    ASSERT_EQ(oink_->num_variables, 1);
+    ASSERT_GT(oink_->v_indices(0), 0);
+    ASSERT_NE(oink_->q_indices(0), oink_->v_indices(0));
+
+    q_ = pinocchio::neutral(scene_->getModel());
+    q_[oink_->q_indices(0)] = 0.3;
+    scene_->setJointPositions(q_);
+  }
+
+  std::shared_ptr<Scene> scene_;
+  std::shared_ptr<Oink> oink_;
+  Eigen::VectorXd q_;
+};
+
+TEST_F(KinovaGripperPositionLimitTest, ModelLimitsUseGroupJoints) {
+  const auto [group_lower, group_upper] =
+      scene_->getPositionLimitVectors("gripper", /*collapsed*/ true).value();
+
+  PositionLimit constraint(*oink_);
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+
+  EXPECT_NEAR(upper_bounds[0], group_upper[0] - 0.3, 1e-12);
+  EXPECT_NEAR(lower_bounds[0], -(0.3 - group_lower[0]), 1e-12);
+  EXPECT_TRUE(constraint.computeViolation(posed(*oink_, *scene_)).isZero());
+}
+
+TEST_F(KinovaGripperPositionLimitTest, CustomLimitsUseGroupJoints) {
+  PositionLimit constraint(*oink_, 1.0, Eigen::VectorXd::Constant(1, 0.1),
+                           Eigen::VectorXd::Constant(1, 0.4));
+
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+  EXPECT_NEAR(upper_bounds[0], 0.1, 1e-12);
+  EXPECT_NEAR(lower_bounds[0], -0.2, 1e-12);
+  EXPECT_TRUE(constraint.computeViolation(posed(*oink_, *scene_)).isZero());
+
+  // Moving an arm joint does not affect the constraint; moving the gripper past its limit does.
+  Eigen::VectorXd q = q_;
+  q[2] += 0.5;
+  scene_->setJointPositions(q);
+  EXPECT_TRUE(constraint.computeViolation(posed(*oink_, *scene_)).isZero());
+
+  q[oink_->q_indices(0)] = 0.6;
+  scene_->setJointPositions(q);
+  const Eigen::VectorXd violation = constraint.computeViolation(posed(*oink_, *scene_));
+  ASSERT_EQ(violation.size(), 1);
+  EXPECT_NEAR(violation[0], 0.2, 1e-12);
 }
 
 }  // namespace roboplan
