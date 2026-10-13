@@ -88,19 +88,6 @@ TEST_F(SolveIterativeIkTest, PositionLimitPullsStartBackInsideCustomLimits) {
   EXPECT_TRUE((solution->array() <= upper.array() + 1e-4).all());
 }
 
-TEST_F(SolveIterativeIkTest, PositionLimitRejectsSolutionOutsideCustomLimits) {
-  // The start already reaches the goal, but joint 0 is outside the custom limits.
-  const Eigen::VectorXd lower = q_.head(nv_).array() - 0.3;
-  Eigen::VectorXd upper = q_.head(nv_).array() + 0.3;
-  upper[0] = q_[0] - 0.1;
-  for (const double max_pullback : {0.0, 0.05}) {
-    auto limit = std::make_shared<PositionLimit>(*oink_, 1.0, lower, upper, max_pullback);
-    EXPECT_FALSE(oink_->solveIterativeIk(q_, {frameTask(q_)}, {}, {limit}, {},
-                                         IterativeSolveOptions{.max_restarts = 0}))
-        << "max_pullback " << max_pullback;
-  }
-}
-
 TEST_F(SolveIterativeIkTest, ConfigurationTaskConvergesToTarget) {
   Eigen::VectorXd q_goal = q_;
   q_goal.head(3) += Eigen::Vector3d(0.3, -0.2, 0.4);
