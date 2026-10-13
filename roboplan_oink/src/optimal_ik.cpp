@@ -636,6 +636,7 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
   Eigen::VectorXd q = q_start;
   Eigen::VectorXd delta_q(num_variables);
   Eigen::VectorXd delta_q_full = Eigen::VectorXd::Zero(scene.getModel().nv);
+  std::string last_error;
   for (size_t attempt = 0; attempt <= options.max_restarts; ++attempt) {
     if (attempt > 0) {
       context_->randomizeJointPositions(joint_names, q);
@@ -648,17 +649,21 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
         return tl::make_unexpected("Iterative IK solve timed out");
       }
       delta_q.setZero();
+      // A failed step solve leaves q unchanged, so move on to the next seed instead.
       if (const auto result =
               solveIk(q, tasks, constraints, barriers, delta_q, options.regularization);
           !result) {
-        return tl::make_unexpected(result.error());
+        last_error = result.error();
+        break;
       }
       delta_q_full(v_indices) = delta_q;
       q = scene.clampToValidConfiguration(scene.integrate(q, delta_q_full));
 
       const auto result = normalizedError(q);
       if (!result) {
-        return tl::make_unexpected(result.error());
+        last_error = result.error();
+        error = kInfinity;
+        break;
       }
       error = *result;
       if (error <= 1.0 && options.fast_return) {
@@ -678,7 +683,8 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
     }
   }
   return tl::make_unexpected("Iterative IK solve failed within " +
-                             std::to_string(options.max_restarts + 1) + " attempts");
+                             std::to_string(options.max_restarts + 1) + " attempts" +
+                             (last_error.empty() ? "" : ": " + last_error));
 }
 
 }  // namespace roboplan

@@ -441,6 +441,8 @@ void init_optimal_ik(nanobind::module_& m) {
           "options"_a = IterativeSolveOptions{},
           "Iterates solveIk() from q_start until every goal task is reached, with random "
           "restarts. Returns the full configuration; raises RuntimeError on failure.")
+      .def("setRngSeed", &Oink::setRngSeed,
+           "Sets the seed for the random number generator (RNG)  for random restarts.", "seed"_a)
       .def(
           "enforceBarriers",
           [](Oink& self, const Eigen::VectorXd& q,

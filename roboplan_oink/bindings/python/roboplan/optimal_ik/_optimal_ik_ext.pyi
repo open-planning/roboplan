@@ -758,6 +758,11 @@ class Oink:
         Iterates solveIk() from q_start until every goal task is reached, with random restarts. Returns the full configuration; raises RuntimeError on failure.
         """
 
+    def setRngSeed(self, seed: int) -> None:
+        """
+        Sets the seed for the random number generator (RNG) that draws solveIterativeIk() restarts.
+        """
+
     @overload
     def enforceBarriers(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], barriers: Sequence[Barrier], delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], tolerance: float = 0.0) -> None:
         """
