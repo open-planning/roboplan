@@ -37,10 +37,8 @@ if(NOT TARGET nanoflann::nanoflann)
   FetchContent_Declare(
     nanoflann
     GIT_REPOSITORY https://github.com/jlblancoc/nanoflann.git
-    # The 2.0.1 release commit; switch to the v2.0.1 tag once upstream adds it.
-    GIT_TAG 18f4edf753e813644a7a12711a86139777a8ef00
-    # Only the header is needed. A subdirectory without a CMakeLists.txt skips
-    # nanoflann's own project, with its tests, examples and install rules.
+    GIT_TAG 2.0.1
+    # Only the header is needed.
     SOURCE_SUBDIR
     include)
   FetchContent_MakeAvailable(nanoflann)

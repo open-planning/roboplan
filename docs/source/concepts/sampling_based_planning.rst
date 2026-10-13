@@ -232,7 +232,7 @@ State Spaces and the ``nanoflann`` Library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Every RRT iteration queries the tree for the node closest to a new sample.
-RoboPlan delegates these queries to `nanoflann <https://github.com/jlblancoc/nanoflann>`_, a header-only k-d tree library, taken from the system when version 2.0.1 or newer is installed and otherwise fetched by CMake at configure time.
+RoboPlan delegates these queries to `nanoflann <https://github.com/jlblancoc/nanoflann>`_, a header-only k-d tree library.
 
 **k-d trees.**
 nanoflann partitions the state space with a k-d tree, so nearest-neighbor queries run in roughly logarithmic rather than linear time in the number of nodes.
@@ -241,7 +241,7 @@ RoboPlan uses its incremental index, a single self-balancing tree that accepts o
 **State spaces.**
 A naive planner treats every joint as a coordinate in :math:`\mathbb{R}^n` with a plain Euclidean norm, which is incorrect for joints that are not a Euclidean line.
 A continuous (unlimited) revolute joint, for example, lives on a circle: the angles :math:`-\pi` and :math:`+\pi` are the same point, and the shortest distance between two angles must wrap around.
-RoboPlan gives nanoflann a product metric (``roboplan_rrt/include/roboplan_rrt/kd_tree.hpp``) that tags each coordinate with its topology:
+RoboPlan gives nanoflann a product metric that tags each coordinate with its topology:
 
 - **R** — a real-valued coordinate, used for prismatic and limited revolute joints and for the translation of planar joints.
 - **SO(2)** — the circle group, used for continuous revolute joints and the heading of planar joints so that distances wrap correctly across :math:`\pm\pi`.
