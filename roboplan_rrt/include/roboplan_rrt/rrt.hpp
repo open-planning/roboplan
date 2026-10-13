@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include <dynotree/KDTree.h>
 #include <tl/expected.hpp>
 
 #include <roboplan/core/scene.hpp>
@@ -16,11 +15,9 @@
 #include <roboplan/core/types.hpp>
 #include <roboplan_rrt/constraints.hpp>
 #include <roboplan_rrt/graph.hpp>
+#include <roboplan_rrt/kd_tree.hpp>
 
 namespace roboplan {
-
-using CombinedStateSpace = dynotree::Combined<double>;
-using KdTree = dynotree::KDTree<int, -1, 32, double, CombinedStateSpace>;
 
 /// @brief Options struct for RRT planner.
 struct RRTOptions {
@@ -97,7 +94,7 @@ public:
 
   /// @brief Sets or updates the options for the RRT planner.
   /// @details If the group name is different between the previous and incoming sets of
-  /// options, a new dynotree state space will be generated.
+  /// options, the k-d tree state space is rebuilt.
   /// @param options The new options for the planner.
   void setOptions(const RRTOptions& options);
 
@@ -249,14 +246,8 @@ private:
   /// @brief The joint group info for the IK solver.
   JointGroupInfo joint_group_info_;
 
-  /// @brief A state space for the k-d tree for nearest neighbor lookup.
-  CombinedStateSpace state_space_;
-
-  /// @brief The runtime dimension of the (collapsed) k-d tree state space.
-  /// @details Cached at construction because `CombinedStateSpace::get_runtime_dim()` is not
-  /// const-qualified in the vendored dynotree, so it cannot be called from the const
-  /// `findNearNodes` where the dimension is needed.
-  int state_dim_ = 0;
+  /// @brief Per collapsed k-d tree coordinate, true if it is an SO(2) angle that wraps around.
+  std::vector<bool> circular_dims_;
 
   /// @brief A random number generator for the planner.
   std::mt19937 rng_gen_;

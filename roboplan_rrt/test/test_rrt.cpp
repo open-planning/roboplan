@@ -44,6 +44,19 @@ public:
   std::shared_ptr<Scene> scene;
 };
 
+TEST(KdTreeTest, CircularDimsWrap) {
+  // One linear and one circular coordinate. The second point is 0.2 rad away from the query
+  // across the +/-pi seam, which is closer than the first point only if the angle wraps.
+  KdTree tree;
+  tree.reset({false, true});
+  tree.addPoint(Eigen::VectorXd{{0.0, 2.0}});
+  tree.addPoint(Eigen::VectorXd{{0.0, -3.0}});
+  const Eigen::VectorXd query{{0.0, 3.1}};
+  EXPECT_EQ(tree.nearest(query), 1);
+  EXPECT_EQ(tree.withinRadius(query, 0.5), std::vector<int>{1});
+  EXPECT_EQ(tree.withinRadius(query, 2.0).size(), 2);
+}
+
 TEST_F(RoboPlanRRTTest, Plan) {
   RRTOptions options;
   options.group_name = "arm";

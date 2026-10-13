@@ -46,7 +46,7 @@ modernize-*,
 performance-*,
 -performance-enum-size'
 
-HeaderFilterRegex: '(roboplan[^/]*/(?!.*/(tinyxml2|tl|dynotree|roboplan_ext)/).*|external/toppra/cpp/.*)\.(h|hpp)$'
+HeaderFilterRegex: '(roboplan[^/]*/(?!.*/(tinyxml2|tl|roboplan_ext)/).*|external/toppra/cpp/.*)\.(h|hpp)$'
 
 CheckOptions:
   # Namespace comments

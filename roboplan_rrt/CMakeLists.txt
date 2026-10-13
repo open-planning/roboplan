@@ -26,13 +26,39 @@ endif()
 # recursion issues with symlink installs.
 find_package(ament_cmake QUIET)
 
+# nanoflann: the system copy if it is new enough for the manifold metrics
+# (conda-forge nanoflann or ROS nanoflann_vendor; Ubuntu's libnanoflann-dev is
+# too old), otherwise fetched at configure time. Linked privately, so it is
+# neither installed nor exported.
+find_package(nanoflann 2.0.1 QUIET)
+if(NOT TARGET nanoflann::nanoflann)
+  message(STATUS "nanoflann >= 2.0.1 not found, fetching it")
+  include(FetchContent)
+  FetchContent_Declare(
+    nanoflann
+    GIT_REPOSITORY https://github.com/jlblancoc/nanoflann.git
+    # The 2.0.1 release commit; switch to the v2.0.1 tag once upstream adds it.
+    GIT_TAG 18f4edf753e813644a7a12711a86139777a8ef00
+    # Only the header is needed. A subdirectory without a CMakeLists.txt skips
+    # nanoflann's own project, with its tests, examples and install rules.
+    SOURCE_SUBDIR
+    include)
+  FetchContent_MakeAvailable(nanoflann)
+  add_library(nanoflann::nanoflann INTERFACE IMPORTED)
+  target_include_directories(nanoflann::nanoflann
+                             INTERFACE ${nanoflann_SOURCE_DIR}/include)
+endif()
+
 # Add libraries
-add_library(roboplan_rrt SHARED src/constraints.cpp src/rrt.cpp)
+add_library(roboplan_rrt SHARED src/constraints.cpp src/kd_tree.cpp src/rrt.cpp)
 target_include_directories(
   roboplan_rrt PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                       $<INSTALL_INTERFACE:include>)
 set_property(TARGET roboplan_rrt PROPERTY CXX_STANDARD 20)
-target_link_libraries(roboplan_rrt roboplan::roboplan)
+target_link_libraries(
+  roboplan_rrt
+  PUBLIC roboplan::roboplan
+  PRIVATE nanoflann::nanoflann)
 # Alias so this works via add_subdirectory() too, not just installed
 # find_package().
 add_library(roboplan_rrt::roboplan_rrt ALIAS roboplan_rrt)

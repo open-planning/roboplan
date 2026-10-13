@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <iterator>
 #include <limits>
 #include <stdexcept>
@@ -40,8 +39,7 @@ void RRT::initializeStateSpace() {
     throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_collapsed_pos.error());
   }
 
-  std::vector<std::string> state_space_names;
-  state_space_names.reserve(joint_group_info_.joint_names.size());
+  circular_dims_.clear();
   for (const auto& joint_name : joint_group_info_.joint_names) {
     const auto maybe_joint_info = scene_->getJointInfo(joint_name);
     if (!maybe_joint_info) {
@@ -56,32 +54,20 @@ void RRT::initializeStateSpace() {
     case JointType::FLOATING:
       throw std::runtime_error("Floating joints not yet supported by RRT.");
     case JointType::PLANAR:
-      state_space_names.push_back("Rn:2");
-      state_space_names.push_back("SO2");
+      circular_dims_.insert(circular_dims_.end(), {false, false, true});
       break;
     case JointType::CONTINUOUS:
-      // The solution squashes the continuous position vectors to be used as an SO(2).
-      state_space_names.push_back("SO2");
+      // Collapsed to a single wrapped angle.
+      circular_dims_.push_back(true);
       break;
     default:  // Prismatic or revolute, which are single-DOF.
-      state_space_names.push_back("Rn:1");
+      circular_dims_.push_back(false);
     }
   }
 
-  const auto maybe_joint_position_limits =
-      scene_->getPositionLimitVectors(options_.group_name, /*collapsed*/ true);
-  if (!maybe_joint_position_limits) {
-    throw std::runtime_error("Failed to instantiate RRT planner: " +
-                             maybe_joint_position_limits.error());
-  }
-
-  state_space_ = CombinedStateSpace(state_space_names);
-  state_space_.set_bounds(maybe_joint_position_limits->first, maybe_joint_position_limits->second);
-  state_dim_ = state_space_.get_runtime_dim();
-
-  if (state_space_.get_runtime_dim() != static_cast<int>(maybe_collapsed_pos->size())) {
+  if (circular_dims_.size() != static_cast<size_t>(maybe_collapsed_pos->size())) {
     throw std::runtime_error("Failed to instantiate RRT planner: State space dimension (" +
-                             std::to_string(state_space_.get_runtime_dim()) +
+                             std::to_string(circular_dims_.size()) +
                              ") does not match collapsed configuration dimension (" +
                              std::to_string(maybe_collapsed_pos->size()) + ") for group '" +
                              options_.group_name + "'.");
@@ -322,15 +308,14 @@ RRT::planToAny(const JointConfiguration& start, std::span<const JointConfigurati
 
 void RRT::initializeTree(KdTree& tree, std::vector<Node>& nodes,
                          std::span<const Eigen::VectorXd> q_inits, size_t max_size) {
-  tree = KdTree{};  // Resets the reference.
-  tree.init_tree(state_space_.get_runtime_dim(), state_space_);
+  tree.reset(circular_dims_, max_size);
   const auto& q_indices = joint_group_info_.q_indices;
 
   nodes.clear();
   nodes.reserve(max_size);
 
   for (const auto& q_init : q_inits) {
-    tree.addPoint(collapse(q_init(q_indices)), static_cast<int>(nodes.size()));
+    tree.addPoint(collapse(q_init(q_indices)));
     nodes.emplace_back(q_init, -1);
   }
 }
@@ -347,9 +332,8 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
   const double step_size = constrained ? options_.constraint_projection.path_step_size
                                        : options_.max_connection_distance;
 
-  const auto& nn = kd_tree.search(collapse(q_sample(q_indices)));
-  int parent_id = nn.id;
-  Eigen::VectorXd q_current = nodes.at(nn.id).config;
+  int parent_id = kd_tree.nearest(collapse(q_sample(q_indices)));
+  Eigen::VectorXd q_current = nodes.at(parent_id).config;
 
   bool grew_tree = false;
   double distance_grown = 0.0;
@@ -413,7 +397,7 @@ bool RRT::growTree(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::Vecto
       new_id = rewire(kd_tree, nodes, q_extend, parent_id, context);
     } else {
       new_id = static_cast<int>(nodes.size());
-      kd_tree.addPoint(collapse(q_extend(q_indices)), new_id);
+      kd_tree.addPoint(collapse(q_extend(q_indices)));
       // Track cost-to-come when the planner will run to budget, so the cheapest path can be picked.
       // With fast_return the first path is returned, so the cost is unused and left at zero.
       const double cost = options_.fast_return ? 0.0 : nodes.at(parent_id).cost + step_distance;
@@ -462,11 +446,11 @@ std::optional<std::pair<JointPath, double>> RRT::joinTrees(const std::vector<Nod
 
   // Find the nearest node in the target tree (search uses collapsed coordinates).
   const auto& q_indices = joint_group_info_.q_indices;
-  const auto& nn = target_tree.search(collapse(q_last_added(q_indices)));
-  if (nn.id < 0 || static_cast<size_t>(nn.id) >= target_nodes.size()) {
+  const int nn_id = target_tree.nearest(collapse(q_last_added(q_indices)));
+  if (nn_id < 0 || static_cast<size_t>(nn_id) >= target_nodes.size()) {
     throw std::runtime_error("K-D tree search returned invalid node id in joinTrees.");
   }
-  const auto& nearest_node = target_nodes.at(nn.id);
+  const auto& nearest_node = target_nodes.at(nn_id);
   const auto& q_nearest = nearest_node.config;
 
   // Helper function to build the connected path
@@ -557,7 +541,7 @@ int RRT::rewire(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd
     }
   }
 
-  kd_tree.addPoint(collapse(q_new(q_indices)), new_id);
+  kd_tree.addPoint(collapse(q_new(q_indices)));
   nodes.emplace_back(q_new, best_parent, best_cost);
   nodes.at(best_parent).children.push_back(new_id);
 
@@ -590,25 +574,14 @@ int RRT::rewire(KdTree& kd_tree, std::vector<Node>& nodes, const Eigen::VectorXd
 
 std::vector<int> RRT::findNearNodes(const KdTree& tree, const std::vector<Node>& nodes,
                                     const Eigen::VectorXd& q) const {
-  // The k-d tree metric sums the per-joint distances (an L1-style norm), whereas the planner's
-  // costs and `max_connection_distance` use the scene's configuration distance (an L2-style norm).
-  // To keep `rewire_distance` in the same (configuration-space) units as the other options, we
-  // search a ball large enough to be a superset of the L2 ball of that radius -- since the L1 norm
-  // is at most sqrt(dim) times the L2 norm -- and then filter the candidates by the actual
-  // configuration distance.
+  // The tree metric is the scene's configuration distance, except for planar joints, where the
+  // scene uses the SE(2) metric. That is never smaller than the tree's, so the ball is a superset
+  // either way and filtering by the scene's distance keeps the result exact.
   const auto& q_indices = joint_group_info_.q_indices;
-  const double search_radius =
-      options_.rewire_distance * std::sqrt(static_cast<double>(state_dim_));
-  const auto neighbors = tree.searchBall(collapse(q(q_indices)), search_radius);
-
-  std::vector<int> ids;
-  ids.reserve(neighbors.size());
-  for (const auto& neighbor : neighbors) {
-    if (scene_->configurationDistance(nodes.at(neighbor.id).config, q) <=
-        options_.rewire_distance) {
-      ids.push_back(neighbor.id);
-    }
-  }
+  auto ids = tree.withinRadius(collapse(q(q_indices)), options_.rewire_distance);
+  std::erase_if(ids, [&](int id) {
+    return scene_->configurationDistance(nodes.at(id).config, q) > options_.rewire_distance;
+  });
   return ids;
 }
 

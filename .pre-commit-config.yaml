@@ -89,6 +89,5 @@ exclude: |
   (?x)^(
     .*/bindings/python/roboplan/.*\.pyi|
     roboplan_core/third_party/tinyxml2/.*|
-    roboplan_core/third_party/tl/.*|
-    roboplan_rrt/include/dynotree/.*
+    roboplan_core/third_party/tl/.*
   )$

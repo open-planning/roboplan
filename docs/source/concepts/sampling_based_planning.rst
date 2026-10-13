@@ -228,29 +228,27 @@ Keeping a gripper upright inside a safe zone is a single ``PoseConstraint``:
 random goals inside the zone, plots the gripper's tilt and height against the limits, and contrasts
 the result with the same problem planned unconstrained.
 
-State Spaces and the ``dynotree`` Library
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+State Spaces and the ``nanoflann`` Library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Every RRT iteration queries the tree for the node closest to a new sample.
-RoboPlan delegates these queries to `dynotree <https://github.com/quimortiz/dynotree>`_, a header-only k-d tree library vendored into ``roboplan_rrt/include/dynotree``.
+RoboPlan delegates these queries to `nanoflann <https://github.com/jlblancoc/nanoflann>`_, a header-only k-d tree library, taken from the system when version 2.0.1 or newer is installed and otherwise fetched by CMake at configure time.
 
 **k-d trees.**
-dynotree partitions the state space with a k-d tree, so nearest-neighbor queries run in roughly logarithmic rather than linear time in the number of nodes.
-The tree splits along whichever dimension currently has the widest spread, and its branch-and-bound search uses each state space's ``distance_to_rectangle`` routine to prune subtrees that cannot contain a closer neighbor.
+nanoflann partitions the state space with a k-d tree, so nearest-neighbor queries run in roughly logarithmic rather than linear time in the number of nodes.
+RoboPlan uses its incremental index, a single self-balancing tree that accepts one point at a time as the planner grows, and whose branch-and-bound search prunes any subtree whose bounding box cannot contain a closer neighbor.
 
 **State spaces.**
 A naive planner treats every joint as a coordinate in :math:`\mathbb{R}^n` with a plain Euclidean norm, which is incorrect for joints that are not a Euclidean line.
 A continuous (unlimited) revolute joint, for example, lives on a circle: the angles :math:`-\pi` and :math:`+\pi` are the same point, and the shortest distance between two angles must wrap around.
-dynotree models each degree of freedom with the correct topology and supplies matching distance, interpolation, and sampling operations:
+RoboPlan gives nanoflann a product metric (``roboplan_rrt/include/roboplan_rrt/kd_tree.hpp``) that tags each coordinate with its topology:
 
-- **Rn** — bounded real-valued coordinates (:math:`\mathbb{R}^n`), used for prismatic and limited revolute joints.
-- **SO(2)** — the circle group, used for continuous revolute joints so that distances wrap correctly across :math:`\pm\pi`.
-- **SE(2)** — the planar group :math:`\mathbb{R}^2 \times SO(2)`, used for planar joints such as mobile bases: a 2D translation plus a wrapping heading angle.
-- **SO(3)** — the rotation group for 3D orientations. RoboPlan does not use it yet; floating joints are unsupported.
+- **R** — a real-valued coordinate, used for prismatic and limited revolute joints and for the translation of planar joints.
+- **SO(2)** — the circle group, used for continuous revolute joints and the heading of planar joints so that distances wrap correctly across :math:`\pm\pi`.
 
-RoboPlan builds a ``dynotree::Combined`` state space by concatenating one of these components per joint in the planning group.
-Continuous joints are mapped to ``SO2``, planar joints to ``Rn:2`` + ``SO2`` (i.e., SE(2)), and ordinary single-DOF joints to ``Rn:1``.
+This is the same configuration distance the planner uses for costs and connection lengths, and nanoflann's manifold-aware pruning keeps the search exact on the wrapped coordinates.
 Nearest-neighbor results therefore respect the true configuration-space metric: a sample near :math:`+\pi` is found to be close to a tree node near :math:`-\pi`.
+Floating joints (SO(3)) are not supported yet.
 
 Configuration
 ~~~~~~~~~~~~~

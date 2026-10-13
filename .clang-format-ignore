@@ -1,3 +1,2 @@
 # Ignore 3rd party dependencies
 roboplan_core/third_party/tl/expected/*
-roboplan_rrt/include/dynotree/*
