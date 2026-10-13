@@ -649,6 +649,29 @@ TEST_F(PositionLimitTest, SolveIkPullsBackByMaxPullback) {
   }
 }
 
+// Builds custom limits as in the PositionLimit header example: model limits with a few joints
+// overridden by name.
+TEST_F(PositionLimitTest, CustomLimitsFromOverrideByJointName) {
+  auto [lower, upper] = scene_->getPositionLimitVectors("", /*collapsed*/ true).value();
+  const Eigen::VectorXd model_lower = lower;
+  const Eigen::VectorXd model_upper = upper;
+  lower = oink_->overrideByJointName(lower, {{"elbow_joint", -1.0}}).value();
+  upper = oink_->overrideByJointName(upper, {{"elbow_joint", 1.0}, {"wrist_1_joint", 0.5}}).value();
+
+  const Eigen::VectorXd q = Eigen::VectorXd::Constant(num_variables_, 0.1);
+  scene_->setJointPositions(q);
+  PositionLimit constraint(*oink_, 1.0, lower, upper);
+  Eigen::VectorXd lower_bounds, upper_bounds;
+  computeBounds(constraint, *oink_, *scene_, lower_bounds, upper_bounds);
+
+  for (int i = 0; i < num_variables_; ++i) {
+    const double expected_lower = (i == 2) ? -1.0 : model_lower[i];
+    const double expected_upper = (i == 2) ? 1.0 : (i == 3) ? 0.5 : model_upper[i];
+    EXPECT_NEAR(lower_bounds[i], -(q[i] - expected_lower), 1e-12) << "joint " << i;
+    EXPECT_NEAR(upper_bounds[i], expected_upper - q[i], 1e-12) << "joint " << i;
+  }
+}
+
 // The Kinova gripper group's joint has velocity index 7 and position index 11 (the arm's continuous
 // joints take two position entries each), so the group-ordered limits only match the right joint
 // if the constraint maps between group, collapsed, and model indices correctly.

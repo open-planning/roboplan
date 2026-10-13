@@ -176,6 +176,43 @@ Oink::~Oink() = default;
 
 void Oink::refreshContext(const Scene& scene) { context_ = std::make_unique<SceneContext>(scene); }
 
+tl::expected<Eigen::VectorXd, std::string>
+Oink::overrideByJointName(const Eigen::VectorXd& values,
+                          const std::map<std::string, double>& overrides) const {
+  if (values.size() != num_variables) {
+    return tl::make_unexpected("overrideByJointName: values has size " +
+                               std::to_string(values.size()) + ", expected num_variables (" +
+                               std::to_string(num_variables) + ")");
+  }
+
+  const auto& model = context_->getModel();
+  Eigen::VectorXd result = values;
+  for (const auto& [joint_name, value] : overrides) {
+    const auto joint_id = model.getJointId(joint_name);
+    if (joint_id >= static_cast<pinocchio::JointIndex>(model.njoints)) {
+      return tl::make_unexpected("overrideByJointName: joint '" + joint_name +
+                                 "' not found in the model");
+    }
+    // Mimic joints have no velocity DOFs of their own; planar and floating joints have several.
+    const int nv = model.joints[joint_id].nv();
+    if (nv != 1) {
+      return tl::make_unexpected("overrideByJointName: joint '" + joint_name + "' has " +
+                                 std::to_string(nv) + " velocity DOFs; only single-DOF joints " +
+                                 "can be overridden by name");
+    }
+
+    const auto* const begin = v_indices.data();
+    const auto* const end = begin + v_indices.size();
+    const auto* const it = std::find(begin, end, model.idx_vs[joint_id]);
+    if (it == end) {
+      return tl::make_unexpected("overrideByJointName: joint '" + joint_name +
+                                 "' is not in the joint group");
+    }
+    result(it - begin) = value;
+  }
+  return result;
+}
+
 tl::expected<void, std::string>
 Oink::solveIk(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Task>>& tasks,
               const std::vector<std::shared_ptr<Constraints>>& constraints,

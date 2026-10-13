@@ -1,5 +1,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 
@@ -901,6 +902,84 @@ TEST_F(OinkTest, RecoversAfterFailedSolve) {
   ASSERT_TRUE(recover_result.has_value())
       << "solveIk() must recover after a failed solve: " << recover_result.error();
   EXPECT_TRUE(delta_q_recover.allFinite());
+}
+
+TEST_F(OinkTest, OverrideByJointName) {
+  Oink oink(*scene_);
+  const Eigen::VectorXd values = Eigen::VectorXd::LinSpaced(num_variables_, 0.0, 1.0);
+
+  const auto result = oink.overrideByJointName(
+      values, {{"elbow_joint", -2.0}, {"wrist_3_joint", std::numeric_limits<double>::infinity()}});
+  ASSERT_TRUE(result) << result.error();
+
+  Eigen::VectorXd expected = values;
+  expected[2] = -2.0;                                     // elbow_joint
+  expected[5] = std::numeric_limits<double>::infinity();  // wrist_3_joint
+  EXPECT_EQ(*result, expected);
+
+  // No overrides returns the values unchanged.
+  EXPECT_EQ(*oink.overrideByJointName(values, {}), values);
+}
+
+TEST_F(OinkTest, OverrideByJointNameRejectsInvalidArguments) {
+  Oink oink(*scene_);
+  const Eigen::VectorXd values = Eigen::VectorXd::Zero(num_variables_);
+
+  EXPECT_FALSE(oink.overrideByJointName(Eigen::VectorXd::Zero(num_variables_ + 1), {}));
+  EXPECT_FALSE(oink.overrideByJointName(values, {{"not_a_joint", 1.0}}));
+}
+
+// The Kinova arm has continuous joints (two position entries each) and the gripper has mimic
+// joints, so group, position, and velocity indices all differ.
+class KinovaOverrideByJointNameTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    const auto model_dir = example_models::get_package_models_dir() / "kinova_robot_model";
+    scene_ = std::make_shared<Scene>(
+        "test_scene", loadUrdfSceneDescription(model_dir / "kinova_robotiq.urdf",
+                                               {example_models::get_package_share_dir()}));
+    if (const auto imported = scene_->importSrdf(loadTextFile(model_dir / "kinova_robotiq.srdf"));
+        !imported) {
+      throw std::runtime_error(imported.error());
+    }
+  }
+
+  std::shared_ptr<Scene> scene_;
+};
+
+TEST_F(KinovaOverrideByJointNameTest, MapsNamesToGroupOrder) {
+  Oink arm(*scene_, "manipulator");
+  const Eigen::VectorXd values = Eigen::VectorXd::Zero(arm.num_variables);
+
+  // joint_3 is continuous, and joint_4 follows two continuous joints.
+  const auto result = arm.overrideByJointName(values, {{"joint_3", 1.0}, {"joint_4", 2.0}});
+  ASSERT_TRUE(result) << result.error();
+  Eigen::VectorXd expected = values;
+  expected[2] = 1.0;
+  expected[3] = 2.0;
+  EXPECT_EQ(*result, expected);
+
+  // The gripper group has a single actuated joint, at group index 0.
+  Oink gripper(*scene_, "gripper");
+  ASSERT_EQ(gripper.num_variables, 1);
+  const auto gripper_result = gripper.overrideByJointName(Eigen::VectorXd::Zero(1),
+                                                          {{"robotiq_85_left_knuckle_joint", 0.5}});
+  ASSERT_TRUE(gripper_result) << gripper_result.error();
+  EXPECT_EQ((*gripper_result)[0], 0.5);
+}
+
+TEST_F(KinovaOverrideByJointNameTest, RejectsJointsOutsideGroupAndMimicJoints) {
+  Oink gripper(*scene_, "gripper");
+  const Eigen::VectorXd values = Eigen::VectorXd::Zero(gripper.num_variables);
+
+  const auto outside = gripper.overrideByJointName(values, {{"joint_1", 1.0}});
+  ASSERT_FALSE(outside);
+  EXPECT_THAT(outside.error(), ::testing::HasSubstr("not in the joint group"));
+
+  const auto mimic =
+      gripper.overrideByJointName(values, {{"robotiq_85_mimic_right_knuckle_joint", 1.0}});
+  ASSERT_FALSE(mimic);
+  EXPECT_THAT(mimic.error(), ::testing::HasSubstr("velocity DOFs"));
 }
 
 }  // namespace roboplan

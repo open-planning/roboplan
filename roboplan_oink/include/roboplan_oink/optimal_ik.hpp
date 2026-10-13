@@ -1,6 +1,7 @@
 #pragma once
 
 #include <limits>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -493,6 +494,19 @@ struct Oink {
   enforceBarriers(const Eigen::VectorXd& q, const std::vector<std::shared_ptr<Barrier>>& barriers,
                   Eigen::Ref<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> delta_q,
                   double tolerance = 0.0);
+
+  /// @brief Returns a copy of `values`, a per-joint vector in group joint order, with the entries
+  /// of the named joints replaced.
+  /// @details Useful for building limit vectors (e.g. for PositionLimit, VelocityLimit, or
+  /// AccelerationLimit) that differ from the defaults only for a few joints, without having to
+  /// look up each joint's index in the group.
+  /// @param values Per-joint values in group joint order (size num_variables).
+  /// @param overrides Replacement values, keyed by joint name.
+  /// @return The updated vector, or an error if `values` has the wrong size or a name is not a
+  ///         single-DOF joint in this group (mimic, planar, and floating joints are rejected).
+  tl::expected<Eigen::VectorXd, std::string>
+  overrideByJointName(const Eigen::VectorXd& values,
+                      const std::map<std::string, double>& overrides) const;
 
   /// @brief The solver's private scratch (Data + GeometryData + broadphase + configuration).
   /// @details Tasks, constraints, and barriers evaluate against this context, so a single snapshot

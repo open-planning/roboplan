@@ -10,6 +10,17 @@ namespace roboplan {
 /// Implements joint position constraints by restricting velocities to prevent exceeding joint
 /// limits. The constraint is formulated as: l <= G*dq <= u where G is an identity matrix, and the
 /// bounds are computed based on the distance to limits.
+///
+/// To tighten the limits of a few joints, start from the group's model limits and override the
+/// named joints with Oink::overrideByJointName():
+/// @code
+/// Oink oink(scene, "arm");
+/// auto [lower, upper] = scene.getPositionLimitVectors("arm", /*collapsed*/ true).value();
+/// lower = oink.overrideByJointName(lower, {{"elbow_joint", -1.0}}).value();
+/// upper = oink.overrideByJointName(upper, {{"elbow_joint", 1.0}, {"wrist_1_joint", 0.5}}).value();
+/// auto limit = std::make_shared<PositionLimit>(oink, /*gain*/ 1.0, lower, upper,
+///                                              /*max_pullback*/ 0.05);
+/// @endcode
 struct PositionLimit : public Constraints {
   /// @brief Constructor; pre-allocates the workspace.
   /// @param oink The Oink solver this constraint will be used with (provides num_variables and

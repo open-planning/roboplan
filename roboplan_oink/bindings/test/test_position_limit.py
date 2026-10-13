@@ -80,6 +80,47 @@ def test_construction_rejects_invalid_arguments(oink: Oink) -> None:
         PositionLimit(oink, max_pullback=-0.1)
 
 
+def test_override_by_joint_name(oink: Oink) -> None:
+    n = oink.num_variables
+    values = np.linspace(0.0, 1.0, n)
+    result = oink.overrideByJointName(
+        values, {"elbow_joint": -2.0, "wrist_1_joint": 0.5}
+    )
+
+    expected = values.copy()
+    expected[2] = -2.0
+    expected[3] = 0.5
+    np.testing.assert_array_equal(result, expected)
+    np.testing.assert_array_equal(values, np.linspace(0.0, 1.0, n))  # Input unchanged.
+
+    with pytest.raises(ValueError):
+        oink.overrideByJointName(np.zeros(n + 1), {})
+    with pytest.raises(ValueError):
+        oink.overrideByJointName(values, {"not_a_joint": 1.0})
+
+
+def test_custom_limits_from_override_by_joint_name(
+    test_scene: Scene, oink: Oink
+) -> None:
+    """Builds custom limits as in the PositionLimit docs and checks they are enforced."""
+    lower, upper = test_scene.getPositionLimitVectors(GROUP_NAME, True)
+    upper = oink.overrideByJointName(upper, {"elbow_joint": 0.5})
+    limit = PositionLimit(
+        oink, joint_lower_limits=lower, joint_upper_limits=upper, max_pullback=0.1
+    )
+
+    # Starting 0.3 above the custom elbow limit, a step that holds the configuration pulls the
+    # elbow back by max_pullback.
+    n = oink.num_variables
+    q = np.zeros(n)
+    q[2] = 0.8
+    hold = ConfigurationTask(oink, q, np.ones(n))
+    delta_q = np.zeros(n)
+    oink.solveIk(q, [hold], [limit], delta_q)
+    assert delta_q[2] == pytest.approx(-0.1, abs=1e-6)
+    np.testing.assert_allclose(np.delete(delta_q, 2), 0.0, atol=1e-6)
+
+
 @pytest.mark.parametrize("max_pullback", [0.0, 0.1])
 def test_solve_ik_pulls_back_by_max_pullback(oink: Oink, max_pullback: float) -> None:
     """A joint outside the custom limits moves back by at most max_pullback per step."""
