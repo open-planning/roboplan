@@ -36,7 +36,7 @@ The diagram below shows the major components, the external libraries they build 
            COAL["Coal"]
            PROXSUITE["ProxSuite"]
            TOPPRALIB["toppra"]
-           DYNO["dynotree"]
+           NANOFLANN["nanoflann"]
            VISER["Viser"]
            MPL["matplotlib"]
        end
@@ -55,7 +55,7 @@ The diagram below shows the major components, the external libraries they build 
        SHORT --> SCENE
 
        OINK --> PROXSUITE
-       RRT --> DYNO
+       RRT --> NANOFLANN
        TOPPRA --> TOPPRALIB
        SCENE --> PIN
        SCENE --> COAL
@@ -75,7 +75,7 @@ The diagram below shows the major components, the external libraries they build 
        classDef both fill:#6fce89,stroke:#1b5e20,color:#111111
        classDef neutral fill:#ffffff,stroke:#666666,color:#111111
 
-       class LCPP,PROXSUITE,TOPPRALIB,DYNO cpp
+       class LCPP,PROXSUITE,TOPPRALIB,NANOFLANN cpp
        class LPY,VIZ,INTERP,VISER,MPL python
        class LBOTH,CART,SINK,OINK,RRT,TOPPRA,SCENE,TYPES,SHORT,PIN,COAL both
        class USER neutral
@@ -172,7 +172,7 @@ Each algorithm package builds on the core package, bringing in its own external 
 
 - **SimpleIK** iterates a damped least-squares update using Jacobians from the ``Scene``.
 - **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `ProxSuite <https://github.com/Simple-Robotics/proxsuite>`_.
-- **RRT** grows search trees in configuration space, using the ``Scene`` for sampling and collision checks and the vendored `dynotree <https://github.com/quimortiz/dynotree>`_ k-d tree for nearest-neighbor lookups.
+- **RRT** grows search trees in configuration space, using the ``Scene`` for sampling and collision checks and the `nanoflann <https://github.com/jlblancoc/nanoflann>`_ k-d tree for nearest-neighbor lookups.
 - **TOPP-RA** wraps the `toppra <https://github.com/hungpham2511/toppra>`_ library to time-parameterize joint paths subject to the velocity and acceleration limits stored in the ``Scene``.
 - **CartesianPathPlanner** is the main integration point: it resolves a task-space path into a joint path with an internal OInK solver, then times that path with TOPP-RA.
 
