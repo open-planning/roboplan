@@ -35,7 +35,7 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "group_name"_a = "", "dt"_a = 0.01, "speed_mode"_a = CartesianSpeedMode::Bounded,
            "max_linear_speed"_a = 0.1, "max_angular_speed"_a = 0.5,
            "max_linear_acceleration"_a = 0.5, "max_angular_acceleration"_a = 2.5,
-           "max_position_error"_a = 0.005, "max_orientation_error"_a = 0.01,
+           "position_tolerance"_a = 0.005, "orientation_tolerance"_a = 0.01,
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
            "lm_damping"_a = 0.01, "regularization"_a = 1e-6, "config_task_weight"_a = 0.05,
            "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0,
@@ -51,9 +51,9 @@ void init_cartesian_path_planner(nanobind::module_& m) {
               "Maximum linear tool acceleration (m/s^2), Bounded mode.")
       .def_rw("max_angular_acceleration", &CartesianPlannerOptions::max_angular_acceleration,
               "Maximum angular tool acceleration (rad/s^2), Bounded mode.")
-      .def_rw("max_position_error", &CartesianPlannerOptions::max_position_error,
+      .def_rw("position_tolerance", &CartesianPlannerOptions::position_tolerance,
               "Maximum position deviation from the path (m).")
-      .def_rw("max_orientation_error", &CartesianPlannerOptions::max_orientation_error,
+      .def_rw("orientation_tolerance", &CartesianPlannerOptions::orientation_tolerance,
               "Maximum orientation deviation from the path (rad).")
       .def_rw("position_cost", &CartesianPlannerOptions::position_cost,
               "Oink frame task position cost.")

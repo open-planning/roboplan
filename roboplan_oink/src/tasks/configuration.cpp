@@ -9,8 +9,8 @@ ConfigurationTask::ConfigurationTask(const Oink& oink, const Eigen::VectorXd& ta
                                      const ConfigurationTaskOptions& options)
     : Task(options.priority, createWeightMatrix(joint_weights), options.task_gain,
            options.lm_damping),
-      target_q(target_q), joint_weights(joint_weights), q_indices(oink.q_indices),
-      v_indices(oink.v_indices) {
+      target_q(target_q), joint_weights(joint_weights), tolerance(options.tolerance),
+      q_indices(oink.q_indices), v_indices(oink.v_indices) {
   if (joint_weights.size() != oink.num_variables) {
     throw std::invalid_argument(
         "ConfigurationTask: joint_weights size (" + std::to_string(joint_weights.size()) +
@@ -61,6 +61,11 @@ tl::expected<void, std::string> ConfigurationTask::computeError(const SceneConte
   }
 
   return {};
+}
+
+double ConfigurationTask::normalizedError() const {
+  // Joints with zero weight are not tracked, so they do not count against convergence.
+  return (joint_weights.array() > 0.0).select(error_container, 0.0).norm() / tolerance;
 }
 
 tl::expected<void, std::string>

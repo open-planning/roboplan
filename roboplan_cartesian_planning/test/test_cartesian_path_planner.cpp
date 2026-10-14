@@ -87,8 +87,8 @@ TEST_F(CartesianPlannerTest, TracesStraightLineWithinTolerance) {
   options.group_name = kGroup;
   options.dt = 0.01;
   options.max_linear_speed = 0.05;
-  options.max_position_error = 0.005;
-  options.max_orientation_error = 0.01;
+  options.position_tolerance = 0.005;
+  options.orientation_tolerance = 0.01;
 
   CartesianPathPlanner planner(scene_, options);
 
@@ -117,7 +117,7 @@ TEST_F(CartesianPlannerTest, TracesStraightLineWithinTolerance) {
   const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
   const Eigen::Matrix4d& goal = path.tforms.at(0).back();
   const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
-  EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
+  EXPECT_LE(final_position_error, options.position_tolerance + 1e-6);
 
   // The achieved path length should be close to the commanded 5 cm line.
   EXPECT_NEAR(planner.computeAchievedPathLength(traj, path), 0.05, 0.01);
@@ -129,8 +129,8 @@ TEST_F(CartesianPlannerTest, RespectsJointVelocityAndPositionLimits) {
   options.dt = 0.01;
   // Command an aggressive speed so the velocity limits are actively binding.
   options.max_linear_speed = 0.5;
-  options.max_position_error = 0.01;
-  options.max_orientation_error = 0.05;
+  options.position_tolerance = 0.01;
+  options.orientation_tolerance = 0.05;
 
   CartesianPathPlanner planner(scene_, options);
 
@@ -167,8 +167,8 @@ TEST_F(CartesianPlannerTest, TracesMultiFramePathDefault) {
   options.group_name = kGroup;
   options.dt = 0.01;
   options.max_linear_speed = 0.05;
-  options.max_position_error = 0.005;
-  options.max_orientation_error = 0.01;
+  options.position_tolerance = 0.005;
+  options.orientation_tolerance = 0.01;
   CartesianPathPlanner planner(scene_, options);
 
   JointConfiguration q_start;
@@ -191,7 +191,7 @@ TEST_F(CartesianPlannerTest, TracesMultiFramePathDefault) {
   const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
   const Eigen::Matrix4d& goal = path.tforms.at(0).back();
   const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
-  EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
+  EXPECT_LE(final_position_error, options.position_tolerance + 1e-6);
 }
 
 TEST_F(CartesianPlannerTest, RejectsMismatchedFramePath) {
@@ -216,8 +216,8 @@ TEST_F(CartesianPlannerTest, CustomComponentsTracesLine) {
   options.group_name = kGroup;
   options.dt = 0.01;
   options.max_linear_speed = 0.05;
-  options.max_position_error = 0.005;
-  options.max_orientation_error = 0.01;
+  options.position_tolerance = 0.005;
+  options.orientation_tolerance = 0.01;
 
   JointConfiguration q_start;
   q_start.positions = scene_->getCurrentJointPositions();
@@ -261,7 +261,7 @@ TEST_F(CartesianPlannerTest, CustomComponentsTracesLine) {
   const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame, kBaseFrame);
   const Eigen::Matrix4d& goal = path.tforms.at(0).back();
   const double final_position_error = (fk_final.block<3, 1>(0, 3) - goal.block<3, 1>(0, 3)).norm();
-  EXPECT_LE(final_position_error, options.max_position_error + 1e-6);
+  EXPECT_LE(final_position_error, options.position_tolerance + 1e-6);
 }
 
 TEST_F(CartesianPlannerTest, CustomComponentsConstructorValidatesInputs) {
@@ -320,8 +320,8 @@ TEST_F(CartesianPlannerTest, TimeOptimalModeRespectsVelocityAndAccelerationLimit
 
   CartesianPlannerOptions time_optimal_options;
   time_optimal_options.group_name = kGroup;
-  time_optimal_options.max_position_error = 0.01;
-  time_optimal_options.max_orientation_error = 0.05;
+  time_optimal_options.position_tolerance = 0.01;
+  time_optimal_options.orientation_tolerance = 0.05;
   time_optimal_options.speed_mode = CartesianSpeedMode::TimeOptimal;
   CartesianPathPlanner planner(scene_, time_optimal_options);
   const auto time_optimal_result = planner.plan(path, q_start);
@@ -349,8 +349,8 @@ TEST_F(CartesianPlannerTest, TimeOptimalIsFasterThanBoundedOnCornerHeavyPath) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;
   options.dt = 0.01;
-  options.max_position_error = 0.01;
-  options.max_orientation_error = 0.05;
+  options.position_tolerance = 0.01;
+  options.orientation_tolerance = 0.05;
 
   options.speed_mode = CartesianSpeedMode::TimeOptimal;
   CartesianPathPlanner time_optimal_planner(scene_, options);
@@ -387,8 +387,8 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   options.max_linear_speed = 0.5;
   options.max_linear_acceleration = 0.5;
   options.max_angular_acceleration = 2.5;
-  options.max_position_error = 0.01;
-  options.max_orientation_error = 0.05;
+  options.position_tolerance = 0.01;
+  options.orientation_tolerance = 0.05;
   options.speed_mode = CartesianSpeedMode::Bounded;
 
   CartesianPathPlanner planner(scene_, options);
@@ -473,7 +473,7 @@ TEST_F(CartesianPlannerTest, EmptyBaseFrame) {
       scene_->toFullJointPositions(kGroup, result->positions.back());
   const Eigen::Matrix4d fk_final = scene_->forwardKinematics(q_full_final, kTipFrame);
   EXPECT_LE((fk_final.block<3, 1>(0, 3) - waypoints.back().block<3, 1>(0, 3)).norm(),
-            options.max_position_error + 1e-6);
+            options.position_tolerance + 1e-6);
 }
 
 }  // namespace roboplan

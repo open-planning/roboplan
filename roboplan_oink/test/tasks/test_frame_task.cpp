@@ -384,7 +384,7 @@ TEST_F(FrameTaskTest, PositionErrorWithoutSaturation) {
   target_config.tform = target_pose;
 
   // Create task with infinite position limit (no saturation)
-  FrameTaskOptions options{.max_position_error = std::numeric_limits<double>::infinity()};
+  FrameTaskOptions options{.position_saturation = std::numeric_limits<double>::infinity()};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));
@@ -412,7 +412,7 @@ TEST_F(FrameTaskTest, PositionErrorSaturationBounds) {
   target_config.tform = target_pose;
 
   // Create task with position error limit of 0.1m
-  FrameTaskOptions options{.max_position_error = 0.1};
+  FrameTaskOptions options{.position_saturation = 0.1};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));
@@ -442,7 +442,7 @@ TEST_F(FrameTaskTest, RotationErrorWithoutSaturation) {
   target_config.tform = target_pose;
 
   // Create task with infinite rotation limit (no saturation)
-  FrameTaskOptions options{.max_rotation_error = std::numeric_limits<double>::infinity()};
+  FrameTaskOptions options{.orientation_saturation = std::numeric_limits<double>::infinity()};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));
@@ -471,7 +471,7 @@ TEST_F(FrameTaskTest, RotationErrorSaturationBounds) {
   target_config.tform = target_pose;
 
   // Create task with rotation error limit of 0.5 rad (~28 degrees)
-  FrameTaskOptions options{.max_rotation_error = 0.5};
+  FrameTaskOptions options{.orientation_saturation = 0.5};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));
@@ -500,8 +500,8 @@ TEST_F(FrameTaskTest, SmallErrorsNotSaturated) {
   target_config.tform = target_pose;
 
   // Create task with infinite limits (no saturation)
-  FrameTaskOptions options{.max_position_error = std::numeric_limits<double>::infinity(),
-                           .max_rotation_error = std::numeric_limits<double>::infinity()};
+  FrameTaskOptions options{.position_saturation = std::numeric_limits<double>::infinity(),
+                           .orientation_saturation = std::numeric_limits<double>::infinity()};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));
@@ -680,8 +680,8 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationError) {
   target_config.tform = target_pose;
 
   // Create task with infinite limits (no saturation)
-  FrameTaskOptions options{.max_position_error = std::numeric_limits<double>::infinity(),
-                           .max_rotation_error = std::numeric_limits<double>::infinity()};
+  FrameTaskOptions options{.position_saturation = std::numeric_limits<double>::infinity(),
+                           .orientation_saturation = std::numeric_limits<double>::infinity()};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));
@@ -715,7 +715,7 @@ TEST_F(FrameTaskTest, CombinedPositionAndRotationSaturationBounds) {
   target_config.tform = target_pose;
 
   // Create task with both saturation limits
-  FrameTaskOptions options{.max_position_error = 0.15, .max_rotation_error = 0.3};
+  FrameTaskOptions options{.position_saturation = 0.15, .orientation_saturation = 0.3};
   FrameTask task(*oink_, *scene_, target_config, options);
 
   auto result = task.computeError(posed(*oink_, *scene_));

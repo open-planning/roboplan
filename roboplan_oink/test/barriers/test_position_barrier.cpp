@@ -611,8 +611,8 @@ TEST_F(PositionBarrierTest, EnforceBarriersPreventsViolation) {
                                .orientation_cost = 0.1,
                                .task_gain = 2.0,
                                .lm_damping = 0.01,
-                               .max_position_error = std::numeric_limits<double>::infinity(),
-                               .max_rotation_error = std::numeric_limits<double>::infinity()};
+                               .position_saturation = std::numeric_limits<double>::infinity(),
+                               .orientation_saturation = std::numeric_limits<double>::infinity()};
 
   auto frame_task = std::make_shared<FrameTask>(oink, *scene_, target_config, task_params);
 

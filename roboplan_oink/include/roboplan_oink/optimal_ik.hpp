@@ -32,8 +32,12 @@ struct IterativeSolveOptions {
   /// @brief Maximum number of random restarts until success.
   size_t max_restarts = 2;
 
-  /// @brief The maximum weighted error norm ||W e|| of any goal task at the solution.
-  double max_task_error_norm = 0.001;
+  /// @brief An iteration counts as stagnant unless it shrinks the error to below this fraction of
+  /// the best so far.
+  double stagnation_improvement = 0.99;
+
+  /// @brief Consecutive stagnant iterations after which an attempt gives up and restarts.
+  size_t max_stagnant_iters = 5;
 
   /// @brief The maximum norm of any Constraints::computeViolation() at the solution.
   double max_constraint_violation_norm = 1e-4;
@@ -89,6 +93,10 @@ struct Task {
   /// @param context The context supplying the configuration and the frame placements to read.
   /// @return void on success, error message on failure.
   virtual tl::expected<void, std::string> computeError(const SceneContext& context) = 0;
+
+  /// @brief The error from the last computeError() relative to this task's own tolerance, so a
+  /// value of at most 1 means the task is reached. Used by Oink::solveIterativeIk().
+  virtual double normalizedError() const = 0;
 
   /// @brief Compute QP objective matrices (H, c) for this task.
   ///
@@ -426,12 +434,13 @@ struct Oink {
           double regularization = 1e-12);
 
   /// @brief Iterates solveIk() from `q_start` until every goal task is reached.
-  /// @details Repeats solveIk -> integrate -> clamp until every goal task is within tolerance,
-  /// every constraint violation is within tolerance, and every barrier is non-negative at the
-  /// result. When the error stops improving short of that, it restarts from a random configuration
-  /// of the joint group; hard constraints such as RelativePoseConstraint pull the random seed back
-  /// onto their manifold as the iteration proceeds. Collision avoidance is opt-in through a
-  /// SelfCollisionBarrier. The restarts are drawn from the RNG seeded by setRngSeed().
+  /// @details Repeats solveIk -> integrate -> clamp until every goal task is within its own
+  /// tolerance (Task::normalizedError), every constraint violation is within tolerance, and every
+  /// barrier is non-negative at the result. When the error stops improving short of that, it
+  /// restarts from a random configuration of the joint group; hard constraints such as
+  /// RelativePoseConstraint pull the random seed back onto their manifold as the iteration
+  /// proceeds. Collision avoidance is opt-in through a SelfCollisionBarrier. The restarts are drawn
+  /// from the RNG seeded by setRngSeed().
   /// @param q_start The configuration to start from (size model.nq).
   /// @param goal_tasks The tasks whose targets must be reached.
   /// @param extra_tasks Tasks solved alongside the goals but not required to converge (e.g. a

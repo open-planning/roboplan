@@ -22,8 +22,10 @@ FrameTask::FrameTask(const Oink& oink, const Scene& scene,
     : Task(options.priority, createWeightMatrix(options.position_cost, options.orientation_cost),
            options.task_gain, options.lm_damping),
       frame_name(target_pose.tip_frame), target_pose(target_pose),
-      max_position_error(options.max_position_error),
-      max_rotation_error(options.max_rotation_error) {
+      position_saturation(options.position_saturation),
+      orientation_saturation(options.orientation_saturation),
+      position_tolerance(options.position_tolerance),
+      orientation_tolerance(options.orientation_tolerance) {
   const auto maybe_frame_id = scene.getFrameId(frame_name);
   if (!maybe_frame_id) {
     throw std::runtime_error("Frame '" + frame_name + "' not found: " + maybe_frame_id.error());
@@ -77,25 +79,39 @@ tl::expected<void, std::string> FrameTask::computeError(const SceneContext& cont
 
   // Soft saturation with tanh prevents large jumps that can invalidate CBF linearization while
   // keeping the error dynamics smooth: saturate(e) = e_max * tanh(||e|| / e_max) * (e / ||e||)
-  if (std::isfinite(max_position_error)) {
+  if (std::isfinite(position_saturation)) {
     Eigen::Vector3d pos_error = error_container.head<kPositionDimension>();
     const double pos_norm = pos_error.norm();
     if (pos_norm > kMinNormForSaturation) {
-      const double scale = max_position_error * std::tanh(pos_norm / max_position_error) / pos_norm;
+      const double scale =
+          position_saturation * std::tanh(pos_norm / position_saturation) / pos_norm;
       error_container.head<kPositionDimension>() = pos_error * scale;
     }
   }
 
-  if (std::isfinite(max_rotation_error)) {
+  if (std::isfinite(orientation_saturation)) {
     Eigen::Vector3d rot_error = error_container.tail<kOrientationDimension>();
     const double rot_norm = rot_error.norm();
     if (rot_norm > kMinNormForSaturation) {
-      const double scale = max_rotation_error * std::tanh(rot_norm / max_rotation_error) / rot_norm;
+      const double scale =
+          orientation_saturation * std::tanh(rot_norm / orientation_saturation) / rot_norm;
       error_container.tail<kOrientationDimension>() = rot_error * scale;
     }
   }
 
   return {};
+}
+
+double FrameTask::normalizedError() const {
+  // A part with zero cost is not tracked, so it does not count against convergence.
+  const double position =
+      weight(0, 0) > 0.0 ? error_container.head<kPositionDimension>().norm() / position_tolerance
+                         : 0.0;
+  const double rotation =
+      weight(kPositionDimension, kPositionDimension) > 0.0
+          ? error_container.tail<kOrientationDimension>().norm() / orientation_tolerance
+          : 0.0;
+  return std::max(position, rotation);
 }
 
 tl::expected<void, std::string> FrameTask::computeJacobian(const SceneContext& context) {

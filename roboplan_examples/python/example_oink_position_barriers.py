@@ -40,8 +40,8 @@ def main(
     barrier_gain: float = 10.0,
     barrier_size: float = 0.5,
     safety_margin: float = 0.05,
-    max_position_error: float = 0.15,
-    max_rotation_error: float = 0.5,
+    position_saturation: float = 0.15,
+    orientation_saturation: float = 0.5,
     reference_filter_tau: float = 0.1,
     host: str = "localhost",
     port: str = "8000",
@@ -64,10 +64,8 @@ def main(
         barrier_size: Size of the cubic barrier box around the EE start position (meters).
         safety_margin: Distance from the boundary where the barrier activates (meters).
             Typically 0.02-0.1.
-        max_position_error: Maximum position error magnitude in meters. Prevents large
-            jumps that can invalidate CBF linearization.
-        max_rotation_error: Maximum rotation error magnitude in radians. Prevents large
-            jumps that can invalidate CBF linearization.
+        position_saturation: Per-step cap on the position error norm (meters).
+        orientation_saturation: Per-step cap on the orientation error norm (radians).
         reference_filter_tau: Time constant (seconds) of the exponential low-pass filter on
             target poses. It covers ~63% of a step per tau seconds, which smooths sudden
             jumps. Set to 0 to disable.
@@ -175,15 +173,15 @@ def main(
         oink, q_canonical[oink.q_indices], joint_weights, config_options
     )
 
-    # max_position_error and max_rotation_error prevent large error jumps that can
-    # invalidate the linearized CBF constraint, improving barrier stability.
+    # The saturations cap each step so a large jump cannot swing the frame through a barrier
+    # that its linearization said was safe. The VelocityLimit below bounds the step too.
     task_options = FrameTaskOptions(
         position_cost=1.0,
         orientation_cost=0.1,
         task_gain=task_gain,
         lm_damping=lm_damping,
-        max_position_error=max_position_error,
-        max_rotation_error=max_rotation_error,
+        position_saturation=position_saturation,
+        orientation_saturation=orientation_saturation,
     )
 
     # One FrameTask and interactive marker per end effector.

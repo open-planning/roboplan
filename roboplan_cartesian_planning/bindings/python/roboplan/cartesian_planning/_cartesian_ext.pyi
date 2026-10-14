@@ -20,7 +20,7 @@ class CartesianSpeedMode(enum.Enum):
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, max_position_error: float = 0.005, max_orientation_error: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.0025, position_limit_gain: float = 1.0) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, position_tolerance: float = 0.005, orientation_tolerance: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.0025, position_limit_gain: float = 1.0) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -72,18 +72,18 @@ class CartesianPlannerOptions:
     def max_angular_acceleration(self, arg: float, /) -> None: ...
 
     @property
-    def max_position_error(self) -> float:
+    def position_tolerance(self) -> float:
         """Maximum position deviation from the path (m)."""
 
-    @max_position_error.setter
-    def max_position_error(self, arg: float, /) -> None: ...
+    @position_tolerance.setter
+    def position_tolerance(self, arg: float, /) -> None: ...
 
     @property
-    def max_orientation_error(self) -> float:
+    def orientation_tolerance(self) -> float:
         """Maximum orientation deviation from the path (rad)."""
 
-    @max_orientation_error.setter
-    def max_orientation_error(self, arg: float, /) -> None: ...
+    @orientation_tolerance.setter
+    def orientation_tolerance(self, arg: float, /) -> None: ...
 
     @property
     def position_cost(self) -> float:

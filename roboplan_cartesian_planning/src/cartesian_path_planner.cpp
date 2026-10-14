@@ -174,9 +174,9 @@ tl::expected<void, std::string> CartesianPlannerOptions::validate() const {
   if (dt <= 0.0) {
     return tl::make_unexpected("dt must be strictly positive.");
   }
-  if (max_position_error <= 0.0 || max_orientation_error <= 0.0) {
+  if (position_tolerance <= 0.0 || orientation_tolerance <= 0.0) {
     return tl::make_unexpected(
-        "max_position_error and max_orientation_error must be strictly positive.");
+        "position_tolerance and orientation_tolerance must be strictly positive.");
   }
   if (velocity_scale <= 0.0 || velocity_scale > 1.0) {
     return tl::make_unexpected("velocity_scale must be in the interval (0, 1].");
@@ -384,6 +384,8 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
     frame_options.orientation_cost = options_.orientation_cost;
     frame_options.task_gain = options_.task_gain;
     frame_options.lm_damping = options_.lm_damping;
+    frame_options.position_tolerance = options_.position_tolerance;
+    frame_options.orientation_tolerance = options_.orientation_tolerance;
     frame_options.priority = 1;
     references.at(f).task = std::make_shared<FrameTask>(oink, *scene_, target, frame_options);
   }
@@ -407,8 +409,8 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
 
   // Walk the path in small steps so every IK solve starts from a near neighbor.
   // This helps seed IK solutions to see if the path can be followed without large jumps.
-  const double seed_linear_step = kSeedStepFraction * options_.max_position_error;
-  const double seed_angular_step = kSeedStepFraction * options_.max_orientation_error;
+  const double seed_linear_step = kSeedStepFraction * options_.position_tolerance;
+  const double seed_angular_step = kSeedStepFraction * options_.orientation_tolerance;
   double steps = 1.0;
   for (const auto& reference : *references) {
     if (seed_linear_step > 0.0) {
@@ -434,8 +436,6 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   ik_options.max_iters = kMaxIkConvergenceIters;
   ik_options.max_time = std::numeric_limits<double>::infinity();
   ik_options.max_restarts = 0;
-  ik_options.max_task_error_norm =
-      std::min(options_.max_position_error, options_.max_orientation_error);
   ik_options.regularization = options_.regularization;
   ik_options.fast_return = false;
 
@@ -472,8 +472,8 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   //
   // The budget is `kSubdivisionToleranceFraction` of the user's specified pose tolerance, reserving
   // the rest for the corner-rounding that TOPP-RA applies during time parameterization.
-  const double position_budget = kSubdivisionToleranceFraction * options_.max_position_error;
-  const double orientation_budget = kSubdivisionToleranceFraction * options_.max_orientation_error;
+  const double position_budget = kSubdivisionToleranceFraction * options_.position_tolerance;
+  const double orientation_budget = kSubdivisionToleranceFraction * options_.orientation_tolerance;
   std::vector<bool> keep(walked.size(), false);
   keep.front() = true;
   keep.back() = true;

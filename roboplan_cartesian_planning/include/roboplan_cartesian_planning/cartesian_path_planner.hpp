@@ -64,10 +64,10 @@ struct CartesianPlannerOptions {
   double max_angular_acceleration = 2.5;
 
   /// @brief Maximum allowed position deviation from the path, in meters.
-  double max_position_error = 0.005;
+  double position_tolerance = 0.005;
 
   /// @brief Maximum allowed orientation deviation from the path, in radians.
-  double max_orientation_error = 0.01;
+  double orientation_tolerance = 0.01;
 
   /// @brief Oink FrameTask position cost weight.
   double position_cost = 1.0;
@@ -102,7 +102,7 @@ struct CartesianPlannerOptions {
   /// Larger values round corners more aggressively, which means smoother motion with fewer stops,
   /// but the joint path strays further from the resolved waypoints. The tolerance is a joint-space
   /// bound, so the tool deviation it produces varies with the arm and is not checked against
-  /// max_position_error. A value <= 0 disables blending, so the trajectory stops at every waypoint.
+  /// position_tolerance. A value <= 0 disables blending, so the trajectory stops at every waypoint.
   double toppra_blend_deviation = 0.0025;
 
   /// @brief Gain (0, 1] for the position-limit constraint that steers each step away
