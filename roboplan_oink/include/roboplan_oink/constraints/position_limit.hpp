@@ -11,15 +11,22 @@ namespace roboplan {
 /// limits. The constraint is formulated as: l <= G*dq <= u where G is an identity matrix, and the
 /// bounds are computed based on the distance to limits.
 ///
-/// To tighten the limits of a few joints, start from the group's model limits and override the
-/// named joints with Oink::overrideByJointName():
+/// To keep every joint a fraction of its range away from its limits, use the margin_fraction
+/// constructor. To tighten the limits of only some joints, start from the group's model limits
+/// and find the named joints' entries with Scene::getJointVelocityIndices(), since the limit
+/// vectors are in group velocity order:
 /// @code
 /// Oink oink(scene, "arm");
 /// auto [lower, upper] = scene.getPositionLimitVectors("arm", /*collapsed*/ true).value();
-/// lower = oink.overrideByJointName(lower, {{"elbow_joint", -1.0}}).value();
-/// upper = oink.overrideByJointName(upper, {{"elbow_joint", 1.0}, {"wrist_1_joint", 0.5}}).value();
+/// const Eigen::VectorXi wrist = scene.getJointVelocityIndices({"wrist_1_joint", "wrist_2_joint"});
+/// for (Eigen::Index i = 0; i < oink.v_indices.size(); ++i) {
+///   if ((wrist.array() == oink.v_indices[i]).any()) {
+///     lower[i] += 0.1;
+///     upper[i] -= 0.1;
+///   }
+/// }
 /// auto limit = std::make_shared<PositionLimit>(oink, /*gain*/ 1.0, lower, upper,
-///                                              /*max_pullback*/ 0.05);
+///                                              /*max_pullback*/ 0.1);
 /// @endcode
 struct PositionLimit : public Constraints {
   /// @brief Constructor; pre-allocates the workspace.
@@ -40,12 +47,24 @@ struct PositionLimit : public Constraints {
   ///                     `gain * max_pullback > v_max * dt`.
   /// @throw std::invalid_argument if the size of joint_lower_limits or joint_upper_limits is not
   ///        equal to oink.num_variables or 0.
-  /// @throw std::invalid_argument if `joint_lower_limits[i] > joint_upper_limits[i]` for some i.
+  /// @throw std::invalid_argument if a lower limit is above its upper limit.
   /// @throw std::invalid_argument if max_pullback < 0.0
   explicit PositionLimit(const Oink& oink, double gain = 1.0,
                          const Eigen::VectorXd& joint_lower_limits = Eigen::VectorXd(),
                          const Eigen::VectorXd& joint_upper_limits = Eigen::VectorXd(),
                          double max_pullback = 0.0);
+
+  /// @brief Constructor that limits every joint to its model limits, shrunk by a fraction of its
+  /// range at each end.
+  /// @param oink The Oink solver this constraint will be used with.
+  /// @param gain Scaling factor for how aggressively to steer away from limits (0 < gain <= 1)
+  /// @param margin_fraction Fraction of each joint's range kept clear at both ends, in [0, 0.5).
+  ///                        Joints with an infinite limit (e.g. continuous or planar joints) are
+  ///                        left unlimited.
+  /// @param max_pullback As for the vector constructor, in the joints' own units (rad or m).
+  /// @throw std::invalid_argument if margin_fraction is outside [0, 0.5).
+  /// @throw std::invalid_argument if max_pullback < 0.0
+  PositionLimit(const Oink& oink, double gain, double margin_fraction, double max_pullback = 0.0);
 
   /// @brief Get the number of constraint rows (num_variables)
   /// @param context The context (unused; the row count is fixed at construction).
@@ -70,15 +89,10 @@ struct PositionLimit : public Constraints {
   int num_variables;                    ///< Number of group velocity DOFs
   double max_pullback;                  ///< The maximum pullback for joints outside limits.
   Eigen::VectorXi v_indices;            ///< Velocity indices of the joint group
-  mutable Eigen::VectorXd q_max;        ///< Pre-allocated maximum joint position limits in
-                                        ///< group joint order.
-  mutable Eigen::VectorXd q_min;        ///< Pre-allocated minimum joint position limits in
-                                        ///< group joint order.
+  Eigen::VectorXd q_max;                ///< Maximum joint position limits in group joint order.
+  Eigen::VectorXd q_min;                ///< Minimum joint position limits in group joint order.
   mutable Eigen::VectorXd delta_q_max;  ///< Pre-allocated workspace for max joint deltas
   mutable Eigen::VectorXd delta_q_min;  ///< Pre-allocated workspace for min joint deltas
-
-private:
-  tl::expected<void, std::string> initializeQMinAndQMax(const SceneContext& context) const;
 };
 
 }  // namespace roboplan

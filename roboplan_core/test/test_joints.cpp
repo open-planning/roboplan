@@ -102,6 +102,19 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   EXPECT_THAT(arm_group_info.link_names, ::testing::UnorderedElementsAre("link2", "link3"));
 }
 
+TEST_F(RoboPlanJointTest, JointIndices) {
+  // The continuous joint has two position entries (cos, sin) but one velocity entry, so the
+  // revolute joint's position and velocity indices differ.
+  EXPECT_THAT(scene->getJointPositionIndices({"continuous_joint", "revolute_joint"}),
+              ::testing::ElementsAre(0, 1, 2));
+  EXPECT_THAT(scene->getJointVelocityIndices({"continuous_joint", "revolute_joint"}),
+              ::testing::ElementsAre(0, 1));
+  EXPECT_THAT(scene->getJointVelocityIndices({"revolute_joint"}), ::testing::ElementsAre(1));
+
+  EXPECT_THROW(scene->getJointPositionIndices({"no_such_joint"}), std::invalid_argument);
+  EXPECT_THROW(scene->getJointVelocityIndices({"no_such_joint"}), std::invalid_argument);
+}
+
 TEST_F(RoboPlanJointTest, JointGroupLinksFromChainAndExplicitLinks) {
   // A chain group should pull in every link along the chain, and an explicit <link> element
   // should be added on top of the links derived from the group's joints.

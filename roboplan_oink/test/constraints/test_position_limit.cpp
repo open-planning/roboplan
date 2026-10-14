@@ -489,6 +489,21 @@ TEST_F(KinovaPositionLimitTest, BoundsAtNeutral) {
   }
 }
 
+TEST_F(KinovaPositionLimitTest, MarginFractionLeavesContinuousJointsUnlimited) {
+  const auto [lower, upper] = scene_->getPositionLimitVectors("", /*collapsed*/ true).value();
+  const PositionLimit constraint(*oink_, 1.0, 0.1);
+  for (int i = 0; i < num_variables_; ++i) {
+    if (i == 0 || i == 2 || i == 4 || i == 6) {
+      // Joints 1, 3, 5, and 7 are continuous.
+      EXPECT_LE(constraint.q_min[i], -1.0e30);
+      EXPECT_GE(constraint.q_max[i], 1.0e30);
+    } else {
+      EXPECT_NEAR(constraint.q_min[i], lower[i] + 0.1 * (upper[i] - lower[i]), 1e-12);
+      EXPECT_NEAR(constraint.q_max[i], upper[i] - 0.1 * (upper[i] - lower[i]), 1e-12);
+    }
+  }
+}
+
 // Computes the QP bounds of `constraint` at the scene's current joint positions.
 void computeBounds(const PositionLimit& constraint, Oink& oink, const Scene& scene,
                    Eigen::VectorXd& lower_bounds, Eigen::VectorXd& upper_bounds) {
@@ -510,8 +525,24 @@ TEST_F(PositionLimitTest, ConstructionRejectsInvalidArguments) {
   EXPECT_THROW(PositionLimit(*oink_, 1.0, wrong_size, upper), std::invalid_argument);
   EXPECT_THROW(PositionLimit(*oink_, 1.0, lower, wrong_size), std::invalid_argument);
   EXPECT_THROW(PositionLimit(*oink_, 1.0, upper, lower), std::invalid_argument);
+  // A lower limit above the model's upper limit, which fills in the missing upper limits.
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, Eigen::VectorXd::Constant(num_variables_, 100.0)),
+               std::invalid_argument);
   EXPECT_THROW(PositionLimit(*oink_, 1.0, lower, upper, -0.1), std::invalid_argument);
   EXPECT_NO_THROW(PositionLimit(*oink_, 1.0, lower, upper, 0.1));
+
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, -0.1), std::invalid_argument);
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, 0.5), std::invalid_argument);
+  EXPECT_THROW(PositionLimit(*oink_, 1.0, 0.1, -0.1), std::invalid_argument);
+  EXPECT_NO_THROW(PositionLimit(*oink_, 1.0, 0.0));
+}
+
+TEST_F(PositionLimitTest, MarginFractionShrinksLimits) {
+  const auto [lower, upper] = scene_->getPositionLimitVectors("", /*collapsed*/ true).value();
+  const PositionLimit constraint(*oink_, 1.0, 0.1);
+  const Eigen::VectorXd margin = 0.1 * (upper - lower);
+  EXPECT_TRUE(constraint.q_min.isApprox(lower + margin));
+  EXPECT_TRUE(constraint.q_max.isApprox(upper - margin));
 }
 
 TEST_F(PositionLimitTest, MaxPullbackPullsJointsBackInside) {

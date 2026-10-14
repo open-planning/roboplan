@@ -434,7 +434,14 @@ public:
   /// @brief Get the joint position indices for a set of joint names.
   /// @param joint_names The joint names for which to look up position indices.
   /// @return The corresponding joint position indices.
+  /// @throws std::invalid_argument if a name is not a joint in the model.
   Eigen::VectorXi getJointPositionIndices(const std::vector<std::string>& joint_names) const;
+
+  /// @brief Get the joint velocity indices for a set of joint names.
+  /// @param joint_names The joint names for which to look up velocity indices.
+  /// @return The corresponding joint velocity indices.
+  /// @throws std::invalid_argument if a name is not a joint in the model.
+  Eigen::VectorXi getJointVelocityIndices(const std::vector<std::string>& joint_names) const;
 
   /// @brief Get the joint position limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.

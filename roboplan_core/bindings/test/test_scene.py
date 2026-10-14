@@ -112,6 +112,15 @@ def test_scene_properties(test_scene: Scene) -> None:
     print(test_scene)  # Test printing for good measure
 
 
+def test_joint_velocity_indices(test_scene: Scene) -> None:
+    joint_name = test_scene.getJointNames()[0]
+    indices = test_scene.getJointVelocityIndices([joint_name])
+    assert indices.dtype == np.int32
+    assert len(indices) == 1
+    with pytest.raises(ValueError):
+        test_scene.getJointVelocityIndices(["no_such_joint"])
+
+
 def test_random_positions(test_scene: Scene) -> None:
     # Test subsequent pseudorandom values.
     orig_random_positions = test_scene.randomPositions()

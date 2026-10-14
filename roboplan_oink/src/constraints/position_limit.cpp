@@ -28,23 +28,49 @@ PositionLimit::PositionLimit(const Oink& oink, double gain,
         ") does not match oink.num_variables (" + std::to_string(num_variables) + ")");
   }
 
-  if (joint_lower_limits.size() > 0 && joint_upper_limits.size() > 0) {
-    for (Eigen::Index i = 0; i < joint_lower_limits.size(); i++) {
-      if (joint_lower_limits[i] > joint_upper_limits[i]) {
-        throw std::invalid_argument("PositionLimit: joint_lower_limits[" + std::to_string(i) +
-                                    "]=" + std::to_string(joint_lower_limits[i]) +
-                                    " > joint_upper_limits[" + std::to_string(i) +
-                                    "]=" + std::to_string(joint_upper_limits[i]));
-      }
+  // Limits that aren't given come from the scene model.
+  q_min = joint_lower_limits;
+  q_max = joint_upper_limits;
+  if (q_min.size() == 0 || q_max.size() == 0) {
+    const auto maybe_position_limits =
+        oink.getContext().getScene().getPositionLimitVectors("", /*collapsed*/ true);
+    if (!maybe_position_limits) {
+      throw std::runtime_error("PositionLimit: " + maybe_position_limits.error());
+    }
+    if (q_min.size() == 0) {
+      q_min = maybe_position_limits->first(v_indices);
+    }
+    if (q_max.size() == 0) {
+      q_max = maybe_position_limits->second(v_indices);
     }
   }
 
-  if (joint_lower_limits.size() > 0) {
-    q_min = joint_lower_limits;
+  for (int i = 0; i < num_variables; ++i) {
+    if (q_min[i] > q_max[i]) {
+      throw std::invalid_argument("PositionLimit: lower limit [" + std::to_string(i) +
+                                  "]=" + std::to_string(q_min[i]) + " > upper limit [" +
+                                  std::to_string(i) + "]=" + std::to_string(q_max[i]));
+    }
+  }
+}
+
+PositionLimit::PositionLimit(const Oink& oink, double gain, double margin_fraction,
+                             double max_pullback)
+    : PositionLimit(oink, gain, Eigen::VectorXd(), Eigen::VectorXd(), max_pullback) {
+  if (margin_fraction < 0.0 || margin_fraction >= 0.5) {
+    throw std::invalid_argument("PositionLimit: margin_fraction=" +
+                                std::to_string(margin_fraction) + " is outside [0, 0.5)");
   }
 
-  if (joint_upper_limits.size() > 0) {
-    q_max = joint_upper_limits;
+  // Joints with an infinite (or effectively infinite, so the range overflows) limit keep their
+  // limits.
+  for (int i = 0; i < num_variables; ++i) {
+    const double range = q_max(i) - q_min(i);
+    if (std::isfinite(range)) {
+      const double margin = margin_fraction * range;
+      q_min(i) += margin;
+      q_max(i) -= margin;
+    }
   }
 }
 
@@ -62,11 +88,6 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
     return tl::make_unexpected("PositionLimit: " + maybe_q_collapsed.error());
   }
   const auto& q_collapsed = maybe_q_collapsed.value();
-
-  const auto& res = initializeQMinAndQMax(context);
-  if (!res) {
-    return res;
-  }
 
   if (constraint_matrix.rows() != num_variables || constraint_matrix.cols() != num_variables) {
     return tl::make_unexpected("PositionLimit: constraint_matrix size mismatch. Expected (" +
@@ -119,11 +140,6 @@ tl::expected<void, std::string> PositionLimit::computeQpConstraints(
 }
 
 Eigen::VectorXd PositionLimit::computeViolation(const SceneContext& context) const {
-  const auto& res = initializeQMinAndQMax(context);
-  if (!res) {
-    return Eigen::VectorXd::Constant(num_variables, std::numeric_limits<double>::infinity());
-  }
-
   const auto q_collapsed =
       collapseContinuousJointPositions(context.getScene(), "", context.getJointPositions());
 
@@ -133,27 +149,6 @@ Eigen::VectorXd PositionLimit::computeViolation(const SceneContext& context) con
 
   const Eigen::VectorXd q_group = q_collapsed.value()(v_indices);
   return (q_min - q_group).cwiseMax(q_group - q_max).cwiseMax(0.0);
-}
-
-tl::expected<void, std::string>
-PositionLimit::initializeQMinAndQMax(const SceneContext& context) const {
-  if (q_min.size() == 0u || q_max.size() == 0u) {
-    const auto maybe_position_limits =
-        context.getScene().getPositionLimitVectors("", /*collapsed*/ true);
-    if (!maybe_position_limits) {
-      return tl::make_unexpected("PositionLimit: " + maybe_position_limits.error());
-    }
-
-    if (q_min.size() == 0) {
-      q_min = maybe_position_limits->first(v_indices);
-    }
-
-    if (q_max.size() == 0) {
-      q_max = maybe_position_limits->second(v_indices);
-    }
-  }
-
-  return {};
 }
 
 }  // namespace roboplan

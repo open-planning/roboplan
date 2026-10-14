@@ -932,6 +932,10 @@ tl::expected<void, std::string> Scene::addGroup(const std::string& name,
 Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
   std::vector<int> q_indices;
   for (const auto& joint_name : joint_names) {
+    if (!model_.existJointName(joint_name)) {
+      throw std::invalid_argument("getJointPositionIndices: joint '" + joint_name +
+                                  "' not found in the model");
+    }
     const auto joint_id = model_.getJointId(joint_name);
     const auto idx_start = model_.idx_qs[joint_id];
     for (int dof = 0; dof < model_.joints[joint_id].nq(); ++dof) {
@@ -939,6 +943,22 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
     }
   }
   return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
+}
+
+Eigen::VectorXi Scene::getJointVelocityIndices(const std::vector<std::string>& joint_names) const {
+  std::vector<int> v_indices;
+  for (const auto& joint_name : joint_names) {
+    if (!model_.existJointName(joint_name)) {
+      throw std::invalid_argument("getJointVelocityIndices: joint '" + joint_name +
+                                  "' not found in the model");
+    }
+    const auto joint_id = model_.getJointId(joint_name);
+    const auto idx_start = model_.idx_vs[joint_id];
+    for (int dof = 0; dof < model_.joints[joint_id].nv(); ++dof) {
+      v_indices.push_back(idx_start + dof);
+    }
+  }
+  return Eigen::VectorXi::Map(v_indices.data(), v_indices.size());
 }
 
 tl::expected<EigenVectorPair, std::string>

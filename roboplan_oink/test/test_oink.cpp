@@ -903,44 +903,6 @@ TEST_F(OinkTest, RecoversAfterFailedSolve) {
   EXPECT_TRUE(delta_q_recover.allFinite());
 }
 
-// The Kinova arm has continuous joints (two position entries each) and the gripper has mimic
-// joints, so group, position, and velocity indices all differ.
-class KinovaOverrideByJointNameTest : public ::testing::Test {
-protected:
-  void SetUp() override {
-    const auto model_dir = example_models::get_package_models_dir() / "kinova_robot_model";
-    scene_ = std::make_shared<Scene>(
-        "test_scene", loadUrdfSceneDescription(model_dir / "kinova_robotiq.urdf",
-                                               {example_models::get_package_share_dir()}));
-    if (const auto imported = scene_->importSrdf(loadTextFile(model_dir / "kinova_robotiq.srdf"));
-        !imported) {
-      throw std::runtime_error(imported.error());
-    }
-  }
-
-  std::shared_ptr<Scene> scene_;
-};
-
-TEST_F(KinovaOverrideByJointNameTest, MapsNamesToGroupOrder) {
-  Oink arm(*scene_, "manipulator");
-  const Eigen::VectorXd values = Eigen::VectorXd::Zero(arm.num_variables);
-
-  // joint_3 is continuous, and joint_4 follows two continuous joints.
-  const auto result = arm.overrideByJointName(values, {{"joint_3", 1.0}, {"joint_4", 2.0}});
-  ASSERT_TRUE(result) << result.error();
-  Eigen::VectorXd expected = values;
-  expected[2] = 1.0;
-  expected[3] = 2.0;
-  EXPECT_EQ(*result, expected);
-
-  // Arm joints are not in the gripper group, and mimic joints have no DOF of their own.
-  Oink gripper(*scene_, "gripper");
-  const Eigen::VectorXd gripper_values = Eigen::VectorXd::Zero(gripper.num_variables);
-  EXPECT_FALSE(gripper.overrideByJointName(gripper_values, {{"joint_1", 1.0}}));
-  EXPECT_FALSE(
-      gripper.overrideByJointName(gripper_values, {{"robotiq_85_mimic_right_knuckle_joint", 1.0}}));
-}
-
 }  // namespace roboplan
 
 int main(int argc, char** argv) {

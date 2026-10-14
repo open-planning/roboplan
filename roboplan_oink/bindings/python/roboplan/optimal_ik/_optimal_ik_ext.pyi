@@ -1,4 +1,4 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Annotated, overload
 
 import numpy
@@ -216,6 +216,7 @@ class Constraints:
 class PositionLimit(Constraints):
     """Constraint to enforce joint position limits."""
 
+    @overload
     def __init__(self, oink: Oink, gain: float = 1.0, joint_lower_limits: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] = ..., joint_upper_limits: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] = ..., max_pullback: float = 0.0) -> None:
         """
         Create a position limit constraint.
@@ -230,6 +231,20 @@ class PositionLimit(Constraints):
             max_pullback: Maximum amount per step a joint outside the limits is pulled
                 back inside them (scaled by gain). 0 keeps joints outside the limits
                 from moving further out, without pulling them back.
+        """
+
+    @overload
+    def __init__(self, oink: Oink, gain: float, margin_fraction: float, max_pullback: float = 0.0) -> None:
+        """
+        Create a position limit constraint that keeps every joint a fraction of its range
+        away from its model limits.
+
+        Args:
+            oink: The Oink solver this constraint will be used with.
+            gain: Scaling factor for how aggressively to steer away from limits.
+            margin_fraction: Fraction of each joint's range kept clear at both ends, in
+                [0, 0.5). Joints with an infinite limit are left unlimited.
+            max_pullback: As for the vector constructor, in the joints' own units.
         """
 
     @property
@@ -714,26 +729,6 @@ class Oink:
     @property
     def v_indices(self) -> Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C')]:
         """Velocity indices of the joint group."""
-
-    def overrideByJointName(self, values: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], overrides: Mapping[str, float]) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
-        """
-        Returns a copy of a per-joint vector in group joint order, with the entries of the
-        named joints replaced.
-
-        Useful for building limit vectors (e.g. for PositionLimit, VelocityLimit, or
-        AccelerationLimit) that differ from the defaults only for a few joints.
-
-        Args:
-            values: Per-joint values in group joint order (size num_variables).
-            overrides: Replacement values, keyed by joint name.
-
-        Returns:
-            The updated vector.
-
-        Raises:
-            ValueError: If values has the wrong size or a name is not a single-DOF joint
-                in this group.
-        """
 
     @overload
     def solveIk(self, scene: roboplan.core._core_ext.Scene, tasks: Sequence[Task], constraints: Sequence[Constraints], barriers: Sequence[Barrier], delta_q: Annotated[NDArray[numpy.float64], dict(shape=(None,))], regularization: float = 1e-12) -> None:

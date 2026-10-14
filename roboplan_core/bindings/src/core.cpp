@@ -319,6 +319,8 @@ void init_core_scene(nanobind::module_& m) {
            "Set the joint positions for the full robot state.", "positions"_a)
       .def("getJointPositionIndices", &Scene::getJointPositionIndices,
            "Get the joint position indices for a set of joint names.", "joint_names"_a)
+      .def("getJointVelocityIndices", &Scene::getJointVelocityIndices,
+           "Get the joint velocity indices for a set of joint names.", "joint_names"_a)
       .def("getPositionLimitVectors", unwrap_expected(&Scene::getPositionLimitVectors),
            "Get the joint position limit vectors for a specified group.", "group_name"_a = "",
            "collapsed"_a = false)

@@ -2,7 +2,6 @@
 
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
-#include <nanobind/stl/map.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
@@ -124,6 +123,16 @@ void init_optimal_ik(nanobind::module_& m) {
            "    max_pullback: Maximum amount per step a joint outside the limits is pulled\n"
            "        back inside them (scaled by gain). 0 keeps joints outside the limits\n"
            "        from moving further out, without pulling them back.")
+      .def(nanobind::init<const Oink&, double, double, double>(), "oink"_a, "gain"_a,
+           "margin_fraction"_a, "max_pullback"_a = 0.0,
+           "Create a position limit constraint that keeps every joint a fraction of its range\n"
+           "away from its model limits.\n\n"
+           "Args:\n"
+           "    oink: The Oink solver this constraint will be used with.\n"
+           "    gain: Scaling factor for how aggressively to steer away from limits.\n"
+           "    margin_fraction: Fraction of each joint's range kept clear at both ends, in\n"
+           "        [0, 0.5). Joints with an infinite limit are left unlimited.\n"
+           "    max_pullback: As for the vector constructor, in the joints' own units.")
       .def_rw("config_limit_gain", &PositionLimit::config_limit_gain,
               "Gain for position limit enforcement.")
       .def_rw("max_pullback", &PositionLimit::max_pullback,
@@ -322,29 +331,6 @@ void init_optimal_ik(nanobind::module_& m) {
       .def_ro("joint_names", &Oink::joint_names, "Names of the joints in the joint group.")
       .def_ro("q_indices", &Oink::q_indices, "Position indices of the joint group.")
       .def_ro("v_indices", &Oink::v_indices, "Velocity indices of the joint group.")
-      .def(
-          "overrideByJointName",
-          [](const Oink& self, const Eigen::VectorXd& values,
-             const std::map<std::string, double>& overrides) {
-            auto result = self.overrideByJointName(values, overrides);
-            if (!result) {
-              throw std::invalid_argument(result.error());
-            }
-            return std::move(result.value());
-          },
-          "values"_a, "overrides"_a,
-          "Returns a copy of a per-joint vector in group joint order, with the entries of the\n"
-          "named joints replaced.\n\n"
-          "Useful for building limit vectors (e.g. for PositionLimit, VelocityLimit, or\n"
-          "AccelerationLimit) that differ from the defaults only for a few joints.\n\n"
-          "Args:\n"
-          "    values: Per-joint values in group joint order (size num_variables).\n"
-          "    overrides: Replacement values, keyed by joint name.\n\n"
-          "Returns:\n"
-          "    The updated vector.\n\n"
-          "Raises:\n"
-          "    ValueError: If values has the wrong size or a name is not a single-DOF joint\n"
-          "        in this group.")
       .def(
           "solveIk",
           [](Oink& self, const Scene& scene, const std::vector<std::shared_ptr<Task>>& tasks,
