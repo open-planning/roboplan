@@ -162,9 +162,11 @@ TEST_F(SolveIterativeIkTest, LowerPriorityTaskDoesNotFightConstraint) {
         scene_->forwardKinematics(q_, "base_link").inverse() *
             scene_->forwardKinematics(q_, "tool0"),
         1.0, Eigen::Vector3d::Constant(10.0), Eigen::Vector3d::Constant(tolerance));
-    const auto solution =
-        oink_->solveIterativeIk(q_, {frameTask(q_goal, "forearm_link")}, {posture}, {constraint},
-                                {}, IterativeSolveOptions{.max_task_error_norm = 1e-5});
+    const auto solution = oink_->solveIterativeIk(
+        q_,
+        {frameTask(q_goal, "forearm_link",
+                   FrameTaskOptions{.position_tolerance = 1e-5, .orientation_tolerance = 1e-5})},
+        {posture}, {constraint}, {});
     ASSERT_TRUE(solution) << "tolerance " << tolerance << ": " << solution.error();
     const Eigen::Vector3d error =
         scene_->forwardKinematics(*solution, "forearm_link").topRightCorner<3, 1>() -

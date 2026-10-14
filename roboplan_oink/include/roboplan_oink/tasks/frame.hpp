@@ -29,15 +29,23 @@ struct FrameTaskOptions {
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
   double lm_damping = 0.0;
 
-  /// @brief Maximum position error magnitude in meters (default: unlimited).
-  /// Limits the position error norm to prevent large jumps that can invalidate
-  /// CBF linearization. Recommended: 0.1-0.2m for systems with barriers.
-  double max_position_error = std::numeric_limits<double>::infinity();
+  /// @brief Softly caps the position error fed to each step at this norm (meters; default:
+  /// unlimited). A large step can swing a frame through a barrier that its linearization said was
+  /// safe; a VelocityLimit bounds the step directly, so this only matters without one.
+  /// Recommended then: 0.1-0.2 m.
+  double position_saturation = std::numeric_limits<double>::infinity();
 
-  /// @brief Maximum rotation error magnitude in radians (default: unlimited).
-  /// Limits the rotation error norm to prevent large jumps.
-  /// Recommended: 0.5-1.0 rad for systems with barriers.
-  double max_rotation_error = std::numeric_limits<double>::infinity();
+  /// @brief Softly caps the orientation error fed to each step at this norm (radians; default:
+  /// unlimited). See position_saturation. Recommended without a VelocityLimit: 0.5-1.0 rad.
+  double orientation_saturation = std::numeric_limits<double>::infinity();
+
+  /// @brief Position error norm (meters) within which Oink::solveIterativeIk() treats the task
+  /// as reached. Ignored when position_cost is zero.
+  double position_tolerance = 0.001;
+
+  /// @brief Orientation error norm (radians) within which Oink::solveIterativeIk() treats the
+  /// task as reached. Ignored when orientation_cost is zero.
+  double orientation_tolerance = 0.001;
 
   /// @brief Priority level (default: 1). Tasks at higher priority numbers are projected
   /// into the nullspace of all lower priority numbers. Must be >= 1.
@@ -69,7 +77,7 @@ struct FrameTask : public Task {
   ///     e_pos = p_target - p_frame
   ///     e_rot = R_frame * log_3(R_frame^T * R_target)
   ///
-  /// Each part is then softly saturated to `max_position_error` / `max_rotation_error`
+  /// Each part is then softly saturated to `position_saturation` / `orientation_saturation`
   /// (when finite) using e_max * tanh(||e|| / e_max) * e / ||e||, which bounds the step
   /// requested from the QP and keeps the CBF linearization valid.
   ///
@@ -78,6 +86,8 @@ struct FrameTask : public Task {
   /// @param context The context supplying the configuration and the frame placements to read.
   /// @return Void if successful, else an error message string.
   tl::expected<void, std::string> computeError(const SceneContext& context) override;
+
+  double normalizedError() const override;
 
   /// @brief Computes the task Jacobian for the frame tracking task.
   ///
@@ -128,11 +138,13 @@ struct FrameTask : public Task {
   /// @brief Target Cartesian configuration to reach.
   CartesianConfiguration target_pose;
 
-  /// @brief Maximum position error magnitude (meters). Infinite means no limit.
-  double max_position_error;
+  /// @brief Per-step error caps (meters, radians). Infinite means no cap.
+  double position_saturation;
+  double orientation_saturation;
 
-  /// @brief Maximum rotation error magnitude (radians). Infinite means no limit.
-  double max_rotation_error;
+  /// @brief Convergence tolerances for Oink::solveIterativeIk().
+  double position_tolerance;
+  double orientation_tolerance;
 
   // Pre-allocated full Jacobian (6 x model.nv) for column selection (mutable for const methods)
   mutable Eigen::MatrixXd full_jacobian;

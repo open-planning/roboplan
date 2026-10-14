@@ -14,10 +14,6 @@
 namespace {
 // Minimum squared norm threshold to avoid division by zero in barrier regularization
 constexpr double kMinNormSq = 1e-12;
-// Relative error improvement below which an iterative solve counts as having stagnated.
-constexpr double kStagnationImprovement = 0.99;
-// Consecutive stagnant iterations after which an iterative solve attempt stops.
-constexpr int kMaxStagnantIters = 5;
 }  // namespace
 
 namespace roboplan {
@@ -611,8 +607,7 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
       if (const auto result = task->computeError(*context_); !result) {
         return tl::make_unexpected(result.error());
       }
-      error = std::max(error,
-                       (task->weight * task->error_container).norm() / options.max_task_error_norm);
+      error = std::max(error, task->normalizedError());
     }
     for (const auto& constraint : constraints) {
       error = std::max(error, constraint->computeViolation(*context_).norm() /
@@ -643,7 +638,7 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
     }
     double best_error = kInfinity;
     double error = kInfinity;
-    int stagnant = 0;
+    size_t stagnant = 0;
     for (size_t iter = 0; iter < options.max_iters; ++iter) {
       if (std::chrono::steady_clock::now() - start_time > timeout) {
         return tl::make_unexpected("Iterative IK solve timed out");
@@ -671,10 +666,10 @@ tl::expected<Eigen::VectorXd, std::string> Oink::solveIterativeIk(
       }
       // Give up on this attempt once the error plateaus. Without fast_return a healthy solve
       // plateaus at the solver's own precision and is accepted below if it is within tolerance.
-      if (error < best_error * kStagnationImprovement) {
+      if (error < best_error * options.stagnation_improvement) {
         best_error = error;
         stagnant = 0;
-      } else if (++stagnant >= kMaxStagnantIters) {
+      } else if (++stagnant >= options.max_stagnant_iters) {
         break;
       }
     }

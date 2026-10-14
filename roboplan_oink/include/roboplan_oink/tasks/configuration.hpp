@@ -15,6 +15,10 @@ struct ConfigurationTaskOptions {
   /// @brief Levenberg-Marquardt damping for regularization (default: 0.0).
   double lm_damping = 0.0;
 
+  /// @brief Joint error norm (radians) within which Oink::solveIterativeIk() treats the task as
+  /// reached. Joints with zero weight are ignored.
+  double tolerance = 0.001;
+
   /// @brief Priority level (default: 1). Tasks at higher priority numbers are projected
   /// into the nullspace of all lower priority numbers. Must be >= 1.
   int priority = 1;
@@ -33,6 +37,9 @@ struct ConfigurationTask : public Task {
 
   /// @brief Per-joint weights for cost function (one per group velocity DOF).
   Eigen::VectorXd joint_weights;
+
+  /// @brief Convergence tolerance for Oink::solveIterativeIk().
+  double tolerance;
 
   /// @brief Position indices of the joint group.
   Eigen::VectorXi q_indices;
@@ -75,6 +82,8 @@ struct ConfigurationTask : public Task {
   /// @param context The context supplying the configuration and the frame placements to read.
   /// @return Void if successful, else an error message string.
   tl::expected<void, std::string> computeError(const SceneContext& context) override;
+
+  double normalizedError() const override;
 
   /// @brief Computes the task Jacobian for the configuration task.
   ///

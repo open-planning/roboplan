@@ -38,19 +38,26 @@ void init_optimal_ik(nanobind::module_& m) {
               "Singular values of the weighted Jacobian below this are damped (0 = off).");
 
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
-      .def(nanobind::init<double, double, double, double, double, double, int>(),
+      .def(nanobind::init<double, double, double, double, double, double, double, double, int>(),
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
-           "lm_damping"_a = 0.0, "max_position_error"_a = std::numeric_limits<double>::infinity(),
-           "max_rotation_error"_a = std::numeric_limits<double>::infinity(), "priority"_a = 1,
+           "lm_damping"_a = 0.0, "position_saturation"_a = std::numeric_limits<double>::infinity(),
+           "orientation_saturation"_a = std::numeric_limits<double>::infinity(),
+           "position_tolerance"_a = 0.001, "orientation_tolerance"_a = 0.001, "priority"_a = 1,
            "Constructor with custom parameters.")
       .def_rw("position_cost", &FrameTaskOptions::position_cost, "Position cost weight.")
       .def_rw("orientation_cost", &FrameTaskOptions::orientation_cost, "Orientation cost weight.")
       .def_rw("task_gain", &FrameTaskOptions::task_gain, "Task gain for low-pass filtering.")
       .def_rw("lm_damping", &FrameTaskOptions::lm_damping, "Levenberg-Marquardt damping.")
-      .def_rw("max_position_error", &FrameTaskOptions::max_position_error,
-              "Maximum position error magnitude (meters). Infinite = no limit.")
-      .def_rw("max_rotation_error", &FrameTaskOptions::max_rotation_error,
-              "Maximum rotation error magnitude (radians). Infinite = no limit.")
+      .def_rw("position_saturation", &FrameTaskOptions::position_saturation,
+              "Per-step cap on the position error norm (meters). Infinite = no cap.")
+      .def_rw("orientation_saturation", &FrameTaskOptions::orientation_saturation,
+              "Per-step cap on the orientation error norm (radians). Infinite = no cap.")
+      .def_rw("position_tolerance", &FrameTaskOptions::position_tolerance,
+              "Position error norm (meters) within which solveIterativeIk() treats the task as "
+              "reached.")
+      .def_rw("orientation_tolerance", &FrameTaskOptions::orientation_tolerance,
+              "Orientation error norm (radians) within which solveIterativeIk() treats the task "
+              "as reached.")
       .def_rw("priority", &FrameTaskOptions::priority,
               "Priority level (1 = highest). Tasks at higher priority numbers are projected "
               "into the nullspace of lower priority numbers. Must be >= 1.");
@@ -65,20 +72,23 @@ void init_optimal_ik(nanobind::module_& m) {
               "Index of the frame in the scene's Pinocchio model.")
       .def_ro("v_indices", &FrameTask::v_indices, "Velocity vector indices for the joint group.")
       .def_ro("target_pose", &FrameTask::target_pose, "Target pose for the frame.")
-      .def_ro("max_position_error", &FrameTask::max_position_error,
-              "Maximum position error magnitude (meters).")
-      .def_ro("max_rotation_error", &FrameTask::max_rotation_error,
-              "Maximum rotation error magnitude (radians).")
+      .def_ro("position_saturation", &FrameTask::position_saturation,
+              "Per-step cap on the position error norm (meters).")
+      .def_ro("orientation_saturation", &FrameTask::orientation_saturation,
+              "Per-step cap on the orientation error norm (radians).")
       .def("setTargetFrameTransform", &FrameTask::setTargetFrameTransform, "tform"_a,
            "Sets the target transform for this frame task.");
 
   nanobind::class_<ConfigurationTaskOptions>(m, "ConfigurationTaskOptions",
                                              "Parameters for ConfigurationTask.")
-      .def(nanobind::init<double, double, int>(), "task_gain"_a = 1.0, "lm_damping"_a = 0.0,
-           "priority"_a = 1)
+      .def(nanobind::init<double, double, double, int>(), "task_gain"_a = 1.0, "lm_damping"_a = 0.0,
+           "tolerance"_a = 0.001, "priority"_a = 1)
       .def_rw("task_gain", &ConfigurationTaskOptions::task_gain,
               "Task gain for low-pass filtering.")
       .def_rw("lm_damping", &ConfigurationTaskOptions::lm_damping, "Levenberg-Marquardt damping.")
+      .def_rw("tolerance", &ConfigurationTaskOptions::tolerance,
+              "Joint error norm (radians) within which solveIterativeIk() treats the task as "
+              "reached.")
       .def_rw("priority", &ConfigurationTaskOptions::priority,
               "Priority level (1 = highest). Tasks at higher priority numbers are projected "
               "into the nullspace of lower priority numbers. Must be >= 1.");
@@ -261,8 +271,11 @@ void init_optimal_ik(nanobind::module_& m) {
               "Max total computation time, in seconds.")
       .def_rw("max_restarts", &IterativeSolveOptions::max_restarts,
               "Maximum number of random restarts until success.")
-      .def_rw("max_task_error_norm", &IterativeSolveOptions::max_task_error_norm,
-              "The maximum weighted error norm of any goal task at the solution.")
+      .def_rw("stagnation_improvement", &IterativeSolveOptions::stagnation_improvement,
+              "An iteration counts as stagnant unless it shrinks the error to below this fraction "
+              "of the best so far.")
+      .def_rw("max_stagnant_iters", &IterativeSolveOptions::max_stagnant_iters,
+              "Consecutive stagnant iterations after which an attempt gives up and restarts.")
       .def_rw("max_constraint_violation_norm",
               &IterativeSolveOptions::max_constraint_violation_norm,
               "The maximum norm of any constraint violation at the solution.")
