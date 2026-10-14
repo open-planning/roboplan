@@ -57,6 +57,15 @@ TEST(KdTreeTest, CircularDimsWrap) {
   EXPECT_EQ(tree.withinRadius(query, 2.0).size(), 2);
 }
 
+TEST(KdTreeTest, RejectsWrongDimension) {
+  KdTree tree;
+  tree.reset({false, true});
+  const Eigen::VectorXd bad{{0.0, 0.0, 0.0}};
+  EXPECT_THROW(tree.addPoint(bad), std::invalid_argument);
+  EXPECT_THROW(tree.nearest(bad), std::invalid_argument);
+  EXPECT_THROW(tree.withinRadius(bad, 1.0), std::invalid_argument);
+}
+
 TEST_F(RoboPlanRRTTest, Plan) {
   RRTOptions options;
   options.group_name = "arm";

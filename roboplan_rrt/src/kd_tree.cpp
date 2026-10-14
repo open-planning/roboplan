@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstdint>
 #include <numbers>
+#include <stdexcept>
+#include <string>
 
 #include <nanoflann.hpp>
 
@@ -75,6 +77,13 @@ struct Metric {
   }
 };
 
+void checkDim(const Points& points, const Eigen::VectorXd& x) {
+  if (x.size() != points.dim) {
+    throw std::invalid_argument("KdTree expected " + std::to_string(points.dim) +
+                                " coordinates but got " + std::to_string(x.size()) + ".");
+  }
+}
+
 }  // namespace
 }  // namespace roboplan
 
@@ -104,18 +113,21 @@ void KdTree::reset(const std::vector<bool>& circular, size_t capacity) {
 
 void KdTree::addPoint(const Eigen::VectorXd& x) {
   auto& points = impl_->points;
+  checkDim(points, x);
   const auto id = static_cast<uint32_t>(points.kdtree_get_point_count());
   points.coords.insert(points.coords.end(), x.data(), x.data() + x.size());
   impl_->index->addPoint(id);
 }
 
 int KdTree::nearest(const Eigen::VectorXd& x) const {
+  checkDim(impl_->points, x);
   uint32_t id = 0;
   double dist_sq = 0.0;
   return impl_->index->knnSearch(x.data(), 1, &id, &dist_sq) > 0 ? static_cast<int>(id) : -1;
 }
 
 std::vector<int> KdTree::withinRadius(const Eigen::VectorXd& x, double radius) const {
+  checkDim(impl_->points, x);
   std::vector<nanoflann::ResultItem<uint32_t, double>> matches;
   nanoflann::SearchParameters params;
   params.sorted = false;
