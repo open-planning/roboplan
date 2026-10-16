@@ -1,6 +1,7 @@
 install(
   PROGRAMS common.py
            example_action_chunk_tracking.py
+           example_bimanual_pick_and_place.py
            example_cartesian_planning.py
            example_constrained_rrt.py
            example_ik.py
