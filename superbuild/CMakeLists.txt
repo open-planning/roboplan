@@ -44,6 +44,12 @@ if(BUILD_TESTING)
   enable_testing()
 endif()
 
+# Windows has no RPATH, so build-tree executables (including the C++ tests) only
+# find their DLLs if they sit in the same directory.
+if(WIN32)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endif()
+
 # Find pinocchio here, before any add_subdirectory(), so the side effects of its
 # config file reach every package to be consistent with the standalone builds.
 # That includes its IMPORTED targets: pinocchio's interface references

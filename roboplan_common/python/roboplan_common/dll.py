@@ -7,12 +7,12 @@ from functools import cache
 
 @cache
 def add_dll_directories() -> list[object]:
-    """Register DLL directories from the active Python, Conda, and colcon prefixes."""
+    """Register DLL directories from Python, Conda, colcon, and CMake prefixes."""
     if os.name != "nt":
         return []
 
     prefixes = [sys.prefix, os.environ.get("CONDA_PREFIX", "")]
-    for variable in ("AMENT_PREFIX_PATH", "COLCON_PREFIX_PATH"):
+    for variable in ("AMENT_PREFIX_PATH", "COLCON_PREFIX_PATH", "CMAKE_PREFIX_PATH"):
         prefixes.extend(os.environ.get(variable, "").split(os.pathsep))
 
     handles = []

@@ -4,7 +4,6 @@ preview = ["pixi-build"]
 platforms = ["linux-64", "linux-aarch64", "osx-arm64", "win-64"]
 
 [tool.pixi.activation.env]
-CMAKE_INSTALL_PREFIX = "$CONDA_PREFIX"
 LD_LIBRARY_PATH      = "$CONDA_PREFIX/lib"
 ASAN_OPTIONS         = "symbolize=1:print_stacktrace=1"
 ASAN_SYMBOLIZER_PATH = "$CONDA_PREFIX/bin/llvm-symbolizer"
@@ -29,9 +28,19 @@ CMAKE_BUILD_TYPE     = "Debug"
 [tool.pixi.feature.ci.target.win.activation.env]
 CMAKE_BUILD_TYPE = "RelWithDebInfo"
 
+# The superbuild installs into ./install (superbuild/CMakePresets.json).
+# PYTHONPATH must match the preset's PYTHON_SITELIB. Kept out of the ROS
+# environments, whose activation scripts set these themselves.
+[tool.pixi.feature.superbuild.activation.env]
+PYTHONPATH        = "$PIXI_PROJECT_ROOT/install/lib/python3/site-packages"
+CMAKE_PREFIX_PATH = "$PIXI_PROJECT_ROOT/install"
+
+[tool.pixi.feature.superbuild.target.win.activation.env]
+PYTHONPATH        = "%PIXI_PROJECT_ROOT%\\install\\lib\\python3\\site-packages"
+CMAKE_PREFIX_PATH = "%PIXI_PROJECT_ROOT%\\install"
+
 # Windows activation scripts expand %VAR% instead of $VAR.
 [tool.pixi.target.win.activation.env]
-CMAKE_INSTALL_PREFIX = "%CONDA_PREFIX%"
 # Use the MSVC-compatible clang driver: conda-forge packages are built with
 # MSVC and export MSVC-style flags that the GNU-style clang++ driver rejects.
 ROBOPLAN_C_COMPILER  = "clang-cl"
@@ -71,7 +80,7 @@ build = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if p
   { arg = "extra_flags", default = "" },
 ] }
 
-# Installs every package into $CONDA_PREFIX. Always installs everything --
+# Installs every package into ./install. Always installs everything --
 # one shared install tree, no meaningful "install just one package".
 install = { cmd = "cmake --install build", depends-on = [
   { task = "build", args = [
@@ -83,6 +92,8 @@ install = { cmd = "cmake --install build", depends-on = [
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
 ] }
+
+clean = { cmd = "cmake -E rm -rf build install" }
 
 build_asan = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
   { task = "configure", args = [
@@ -196,8 +207,8 @@ roboplan-examples = { path = "roboplan_examples" }
 lint = "pre-commit run --all-files"
 
 [tool.pixi.environments]
-default = { features = ["local", "toolchain"] }
-ci = { features = ["ci", "toolchain"] }
+default = { features = ["local", "toolchain", "superbuild"] }
+ci = { features = ["ci", "toolchain", "superbuild"] }
 lint = { features = ["lint"], no-default-feature = true }
 
 # ROS 2 environments
