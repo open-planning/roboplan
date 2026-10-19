@@ -15,11 +15,6 @@ ROBOPLAN_EXTRA_CMAKE_ARGS = " "
 [tool.pixi.target.linux.activation.env]
 ROBOPLAN_LINKER_FLAG = "-fuse-ld=mold"
 
-[tool.pixi.target.osx-arm64.activation.env]
-# Temporary fix: XCode CLT update shipped with macOS 27 has changed
-# some linker implementation details that have not been upstreamed into LLVM yet
-ROBOPLAN_LINKER_FLAG = "-fuse-ld=/usr/bin/ld"
-
 [tool.pixi.feature.local.activation.env]
 CMAKE_INSTALL_MODE   = "SYMLINK"
 CMAKE_BUILD_TYPE     = "RelWithDebInfo"
