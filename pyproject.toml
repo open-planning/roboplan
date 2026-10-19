@@ -15,6 +15,11 @@ ROBOPLAN_EXTRA_CMAKE_ARGS = " "
 [tool.pixi.target.linux.activation.env]
 ROBOPLAN_LINKER_FLAG = "-fuse-ld=mold"
 
+[tool.pixi.target.osx-arm64.activation.env]
+# Temporary fix: XCode CLT update shipped with macOS 27 has changed
+# some linker implementation details that have not been upstreamed into LLVM yet
+ROBOPLAN_LINKER_FLAG = "-fuse-ld=/usr/bin/ld"
+
 [tool.pixi.feature.local.activation.env]
 CMAKE_INSTALL_MODE   = "SYMLINK"
 CMAKE_BUILD_TYPE     = "RelWithDebInfo"
@@ -151,13 +156,6 @@ clangxx     = ">=22.1.8,<23"
 compiler-rt = ">=22.1.8,<23"
 lld         = ">=22.1.8,<23"
 llvm-tools  = ">=22.1.8,<23"
-
-# ld64 parses .tbd files through libtapi, but pre version 4 the library cannot
-# parse the "arm64e.x1" entries in the macOS 27 SDK, so we pin a functional
-# version here. See,
-# https://github.com/open-planning/roboplan/issues/380
-[tool.pixi.feature.toolchain.target.osx-arm64.dependencies]
-tapi = { version = "==1600.0.11.8", build-number = ">=4" }
 
 # Shared version pins between packages
 [tool.pixi.workspace.dependencies]
