@@ -442,7 +442,7 @@ class MotionPlanner:
         self.rrt.setRngSeed(rng_seed)
 
         # Constrained paths can't be shortcut, since the shortcutter ignores the constraints. The
-        # trajectory's corner blends smooth them out instead.
+        # trajectory's spline smooths them out instead.
         self.carry_rrt = RRT(
             scene,
             RRTOptions(
@@ -530,9 +530,9 @@ class MotionPlanner:
             path = self.shortcutter.shortcut(result.path)
 
         # Paths with the planar base joint are resampled densely along each edge, and the default
-        # Hermite spline would stop at every resampled point. Linear blends don't.
+        # Hermite spline would stop at every resampled point. The adaptive spline doesn't.
         traj = self.toppra.generate(
-            path, TOPPRAOptions(dt=TRAJ_DT, mode=SplineFittingMode.LinearBlend)
+            path, TOPPRAOptions(dt=TRAJ_DT, mode=SplineFittingMode.Adaptive)
         )
         name = "Straight move" if straight else "RRT move"
         print(f"  {name}: planned in {time.time() - t_start:.3f} s")
@@ -596,16 +596,10 @@ class MotionPlanner:
         result = self.carry_rrt.planToAny(start, goals, [constraint])
         path = result.path
 
-        # The constraint only holds at the planned waypoints and on the straight lines between
-        # them. Straight segments with small corner blends stay close to it, and unlike splines,
-        # they don't slow down through the dense, slightly noisy waypoints the planner returns.
+        # The constraint only holds at the planned waypoints, but they are dense enough that the
+        # spline through them stays close to it.
         traj = self.toppra.generate(
-            path,
-            TOPPRAOptions(
-                dt=TRAJ_DT,
-                mode=SplineFittingMode.LinearBlend,
-                max_blend_deviation=0.005,
-            ),
+            path, TOPPRAOptions(dt=TRAJ_DT, mode=SplineFittingMode.Adaptive)
         )
         self.report_carry("Constrained RRT carry", traj, constraint, t_start)
         self.animate(path, traj)
