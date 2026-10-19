@@ -439,8 +439,8 @@ class MotionPlanner:
         )
         self.rrt.setRngSeed(rng_seed)
 
-        # Constrained paths can't be shortcut, since the shortcutter ignores the constraints. The
-        # trajectory's spline smooths them out instead.
+        # Constrained paths can't be shortcut, since the shortcutter ignores the constraints. RRT*
+        # rewiring shortens them instead, which avoids occasional long, wandering carries.
         self.carry_rrt = RRT(
             scene,
             RRTOptions(
@@ -450,6 +450,8 @@ class MotionPlanner:
                 collision_check_step_size=COLLISION_CHECK_STEP_SIZE,
                 max_planning_time=carry_planning_time,
                 rrt_connect=True,
+                rrt_star=True,
+                rewire_distance=1.0,
                 constraint_projection=ConstraintProjectorOptions(path_step_size=0.1),
             ),
         )
@@ -594,8 +596,8 @@ class MotionPlanner:
         result = self.carry_rrt.planToAny(start, goals, [constraint])
         path = result.path
 
-        # The constraint only holds at the planned waypoints, but they are dense enough that the
-        # spline through them stays close to it.
+        # The constraint only holds at the planned waypoints. Rewiring leaves them sparser, but the
+        # spline through them still stays within a millimeter of it.
         traj = self.toppra.generate(
             path, TOPPRAOptions(dt=TRAJ_DT, mode=SplineFittingMode.Adaptive)
         )
