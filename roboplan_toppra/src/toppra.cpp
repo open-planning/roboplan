@@ -21,6 +21,46 @@ namespace {
 /// the SE(2) screw motion that the planner used for collision checking.
 /// TODO: Make this configurable if needed.
 constexpr double kPlanarResampleStep = 0.5;
+
+/// @brief Presents a path's planar joint derivatives in each joint's body frame.
+/// @details TOPP-RA limits and reports the derivatives of the path coordinates, which for a planar
+/// joint are world-frame (x, y, theta) rates, but Pinocchio and the scene's limits express planar
+/// velocities in the joint's body frame. With p = (x, y) and R the heading's rotation, the body
+/// velocity is R^T p_s sd and its derivative R^T p_s sdd + R^T (p_ss - theta_s S p_s) sd^2, where S
+/// is a quarter turn. Both stay linear in TOPP-RA's path variables, so wrapping the path is enough.
+class PlanarBodyFramePath : public toppra::GeometricPath {
+public:
+  /// @brief Constructor.
+  /// @param path The path in collapsed joint coordinates.
+  /// @param planar_q_indices The index of each planar joint's x coordinate in the path.
+  PlanarBodyFramePath(toppra::GeometricPathPtr path, const std::vector<size_t>& planar_q_indices)
+      : toppra::GeometricPath(path->configSize(), path->dof()), path_{std::move(path)},
+        planar_q_indices_{planar_q_indices} {}
+
+  /// @brief Evaluates the path, with first and second derivatives in planar joints' body frames.
+  toppra::Vector eval_single(toppra::value_type s, int order = 0) const override {
+    toppra::Vector value = path_->eval_single(s, order);
+    if (order == 0) {
+      return value;
+    }
+    const toppra::Vector q = path_->eval_single(s, 0);
+    const toppra::Vector q_s = order == 1 ? value : path_->eval_single(s, 1);
+    for (const auto idx : planar_q_indices_) {
+      Eigen::Vector2d p = value.segment<2>(idx);
+      if (order == 2) {
+        p -= q_s(idx + 2) * Eigen::Vector2d(-q_s(idx + 1), q_s(idx));
+      }
+      value.segment<2>(idx) = Eigen::Rotation2Dd(q(idx + 2)).inverse() * p;
+    }
+    return value;
+  }
+
+  toppra::Bound pathInterval() const override { return path_->pathInterval(); }
+
+private:
+  toppra::GeometricPathPtr path_;
+  std::vector<size_t> planar_q_indices_;
+};
 }  // namespace
 
 namespace roboplan {
@@ -66,8 +106,8 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
       q_idx += 1;  // increment by collapsed indices
     } else if (maybe_joint_info->type == JointType::PLANAR) {
       continuous_q_indices_.push_back(q_idx + 2);
+      planar_q_indices_.push_back(q_idx);
       q_idx += 3;  // increment by collapsed indices
-      has_planar_joints_ = true;
     } else {
       q_idx += maybe_joint_info->num_position_dofs;
     }
@@ -81,7 +121,7 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
   // Euclidean scalars and produce a straight-line motion in (x, y), which diverges from the
   // SE(2) screw motion that the planner used for collision checking.
   std::vector<Eigen::VectorXd> resampled_positions;
-  if (has_planar_joints_) {
+  if (!planar_q_indices_.empty()) {
     resampled_positions.reserve(path.positions.size());
     resampled_positions.push_back(path.positions.front());
     for (size_t idx = 1; idx < path.positions.size(); ++idx) {
@@ -99,7 +139,7 @@ PathParameterizerTOPPRA::getPathPositionVectors(const JointPath& path) {
       resampled_positions.push_back(path.positions.at(idx));
     }
   }
-  const auto& positions = has_planar_joints_ ? resampled_positions : path.positions;
+  const auto& positions = planar_q_indices_.empty() ? path.positions : resampled_positions;
 
   toppra::Vectors path_pos_vecs;
   path_pos_vecs.reserve(positions.size());
@@ -292,10 +332,6 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
     using_blend_path = false;
   }
 
-  // Solve TOPP-RA problem.
-  toppra::PathParametrizationAlgorithmPtr algo =
-      std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
-
   // The algorithm's default uniform grid misses the curvature peaks at the LinearBlend path's
   // line<->arc junctions and the spline knots, letting the acceleration constraint be violated
   // between gridpoints. Seed a curvature-adaptive grid that lands on every segment boundary, so
@@ -307,9 +343,17 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
     const auto num_knots = static_cast<Eigen::Index>(std::round(geom_path->pathInterval()[1])) + 1;
     initial_gridpoints = toppra::Vector::LinSpaced(num_knots, 0.0, num_knots - 1.0);
   }
-  algo->setGridpoints(geom_path->proposeGridpoints(
+  const auto gridpoints = geom_path->proposeGridpoints(
       /* max_segment_error */ 1.0e-5, /* max_iteration */ 100, /* max_segment_length */ 0.02,
-      /* min_num_points */ 100, initial_gridpoints));
+      /* min_num_points */ 100, initial_gridpoints);
+
+  // Solve TOPP-RA problem, limiting and reporting planar joints in their body frames.
+  if (!planar_q_indices_.empty()) {
+    geom_path = std::make_shared<PlanarBodyFramePath>(geom_path, planar_q_indices_);
+  }
+  toppra::PathParametrizationAlgorithmPtr algo =
+      std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
+  algo->setGridpoints(gridpoints);
 
   const auto rc = algo->computePathParametrization();
   if (rc != toppra::ReturnCode::OK) {

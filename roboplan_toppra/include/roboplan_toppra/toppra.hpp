@@ -132,11 +132,11 @@ private:
   /// @details This is used to figure out which joints need to be wrapped.
   std::vector<size_t> continuous_q_indices_;
 
-  /// @brief Whether the joint group contains any planar joints.
-  /// @details When true, edges between path waypoints are densely resampled using the scene's
+  /// @brief The collapsed position index of each planar joint's x coordinate.
+  /// @details If any, edges between path waypoints are densely resampled using the scene's
   /// SE(2)-aware interpolation so the spline knots track the actual Lie-group motion of the
-  /// planar joint(s).
-  bool has_planar_joints_{false};
+  /// planar joint(s), and their velocities are limited and reported in their body frames.
+  std::vector<size_t> planar_q_indices_;
 };
 
 }  // namespace roboplan
