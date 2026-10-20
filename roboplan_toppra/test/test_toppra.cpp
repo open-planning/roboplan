@@ -3,7 +3,10 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
+
+#include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
@@ -424,6 +427,56 @@ TEST_F(RoboPlanToppraTest, SplinesRespectAccelerationLimitsAtKnots) {
     EXPECT_LT(peakRatio(result->accelerations, accel_limit), 1.02)
         << "mode " << static_cast<int>(mode);
   }
+}
+
+// TOPP-RA's path coordinates for a planar joint are world-frame (x, y, theta), but its velocity
+// limits, like Pinocchio's velocities, are in the joint's body frame. Driving along world x while
+// turning a quarter turn sweeps that motion from the body's x axis onto its slower y axis, so the
+// reported velocities must match the body-frame finite differences and respect that limit.
+TEST(PlanarToppraTest, LimitsAndReportsPlanarVelocitiesInTheBodyFrame) {
+  const std::string urdf = R"(<robot name="base">
+    <link name="world"/>
+    <link name="base"/>
+    <joint name="base_joint" type="planar">
+      <parent link="world"/>
+      <child link="base"/>
+    </joint>
+  </robot>)";
+  auto scene = std::make_shared<Scene>("planar_scene", loadUrdfSceneDescriptionFromXml(urdf, {}));
+  scene->importJointLimitsFromConfig(YAML::Load(R"(
+    joint_limits:
+      base_joint:
+        max_velocity: [1.0, 0.2, 1.0]
+        max_acceleration: [0.5, 0.5, 1.0])"));
+
+  // Planar positions are (x, y, cos(theta), sin(theta)).
+  JointPath path;
+  path.joint_names = {"base_joint"};
+  path.positions = {Eigen::Vector4d(0.0, 0.0, 1.0, 0.0), Eigen::Vector4d(2.0, 0.0, 0.0, 1.0)};
+
+  auto toppra = PathParameterizerTOPPRA(scene, "");
+  const auto result = toppra.generate(path, {0.01, SplineFittingMode::Cubic});
+  ASSERT_TRUE(result.has_value()) << result.error();
+
+  const Eigen::VectorXd vel_limit = scene->getVelocityLimitVectors("").value().second.cwiseAbs();
+  const Eigen::VectorXd accel_limit =
+      scene->getAccelerationLimitVectors("").value().second.cwiseAbs();
+  EXPECT_LT(peakRatio(result->velocities, vel_limit), 1.02);
+  EXPECT_LT(peakRatio(result->accelerations, accel_limit), 1.02);
+
+  double max_error = 0.0;
+  for (size_t i = 0; i + 1 < result->times.size(); ++i) {
+    const double dt = result->times.at(i + 1) - result->times.at(i);
+    if (dt < 1.0e-6) {
+      continue;
+    }
+    const Eigen::VectorXd finite_difference =
+        scene->difference(result->positions.at(i), result->positions.at(i + 1)) / dt;
+    const Eigen::VectorXd midpoint =
+        0.5 * (result->velocities.at(i) + result->velocities.at(i + 1));
+    max_error = std::max(max_error, (finite_difference - midpoint).cwiseAbs().maxCoeff());
+  }
+  EXPECT_LT(max_error, 1.0e-2);
 }
 
 }  // namespace roboplan
