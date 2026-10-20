@@ -154,6 +154,12 @@ def _build_mujoco_model(mjcf_path: str) -> mujoco.MjModel:
     # Stiff, elliptic friction cones keep the block from creeping out of the fingers.
     spec.option.cone = mujoco.mjtCone.mjCONE_ELLIPTIC
     spec.option.impratio = 10.0
+    # Soften the MJCF's single spotlight into an evenly lit scene.
+    spec.light("top").type = mujoco.mjtLightType.mjLIGHT_DIRECTIONAL
+    spec.light("top").diffuse = [0.5, 0.5, 0.5]
+    spec.visual.headlight.ambient = [0.2, 0.2, 0.2]
+    spec.visual.headlight.diffuse = [0.4, 0.4, 0.4]
+    spec.visual.headlight.specular = [0.0, 0.0, 0.0]
     # Start the block standing on the floor at the pick location.
     home = spec.key("home")
     home.qpos = [*home.qpos, *PICK_XY, BLOCK_SIZE[2] / 2.0, 1.0, 0.0, 0.0, 0.0]
@@ -189,16 +195,14 @@ def _set_joint_limits(scene: Scene, joint_names: list[str]) -> None:
 
 
 def _draw_trace(viewer: mujoco.viewer.Handle, points: np.ndarray) -> None:
-    """Draws a polyline through the points in the viewer as a chain of thin green capsules."""
+    """Draws a polyline through the points in the viewer as green lines."""
     scn = viewer.user_scn
-    capsule = mujoco.mjtGeom.mjGEOM_CAPSULE
-    rgba = np.array([0.1, 0.8, 0.2, 1.0], dtype=np.float32)
+    line = mujoco.mjtGeom.mjGEOM_LINE
+    rgba = np.array([0.1, 0.7, 0.2, 1.0], dtype=np.float32)
     with viewer.lock():
         for geom, start, end in zip(scn.geoms, points[:-1], points[1:]):
-            mujoco.mjv_initGeom(
-                geom, capsule, np.zeros(3), np.zeros(3), np.zeros(9), rgba
-            )
-            mujoco.mjv_connector(geom, capsule, 0.004, start, end)
+            mujoco.mjv_initGeom(geom, line, np.zeros(3), np.zeros(3), np.zeros(9), rgba)
+            mujoco.mjv_connector(geom, line, 4.0, start, end)
         scn.ngeom = min(len(points) - 1, scn.maxgeom)
 
 
