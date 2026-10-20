@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "cmeel[build] >=0.56",
-    "libproxsuite[build] ==0.7.3",
+    "libproxsuite[build] ==0.8.0",
     "nanobind >=1.3.2",
     "roboplan-core ==0.7.0",
 ]
@@ -31,7 +31,7 @@ config = { extra-args = ["-DBUILD_PYTHON_BINDINGS=ON", "-DGENERATE_PYTHON_STUBS=
 # Conda package "host dependencies"; dependencies required at both build-time and run-time
 [tool.pixi.package.host-dependencies]
 roboplan-core = { path = "../roboplan_core" }
-proxsuite = ">=0.7.3,<0.8"
+proxsuite = ">=0.8,<0.9"
 python = { workspace = true }
 nanobind = { workspace = true }
 gtest = { workspace = true }
