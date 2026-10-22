@@ -402,4 +402,28 @@ TEST(LinearBlendPathTest, RequiresAtLeastTwoWaypoints) {
   EXPECT_THROW(LinearBlendPath(waypoints, 0.1), std::invalid_argument);
 }
 
+// The splines bend hardest at their knots, which the solver's default uniform grid can step over,
+// so every mode must still respect the acceleration limit through a sparse cornered path.
+TEST_F(RoboPlanToppraTest, SplinesRespectAccelerationLimitsAtKnots) {
+  JointPath path;
+  path.joint_names = {"shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+                      "wrist_1_joint",      "wrist_2_joint",       "wrist_3_joint"};
+  Eigen::VectorXd q0(6), q_corner(6), q1(6);
+  q0 << -1.8, -2.0, 1.0, -1.6, -1.7, 1.0;
+  q_corner << -1.0, -1.2, 0.4, -1.0, -1.1, 0.5;
+  q1 << -1.4, -1.6, 1.1, -0.4, -1.6, 1.2;
+  path.positions = {q0, q_corner, q1};
+
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
+  const Eigen::VectorXd accel_limit =
+      scene->getAccelerationLimitVectors("arm").value().second.cwiseAbs();
+  for (const auto mode :
+       {SplineFittingMode::Hermite, SplineFittingMode::Cubic, SplineFittingMode::Adaptive}) {
+    const auto result = toppra.generate(path, {0.01, mode});
+    ASSERT_TRUE(result.has_value());
+    EXPECT_LT(peakRatio(result->accelerations, accel_limit), 1.02)
+        << "mode " << static_cast<int>(mode);
+  }
+}
+
 }  // namespace roboplan

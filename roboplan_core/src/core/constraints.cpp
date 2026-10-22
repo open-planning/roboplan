@@ -4,8 +4,8 @@
 
 #include <pinocchio/math/rpy.hpp>
 
+#include <roboplan/core/constraints.hpp>
 #include <roboplan/core/math_utils.hpp>
-#include <roboplan_rrt/constraints.hpp>
 
 namespace roboplan {
 

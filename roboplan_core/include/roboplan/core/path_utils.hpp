@@ -1,8 +1,11 @@
 #pragma once
 
+#include <memory>
+#include <optional>
 #include <vector>
 
 #include <Eigen/Dense>
+#include <roboplan/core/constraints.hpp>
 #include <roboplan/core/scene.hpp>
 #include <tl/expected.hpp>
 
@@ -125,6 +128,15 @@ struct PathShortcuttingOptions {
   /// @brief Cadence (in iterations) of the redundant-vertex removal pass that cleans up the
   /// micro-segments introduced by shortcutting. Must be greater than 0.
   unsigned int redundant_removal_iters = 20;
+
+  /// @brief Options for the projection used when `shortcut` is given constraints.
+  /// @details Its `path_step_size` is the distance between projections along a shortcut that
+  /// cannot be connected by a straight line.
+  ConstraintProjectorOptions constraint_projection = ConstraintProjectorOptions();
+
+  /// @brief With constraints, the ratio of a section's length to the straight distance between
+  /// its ends below which no projected shortcut is attempted, since one is unlikely to be shorter.
+  double constrained_min_detour_ratio = 1.1;
 };
 
 /// @brief Shortcuts joint paths with random sampling and checking connections.
@@ -143,9 +155,15 @@ public:
   ///   interpolated vertices, so a redundant-vertex removal pass runs periodically (see
   ///   `redundant_removal_iters`) and once more at the end, collapsing vertices whose neighbors
   ///   became directly connectable.
-  /// @param path The JointPath to try to shorten.
+  ///
+  ///   With constraints, a straight connection must also satisfy them. If it does not, the
+  ///   shortcut is instead walked with the CBiRRT constrained extension (Algorithm 3 of Berenson
+  ///   et al., 2009), and kept only if it is shorter than the section of path it replaces.
+  /// @param path The JointPath to try to shorten. With constraints, it must already satisfy them.
+  /// @param constraints Constraints that every configuration on the shortened path must satisfy.
   /// @return The shortcutted JointPath, or a copy of `path` if no shortcut applies.
-  JointPath shortcut(const JointPath& path);
+  JointPath shortcut(const JointPath& path,
+                     const std::vector<std::shared_ptr<Constraint>>& constraints = {});
 
   /// @brief Computes configuration distances from the start to each pose in a path.
   /// @param path The JointPath to evaluate.
@@ -153,21 +171,15 @@ public:
   /// has fewer than two points.
   tl::expected<Eigen::VectorXd, std::string> getPathLengths(const JointPath& path);
 
-  /// @brief Computes length-normalized scaling values along a JointPath.
-  /// @param path The path to length-normalize.
-  /// @return A vector of scaling values between 0.0 and 1.0 at each point in the path if available,
-  /// otherwise an error.
-  tl::expected<Eigen::VectorXd, std::string> getNormalizedPathScaling(const JointPath& path);
-
-  /// @brief Gets joint configurations from a path with normalized joint scalings.
+  /// @brief Gets the joint configuration at a given length along a path.
   /// @param path A JointPath of joint poses.
-  /// @param path_scalings The corresponding path scalings (between 0 and 1) to the provided path.
-  /// @param value A value between 0.0 and 1.0 pointing to the intermediate point along the path.
-  /// @return A pair containing the full-model joint configuration at the scaled value along the
+  /// @param path_lengths The cumulative lengths of the path, from `getPathLengths`.
+  /// @param length The length along the path at which to get the configuration.
+  /// @return A pair containing the full-model joint configuration at that length along the
   ///         path, as well as the index corresponding to the next point along the path.
   std::pair<Eigen::VectorXd, size_t>
-  getConfigurationFromNormalizedPathScaling(const JointPath& path,
-                                            const Eigen::VectorXd& path_scalings, double value);
+  getConfigurationAtPathLength(const JointPath& path, const Eigen::VectorXd& path_lengths,
+                               double length);
 
 private:
   /// @brief Removes interior vertices whose neighbors are directly connectable.
@@ -178,9 +190,27 @@ private:
   ///   checks are skipped because every vertex is already an existing (collision-free) path node.
   /// @param path_configs The path configurations to prune in place.
   /// @param scene_context The collision context whose scratch backs the connection checks.
+  /// @param projector If set, connections must also satisfy its constraints.
   /// @return The number of vertices removed.
   size_t removeRedundantVertices(std::vector<Eigen::VectorXd>& path_configs,
-                                 const SceneContext& scene_context);
+                                 const SceneContext& scene_context,
+                                 std::optional<ConstraintProjector>& projector);
+
+  /// @brief Connects two configurations along the constraints with the CBiRRT extension.
+  /// @details Steps from `q_start` toward `q_end`, projecting each step onto the constraints, and
+  ///   fails if a step does not get closer, collides, leaves the constraints, or the walk grows
+  ///   longer than `max_length`.
+  /// @param q_start The starting joint positions, which satisfy the constraints.
+  /// @param q_end The ending joint positions, which satisfy the constraints.
+  /// @param max_length The walk length at which to give up.
+  /// @param scene_context The collision context whose scratch backs the connection checks.
+  /// @param projector The projector for the constraints.
+  /// @return The group joint positions after `q_start`, ending at `q_end`, or nullopt on failure.
+  std::optional<std::vector<Eigen::VectorXd>> constrainedConnect(const Eigen::VectorXd& q_start,
+                                                                 const Eigen::VectorXd& q_end,
+                                                                 double max_length,
+                                                                 const SceneContext& scene_context,
+                                                                 ConstraintProjector& projector);
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;

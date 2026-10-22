@@ -88,6 +88,8 @@ TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
   options.group_name = "arm";
   auto shortcutter = PathShortcutter(scene, options);
 
+  EXPECT_FALSE(shortcutter.getPathLengths(getTestPath(0)).has_value());
+
   JointPath path = getTestPath(2);
   const auto path_lengths_maybe = shortcutter.getPathLengths(path);
   ASSERT_TRUE(path_lengths_maybe.has_value());
@@ -97,51 +99,25 @@ TEST_F(RoboPlanPathUtilsTest, testGetPathLengths) {
   EXPECT_DOUBLE_EQ(path_lengths[1], 0.5);
 }
 
-TEST_F(RoboPlanPathUtilsTest, testGetNormalizedPathScaling) {
-  PathShortcuttingOptions options;
-  options.group_name = "arm";
-  auto shortcutter = PathShortcutter(scene, options);
-
-  JointPath empty_path = getTestPath(0);
-  auto empty_scalings_maybe = shortcutter.getNormalizedPathScaling(empty_path);
-  EXPECT_FALSE(empty_scalings_maybe.has_value());
-
-  JointPath length_2_path = getTestPath(2);
-  auto length_2_path_scalings = shortcutter.getNormalizedPathScaling(length_2_path).value();
-  ASSERT_EQ(length_2_path_scalings.size(), 2);
-  EXPECT_DOUBLE_EQ(length_2_path_scalings(0), 0.0);
-  EXPECT_DOUBLE_EQ(length_2_path_scalings(1), 1.0);
-
-  // Path with 3 evenly spaced points
-  auto test_path = getTestPath(3);
-  auto path_scalings = shortcutter.getNormalizedPathScaling(test_path).value();
-
-  ASSERT_EQ(path_scalings.size(), 3);
-  EXPECT_DOUBLE_EQ(path_scalings(0), 0.0);
-  EXPECT_DOUBLE_EQ(path_scalings(1), 0.5);
-  EXPECT_DOUBLE_EQ(path_scalings(2), 1.0);
-}
-
-TEST_F(RoboPlanPathUtilsTest, testGetConfigurationFromNormalizedPathScaling) {
+TEST_F(RoboPlanPathUtilsTest, testGetConfigurationAtPathLength) {
   PathShortcuttingOptions options;
   options.group_name = "arm";
   auto shortcutter = PathShortcutter(scene, options);
 
   auto test_path = getTestPath(3);
-  auto path_scalings = shortcutter.getNormalizedPathScaling(test_path).value();
+  auto path_lengths = shortcutter.getPathLengths(test_path).value();
 
-  auto [config, idx] =
-      shortcutter.getConfigurationFromNormalizedPathScaling(test_path, path_scalings, 0.25);
+  auto [config, idx] = shortcutter.getConfigurationAtPathLength(test_path, path_lengths, 0.25);
   ASSERT_EQ(idx, 1);
   ASSERT_EQ(config(0), 0.25);
 
   auto [config_end, idx_end] =
-      shortcutter.getConfigurationFromNormalizedPathScaling(test_path, path_scalings, 0.95);
+      shortcutter.getConfigurationAtPathLength(test_path, path_lengths, 0.95);
   ASSERT_EQ(idx_end, 2);
   ASSERT_EQ(config_end(0), 1.0);
 
   auto [config_start, idx_start] =
-      shortcutter.getConfigurationFromNormalizedPathScaling(test_path, path_scalings, 0.0);
+      shortcutter.getConfigurationAtPathLength(test_path, path_lengths, 0.0);
   ASSERT_EQ(idx_start, 1);
   ASSERT_EQ(config_start(0), 0.0);
 }
