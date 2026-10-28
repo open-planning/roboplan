@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update -y \
     && apt-get upgrade -y \
-    && apt-get install -y python3-pip libcereal-dev
+    && apt-get install -y python3-pip
 
 # Install Python dependencies needed for bindings.
 # Note that since Pinocchio in ROS is built with Numpy 1.x, we must preserve this by
