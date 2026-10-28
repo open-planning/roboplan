@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "cmeel[build] >=0.56",
-    "libproxsuite[build] >=0.8,<0.9",
+    "proxsuite[build] >=0.8,<0.9",
     "nanobind >=1.3.2",
     "roboplan-core ==0.7.0",
 ]
