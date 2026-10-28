@@ -22,6 +22,8 @@
   <depend>roboplan_common</depend>
   <depend>roboplan_core</depend>
   <depend>proxsuite</depend>
+  <!-- TODO: Remove when proxsuite resolves its dependencies -->
+  <depend>libcereal-dev</depend>
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>libgmock-dev</test_depend>
