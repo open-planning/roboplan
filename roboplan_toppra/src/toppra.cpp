@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cmath>
 #include <numbers>
 #include <stdexcept>
 
@@ -295,18 +296,20 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   toppra::PathParametrizationAlgorithmPtr algo =
       std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
 
-  // The LinearBlend path has discontinuous curvature at the line<->arc junctions. The
-  // algorithm's default uniform grid would miss those junctions and under-sample the arcs,
-  // letting the acceleration constraint be violated between gridpoints. Seed a
-  // curvature-adaptive grid that lands on every segment boundary so the centripetal
-  // acceleration at each blend is enforced.
+  // The algorithm's default uniform grid misses the curvature peaks at the LinearBlend path's
+  // line<->arc junctions and the spline knots, letting the acceleration constraint be violated
+  // between gridpoints. Seed a curvature-adaptive grid that lands on every segment boundary, so
+  // the acceleration at each one is enforced. The splines put a knot at every integer parameter.
+  toppra::Vector initial_gridpoints;
   if (using_blend_path) {
-    const auto blend_path = std::static_pointer_cast<LinearBlendPath>(geom_path);
-    const auto gridpoints = blend_path->proposeGridpoints(
-        /* max_segment_error */ 1.0e-5, /* max_iteration */ 100, /* max_segment_length */ 0.02,
-        /* min_num_points */ 100, /* initial_gridpoints */ blend_path->segmentBoundaries());
-    algo->setGridpoints(gridpoints);
+    initial_gridpoints = std::static_pointer_cast<LinearBlendPath>(geom_path)->segmentBoundaries();
+  } else {
+    const auto num_knots = static_cast<Eigen::Index>(std::round(geom_path->pathInterval()[1])) + 1;
+    initial_gridpoints = toppra::Vector::LinSpaced(num_knots, 0.0, num_knots - 1.0);
   }
+  algo->setGridpoints(geom_path->proposeGridpoints(
+      /* max_segment_error */ 1.0e-5, /* max_iteration */ 100, /* max_segment_length */ 0.02,
+      /* min_num_points */ 100, initial_gridpoints));
 
   const auto rc = algo->computePathParametrization();
   if (rc != toppra::ReturnCode::OK) {

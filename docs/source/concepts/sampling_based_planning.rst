@@ -160,14 +160,12 @@ Practical notes
   than silently moving the endpoints you asked for; project them yourself first.
 - **Budget more nodes.** Every projected hop becomes a node, so constrained planning wants a smaller
   ``max_connection_distance`` and a much larger ``max_nodes`` than unconstrained planning.
-- ``rrt_star`` **is worth enabling.** Walking in small hops leaves a zigzagging path.
-  Rewiring reconnects nodes with straight segments, and a long one between two configurations on a
-  curved constraint set leaves it and is rejected, but the constrained extension packs nodes only
-  ``path_step_size`` apart, so most candidates are short enough to be accepted.
-  Those short rewires collapse the zigzag, giving roughly a quarter shorter paths on the
-  bundled example.
-- **Do not shortcut a constrained path.** :doc:`path_shortcutting` splices in straight
-  configuration-space segments, which pull the path back off the constraints.
+- **Shortcut with the same constraints.** Walking in small hops leaves a zigzagging path.
+  Passing the constraints to ``PathShortcutter::shortcut`` keeps every shortcut on them, using the
+  same constrained extension when a straight one would leave them (see :doc:`path_shortcutting`).
+  Shortcutting without them pulls the path back off the constraints.
+- ``rrt_star`` **can also help.** Rewiring collapses some of the zigzag during planning, but is
+  slower and leaves longer paths than constrained shortcutting, especially for pinned constraints.
 - **Constraints can disconnect the space.** Bounding rotational degrees of freedom on a
   non-redundant arm leaves a thin set that splits into components a constrained path cannot cross,
   since crossing would mean tipping the frame over. Two valid configurations may then be
@@ -182,13 +180,8 @@ Keeping a gripper upright inside a safe zone is a single ``PoseConstraint``:
 
    import numpy as np
    import pinocchio as pin
-   from roboplan.rrt import (
-       ConstraintProjector,
-       ConstraintProjectorOptions,
-       PoseConstraint,
-       RRT,
-       RRTOptions,
-   )
+   from roboplan.core import ConstraintProjector, ConstraintProjectorOptions, PoseConstraint
+   from roboplan.rrt import RRT, RRTOptions
 
    # The region frame is the nominal pose. A half turn about x points the gripper straight down,
    # so a zero displacement means perfectly upright.

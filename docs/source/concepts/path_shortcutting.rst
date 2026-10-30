@@ -18,22 +18,27 @@ This implementation follows `Section 3.5.3 of Motion Planning in Higher Dimensio
 
 The shortcutter is configured through ``PathShortcuttingOptions``:
 
-+-------------------------------+-----------------------------------------------------------------+-----------+
-| Parameter                     | Description                                                     | Default   |
-+===============================+=================================================================+===========+
-| ``group_name``                | Joint group to shortcut                                         | ""        |
-+-------------------------------+-----------------------------------------------------------------+-----------+
-| ``max_step_size``             | Collision-check step size and minimum separation in a shortcut  | 0.05      |
-+-------------------------------+-----------------------------------------------------------------+-----------+
-| ``max_iters``                 | Maximum number of random sampling iterations                    | 100       |
-+-------------------------------+-----------------------------------------------------------------+-----------+
-| ``seed``                      | Random seed (``< 0`` uses a random seed)                        | 0         |
-+-------------------------------+-----------------------------------------------------------------+-----------+
-| ``max_convergence_iters``     | Stop early after this many consecutive iterations with no       | 20        |
-|                               | shortcut applied (``0`` disables early stopping)                |           |
-+-------------------------------+-----------------------------------------------------------------+-----------+
-| ``redundant_removal_iters``   | Cadence (in iterations) of the redundant-vertex removal pass    | 20        |
-+-------------------------------+-----------------------------------------------------------------+-----------+
++----------------------------------+-----------------------------------------------------------------+-----------+
+| Parameter                        | Description                                                     | Default   |
++==================================+=================================================================+===========+
+| ``group_name``                   | Joint group to shortcut                                         | ""        |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``max_step_size``                | Collision-check step size and minimum separation in a shortcut  | 0.05      |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``max_iters``                    | Maximum number of random sampling iterations                    | 100       |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``seed``                         | Random seed (``< 0`` uses a random seed)                        | 0         |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``max_convergence_iters``        | Stop early after this many consecutive iterations with no       | 20        |
+|                                  | shortcut applied (``0`` disables early stopping)                |           |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``redundant_removal_iters``      | Cadence (in iterations) of the redundant-vertex removal pass    | 20        |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``constraint_projection``        | Projection options for shortcutting with constraints            |           |
++----------------------------------+-----------------------------------------------------------------+-----------+
+| ``constrained_min_detour_ratio`` | Skip projected shortcuts of sections at most this many times    | 1.1       |
+|                                  | longer than the straight distance between their ends            |           |
++----------------------------------+-----------------------------------------------------------------+-----------+
 
 Applying the shortcutter to a path is a single call:
 
@@ -52,3 +57,21 @@ Applying the shortcutter to a path is a single call:
    shortened_path = shortcutter.shortcut(path)
 
 The result is a collision-free ``JointPath``, ready to be timed with :doc:`trajectory_generation`.
+
+Constrained paths
+-----------------
+
+A path from :doc:`constrained planning <sampling_based_planning>` must be shortcut with the same constraints, or the straight shortcuts will leave them:
+
+.. code-block:: python
+
+   shortened_path = shortcutter.shortcut(path, [constraint])
+
+A straight shortcut is then also checked against the constraints.
+If it leaves them, the shortcut is instead walked with the planner's constrained extension, in ``constraint_projection.path_step_size`` hops that are each projected back onto the constraints,
+as in the shortcut smoothing of `Berenson et al. (2009) <https://personalrobotics.cs.washington.edu/publications/berenson2009cbirrt.pdf>`_.
+A projected shortcut can be longer than the section it replaces, so it is only kept if it is shorter,
+and sections already within ``constrained_min_detour_ratio`` of the straight distance between their ends are skipped.
+
+The walk matters most for pinned constraints, such as two hands holding one object, which straight shortcuts almost never satisfy.
+Constraints with slack let most straight shortcuts through on their own.

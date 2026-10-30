@@ -52,7 +52,7 @@ if(NOT TARGET nanoflann::nanoflann)
 endif()
 
 # Add libraries
-add_library(roboplan_rrt SHARED src/constraints.cpp src/kd_tree.cpp src/rrt.cpp)
+add_library(roboplan_rrt SHARED src/kd_tree.cpp src/rrt.cpp)
 target_include_directories(
   roboplan_rrt PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                       $<INSTALL_INTERFACE:include>)

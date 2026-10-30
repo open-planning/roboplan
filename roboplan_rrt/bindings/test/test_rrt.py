@@ -7,19 +7,16 @@ import pinocchio as pin
 import pytest
 
 from roboplan.core import (
+    ConstraintProjector,
+    ConstraintProjectorOptions,
     JointConfiguration,
+    PoseConstraint,
     Scene,
     computePathLength,
     loadUrdfSceneDescription,
 )
 from roboplan.example_models import get_package_models_dir, get_package_share_dir
-from roboplan.rrt import (
-    RRT,
-    ConstraintProjector,
-    ConstraintProjectorOptions,
-    PoseConstraint,
-    RRTOptions,
-)
+from roboplan.rrt import RRT, RRTOptions
 
 
 @pytest.fixture

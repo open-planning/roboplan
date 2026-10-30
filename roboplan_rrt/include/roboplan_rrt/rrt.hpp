@@ -10,10 +10,10 @@
 
 #include <tl/expected.hpp>
 
+#include <roboplan/core/constraints.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/types.hpp>
-#include <roboplan_rrt/constraints.hpp>
 #include <roboplan_rrt/graph.hpp>
 #include <roboplan_rrt/kd_tree.hpp>
 
@@ -53,8 +53,7 @@ struct RRTOptions {
   bool rrt_connect = false;
 
   /// @brief If true, use the RRT* algorithm to grow asymptotically optimal trees by rewiring.
-  /// @details Compatible with `rrt_connect`, in which case both trees are rewired. Worth enabling
-  /// with constraints, since path shortcutting would likely violate them.
+  /// @details Compatible with `rrt_connect`, in which case both trees are rewired.
   bool rrt_star = false;
 
   /// @brief The configuration-space radius used to find neighbors for RRT* rewiring.

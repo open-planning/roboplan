@@ -23,13 +23,14 @@ from roboplan.cartesian_planning import (
 from roboplan.core import (
     CartesianConfiguration,
     CartesianPath,
+    ConstraintProjectorOptions,
     JointConfiguration,
     JointPath,
     JointTrajectory,
     PathShortcutter,
     PathShortcuttingOptions,
+    PoseConstraint,
     Scene,
-    hasCollisionsAlongPath,
     loadJointLimitsConfig,
     loadUrdfSceneDescriptionFromXml,
 )
@@ -45,12 +46,7 @@ from roboplan.optimal_ik import (
     RelativePoseConstraint,
     VelocityLimit,
 )
-from roboplan.rrt import (
-    RRT,
-    ConstraintProjectorOptions,
-    PoseConstraint,
-    RRTOptions,
-)
+from roboplan.rrt import RRT, RRTOptions
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOptions
 from roboplan.visualization import visualizePath
 
@@ -115,8 +111,6 @@ POSTURE_WEIGHT = 0.05
 APPROACH_DISTANCE = 0.1
 CARRY_SPEED = 0.15
 COLLISION_CHECK_STEP_SIZE = 0.02
-# Straight-line motions run close to the object, so they are checked more finely.
-STRAIGHT_CHECK_STEP_SIZE = COLLISION_CHECK_STEP_SIZE / 4.0
 TRAJ_DT = 0.01
 
 
@@ -439,8 +433,6 @@ class MotionPlanner:
         )
         self.rrt.setRngSeed(rng_seed)
 
-        # Constrained paths can't be shortcut, since the shortcutter ignores the constraints. RRT*
-        # rewiring shortens them instead, which avoids occasional long, wandering carries.
         self.carry_rrt = RRT(
             scene,
             RRTOptions(
@@ -450,8 +442,6 @@ class MotionPlanner:
                 collision_check_step_size=COLLISION_CHECK_STEP_SIZE,
                 max_planning_time=carry_planning_time,
                 rrt_connect=True,
-                rrt_star=True,
-                rewire_distance=1.0,
                 constraint_projection=ConstraintProjectorOptions(path_step_size=0.1),
             ),
         )
@@ -510,13 +500,6 @@ class MotionPlanner:
         if straight:
             if len(q_goals) != 1:
                 raise ValueError("Straight-line motion takes a single goal.")
-            if hasCollisionsAlongPath(
-                self.scene,
-                self.to_full(q_start),
-                self.to_full(q_goal),
-                STRAIGHT_CHECK_STEP_SIZE,
-            ):
-                raise RuntimeError("Straight-line motion is in collision.")
             path = JointPath()
             path.joint_names = self.joint_names
             path.positions = [q_start, q_goal]
@@ -567,14 +550,6 @@ class MotionPlanner:
             for q in traj.positions
         ]
         traj.joint_names = self.joint_names
-        for q_prev, q_next in zip(traj.positions[:-1], traj.positions[1:]):
-            if hasCollisionsAlongPath(
-                self.scene,
-                self.to_full(q_prev),
-                self.to_full(q_next),
-                STRAIGHT_CHECK_STEP_SIZE,
-            ):
-                raise RuntimeError(f"{name} is in collision.")
 
         self.report_carry(name, traj, constraint, t_start)
         joint_path = JointPath()
@@ -594,10 +569,10 @@ class MotionPlanner:
         )
         goals = [JointConfiguration(self.joint_names, q) for q in q_goals]
         result = self.carry_rrt.planToAny(start, goals, [constraint])
-        path = result.path
+        path = self.shortcutter.shortcut(result.path, [constraint])
 
-        # The constraint only holds at the planned waypoints. Rewiring leaves them sparser, but the
-        # spline through them still stays within a millimeter of it.
+        # The constraint only holds at the planned waypoints. Shortcutting leaves them sparser, but
+        # the spline through them still stays within a millimeter of it.
         traj = self.toppra.generate(
             path, TOPPRAOptions(dt=TRAJ_DT, mode=SplineFittingMode.Adaptive)
         )

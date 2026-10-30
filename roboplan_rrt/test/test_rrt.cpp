@@ -745,6 +745,45 @@ TEST_F(RoboPlanConstrainedRRTTest, PlannedPathStaysOnTheConstraint) {
   ASSERT_TRUE(projector->satisfies(scene->toFullJointPositions("arm", path.positions.back())));
 }
 
+TEST_F(RoboPlanConstrainedRRTTest, ShortcuttingKeepsPathOnTheConstraint) {
+  RRTOptions options;
+  options.group_name = "arm";
+  options.rrt_connect = true;
+  options.max_connection_distance = 0.5;
+  options.max_nodes = 20000;
+  options.max_planning_time = 20.0;
+
+  auto q_start = scene->randomCollisionFreePositions().value();
+  ASSERT_TRUE(projector->project(q_start));
+  auto q_goal = scene->randomCollisionFreePositions().value();
+  ASSERT_TRUE(projector->project(q_goal));
+
+  auto rrt = std::make_unique<RRT>(scene, options);
+  rrt->setRngSeed(1234);
+  JointConfiguration start, goal;
+  start.positions = q_start(q_indices);
+  goal.positions = q_goal(q_indices);
+  const auto maybe_path = rrt->plan(start, goal, constraints);
+  ASSERT_TRUE(maybe_path.has_value()) << maybe_path.error();
+
+  PathShortcuttingOptions shortcut_options;
+  shortcut_options.group_name = "arm";
+  PathShortcutter shortcutter(scene, shortcut_options);
+  const auto path = shortcutter.shortcut(maybe_path.value(), constraints);
+
+  EXPECT_LT(computePathLength(*scene, "arm", path).value(),
+            computePathLength(*scene, "arm", maybe_path.value()).value());
+  ASSERT_TRUE(path.positions.front().isApprox(start.positions));
+  ASSERT_TRUE(path.positions.back().isApprox(goal.positions));
+  for (size_t idx = 0; idx + 1 < path.positions.size(); ++idx) {
+    const auto q_a = scene->toFullJointPositions("arm", path.positions[idx]);
+    const auto q_b = scene->toFullJointPositions("arm", path.positions[idx + 1]);
+    ASSERT_TRUE(projector->satisfiesAlongPath(q_a, q_b, shortcut_options.max_step_size))
+        << "edge " << idx << " left the constraint";
+    ASSERT_FALSE(hasCollisionsAlongPath(*scene, q_a, q_b, shortcut_options.max_step_size));
+  }
+}
+
 /// @brief Builds a constraint whose bounds are pinned, so its residual is its displacement.
 std::shared_ptr<PoseConstraint> makePinnedConstraint(const std::shared_ptr<Scene>& scene,
                                                      const std::string& frame_name,

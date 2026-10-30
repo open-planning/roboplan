@@ -1,3 +1,6 @@
+#include <limits>
+#include <optional>
+
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
@@ -7,6 +10,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <roboplan/core/constraints.hpp>
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/pose_utils.hpp>
 #include <roboplan/core/robot_body_filter.hpp>
@@ -445,6 +449,99 @@ void init_core_scene(nanobind::module_& m) {
            "The Scene this context was built from.");
 }
 
+void init_core_constraints(nanobind::module_& m) {
+  nanobind::class_<Constraint>(
+      m, "Constraint", "Base class for kinematic constraints that planners enforce by projection.")
+      .def("dimension", &Constraint::dimension,
+           "The number of residual coordinates this constraint contributes.")
+      .def("getGroupName", &Constraint::getGroupName,
+           "The joint group whose degrees of freedom a projection is allowed to move.")
+      .def("computeError", &Constraint::computeError,
+           "Computes the constraint residual at a configuration, which is zero where the "
+           "constraint is satisfied and otherwise the signed overshoot past the nearest bound.",
+           "q"_a)
+      .def("satisfies", &Constraint::satisfies,
+           "Checks whether a configuration satisfies this constraint.", "q"_a);
+
+  nanobind::class_<PoseConstraint, Constraint>(
+      m, "PoseConstraint",
+      "Constrains the pose of a robot frame to a box of allowed task space displacements.")
+      .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&, const std::string&,
+                          const TaskSpaceVector&, const TaskSpaceVector&, const Eigen::Matrix4d&,
+                          const std::string&, double, double>(),
+           "scene"_a, "group_name"_a, "frame_name"_a,
+           "lower_bounds"_a = TaskSpaceVector::Constant(-std::numeric_limits<double>::infinity()),
+           "upper_bounds"_a = TaskSpaceVector::Constant(std::numeric_limits<double>::infinity()),
+           "tform"_a = Eigen::Matrix4d::Identity(), "reference_frame"_a = "",
+           "position_tolerance"_a = 1.0e-3, "orientation_tolerance"_a = 5.0e-3)
+      .def("computeDisplacement", &PoseConstraint::computeDisplacement,
+           "Computes the constrained frame's [x, y, z, roll, pitch, yaw] displacement from the "
+           "region frame.",
+           "q"_a)
+      .def_prop_ro("frame_name", &PoseConstraint::getFrameName,
+                   "The name of the constrained frame.")
+      .def_prop_ro("reference_frame", &PoseConstraint::getReferenceFrame,
+                   "The name of the frame the region transform is expressed in.")
+      .def_prop_ro("tform", &PoseConstraint::getTransform,
+                   "The pose of the region frame relative to the reference frame.")
+      .def_prop_ro("lower_bounds", &PoseConstraint::getLowerBounds,
+                   "The lower bounds on the frame's task space displacement.")
+      .def_prop_ro("upper_bounds", &PoseConstraint::getUpperBounds,
+                   "The upper bounds on the frame's task space displacement.")
+      .def_prop_ro("position_tolerance", &PoseConstraint::getPositionTolerance,
+                   "The position residual norm, in meters, below which the constraint is "
+                   "satisfied.")
+      .def_prop_ro("orientation_tolerance", &PoseConstraint::getOrientationTolerance,
+                   "The orientation residual norm, in radians, below which the constraint is "
+                   "satisfied.");
+
+  nanobind::class_<ConstraintProjectorOptions>(m, "ConstraintProjectorOptions",
+                                               "Options struct for constraint projection.")
+      .def(nanobind::init<double, size_t, double, double, double>(), "path_step_size"_a = 0.1,
+           "max_iters"_a = 50, "correction_step_size"_a = 1.0, "damping"_a = 1.0e-6,
+           "convergence_ratio"_a = 0.1)
+      .def_rw("path_step_size", &ConstraintProjectorOptions::path_step_size,
+              "The configuration-space step size taken between projections.")
+      .def_rw("max_iters", &ConstraintProjectorOptions::max_iters,
+              "The maximum number of projection iterations before giving up.")
+      .def_rw("correction_step_size", &ConstraintProjectorOptions::correction_step_size,
+              "The fraction of each computed correction to apply per projection iteration.")
+      .def_rw("damping", &ConstraintProjectorOptions::damping,
+              "Damping value for the Jacobian pseudoinverse.")
+      .def_rw("convergence_ratio", &ConstraintProjectorOptions::convergence_ratio,
+              "The fraction of each constraint's tolerance the projection converges to, leaving "
+              "headroom for the interpolation between projected configurations. Must be in "
+              "(0, 1].");
+
+  nanobind::class_<ConstraintProjector>(
+      m, "ConstraintProjector",
+      "Projects joint configurations onto the intersection of a set of constraints.")
+      .def(nanobind::init<const std::shared_ptr<Scene>, const std::string&,
+                          const std::vector<std::shared_ptr<Constraint>>&,
+                          const ConstraintProjectorOptions&>(),
+           "scene"_a, "group_name"_a, "constraints"_a, "options"_a = ConstraintProjectorOptions())
+      .def("satisfies", &ConstraintProjector::satisfies,
+           "Checks whether a configuration satisfies every constraint.", "q"_a)
+      .def(
+          "project",
+          [](ConstraintProjector& self,
+             const Eigen::VectorXd& q) -> std::optional<Eigen::VectorXd> {
+            Eigen::VectorXd q_projected = q;
+            if (!self.project(q_projected)) {
+              return std::nullopt;
+            }
+            return q_projected;
+          },
+          "Projects a configuration onto the constraints, returning None if the projection did "
+          "not converge.",
+          "q"_a)
+      .def("satisfiesAlongPath", &ConstraintProjector::satisfiesAlongPath,
+           "Checks whether a straight-line configuration-space path stays inside the constraints.",
+           "q_start"_a, "q_end"_a, "max_step_size"_a, "check_endpoints"_a = true)
+      .def("empty", &ConstraintProjector::empty,
+           "Whether the projector holds no constraints, and is therefore a no-op.");
+}
+
 void init_core_path_utils(nanobind::module_& m) {
   m.def("computeFramePath",
         nanobind::overload_cast<const Scene&, const Eigen::VectorXd&, const Eigen::VectorXd&,
@@ -469,10 +566,12 @@ void init_core_path_utils(nanobind::module_& m) {
 
   nanobind::class_<PathShortcuttingOptions>(m, "PathShortcuttingOptions",
                                             "Options struct for path shortcutting.")
-      .def(nanobind::init<const std::string&, double, unsigned int, int, unsigned int,
-                          unsigned int>(),
+      .def(nanobind::init<const std::string&, double, unsigned int, int, unsigned int, unsigned int,
+                          const ConstraintProjectorOptions&, double>(),
            "group_name"_a = "", "max_step_size"_a = 0.05, "max_iters"_a = 100, "seed"_a = 0,
-           "max_convergence_iters"_a = 20, "redundant_removal_iters"_a = 20)
+           "max_convergence_iters"_a = 20, "redundant_removal_iters"_a = 20,
+           "constraint_projection"_a = ConstraintProjectorOptions(),
+           "constrained_min_detour_ratio"_a = 1.1)
       .def_rw("group_name", &PathShortcuttingOptions::group_name,
               "The joint group name to be used for path shortcutting.")
       .def_rw("max_step_size", &PathShortcuttingOptions::max_step_size,
@@ -488,7 +587,13 @@ void init_core_path_utils(nanobind::module_& m) {
       .def_rw(
           "redundant_removal_iters", &PathShortcuttingOptions::redundant_removal_iters,
           "Cadence (in iterations) at which to interleave the redundant-vertex removal pass that "
-          "cleans up the micro-segments introduced by shortcutting. Must be greater than 0.");
+          "cleans up the micro-segments introduced by shortcutting. Must be greater than 0.")
+      .def_rw("constraint_projection", &PathShortcuttingOptions::constraint_projection,
+              "Options for the projection used when shortcutting with constraints.")
+      .def_rw("constrained_min_detour_ratio",
+              &PathShortcuttingOptions::constrained_min_detour_ratio,
+              "With constraints, the ratio of a section's length to the straight distance between "
+              "its ends below which no projected shortcut is attempted.");
 
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")
@@ -496,15 +601,13 @@ void init_core_path_utils(nanobind::module_& m) {
            "scene"_a, "options"_a)
       .def("shortcut", &PathShortcutter::shortcut,
            nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Attempts to shortcut a specified path.", "path"_a)
+           "Attempts to shortcut a specified path, optionally keeping it on a set of constraints.",
+           "path"_a, "constraints"_a = std::vector<std::shared_ptr<Constraint>>{})
       .def("getPathLengths", unwrap_expected(&PathShortcutter::getPathLengths),
            "Computes configuration distances from the start to each pose in a path.", "path"_a)
-      .def("getNormalizedPathScaling", unwrap_expected(&PathShortcutter::getNormalizedPathScaling),
-           "Computes length-normalized scaling values along a JointPath.", "path"_a)
-      .def("getConfigurationfromNormalizedPathScaling",
-           &PathShortcutter::getConfigurationFromNormalizedPathScaling,
-           "Gets joint configurations from a path with normalized joint scalings.", "path"_a,
-           "path_scalings"_a, "value"_a);
+      .def("getConfigurationAtPathLength", &PathShortcutter::getConfigurationAtPathLength,
+           "Gets the joint configuration at a given length along a path.", "path"_a,
+           "path_lengths"_a, "length"_a);
 }
 
 void init_core_pose_utils(nanobind::module_& m) {

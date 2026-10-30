@@ -16,6 +16,10 @@ void init_core_geometry_wrappers(nanobind::module_& m);
 /// @param m The nanobind core module.
 void init_core_scene(nanobind::module_& m);
 
+/// @brief Initializes Python bindings for kinematic constraints and their projection.
+/// @param m The nanobind core module.
+void init_core_constraints(nanobind::module_& m);
+
 /// @brief Initializes Python bindings for core path utilities.
 /// @param m The nanobind core module.
 void init_core_path_utils(nanobind::module_& m);
