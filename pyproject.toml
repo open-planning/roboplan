@@ -160,7 +160,7 @@ llvm-tools  = ">=22.1.8,<23"
 # Python they want without us having to maintain multiple pins in the
 # downstream Pixi packages
 python            = "*"
-nanobind          = ">=2.8.0,<3"
+nanobind          = ">=3.1.0,<4"
 numpy             = "*"
 
 # C++ dependencies
