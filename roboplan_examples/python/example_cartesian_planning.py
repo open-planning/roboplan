@@ -47,9 +47,9 @@ def round_corners(
 
     Corners whose arc would be shorter than `min_arc_length` meters are left sharp: such a
     sub-resolution arc turns within about one control step, spiking the joint acceleration and
-    forcing the Bounded planner to slow the whole motion, while a sharp corner is caught by its
-    corner-speed cap. Pass one control step of tool travel (max_linear_speed * dt) to snap
-    exactly the arcs the planner cannot resolve.
+    forcing the Bounded planner to slow down through it, while it simply stops at a sharp corner.
+    Pass one control step of tool travel (max_linear_speed * dt) to snap exactly the arcs the
+    planner cannot resolve.
     """
     if radius <= 0.0 or len(vertices) < 3:
         return vertices

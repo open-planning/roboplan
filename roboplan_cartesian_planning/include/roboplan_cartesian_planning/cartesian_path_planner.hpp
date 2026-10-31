@@ -20,9 +20,10 @@ struct FrameTask;
 
 /// @brief Selects how the planner assigns speed/timing along the Cartesian path.
 enum class CartesianSpeedMode {
-  /// @brief Trace the path under bounded Cartesian velocity and acceleration.
-  /// @details Resolves and times the path exactly as TimeOptimal does, then slows the whole motion
-  /// uniformly until the tool speed and acceleration are within the commanded Cartesian maxima.
+  /// @brief Trace the path at bounded Cartesian velocity and acceleration.
+  /// @details Along each smooth run of the path the tool speeds up, holds a constant speed, and
+  /// slows down, stopping at sharp corners. It also slows down, at the same bounded acceleration,
+  /// wherever the joint limits require it.
   Bounded,
 
   /// @brief Time-optimal re-timing respecting joint velocity/acceleration limits.
@@ -54,13 +55,11 @@ struct CartesianPlannerOptions {
   double max_angular_speed = 0.5;
 
   /// @brief Maximum linear tool acceleration along the path, in meters/second^2.
-  /// @details Only used in Bounded speed mode, which slows the whole motion until the peak tool
-  /// linear acceleration is within this bound.
+  /// @details Only used in Bounded speed mode.
   double max_linear_acceleration = 0.5;
 
   /// @brief Maximum angular tool acceleration along the path, in radians/second^2.
-  /// @details Only used in Bounded speed mode, which slows the whole motion until the peak tool
-  /// angular acceleration is within this bound.
+  /// @details Only used in Bounded speed mode.
   double max_angular_acceleration = 2.5;
 
   /// @brief Maximum allowed position deviation from the path, in meters.
@@ -103,11 +102,18 @@ struct CartesianPlannerOptions {
   /// but the joint path strays further from the resolved waypoints. The tolerance is a joint-space
   /// bound, so the tool deviation it produces varies with the arm and is not checked against
   /// position_tolerance. A value <= 0 disables blending, so the trajectory stops at every waypoint.
+  /// Only used in TimeOptimal speed mode.
   double toppra_blend_deviation = 0.0025;
 
   /// @brief Gain (0, 1] for the position-limit constraint that steers each step away
   /// from the joint position limits.
   double position_limit_gain = 1.0;
+
+  /// @brief Turn angle at a waypoint, in radians, above which Bounded mode stops there.
+  /// @details A relative change in speed of the same size also counts. Below it, the tool flows
+  /// through the waypoint, so a finely sampled curve should turn by less than this per waypoint.
+  /// Only used in Bounded speed mode.
+  double corner_tolerance = 0.175;
 
   /// @brief Validates the mode-independent option values (dt, tolerances, scales).
   /// @details Mode-specific options (e.g. the Bounded mode's commanded speeds/accelerations) are
@@ -222,12 +228,12 @@ private:
     Eigen::Matrix4d target(double s) const { return world_T_base * eval(s); }
   };
 
-  /// @brief Peak Cartesian rates observed over a timed trajectory, across all tracked tips.
-  struct CartesianPeaks {
-    double linear_speed = 0.0;          ///< Peak tool speed (m/s).
-    double angular_speed = 0.0;         ///< Peak tool angular speed (rad/s).
-    double linear_acceleration = 0.0;   ///< Peak tool acceleration (m/s^2).
-    double angular_acceleration = 0.0;  ///< Peak tool angular acceleration (rad/s^2).
+  /// @brief The Cartesian path resolved into a dense, untimed joint path.
+  struct ResolvedPath {
+    std::vector<FrameReference> references;  ///< The per-frame references the path was resolved to.
+    std::vector<double> parameters;          ///< Path parameter of each sample, in [0, 1].
+    JointPath samples;                       ///< Full joint configuration at each sample.
+    std::vector<size_t> stops;  ///< Sample indices of the path ends and its sharp corners.
   };
 
   /// @brief Builds the parts of the OInK problem that do not depend on the path or seed, once,
@@ -250,24 +256,21 @@ private:
   buildFrameReferences(const CartesianPath& path, const Eigen::VectorXd& q_start_full);
 
   /// @brief Stage one: resolves the Cartesian path into a purely geometric joint path.
-  /// @details Samples the path by arc length at a density set by the pose tolerance, solving IK to
-  /// convergence at each sample and seeding from the previous solution. The result carries no
-  /// timing at all; stage two assigns it.
-  /// @return The resolved group joint positions, or a description of where and why IK failed.
-  tl::expected<std::vector<Eigen::VectorXd>, std::string>
-  resolvePath(const CartesianPath& path, const Eigen::VectorXd& q_start_full);
+  /// @details Samples the path by arc length at a density set by the pose tolerance, landing
+  /// exactly on every sharp corner, solving IK to convergence at each sample and seeding from the
+  /// previous solution.
+  /// @return The resolved path, or a description of where and why IK failed.
+  tl::expected<ResolvedPath, std::string> resolvePath(const CartesianPath& path,
+                                                      const Eigen::VectorXd& q_start_full);
 
-  /// @brief Stage two: time-parameterizes a resolved joint path with TOPP-RA under the given
-  /// scales, decimating it to its shape-carrying waypoints first and retrying nearby
-  /// discretizations if the solver rejects one.
-  tl::expected<JointTrajectory, std::string>
-  timeParameterize(const std::vector<Eigen::VectorXd>& resolved, double velocity_scale,
-                   double acceleration_scale);
+  /// @brief Stage two for TimeOptimal: reduces the resolved path to the fewest waypoints that keep
+  /// the tool within its share of the pose tolerance, then times them with TOPP-RA, retrying with
+  /// tighter corner blending if the solver rejects the path.
+  tl::expected<JointTrajectory, std::string> timeOptimal(const ResolvedPath& resolved);
 
-  /// @brief Peak Cartesian tool rates over a timed trajectory, by finite difference of the tip
-  /// poses at the trajectory's sample period.
-  CartesianPeaks computeCartesianPeaks(const JointTrajectory& trajectory,
-                                       const CartesianPath& path) const;
+  /// @brief Stage two for Bounded: times each run between stops at the commanded Cartesian maxima,
+  /// slowing down locally wherever the joint limits require it.
+  tl::expected<JointTrajectory, std::string> timeBounded(const ResolvedPath& resolved) const;
 
   /// @brief A pointer to the scene.
   std::shared_ptr<Scene> scene_;
@@ -301,7 +304,7 @@ private:
   /// @brief Barriers passed to the solver each step. Built once at construction.
   std::vector<std::shared_ptr<Barrier>> barriers_;
 
-  /// @brief The TOPP-RA time parameterizer, used by both speed modes.
+  /// @brief The TOPP-RA time parameterizer, used by the TimeOptimal speed mode.
   /// @details Constructed once for the planner's joint group and reused across plan() calls.
   PathParameterizerTOPPRA toppra_;
 };

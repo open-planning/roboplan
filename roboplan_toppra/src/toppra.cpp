@@ -234,7 +234,6 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(
       acc_lower_limits_ * options.acceleration_scale,
       acc_upper_limits_ * options.acceleration_scale);
-  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
   toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
   auto maybe_path_pos_vecs = getPathPositionVectors(path);
@@ -351,11 +350,21 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   if (!planar_q_indices_.empty()) {
     geom_path = std::make_shared<PlanarBodyFramePath>(geom_path, planar_q_indices_);
   }
+  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
   toppra::PathParametrizationAlgorithmPtr algo =
       std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
   algo->setGridpoints(gridpoints);
+  auto rc = algo->computePathParametrization();
 
-  const auto rc = algo->computePathParametrization();
+  // Interpolation can fail the forward pass numerically where the profile rides the acceleration
+  // limit along a blend arc. Collocation avoids that but enforces the limit more loosely, so it is
+  // only a fallback.
+  if (rc != toppra::ReturnCode::OK && using_blend_path) {
+    acc_constraint->discretizationType(toppra::DiscretizationType::Collocation);
+    algo = std::make_shared<toppra::algorithm::TOPPRA>(constraints, geom_path);
+    algo->setGridpoints(gridpoints);
+    rc = algo->computePathParametrization();
+  }
   if (rc != toppra::ReturnCode::OK) {
     return tl::make_unexpected("TOPPRA failed with return code " +
                                std::to_string(static_cast<int>(rc)));

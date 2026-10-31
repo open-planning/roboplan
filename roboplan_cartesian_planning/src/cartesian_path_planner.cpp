@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numbers>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 
@@ -54,15 +54,6 @@ constexpr double kSeedStepFraction = 0.5;
 /// consecutive waypoints bows off the commanded path, and again on how far the time
 /// parameterization rounds the corners between them. Splitting it leaves room for both.
 constexpr double kSubdivisionToleranceFraction = 0.5;
-
-/// @brief Maximum passes the Bounded mode spends slowing a trajectory under the Cartesian maxima.
-/// @details Scaling the joint limits by (1/m, 1/m^2) reproduces the m-times-slower trajectory
-/// exactly, so one pass normally suffices; the rest absorb TOPP-RA's discretization.
-constexpr int kMaxBoundedSlowdownPasses = 4;
-
-/// @brief Relative slack on the Cartesian maxima, so the Bounded slow-down stops once it is close
-/// rather than chasing the last fraction of a percent through repeated re-timings.
-constexpr double kBoundedSpeedTolerance = 1.02;
 
 /// @brief Resolves a joint group, throwing the planner's construction error if it does not exist.
 JointGroupInfo resolveJointGroup(const Scene& scene, const std::string& group_name) {
@@ -184,6 +175,9 @@ tl::expected<void, std::string> CartesianPlannerOptions::validate() const {
   if (acceleration_scale <= 0.0 || acceleration_scale > 1.0) {
     return tl::make_unexpected("acceleration_scale must be in the interval (0, 1].");
   }
+  if (corner_tolerance < 0.0) {
+    return tl::make_unexpected("corner_tolerance must be non-negative.");
+  }
   return {};
 }
 
@@ -242,44 +236,7 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   if (!resolved) {
     return tl::make_unexpected(resolved.error());
   }
-
-  double velocity_scale = options_.velocity_scale;
-  double acceleration_scale = options_.acceleration_scale;
-  auto trajectory = timeParameterize(*resolved, velocity_scale, acceleration_scale);
-  if (!trajectory) {
-    return tl::make_unexpected(trajectory.error());
-  }
-  if (!bounded) {
-    return trajectory;
-  }
-
-  // Bounded mode: the path is timed against the joint limits above, then the whole motion is
-  // slowed until the tool obeys the commanded Cartesian maxima too. Re-timing in time-scale m
-  // divides speed by m and acceleration by m^2, and handing TOPP-RA joint limits scaled the same
-  // way reproduces exactly that slower trajectory, so the joint limits stay satisfied for free.
-  for (int pass = 0; pass < kMaxBoundedSlowdownPasses; ++pass) {
-    const CartesianPeaks peaks = computeCartesianPeaks(*trajectory, path);
-    double slowdown = 1.0;
-    slowdown = std::max(slowdown, peaks.linear_speed / options_.max_linear_speed);
-    slowdown = std::max(slowdown, peaks.angular_speed / options_.max_angular_speed);
-    slowdown =
-        std::max(slowdown, std::sqrt(peaks.linear_acceleration / options_.max_linear_acceleration));
-    slowdown = std::max(slowdown,
-                        std::sqrt(peaks.angular_acceleration / options_.max_angular_acceleration));
-    if (slowdown <= kBoundedSpeedTolerance) {
-      break;
-    }
-    velocity_scale /= slowdown;
-    acceleration_scale /= slowdown * slowdown;
-    auto slower = timeParameterize(*resolved, velocity_scale, acceleration_scale);
-    if (!slower) {
-      // The faster trajectory is still valid against the joint limits, so keep it rather than
-      // failing outright; it simply exceeds the commanded Cartesian caps.
-      break;
-    }
-    trajectory = std::move(slower);
-  }
-  return trajectory;
+  return bounded ? timeBounded(*resolved) : timeOptimal(*resolved);
 }
 
 tl::expected<std::vector<CartesianPathPlanner::FrameReference>, std::string>
@@ -400,28 +357,87 @@ CartesianPathPlanner::buildFrameReferences(const CartesianPath& path,
   return references;
 }
 
-tl::expected<std::vector<Eigen::VectorXd>, std::string>
+tl::expected<CartesianPathPlanner::ResolvedPath, std::string>
 CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::VectorXd& q_start_full) {
   auto references = buildFrameReferences(path, q_start_full);
   if (!references) {
     return tl::make_unexpected(references.error());
   }
+  ResolvedPath resolved;
+  resolved.samples.joint_names = scene_->getJointNamesWithMimics();
+  resolved.references = std::move(*references);
 
-  // Walk the path in small steps so every IK solve starts from a near neighbor.
-  // This helps seed IK solutions to see if the path can be followed without large jumps.
+  // Every frame's waypoints are breakpoints, so every span between consecutive breakpoints is a
+  // straight interpolation for all frames.
+  std::vector<double> breakpoints;
+  for (const auto& reference : resolved.references) {
+    breakpoints.insert(breakpoints.end(), reference.cumulative.begin(), reference.cumulative.end());
+  }
+  std::sort(breakpoints.begin(), breakpoints.end());
+  breakpoints.erase(std::unique(breakpoints.begin(), breakpoints.end(),
+                                [](double a, double b) { return b - a <= kEps; }),
+                    breakpoints.end());
+
+  // For each span, the number of IK seed steps it needs, and for each breakpoint, whether it is a
+  // corner to stop at. A corner is where some frame's Cartesian velocity per unit path parameter
+  // (translation, and rotation vector in the base frame) changes by more than `corner_tolerance`
+  // of its magnitude, which no smooth timing can pass through.
   const double seed_linear_step = kSeedStepFraction * options_.position_tolerance;
   const double seed_angular_step = kSeedStepFraction * options_.orientation_tolerance;
-  double steps = 1.0;
-  for (const auto& reference : *references) {
-    if (seed_linear_step > 0.0) {
-      steps = std::max(steps, reference.linear_length / seed_linear_step);
-    }
-    if (seed_angular_step > 0.0) {
-      steps = std::max(steps, reference.angular_length / seed_angular_step);
+  std::vector<double> span_steps(breakpoints.size() - 1, 0.0);
+  std::vector<bool> corners(breakpoints.size(), false);
+  corners.front() = true;
+  corners.back() = true;
+  for (const auto& reference : resolved.references) {
+    Eigen::Matrix<double, 6, 1> rate_before = Eigen::Matrix<double, 6, 1>::Zero();
+    for (size_t j = 0; j + 1 < breakpoints.size(); ++j) {
+      const Eigen::Matrix4d from = reference.eval(breakpoints.at(j));
+      const Eigen::Matrix4d to = reference.eval(breakpoints.at(j + 1));
+      const Eigen::Vector3d translation = to.topRightCorner<3, 1>() - from.topRightCorner<3, 1>();
+      const Eigen::AngleAxisd rotation(
+          Eigen::Matrix3d(to.topLeftCorner<3, 3>() * from.topLeftCorner<3, 3>().transpose()));
+      span_steps.at(j) = std::max({span_steps.at(j), translation.norm() / seed_linear_step,
+                                   rotation.angle() / seed_angular_step});
+      Eigen::Matrix<double, 6, 1> rate;
+      rate << translation, rotation.angle() * rotation.axis();
+      rate /= breakpoints.at(j + 1) - breakpoints.at(j);
+      for (const int offset : {0, 3}) {
+        const double change = (rate - rate_before).segment<3>(offset).norm();
+        const double scale =
+            std::max(rate_before.segment<3>(offset).norm(), rate.segment<3>(offset).norm());
+        // The floor ignores the rounding noise of a motion that has no translation or rotation.
+        corners.at(j) =
+            corners.at(j) || (j > 0 && change > options_.corner_tolerance * scale + kEps);
+      }
+      rate_before = rate;
     }
   }
-  const size_t num_steps =
-      std::clamp<size_t>(static_cast<size_t>(std::ceil(steps)), 1, kMaxResolutionSamples);
+
+  // Walk evenly between corners in small steps so every IK solve starts from a near neighbor.
+  // Only the corners are resolved exactly: forcing a sample at every waypoint of a finely sampled
+  // curve would crowd the samples closer than the IK precision resolves. Each run takes at least
+  // two steps, so the tool can get moving between its stops.
+  const double total_steps = std::accumulate(span_steps.begin(), span_steps.end(), 0.0);
+  const double step_scale = std::min(1.0, static_cast<double>(kMaxResolutionSamples) / total_steps);
+  resolved.stops.push_back(0);
+  resolved.parameters.push_back(breakpoints.front());
+  size_t run_start = 0;
+  double run_steps = 0.0;
+  for (size_t j = 1; j < breakpoints.size(); ++j) {
+    run_steps += span_steps.at(j - 1);
+    if (!corners.at(j)) {
+      continue;
+    }
+    const auto steps = std::max<size_t>(2, static_cast<size_t>(std::ceil(run_steps * step_scale)));
+    const double from = breakpoints.at(run_start);
+    const double to = breakpoints.at(j);
+    for (size_t k = 1; k <= steps; ++k) {
+      resolved.parameters.push_back(from + static_cast<double>(k) / steps * (to - from));
+    }
+    resolved.stops.push_back(resolved.parameters.size() - 1);
+    run_start = j;
+    run_steps = 0.0;
+  }
 
   // Each sample is solved to convergence rather than tracked by a single step, so the robot never
   // trails the reference and no throttling or lag-recovery is needed. The solve keeps iterating
@@ -429,7 +445,7 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   // commanded motion rather than by residual IK error. A random restart would break the path's
   // continuity, so none are allowed.
   std::vector<std::shared_ptr<Task>> tracking_tasks;
-  for (const auto& reference : *references) {
+  for (const auto& reference : resolved.references) {
     tracking_tasks.push_back(reference.task);
   }
   IterativeSolveOptions ik_options;
@@ -439,12 +455,9 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   ik_options.regularization = options_.regularization;
   ik_options.fast_return = false;
 
-  std::vector<double> parameters(num_steps + 1);
-  std::vector<Eigen::VectorXd> walked(num_steps + 1);
   Eigen::VectorXd q = q_start_full;
-  for (size_t k = 0; k <= num_steps; ++k) {
-    const double s = static_cast<double>(k) / static_cast<double>(num_steps);
-    for (const auto& reference : *references) {
+  for (const double s : resolved.parameters) {
+    for (const auto& reference : resolved.references) {
       reference.task->setTargetFrameTransform(reference.target(s));
     }
     const auto solution = oink_->solveIterativeIk(q, tracking_tasks, extra_tasks_, constraints_,
@@ -453,12 +466,19 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
       return tl::make_unexpected(
           "Could not resolve path fraction " + std::to_string(s) + ": " + solution.error() +
           ". The path may leave the reachable workspace or pass through a singularity" +
-          (k == 0 ? ", or q_start may be too far from the first waypoint." : "."));
+          (resolved.samples.positions.empty()
+               ? ", or q_start may be too far from the first waypoint."
+               : "."));
     }
-    parameters.at(k) = s;
-    walked.at(k) = q = *solution;
+    q = *solution;
+    resolved.samples.positions.push_back(q);
   }
 
+  return resolved;
+}
+
+tl::expected<JointTrajectory, std::string>
+CartesianPathPlanner::timeOptimal(const ResolvedPath& resolved) {
   // Choose the fewest waypoints that still describe the motion. Every waypoint handed to the time
   // parameterization becomes a corner it must slow through, and its blend radius is capped by the
   // adjacent segment, so waypoint count sets the achievable speed directly. An unnecessary sample
@@ -472,6 +492,7 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
   //
   // The budget is `kSubdivisionToleranceFraction` of the user's specified pose tolerance, reserving
   // the rest for the corner-rounding that TOPP-RA applies during time parameterization.
+  const auto& walked = resolved.samples.positions;
   const double position_budget = kSubdivisionToleranceFraction * options_.position_tolerance;
   const double orientation_budget = kSubdivisionToleranceFraction * options_.orientation_tolerance;
   std::vector<bool> keep(walked.size(), false);
@@ -489,11 +510,11 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
     for (size_t i = lo + 1; i < hi; ++i) {
       const double fraction = static_cast<double>(i - lo) / static_cast<double>(hi - lo);
       const Eigen::VectorXd q_interp = scene_->interpolate(walked.at(lo), walked.at(hi), fraction);
-      for (const auto& reference : *references) {
+      for (const auto& reference : resolved.references) {
         const Eigen::Matrix4d fk =
             oink_->getContext().forwardKinematics(q_interp, reference.tip_frame);
         const auto [position_error, orientation_error] =
-            poseError(fk, reference.target(parameters.at(i)));
+            poseError(fk, reference.target(resolved.parameters.at(i)));
         // Compare both modalities against their own budget so whichever is tighter decides.
         const double excess = std::max(position_error / std::max(position_budget, kEps),
                                        orientation_error / std::max(orientation_budget, kEps));
@@ -510,20 +531,13 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
     }
   }
 
-  std::vector<Eigen::VectorXd> resolved;
-  resolved.reserve(walked.size());
+  std::vector<Eigen::VectorXd> waypoints;
   for (size_t i = 0; i < walked.size(); ++i) {
     if (keep.at(i)) {
-      resolved.push_back(walked.at(i)(oink_->q_indices).eval());
+      waypoints.push_back(walked.at(i)(oink_->q_indices).eval());
     }
   }
-  return resolved;
-}
-
-tl::expected<JointTrajectory, std::string>
-CartesianPathPlanner::timeParameterize(const std::vector<Eigen::VectorXd>& resolved,
-                                       double velocity_scale, double acceleration_scale) {
-  if (resolved.size() < 2) {
+  if (waypoints.size() < 2) {
     return tl::make_unexpected(
         "Resolved joint path has fewer than 2 waypoints; the Cartesian path may be degenerate "
         "or too short to time-parameterize.");
@@ -532,16 +546,16 @@ CartesianPathPlanner::timeParameterize(const std::vector<Eigen::VectorXd>& resol
   TOPPRAOptions toppra_options;
   toppra_options.dt = options_.dt;
   toppra_options.mode = SplineFittingMode::LinearBlend;
-  toppra_options.velocity_scale = velocity_scale;
-  toppra_options.acceleration_scale = acceleration_scale;
+  toppra_options.velocity_scale = options_.velocity_scale;
+  toppra_options.acceleration_scale = options_.acceleration_scale;
 
   // A hard cap still bounds the time-parameterization problem size for very long paths.
   JointPath joint_path;
   joint_path.joint_names = joint_group_info_.joint_names;
   joint_path.positions =
-      resolved.size() > kMaxToppraWaypoints
-          ? resampleUniform(resolved, kMaxToppraWaypoints, *scene_, joint_group_info_.q_indices)
-          : resolved;
+      waypoints.size() > kMaxToppraWaypoints
+          ? resampleUniform(waypoints, kMaxToppraWaypoints, *scene_, joint_group_info_.q_indices)
+          : waypoints;
 
   std::string last_error;
   double blend_deviation = options_.toppra_blend_deviation;
@@ -557,48 +571,154 @@ CartesianPathPlanner::timeParameterize(const std::vector<Eigen::VectorXd>& resol
   return tl::make_unexpected("TOPP-RA time parameterization failed: " + last_error);
 }
 
-CartesianPathPlanner::CartesianPeaks
-CartesianPathPlanner::computeCartesianPeaks(const JointTrajectory& trajectory,
-                                            const CartesianPath& path) const {
-  CartesianPeaks peaks;
-  if (trajectory.positions.size() < 2 || options_.dt <= 0.0) {
-    return peaks;
+tl::expected<JointTrajectory, std::string>
+CartesianPathPlanner::timeBounded(const ResolvedPath& resolved) const {
+  const auto maybe_velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
+  const auto maybe_acceleration_limits = scene_->getAccelerationLimitVectors(options_.group_name);
+  if (!maybe_velocity_limits || !maybe_acceleration_limits) {
+    return tl::make_unexpected("Could not get the joint velocity and acceleration limits.");
   }
+  const Eigen::VectorXd v_max = maybe_velocity_limits->second.cwiseAbs() * options_.velocity_scale;
+  const Eigen::VectorXd a_max =
+      maybe_acceleration_limits->second.cwiseAbs() * options_.acceleration_scale;
+  const Eigen::VectorXi& v_indices = joint_group_info_.v_indices;
+  const auto& s = resolved.parameters;
+  const auto& samples = resolved.samples.positions;
+  const double dt = options_.dt;
 
-  Eigen::VectorXd q_full = oink_->getContext().getJointPositions();
-  for (const auto& tip_frame : path.tip_frames) {
-    std::vector<double> linear_speeds;
-    std::vector<double> angular_speeds;
-    linear_speeds.reserve(trajectory.positions.size());
-    angular_speeds.reserve(trajectory.positions.size());
+  // Each run between stops is timed on its own and sampled right away, on one clock.
+  JointTrajectory trajectory;
+  trajectory.joint_names = joint_group_info_.joint_names;
+  double start_time = 0.0;
+  size_t i = 0;
+  for (size_t r = 0; r + 1 < resolved.stops.size(); ++r) {
+    const size_t first = resolved.stops.at(r);
+    const size_t last = resolved.stops.at(r + 1);
+    const size_t count = last - first + 1;
 
-    q_full(joint_group_info_.q_indices) = trajectory.positions.front();
-    Eigen::Matrix4d previous = oink_->getContext().forwardKinematics(q_full, tip_frame);
-    for (size_t i = 1; i < trajectory.positions.size(); ++i) {
-      q_full(joint_group_info_.q_indices) = trajectory.positions.at(i);
-      const Eigen::Matrix4d current = oink_->getContext().forwardKinematics(q_full, tip_frame);
-      const auto [linear_distance, angular_distance] = poseError(previous, current);
-      linear_speeds.push_back(linear_distance / options_.dt);
-      angular_speeds.push_back(angular_distance / options_.dt);
-      previous = current;
+    // Joint path derivatives q' and q'' with respect to the path parameter at each sample of the
+    // run, by finite differences in the tangent space. Inside the run these are the three-point
+    // formulas for uneven spacing. The run's ends reuse the neighboring q'' and extrapolate q'.
+    std::vector<Eigen::VectorXd> steps(count - 1);
+    std::vector<double> spacing(count - 1);
+    for (size_t j = 0; j + 1 < count; ++j) {
+      steps.at(j) = scene_->difference(samples.at(first + j), samples.at(first + j + 1))(v_indices);
+      spacing.at(j) = s.at(first + j + 1) - s.at(first + j);
+    }
+    std::vector<Eigen::VectorXd> dq(count), ddq(count, Eigen::VectorXd::Zero(v_indices.size()));
+    for (size_t j = 1; j + 1 < count; ++j) {
+      const double h1 = spacing.at(j - 1);
+      const double h2 = spacing.at(j);
+      const Eigen::VectorXd slope1 = steps.at(j - 1) / h1;
+      const Eigen::VectorXd slope2 = steps.at(j) / h2;
+      dq.at(j) = (h2 * slope1 + h1 * slope2) / (h1 + h2);
+      ddq.at(j) = 2.0 * (slope2 - slope1) / (h1 + h2);
+    }
+    if (count > 2) {
+      ddq.front() = ddq.at(1);
+      ddq.back() = ddq.at(count - 2);
+    }
+    dq.front() = steps.front() / spacing.front() - 0.5 * spacing.front() * ddq.front();
+    dq.back() = steps.back() / spacing.back() + 0.5 * spacing.back() * ddq.back();
+
+    // The commanded Cartesian maxima, as rates of the path parameter, for the fastest-moving frame.
+    double linear_rate = 0.0;
+    double angular_rate = 0.0;
+    for (const auto& reference : resolved.references) {
+      for (size_t k = first; k < last; ++k) {
+        const auto [linear, angular] =
+            poseError(reference.eval(s.at(k)), reference.eval(s.at(k + 1)));
+        linear_rate = std::max(linear_rate, linear / (s.at(k + 1) - s.at(k)));
+        angular_rate = std::max(angular_rate, angular / (s.at(k + 1) - s.at(k)));
+      }
+    }
+    double speed = std::numeric_limits<double>::infinity();
+    double acceleration = std::numeric_limits<double>::infinity();
+    if (linear_rate > kEps) {
+      speed = std::min(speed, options_.max_linear_speed / linear_rate);
+      acceleration = std::min(acceleration, options_.max_linear_acceleration / linear_rate);
+    }
+    if (angular_rate > kEps) {
+      speed = std::min(speed, options_.max_angular_speed / angular_rate);
+      acceleration = std::min(acceleration, options_.max_angular_acceleration / angular_rate);
+    }
+    if (!std::isfinite(speed)) {
+      return tl::make_unexpected("The Cartesian path has a span with no tool motion.");
     }
 
-    for (const double speed : linear_speeds) {
-      peaks.linear_speed = std::max(peaks.linear_speed, speed);
+    // The fastest allowed path speed and acceleration at each sample. Along the path, the joint
+    // velocity is q' * s_dot and the joint acceleration is q' * s_ddot + q'' * s_dot^2. The speed
+    // is capped so that the q'' term takes at most half of each joint's acceleration limit, and the
+    // path acceleration gets the rest. Each sample takes the larger derivatives of itself and its
+    // neighbors, so the limits also hold between samples.
+    std::vector<double> speeds(count), accelerations(count);
+    for (size_t j = 0; j < count; ++j) {
+      const size_t before = j > 0 ? j - 1 : j;
+      const size_t after = j + 1 < count ? j + 1 : j;
+      const Eigen::ArrayXd d1 =
+          dq.at(before).cwiseAbs().cwiseMax(dq.at(j).cwiseAbs()).cwiseMax(dq.at(after).cwiseAbs());
+      const Eigen::ArrayXd d2 = ddq.at(before)
+                                    .cwiseAbs()
+                                    .cwiseMax(ddq.at(j).cwiseAbs())
+                                    .cwiseMax(ddq.at(after).cwiseAbs());
+      speeds.at(j) = std::min(
+          {speed, (v_max.array() / d1).minCoeff(), (0.5 * a_max.array() / d2).sqrt().minCoeff()});
+      accelerations.at(j) = std::min(
+          acceleration, ((a_max.array() - d2 * speeds.at(j) * speeds.at(j)) / d1).minCoeff());
     }
-    for (const double speed : angular_speeds) {
-      peaks.angular_speed = std::max(peaks.angular_speed, speed);
+
+    // Start and end at rest, changing speed no faster than the path acceleration allows. Over a
+    // span of length h at acceleration a, the squared speed changes by at most 2 * a * h, so a
+    // forward and a backward pass give the fastest such profile under the caps. Where no joint
+    // limit binds, this is a trapezoid at the commanded Cartesian maxima.
+    speeds.front() = 0.0;
+    speeds.back() = 0.0;
+    for (size_t j = 0; j + 1 < count; ++j) {
+      const double a = std::min(accelerations.at(j), accelerations.at(j + 1));
+      speeds.at(j + 1) = std::min(speeds.at(j + 1),
+                                  std::sqrt(speeds.at(j) * speeds.at(j) + 2.0 * a * spacing.at(j)));
     }
-    for (size_t i = 1; i < linear_speeds.size(); ++i) {
-      peaks.linear_acceleration =
-          std::max(peaks.linear_acceleration,
-                   std::abs(linear_speeds.at(i) - linear_speeds.at(i - 1)) / options_.dt);
-      peaks.angular_acceleration =
-          std::max(peaks.angular_acceleration,
-                   std::abs(angular_speeds.at(i) - angular_speeds.at(i - 1)) / options_.dt);
+    for (size_t j = count - 1; j > 0; --j) {
+      const double a = std::min(accelerations.at(j), accelerations.at(j - 1));
+      speeds.at(j - 1) = std::min(
+          speeds.at(j - 1), std::sqrt(speeds.at(j) * speeds.at(j) + 2.0 * a * spacing.at(j - 1)));
     }
+
+    // Each span is crossed at constant path acceleration, which gives the time at every sample.
+    std::vector<double> times(count, start_time);
+    for (size_t j = 0; j + 1 < count; ++j) {
+      times.at(j + 1) = times.at(j) + 2.0 * spacing.at(j) / (speeds.at(j) + speeds.at(j + 1));
+    }
+
+    // Sample the run on the shared clock.
+    // The last run also takes the final point, at rest on the path's end.
+    const double end_time = times.back();
+    const double sample_until = r + 2 == resolved.stops.size() ? end_time + dt : end_time;
+    size_t j = 0;
+    for (; static_cast<double>(i) * dt < sample_until; ++i) {
+      const double time = std::min(static_cast<double>(i) * dt, end_time);
+      while (j + 2 < count && times.at(j + 1) <= time) {
+        ++j;
+      }
+      const double h = spacing.at(j);
+      const double path_acceleration =
+          (speeds.at(j + 1) * speeds.at(j + 1) - speeds.at(j) * speeds.at(j)) / (2.0 * h);
+      const double tau = time - times.at(j);
+      const double path_speed = speeds.at(j) + path_acceleration * tau;
+      const double u =
+          std::clamp((speeds.at(j) * tau + 0.5 * path_acceleration * tau * tau) / h, 0.0, 1.0);
+      const Eigen::VectorXd q =
+          scene_->interpolate(samples.at(first + j), samples.at(first + j + 1), u);
+      const Eigen::VectorXd d1 = (1.0 - u) * dq.at(j) + u * dq.at(j + 1);
+      const Eigen::VectorXd d2 = (1.0 - u) * ddq.at(j) + u * ddq.at(j + 1);
+      trajectory.times.push_back(time);
+      trajectory.positions.push_back(q(joint_group_info_.q_indices));
+      trajectory.velocities.push_back(d1 * path_speed);
+      trajectory.accelerations.push_back(d1 * path_acceleration + d2 * path_speed * path_speed);
+    }
+    start_time = end_time;
   }
-  return peaks;
+  return trajectory;
 }
 
 std::pair<double, double>

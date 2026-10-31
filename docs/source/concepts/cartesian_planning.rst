@@ -14,30 +14,27 @@ Approach
 The planner builds an arc-length SE(3) reference from the waypoints (linear interpolation for position, SLERP for orientation), and then works in two stages.
 
 **Stage 1 — resolve.**
-The reference is sampled by arc length, at a density set by the path tolerance, and one OInK differential-IK problem is solved *to convergence* at each sample, seeded from the previous solution.
+The reference is sampled by arc length, at a density set by the path tolerance and exactly at every sharp corner, and one OInK differential-IK problem is solved *to convergence* at each sample, seeded from the previous solution.
 Because every sample is driven well inside the path tolerance before the reference advances, the resolved joint path never trails the reference, so there is no feedrate throttling or lag recovery.
 If IK cannot converge at some sample (e.g., near a singularity or against a joint limit), the planner returns an error naming where it failed.
 The result is purely geometric and carries no timing.
 Joint **position** limits are enforced inside the QP; a ``VelocityLimit`` is also applied there, but only to cap how far a single IK iteration may move (``dt`` times the joint velocity limit).
 
 **Stage 2 — time.**
-The resolved joint path is decimated to its shape-carrying waypoints and time-parameterized with :doc:`TOPP-RA <trajectory_generation>`.
-This is done over a straight-segment + circular-blend geometry, so the trajectory respects the robot's joint **velocity and acceleration** limits.
-``toppra_blend_deviation`` bounds how far, in joint-space units, a rounded corner may stray from the sharp one.
+Both speed modes respect the robot's joint **velocity and acceleration** limits, and differ in how they time the resolved path:
 
-Both speed modes run both stages and differ only in what happens after the TOPP-RA pass:
-
-- ``TimeOptimal``: returns that trajectory as is.
-  It is time-optimal under the joint limits, so the tool speed varies along the path.
-- ``Bounded``: uniformly slows the whole motion until the tool also obeys the commanded Cartesian maxima
+- ``TimeOptimal``: decimates the resolved path to its shape-carrying waypoints and time-parameterizes it with :doc:`TOPP-RA <trajectory_generation>`,
+  over a straight-segment + circular-blend geometry.
+  ``toppra_blend_deviation`` bounds how far, in joint-space units, a rounded corner may stray from the sharp one.
+  The result is time-optimal under the joint limits, so the tool speed varies along the path.
+- ``Bounded``: speeds the tool up, holds a constant speed, and slows it down, at the commanded Cartesian maxima
   (``max_linear_speed`` / ``max_angular_speed`` and ``max_linear_acceleration`` / ``max_angular_acceleration``).
-  Re-timing by a factor :math:`m` divides tool speed by :math:`m` and tool acceleration by :math:`m^2`, which is applied by re-running
-  TOPP-RA with the joint limits scaled the same way, so the joint limits stay satisfied for free.
-  The commanded values therefore act as **maxima**, not fixed values: a motion the joint limits already keep slower than the caps is left alone.
+  The path is split into runs at its sharp corners (turns above ``corner_tolerance``), where the tool stops, while a finely sampled curve flows through its waypoints.
+  The tool also slows down, at the same bounded acceleration, wherever the joint limits require it, so the commanded values act as **maxima**, not fixed values.
 
 Both modes return a ``JointTrajectory``.
 ``computePeakLimitRatios`` returns the trajectory's peak velocity/acceleration-to-limit ratios, showing how close the result is to the joint limits, and ``computeAchievedPathLength`` returns the Cartesian distance traced by the tip frames.
-Use ``Bounded`` for a predictable, velocity- and acceleration-limited Cartesian motion, and ``TimeOptimal`` when time-optimality matters.
+Use ``Bounded`` for a predictable, smooth Cartesian motion, and ``TimeOptimal`` when time-optimality matters.
 
 Multiple end effectors
 ----------------------

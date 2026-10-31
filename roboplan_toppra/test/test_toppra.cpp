@@ -429,6 +429,27 @@ TEST_F(RoboPlanToppraTest, SplinesRespectAccelerationLimitsAtKnots) {
   }
 }
 
+// A 15 cm straight tool lift resolved by the Cartesian planner. The profile rides the acceleration
+// limit along the blend arc, which made the forward pass fail with interpolation discretization.
+TEST_F(RoboPlanToppraTest, LinearBlendSolvesWhenRidingTheAccelerationLimit) {
+  JointPath path;
+  path.joint_names = {"shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+                      "wrist_1_joint",      "wrist_2_joint",       "wrist_3_joint"};
+  Eigen::VectorXd q0(6), q1(6), q2(6);
+  q0 << 1.1509636545569641, 0.58097977584493954, -0.93453857194970769, -1.6010512505949699,
+      0.1825278208643249, 1.9349500979224299;
+  q1 << 1.1509633372292987, 0.49381545118407677, -0.9676909407612645, -1.4807362615841591,
+      0.18252795458676488, 1.9349510503546432;
+  q2 << 1.1509633328391553, 0.38633108813710165, -0.95942157584555943, -1.3815212389990079,
+      0.18252795571420816, 1.9349510270572197;
+  path.positions = {q0, q1, q2};
+
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
+  const auto result =
+      toppra.generate(path, {0.01, SplineFittingMode::LinearBlend, 1.0, 1.0, 10, 0.05, 0.0025});
+  ASSERT_TRUE(result.has_value()) << result.error();
+}
+
 // TOPP-RA's path coordinates for a planar joint are world-frame (x, y, theta), but its velocity
 // limits, like Pinocchio's velocities, are in the joint's body frame. Driving along world x while
 // turning a quarter turn sweeps that motion from the body's x axis onto its slower y axis, so the
