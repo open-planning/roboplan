@@ -87,4 +87,6 @@ class PathParameterizerTOPPRA:
     def __init__(self, scene: roboplan.core._core_ext.Scene, group_name: str = '') -> None: ...
 
     def generate(self, path: roboplan.core._core_ext.JointPath, options: TOPPRAOptions = ...) -> roboplan.core._core_ext.JointTrajectory:
-        """Time-parameterizes a joint-space path using TOPP-RA."""
+        """
+        Time-parameterizes a joint-space path using TOPP-RA. Planar joint velocities and accelerations are limited and reported in the joint's body frame.
+        """

@@ -15,7 +15,7 @@ back home around it. Each segment is time-parameterized with TOPP-RA and execute
 viewer by driving the robot's position actuators.
 
 Note: MuJoCo's passive viewer must be launched from the main thread on macOS, so run this example
-with ``mjpython example_rrt_mujoco.py`` there. On Linux, plain ``python`` works.
+with ``mjpython example_pick_and_place_mujoco.py`` there. On Linux, plain ``python`` works.
 """
 
 import tempfile

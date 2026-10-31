@@ -175,7 +175,18 @@ void init_optimal_ik(nanobind::module_& m) {
                           const Eigen::Vector3d&>(),
            "oink"_a, "scene"_a, "frame_a"_a, "frame_b"_a, "target_pose"_a, "gain"_a = 1.0,
            "position_tolerance"_a = Eigen::Vector3d::Zero(),
-           "orientation_tolerance"_a = Eigen::Vector3d::Zero())
+           "orientation_tolerance"_a = Eigen::Vector3d::Zero(),
+           "Create a relative pose constraint.\n\n"
+           "Args:\n"
+           "    oink: The Oink solver this constraint will be used with.\n"
+           "    scene: The scene used to resolve the frame IDs.\n"
+           "    frame_a: Name of the reference frame.\n"
+           "    frame_b: Name of the constrained frame.\n"
+           "    target_pose: Target pose of frame_b in frame_a (4x4).\n"
+           "    gain: Fraction of the excess error to remove per step (0 < gain <= 1).\n"
+           "    position_tolerance: Per-axis position tolerance (meters), in the target frame.\n"
+           "    orientation_tolerance: Per-axis orientation tolerance (radians), in the target\n"
+           "        frame. Use an infinite tolerance to leave an axis free.")
       .def_ro("frame_a", &RelativePoseConstraint::frame_a, "Reference frame name.")
       .def_ro("frame_b", &RelativePoseConstraint::frame_b, "Constrained frame name.")
       .def_rw("target_pose", &RelativePoseConstraint::target_pose,
@@ -188,7 +199,7 @@ void init_optimal_ik(nanobind::module_& m) {
               "Per-axis orientation tolerance (radians).");
 
   nanobind::class_<Barrier>(m, "Barrier", "Abstract base class for Control Barrier Functions.")
-      .def("getNumBarriers", &Barrier::getNumBarriers, "scene"_a,
+      .def("getNumBarriers", &Barrier::getNumBarriers, "context"_a,
            "Get the number of barrier constraints.")
       .def_ro("gain", &Barrier::gain, "Barrier gain (gamma).")
       .def_ro("barrier_values", &Barrier::barrier_values, "h(q) values from the last evaluation.")
@@ -216,7 +227,7 @@ void init_optimal_ik(nanobind::module_& m) {
            "axis_selection"_a = ConstraintAxisSelection(), "gain"_a = 1.0,
            "safe_displacement_gain"_a = 1.0, "safety_margin"_a = 0.0,
            "Create a position barrier with optional axis selection.")
-      .def("getFramePosition", &PositionBarrier::getFramePosition, "scene"_a,
+      .def("getFramePosition", &PositionBarrier::getFramePosition, "context"_a,
            "Get the current frame position in world coordinates.")
       .def_ro("frame_name", &PositionBarrier::frame_name, "Name of the constrained frame.")
       .def_ro("axis_selection", &PositionBarrier::axis_selection, "Axis selection for constraints.")
@@ -317,8 +328,8 @@ void init_optimal_ik(nanobind::module_& m) {
       .def(nanobind::init<const Scene&, const OinkSettings&>(), nanobind::keep_alive<1, 2>(),
            "scene"_a, "settings"_a, "Constructor for the full robot with custom solver settings.")
       .def_rw("settings", &Oink::settings,
-              "QP solver settings. Changes take effect the next time the solver is rebuilt "
-              "(i.e., when the constraint dimensions change).")
+              "QP solver settings. warm_start applies on every solve; the rest take effect when a "
+              "priority level's solver is rebuilt (i.e., when its QP dimensions change).")
       .def_ro("num_variables", &Oink::num_variables, "Number of optimization variables.")
       .def_ro("joint_names", &Oink::joint_names, "Names of the joints in the joint group.")
       .def_ro("q_indices", &Oink::q_indices, "Position indices of the joint group.")
@@ -338,8 +349,9 @@ void init_optimal_ik(nanobind::module_& m) {
           "scene"_a, "tasks"_a, "constraints"_a, "barriers"_a, "delta_q"_a,
           "regularization"_a = 1e-12,
           "Solve inverse kinematics for tasks, constraints, and barriers.\n\n"
-          "Solves a QP minimizing weighted task errors subject to the constraints and\n"
-          "barriers, writing the result into delta_q.\n\n"
+          "Solves one QP per task priority level, highest first, each restricted to the\n"
+          "nullspace of the levels above, minimizing weighted task errors subject to the\n"
+          "constraints and barriers. Writes the result into delta_q.\n\n"
           "Args:\n"
           "    tasks: List of weighted tasks to optimize for.\n"
           "    constraints: List of constraints to satisfy.\n"

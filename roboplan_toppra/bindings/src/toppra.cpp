@@ -71,8 +71,9 @@ void init_toppra(nanobind::module_& m) {
            "group_name"_a = "")
       .def("generate", unwrap_expected(&PathParameterizerTOPPRA::generate),
            nanobind::call_guard<nanobind::gil_scoped_release>(),
-           "Time-parameterizes a joint-space path using TOPP-RA.", "path"_a,
-           "options"_a = TOPPRAOptions{});
+           "Time-parameterizes a joint-space path using TOPP-RA. Planar joint velocities and "
+           "accelerations are limited and reported in the joint's body frame.",
+           "path"_a, "options"_a = TOPPRAOptions{});
 }
 
 }  // namespace roboplan

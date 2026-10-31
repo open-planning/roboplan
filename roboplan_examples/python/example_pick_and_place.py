@@ -102,7 +102,7 @@ def main(
         model, urdf_xml, pin.GeometryType.VISUAL, package_dirs=package_paths
     )
 
-    # Obstacles are added to the scene and the visualization models separately (see above).
+    # Obstacles are added to the scene and the visualization models separately.
     grey, brown = [0.5, 0.5, 0.5, 0.5], [0.6, 0.4, 0.2, 0.8]
     obstacles = [
         ObstacleConfig.box(

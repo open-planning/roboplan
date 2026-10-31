@@ -58,7 +58,6 @@ def make_mock_cartesian_trajectory(
     scene: Scene,
     q_start: np.ndarray,
     ee_frame_names: list[str],
-    base_frame: str,
     horizon: int,
     segment_time: float,
     translation_scale: float = 0.04,
@@ -70,7 +69,6 @@ def make_mock_cartesian_trajectory(
         scene: RoboPlan scene used to compute starting end-effector poses.
         q_start: Full starting robot configuration.
         ee_frame_names: End-effector frame names for the trajectory.
-        base_frame: Reference frame for the Cartesian trajectory.
         horizon: Number of sparse target poses after the starting pose.
         segment_time: Duration between consecutive sparse Cartesian waypoints, in seconds.
         translation_scale: Per-step translation scale in meters.
@@ -122,7 +120,7 @@ def make_mock_cartesian_trajectory(
         tforms_by_frame.append(targets)
 
     return CartesianTrajectory(
-        base_frames=[base_frame] * len(ee_frame_names),
+        base_frames=[""] * len(ee_frame_names),
         tip_frames=ee_frame_names,
         times=[idx * segment_time for idx in range(horizon + 1)],
         tforms=tforms_by_frame,
@@ -292,9 +290,7 @@ def main(
         lm_damping: OInK task Levenberg-Marquardt damping.
         regularization: Tikhonov regularization passed to OInK.
         limit_acceleration: If true (and the model defines acceleration limits), add an OInK
-            AccelerationLimit so the executed motion respects joint acceleration limits. Each
-            step also feeds it the task target displacement, so the arm brakes into the target
-            instead of overshooting.
+            AccelerationLimit so the executed motion respects joint acceleration limits.
         sleep: If true, sleep between dense tracking steps while generating the trajectory.
         playback_speed: Playback speed multiplier for GUI animation.
         host: Viser host.
@@ -432,7 +428,6 @@ def main(
             scene,
             q_start,
             ee_frame_names,
-            model_data.base_link,
             chunk_horizon,
             segment_time,
             action_scale=action_scale,
@@ -464,7 +459,6 @@ def main(
             action_scale=action_scale,
         )
         sparse_trajectory = JointTrajectory()
-        sparse_trajectory.joint_names = joint_names
         sparse_trajectory.times = [
             idx * segment_time for idx in range(len(sparse_targets))
         ]
@@ -505,7 +499,6 @@ def main(
         q_current = q_start.copy()
         trajectory = [q_current.copy()]
         delta_q = np.zeros(num_variables, dtype=float)
-        delta_q_target = np.zeros(num_variables, dtype=float)
         # Non-group indices are always zero; only group indices are written each step.
         delta_q_full = np.zeros(model_pin.nv, dtype=float)
 
@@ -523,13 +516,9 @@ def main(
             ):
                 frame_task.setTargetFrameTransform(base_T_world @ frame_tforms[idx])
 
-            # Center the acceleration bound on the previous step's velocity (delta_q / dt),
-            # and feed it the task-only solve so it brakes into the target rather than
-            # arriving at full speed.
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
             if accel_limit is not None:
                 accel_limit.setLastVelocity(delta_q / dt)
-                oink.solveIk(scene, tasks, delta_q_target, regularization)
-                accel_limit.setTargetDisplacement(delta_q_target)
 
             try:
                 oink.solveIk(q_current, tasks, constraints, delta_q, regularization)
@@ -551,7 +540,6 @@ def main(
         q_current = q_start.copy()
         trajectory = [q_current.copy()]
         delta_q = np.zeros(num_variables, dtype=float)
-        delta_q_target = np.zeros(num_variables, dtype=float)
         # Non-group indices are always zero; only group indices are written each step.
         delta_q_full = np.zeros(model_pin.nv, dtype=float)
 
@@ -561,13 +549,9 @@ def main(
             # Retarget the ConfigurationTask to the current dense joint waypoint.
             config_task.setTargetConfiguration(dense_targets[idx][oink.q_indices])
 
-            # Center the acceleration bound on the previous step's velocity (delta_q / dt),
-            # and feed it the task-only solve so it brakes into the target rather than
-            # arriving at full speed.
+            # Center the acceleration bound on the previous step's velocity (delta_q / dt).
             if accel_limit is not None:
                 accel_limit.setLastVelocity(delta_q / dt)
-                oink.solveIk(scene, tasks, delta_q_target, regularization)
-                accel_limit.setTargetDisplacement(delta_q_target)
 
             try:
                 oink.solveIk(q_current, tasks, constraints, delta_q, regularization)

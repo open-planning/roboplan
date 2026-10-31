@@ -350,21 +350,28 @@ void init_core_scene(nanobind::module_& m) {
            "Adds an octree geometry to the scene.", "name"_a, "parent_frame"_a, "octree"_a,
            "tform"_a, "color"_a)
       .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement),
-           "Updates the placement of an object geometry in the scene.", "name"_a, "parent_frame"_a,
-           "tform"_a)
+           "Updates the placement of an object geometry in the scene. Fails if the object is "
+           "attached.",
+           "name"_a, "parent_frame"_a, "tform"_a)
       .def("removeGeometry", unwrap_expected(&Scene::removeGeometry),
-           "Removes a geometry from the scene.", "name"_a)
+           "Removes a geometry from the scene. Fails if the object is attached.", "name"_a)
       .def("attachObject", unwrap_expected(&Scene::attachObject),
            "Attaches an object in the scene to a parent frame. Disables collisions between the "
            "object and all geometry objects attached to the parent frame, as well as the "
-           "object and all geometries or frames specified in allowed_collision_bodies.",
+           "object and all geometries or frames specified in allowed_collision_bodies. If tform "
+           "is not given, the object keeps its current world pose. Invalidates existing "
+           "SceneContexts.",
            "object_name"_a, "parent_frame"_a,
            "allowed_collision_bodies"_a = std::vector<std::string>{},
            "tform"_a = std::optional<Eigen::Matrix4d>())
       .def("detachObject", unwrap_expected(&Scene::detachObject),
-           "Detaches an object from its parent frame, returning it to the world.", "object_name"_a)
+           "Detaches an object from its parent frame, reparenting it to the universe frame at its "
+           "current world pose. Invalidates existing SceneContexts.",
+           "object_name"_a)
       .def("reparentAttachedObject", unwrap_expected(&Scene::reparentAttachedObject),
-           "Moves an attached object to a new parent frame, such as when handing it over.",
+           "Moves an attached object to a new parent frame, such as when handing it over. If "
+           "tform is not given, the object keeps its current world pose. Invalidates existing "
+           "SceneContexts.",
            "object_name"_a, "parent_frame"_a,
            "allowed_collision_bodies"_a = std::vector<std::string>{},
            "tform"_a = std::optional<Eigen::Matrix4d>())

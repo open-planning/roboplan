@@ -61,7 +61,7 @@ CMAKE_INSTALL_MODE = "COPY"
 # Configures the whole superbuild in one shared build tree, using the 'pixi'
 # preset (superbuild/CMakePresets.json). cxx_flags/extra_flags are for one-off
 # variant builds (see build_asan/build_timetrace below); leave default otherwise.
-configure = { cmd = "cmake -S superbuild --preset pixi {{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }} {{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }} {{ extra_flags }} $ROBOPLAN_EXTRA_CMAKE_ARGS", args = [
+configure = { cmd = "cmake -S superbuild --preset pixi {{ '-DCMAKE_CXX_FLAGS=' + cxx_flags if cxx_flags }} {{ '-DCMAKE_C_FLAGS=' + cxx_flags if cxx_flags }} -UGENERATE_PYTHON_STUBS {{ extra_flags }} $ROBOPLAN_EXTRA_CMAKE_ARGS", args = [
   { arg = "cxx_flags", default = "" },
   { arg = "extra_flags", default = "" },
 ] }
@@ -97,7 +97,7 @@ clean = { cmd = "cmake -E rm -rf build install" }
 
 build_asan = { cmd = "cmake --build build {{ '--target ' + package_name + '/all' if package_name }}", depends-on = [
   { task = "configure", args = [
-    "-fsanitize=address",
+    "-fsanitize=address -DEIGEN_MALLOC_ALREADY_ALIGNED=1",
     "-DGENERATE_PYTHON_STUBS=OFF",
   ] },
 ], args = [

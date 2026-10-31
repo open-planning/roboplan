@@ -63,4 +63,4 @@ To control the differential-IK problem yourself, construct the planner with a ``
 The planner reuses these objects across all ``plan()`` calls and never mutates them apart from the tracking-task targets.
 Any seed-dependent setup is the caller's responsibility.
 In this mode, the OInK-related fields of ``CartesianPlannerOptions`` (costs, gains, limits) are ignored.
-However, the timing/tolerance fields (``dt``, speeds, ``max_*_error``, ``speed_mode``, scales) still apply.
+However, the timing/tolerance fields (``dt``, speeds, ``*_tolerance``, ``speed_mode``, scales) still apply.

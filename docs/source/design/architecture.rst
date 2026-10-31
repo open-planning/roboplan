@@ -132,7 +132,7 @@ The core package
 ----------------
 
 The ``Scene`` is the central object in RoboPlan.
-It owns the Pinocchio robot model and data, the collision geometry model, and planning-relevant information such as joint groups, joint limits, and dynamic obstacles.
+It owns the Pinocchio robot model and data, the collision geometry model, and planning-relevant information such as joint groups, joint limits, and dynamic obstacles, which can be attached to and detached from robot frames.
 On top of these it provides the queries every algorithm needs: forward kinematics, frame Jacobians, joint limits and groups, collision and distance checks, random and collision-free sampling, and interpolation/integration that respects the configuration space topology.
 
 A ``Scene`` is constructed from a ``PinocchioSceneDescription`` (a Pinocchio model and its collision geometry).

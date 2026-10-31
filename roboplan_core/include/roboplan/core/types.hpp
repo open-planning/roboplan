@@ -185,6 +185,9 @@ struct CartesianPath {
   /// @brief Constructor.
   /// @param base_frames A list of base (or reference) frame names. An empty frame
   /// name means the world frame.
+  /// @param tip_frames A list of tip (or target) frame names.
+  /// @param tforms The transforms from each base frame to each tip frame, as
+  /// tforms[frame_idx][path_idx].
   CartesianPath(const std::vector<std::string>& base_frames,
                 const std::vector<std::string>& tip_frames,
                 const std::vector<std::vector<Eigen::Matrix4d>>& tforms)
@@ -216,6 +219,10 @@ struct CartesianTrajectory {
   /// @brief Constructor.
   /// @param base_frames A list of base (or reference) frame names. An empty frame
   /// name means the world frame.
+  /// @param tip_frames A list of tip (or target) frame names.
+  /// @param times The list of times.
+  /// @param tforms The transforms from each base frame to each tip frame, as
+  /// tforms[frame_idx][time_idx].
   CartesianTrajectory(const std::vector<std::string>& base_frames,
                       const std::vector<std::string>& tip_frames, const std::vector<double>& times,
                       const std::vector<std::vector<Eigen::Matrix4d>>& tforms)

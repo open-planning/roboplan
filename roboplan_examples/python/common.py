@@ -140,10 +140,13 @@ class ObstacleConfig:
         else:
             geom = self.geom
 
+        frame_id = model.getFrameId(self.parent_frame)
+        frame = model.frames[frame_id]
         geom_obj = pin.GeometryObject(
             self.name,
-            model.getFrameId(self.parent_frame),
-            pin.SE3(self.tform),
+            frame.parentJoint,
+            frame_id,
+            frame.placement * pin.SE3(self.tform),
             geom,
         )
         geom_obj.meshColor = self.color

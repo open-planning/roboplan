@@ -156,9 +156,11 @@ def make_keyboard_listener(state: TeleopKeyboardState) -> keyboard.Listener:
     return keyboard.Listener(on_press=on_press, on_release=on_release)
 
 
-def _suppress_terminal_echo() -> tuple[int, list]:
+def _suppress_terminal_echo() -> tuple[int, list | None]:
     """Disable terminal echo so held keys do not flood the terminal output."""
     fd = sys.stdin.fileno()
+    if not sys.stdin.isatty():
+        return fd, None
     old_attrs = termios.tcgetattr(fd)
     new_attrs = termios.tcgetattr(fd)
     new_attrs[3] &= ~termios.ECHO
@@ -413,7 +415,7 @@ def main(
         q_home[oink.q_indices],
         np.full(num_variables, config_task_gain),
         ConfigurationTaskOptions(
-            task_gain=config_task_gain,
+            task_gain=1.0,
             lm_damping=0.0,
         ),
     )
@@ -627,15 +629,10 @@ def main(
             for frame_task, ee_frame_name in zip(frame_tasks, ee_frame_names):
                 target_pose = target_poses[ee_frame_name]
                 if filter_tau > 0.0:
-                    # Recreate the filter if tau changed via the slider, preserving
-                    # the current pose so there is no discontinuity.
-                    if target_filters[ee_frame_name].tau != filter_tau:
-                        current_pose = target_filters[ee_frame_name].update(
-                            target_pose, dt
-                        )
-                        target_filters[ee_frame_name] = SE3LowPassFilter(tau=filter_tau)
-                        target_filters[ee_frame_name].reset(current_pose)
+                    target_filters[ee_frame_name].setTau(filter_tau)
                     target_pose = target_filters[ee_frame_name].update(target_pose, dt)
+                else:
+                    target_filters[ee_frame_name].reset(target_pose)
                 frame_task.setTargetFrameTransform(base_T_world @ target_pose)
 
             # --- Solve OInK and integrate ---
@@ -659,7 +656,8 @@ def main(
         pass
     finally:
         listener.stop()
-        termios.tcsetattr(fd, termios.TCSADRAIN, _old_term_attrs)
+        if _old_term_attrs is not None:
+            termios.tcsetattr(fd, termios.TCSAFLUSH, _old_term_attrs)
         print("Teleop stopped.")
 
 

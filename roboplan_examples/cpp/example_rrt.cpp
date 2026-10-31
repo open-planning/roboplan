@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -83,6 +84,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto maybe_traj = toppra.generate(path, toppra_options);
   if (!maybe_traj) {
     std::cout << "Failed to generate trajectory: " << maybe_traj.error() << std::endl;
+    return 1;
   }
   const auto& traj = maybe_traj.value();
   std::cout << "Successfully generated trajectory with duration of " << traj.times.back()

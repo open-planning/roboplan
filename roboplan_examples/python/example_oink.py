@@ -52,7 +52,7 @@ def main(
     Run the optimal IK example.
 
     Parameters:
-        model: The name of the model to use (ur5, franka, or dual).
+        model: The name of the model to use.
         task_gain: Task gain (alpha) for the IK solver (0-1).
         lm_damping: Levenberg-Marquardt damping for regularization.
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values

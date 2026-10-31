@@ -74,6 +74,8 @@ public:
   PathParameterizerTOPPRA(const std::shared_ptr<Scene> scene, const std::string& group_name = "");
 
   /// @brief Time-parameterizes a joint-space path using TOPP-RA.
+  /// @details Planar joint velocities and accelerations are limited and reported in the joint's
+  /// body frame.
   /// @param path The path to time parameterize.
   /// @param options Options controlling the time parameterization. Refer to TOPPRAOptions.
   /// @return The trajectory if successful, else a string describing the error.

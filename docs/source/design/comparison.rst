@@ -93,7 +93,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - Plugins: KDL, OPW, UR, IKFast
      - None
    * - Sampling-based planning
-     - RRT, RRT-Connect, RRT*, and constrained planning on pose constraints (CBiRRT2); k-d tree neighbor search with continuous/planar joint topologies
+     - RRT, RRT-Connect, RRT*, and constrained planning on pose constraints (CBiRRT2); multiple goals; k-d tree neighbor search with continuous/planar joint topologies
      - Via OMPL plugin
      - Via OMPL wrapper
      - ~60 planners, including asymptotically optimal and constrained (manifold) planning
@@ -113,7 +113,7 @@ A closer look at RoboPlan and the frameworks with the most overlapping scope.
      - Task Composer: YAML-defined pipelines (planning, validation, smoothing) executed as parallel task graphs
      - None
    * - Path post-processing
-     - Shortcutting with redundant vertex removal; uniform resampling
+     - Shortcutting (constraint-aware) with redundant vertex removal; uniform resampling
      - Planning request/response adapters
      - Task composer nodes (e.g., contact-check validation, smoothing)
      - Path simplification utilities

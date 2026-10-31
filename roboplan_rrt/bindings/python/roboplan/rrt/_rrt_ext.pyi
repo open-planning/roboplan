@@ -120,7 +120,7 @@ class RRTOptions:
     @property
     def constraint_projection(self) -> roboplan.core._core_ext.ConstraintProjectorOptions:
         """
-        Options for the projection that pulls sampled configurations onto the constraints. Only used when `plan` is given constraints.
+        Options for the projection that pulls sampled configurations onto the constraints. Only used when `plan` or `planToAny` is given constraints.
         """
 
     @constraint_projection.setter

@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <vector>
 
-#include <pinocchio/algorithm/kinematics.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_oink/constraints/position_limit.hpp>
@@ -45,9 +44,6 @@ int main(int /*argc*/, char* /*argv*/[]) {
   // Set initial configuration
   auto q_start = pinocchio::neutral(model);
   scene.setJointPositions(q_start);
-
-  // Update forward kinematics in scene data
-  scene.forwardKinematics(q_start, "tool0");
 
   // Create Oink instance
   Oink oink(scene, "arm");

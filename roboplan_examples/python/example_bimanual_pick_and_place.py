@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import itertools
 import threading
 import time
@@ -550,6 +552,8 @@ class MotionPlanner:
             for q in traj.positions
         ]
         traj.joint_names = self.joint_names
+        traj.velocities = []
+        traj.accelerations = []
 
         self.report_carry(name, traj, constraint, t_start)
         joint_path = JointPath()
@@ -591,6 +595,13 @@ def main(
 ):
     """
     Carry an object with two arms back and forth between two tables.
+
+    Parameters:
+        max_planning_time: The maximum time (in seconds) to search for a path.
+        carry_planning_time: The maximum time (in seconds) to search for a constrained carry path.
+        host: The host for the ViserVisualizer.
+        port: The port for the ViserVisualizer.
+        rng_seed: The seed for the scene's and RRT planners' random number generators.
     """
     model_data = get_model_data()[MODEL_NAME]
     group_name = model_data.default_joint_group

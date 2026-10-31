@@ -31,8 +31,8 @@ namespace roboplan {
 /// Oink::solveIterativeIk() only accepts a solution within these limits (see
 /// computeViolation()). With limits tighter than the model's, a start configuration, or a random
 /// restart (which samples the model limits), can be outside them, and with the default
-/// `max_pullback` of 0 the solver can never bring it back inside. Set `max_pullback > 0` whenever
-/// the start may be outside the limits.
+/// `max_pullback` of 0 the solver is never forced back inside. Set `max_pullback > 0` whenever the
+/// start may be outside the limits.
 struct PositionLimit : public Constraints {
   /// @brief Constructor; pre-allocates the workspace.
   /// @param oink The Oink solver this constraint will be used with (provides num_variables and
