@@ -49,6 +49,14 @@ Goal biasing is disabled in this mode, since the ``CONNECT`` step already pulls 
 
 RRT-Connect was introduced by `Kuffner and LaValle (2000) <http://msl.cs.illinois.edu/~lavalle/papers/KufLav00.pdf>`_.
 
+Multiple Goals
+~~~~~~~~~~~~~~
+
+``RRT::planToAny`` plans to any of a set of goal configurations, such as several IK solutions for the same grasp, ending at whichever it reaches first (or the cheapest found, if ``fast_return`` is false).
+Each goal becomes a root of the goal tree in RRT-Connect, and goal biasing picks one of the goals at random.
+If any goal can be connected to the start directly, the closest such goal is returned immediately, regardless of ``fast_return``.
+The returned ``RRTPlan`` holds the ``path`` and the ``goal_index`` of the goal it reached.
+
 RRT*
 ~~~~
 
@@ -90,7 +98,7 @@ Constrained Planning
 Many manipulation tasks restrict *how* the robot moves, not just where it ends up, such as carrying a full cup upright or sliding a drawer along its rail.
 These are end-effector pose constraints that must hold at every point of the path, which a goal cannot express.
 
-``RRT::plan`` takes an optional list of constraints, and passing a non-empty list switches the planner to the constrained extension of CBiRRT2
+``RRT::plan`` and ``RRT::planToAny`` take an optional list of constraints, and passing a non-empty list switches the planner to the constrained extension of CBiRRT2
 (`Berenson et al. (2009) <https://personalrobotics.cs.washington.edu/publications/berenson2009cbirrt.pdf>`_).
 Samples are still drawn from the whole configuration space, but a tree no longer jumps ``max_connection_distance`` toward one in a single step.
 Instead, it walks there in short ``path_step_size`` hops, and after each hop **projects** the configuration back onto the constraints before accepting it as a node.
@@ -276,7 +284,7 @@ The planner is configured through ``RRTOptions``, passed at construction and mod
 | ``constraint_projection``         | Projection options (constrained only)                      | see below |
 +-----------------------------------+------------------------------------------------------------+-----------+
 
-The last one applies only when ``plan`` is given constraints; see :ref:`constrained-planning`.
+The last one applies only when ``plan`` or ``planToAny`` is given constraints; see :ref:`constrained-planning`.
 ``constraint_projection`` is a ``ConstraintProjectorOptions``:
 
 +-----------------------------------+------------------------------------------------------------+-----------+

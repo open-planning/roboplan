@@ -339,7 +339,21 @@ class RelativePoseConstraint(Constraints):
     position/orientation tolerance of target_pose (tolerances are in the target frame).
     """
 
-    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_a: str, frame_b: str, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], gain: float = 1.0, position_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., orientation_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None: ...
+    def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_a: str, frame_b: str, target_pose: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], gain: float = 1.0, position_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ..., orientation_tolerance: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')] = ...) -> None:
+        """
+        Create a relative pose constraint.
+
+        Args:
+            oink: The Oink solver this constraint will be used with.
+            scene: The scene used to resolve the frame IDs.
+            frame_a: Name of the reference frame.
+            frame_b: Name of the constrained frame.
+            target_pose: Target pose of frame_b in frame_a (4x4).
+            gain: Fraction of the excess error to remove per step (0 < gain <= 1).
+            position_tolerance: Per-axis position tolerance (meters), in the target frame.
+            orientation_tolerance: Per-axis orientation tolerance (radians), in the target
+                frame. Use an infinite tolerance to leave an axis free.
+        """
 
     @property
     def frame_a(self) -> str:
@@ -380,7 +394,7 @@ class RelativePoseConstraint(Constraints):
 class Barrier:
     """Abstract base class for Control Barrier Functions."""
 
-    def getNumBarriers(self, scene: roboplan.core._core_ext.SceneContext) -> int:
+    def getNumBarriers(self, context: roboplan.core._core_ext.SceneContext) -> int:
         """Get the number of barrier constraints."""
 
     @property
@@ -438,7 +452,7 @@ class PositionBarrier(Barrier):
     def __init__(self, oink: Oink, scene: roboplan.core._core_ext.Scene, frame_name: str, p_min: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], p_max: Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')], dt: float, axis_selection: ConstraintAxisSelection = ..., gain: float = 1.0, safe_displacement_gain: float = 1.0, safety_margin: float = 0.0) -> None:
         """Create a position barrier with optional axis selection."""
 
-    def getFramePosition(self, scene: roboplan.core._core_ext.SceneContext) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
+    def getFramePosition(self, context: roboplan.core._core_ext.SceneContext) -> Annotated[NDArray[numpy.float64], dict(shape=(3), order='C')]:
         """Get the current frame position in world coordinates."""
 
     @property
@@ -695,7 +709,7 @@ class Oink:
     @property
     def settings(self) -> OinkSettings:
         """
-        QP solver settings. Changes take effect the next time the solver is rebuilt (i.e., when the constraint dimensions change).
+        QP solver settings. warm_start applies on every solve; the rest take effect when a priority level's solver is rebuilt (i.e., when its QP dimensions change).
         """
 
     @settings.setter
@@ -722,8 +736,9 @@ class Oink:
         """
         Solve inverse kinematics for tasks, constraints, and barriers.
 
-        Solves a QP minimizing weighted task errors subject to the constraints and
-        barriers, writing the result into delta_q.
+        Solves one QP per task priority level, highest first, each restricted to the
+        nullspace of the levels above, minimizing weighted task errors subject to the
+        constraints and barriers. Writes the result into delta_q.
 
         Args:
             tasks: List of weighted tasks to optimize for.

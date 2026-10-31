@@ -69,8 +69,9 @@ struct RRTOptions {
   bool fast_return = true;
 
   /// @brief Options for the projection that pulls sampled configurations onto the constraints.
-  /// @details Only used when `plan` is given constraints. Its `path_step_size` is the distance the
-  /// tree grows between projections, and is the main tuning parameter for constrained planning.
+  /// @details Only used when `plan` or `planToAny` is given constraints. Its `path_step_size` is
+  /// the distance the tree grows between projections, and is the main tuning parameter for
+  /// constrained planning.
   ConstraintProjectorOptions constraint_projection = ConstraintProjectorOptions();
 };
 

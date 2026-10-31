@@ -181,6 +181,7 @@ Each task carries an integer ``priority`` (default ``1`` = highest).
 Priority levels are solved as a lexicographic cascade of QPs, highest first.
 Each level keeps all constraints and barriers, and searches only the nullspace :math:`Z` of every higher-priority task's weighted Jacobian, :math:`\Delta q = \Delta q_{p-1}^* + Z z`.
 This holds the weighted task velocity :math:`W_k J_k \Delta q` of every higher-priority task exactly at the value its level achieved.
+With a nonzero ``singularity_threshold``, directions where a task's weighted Jacobian has singular values below the threshold stay open to lower levels, at a soft cost of :math:`\|W_k J_k (\Delta q - \Delta q_k^*)\|^2 / \text{threshold}^2`.
 A lower level can therefore only use the freedom the higher levels leave, and an inequality constraint restricts it only where that constraint is active.
 A single-priority problem is a single QP; each extra level costs one more QP solve.
 
@@ -339,13 +340,15 @@ Enforces maximum joint velocities as hard bounds:
 PositionLimit
 """""""""""""
 
-Restricts motion based on distance to joint limits:
+Restricts motion based on distance to joint limits (the model's, or custom ``joint_lower_limits``/``joint_upper_limits``):
 
 .. math::
 
-   -\gamma (q - q_{\min}) \leq \Delta q \leq \gamma (q_{\max} - q)
+   -\gamma \max(q - q_{\min}, -p_{\max}) \leq \Delta q \leq \gamma \max(q_{\max} - q, -p_{\max})
 
 The gain :math:`\gamma \in (0, 1]` controls aggressiveness. As :math:`q \to q_{\max}`, the upper bound :math:`\to 0`.
+``max_pullback`` (:math:`p_{\max}`, default 0) sets how far per step a joint outside the limits is pulled back inside.
+Since ``solveIterativeIk`` only accepts solutions within the limits, set it above 0 whenever the start or a random restart may be outside them.
 
 AccelerationLimit
 """""""""""""""""

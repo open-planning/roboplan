@@ -388,7 +388,8 @@ struct Oink {
 
   /// @brief Solve inverse kinematics for tasks with constraints and barriers.
   ///
-  /// Solves a QP to compute the joint displacement that minimizes weighted task errors while
+  /// Solves one QP per task priority level, highest first, each restricted to the nullspace of the
+  /// levels above, to compute the joint displacement that minimizes weighted task errors while
   /// satisfying all constraints and barrier functions.
   ///
   /// @param scene The scene; the solve runs at its current joint positions

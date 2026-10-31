@@ -14,6 +14,7 @@ Refer to the [full documentation](https://roboplan.readthedocs.io) for more info
 
 The main folders found in this repo are as follows.
 
+- `benchmarks` : Performance benchmarks for the planners and solvers.
 - `docs` : The documentation source.
 - `roboplan_core` : The core C++ library.
 - `roboplan_common` : Shared utilities such as Python install helpers and CMake macros.
@@ -24,6 +25,7 @@ The main folders found in this repo are as follows.
 - `roboplan_cartesian_planning` : A Cartesian planner for following task-space paths.
 - `roboplan_example_models` : Contains robot models used for testing and examples.
 - `roboplan_examples` : Basic examples with real robot models.
+- `roboplan` : A pure-Python metapackage that depends on all the packages above, except the examples.
 - `superbuild` : Shared CMake entry point that builds every package in one tree (Pixi, vanilla CMake, and PyPI wheel builds).
 
 ---

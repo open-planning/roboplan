@@ -569,22 +569,26 @@ class Scene:
         """Adds an octree geometry to the scene."""
 
     def updateGeometryPlacement(self, name: str, parent_frame: str, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> None:
-        """Updates the placement of an object geometry in the scene."""
+        """
+        Updates the placement of an object geometry in the scene. Fails if the object is attached.
+        """
 
     def removeGeometry(self, name: str) -> None:
-        """Removes a geometry from the scene."""
+        """Removes a geometry from the scene. Fails if the object is attached."""
 
     def attachObject(self, object_name: str, parent_frame: str, allowed_collision_bodies: Sequence[str] = [], tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')] | None = None) -> None:
         """
-        Attaches an object in the scene to a parent frame. Disables collisions between the object and all geometry objects attached to the parent frame, as well as the object and all geometries or frames specified in allowed_collision_bodies.
+        Attaches an object in the scene to a parent frame. Disables collisions between the object and all geometry objects attached to the parent frame, as well as the object and all geometries or frames specified in allowed_collision_bodies. If tform is not given, the object keeps its current world pose. Invalidates existing SceneContexts.
         """
 
     def detachObject(self, object_name: str) -> None:
-        """Detaches an object from its parent frame, returning it to the world."""
+        """
+        Detaches an object from its parent frame, reparenting it to the universe frame at its current world pose. Invalidates existing SceneContexts.
+        """
 
     def reparentAttachedObject(self, object_name: str, parent_frame: str, allowed_collision_bodies: Sequence[str] = [], tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')] | None = None) -> None:
         """
-        Moves an attached object to a new parent frame, such as when handing it over.
+        Moves an attached object to a new parent frame, such as when handing it over. If tform is not given, the object keeps its current world pose. Invalidates existing SceneContexts.
         """
 
     def isObjectAttached(self, object_name: str) -> bool:

@@ -218,7 +218,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.1.0-py314h4fcf905_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-np2py314h3d74583_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py314hb3b7642_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py314hb3b7642_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py314hdafbbf9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyside6-6.11.2-py314h574d94f_1.conda
@@ -540,7 +540,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.1.0-py314h323ae61_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-np2py314h6341bac_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py314h41d2e7e_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py314h41d2e7e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h5bc82ec_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py314ha42fa4b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pyside6-6.11.2-py314h11268ef_1.conda
@@ -875,7 +875,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxml2-2.15.4-h550178d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lld-22.1.8-h98a3de6_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22.1.8-hdb3d66b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lodepng-20220109-hf86a087_0.tar.bz2
@@ -902,7 +902,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.1.0-py314h999e5f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-np2py314h8299c0a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py314h730d39a_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py314h730d39a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hb001647_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py314he55896b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyobjc-core-12.2.2-py314h63b12ec_1.conda
@@ -1111,7 +1111,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libxslt-1.1.45-ha5384fd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lld-22.1.8-he13e66b_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lodepng-20220109-h2d74725_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/matplotlib-3.11.2-py314h30c6bc1_1.conda
@@ -1135,7 +1135,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-4.1.0-py314hf783017_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-python-4.1.0-py314hb56cc05_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pixman-0.46.4-h5112557_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py314he502d87_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py314he502d87_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pynput-1.8.2-py314h86ab7b2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyside6-6.11.2-py314h0c0e1ae_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/python-3.14.8-h53f6dd8_102_cp314.conda
@@ -1362,7 +1362,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-4.1.0-py314h4fcf905_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-np2py314h3d74583_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py314hb3b7642_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py314hb3b7642_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py314hdafbbf9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyside6-6.11.2-py314h574d94f_1.conda
@@ -1684,7 +1684,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-4.1.0-py314h323ae61_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-np2py314h6341bac_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py314h41d2e7e_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py314h41d2e7e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h5bc82ec_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py314ha42fa4b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pyside6-6.11.2-py314h11268ef_1.conda
@@ -2019,7 +2019,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxml2-2.15.4-h550178d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lld-22.1.8-h98a3de6_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22.1.8-hdb3d66b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lodepng-20220109-hf86a087_0.tar.bz2
@@ -2046,7 +2046,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-4.1.0-py314h999e5f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-np2py314h8299c0a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py314h730d39a_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py314h730d39a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hb001647_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py314he55896b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyobjc-core-12.2.2-py314h63b12ec_1.conda
@@ -2255,7 +2255,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libxslt-1.1.45-ha5384fd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lld-22.1.8-he13e66b_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lodepng-20220109-h2d74725_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/matplotlib-3.11.2-py314h30c6bc1_1.conda
@@ -2279,7 +2279,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-4.1.0-py314hf783017_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-python-4.1.0-py314hb56cc05_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pixman-0.46.4-h5112557_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py314he502d87_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py314he502d87_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pynput-1.8.2-py314h86ab7b2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyside6-6.11.2-py314h0c0e1ae_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/python-3.14.8-h53f6dd8_102_cp314.conda
@@ -2526,7 +2526,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-np2py312h2e4a55d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pkg-config-0.29.2-h1114479_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py312ha5105d2_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py312ha5105d2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h1b36aeb_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py312h7900ff3_1.conda
@@ -3085,7 +3085,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-np2py312h8b193ea_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pkg-config-0.29.2-hfbd14cd_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py312h39ec767_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py312h39ec767_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/psutil-7.2.2-py312h898233f_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h5bc82ec_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py312h8025657_1.conda
@@ -3697,7 +3697,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxslt-1.1.45-haaf9281_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lld-22.1.8-h98a3de6_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22.1.8-hdb3d66b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lodepng-20220109-hf86a087_0.tar.bz2
@@ -3727,7 +3727,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-np2py312h7620b8a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pkg-config-0.29.2-he0b766d_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py312ha82ef1f_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py312ha82ef1f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/psutil-7.2.2-py312hbd136b4_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hb001647_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py312h1f38498_1.conda
@@ -4162,7 +4162,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libxslt-1.1.45-ha5384fd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lld-22.1.8-he13e66b_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lodepng-20220109-h2d74725_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/lxml-6.1.3-py312h1476a5e_0.conda
@@ -4189,7 +4189,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-python-4.1.0-py312h95acbbb_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pixman-0.46.4-h5112557_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pkg-config-0.29.2-hffdb5b9_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py312hcbb8dce_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py312hcbb8dce_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/psutil-7.2.2-py312he5662c2_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pynput-1.8.2-py312h2e8e312_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyreadline3-3.5.6-py312h2e8e312_1.conda
@@ -4605,7 +4605,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-np2py312h2e4a55d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pkg-config-0.29.2-h1114479_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py312ha5105d2_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py312ha5105d2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h1b36aeb_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py312h7900ff3_1.conda
@@ -5163,7 +5163,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-np2py312h8b193ea_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pkg-config-0.29.2-hfbd14cd_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py312h39ec767_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py312h39ec767_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/psutil-7.2.2-py312h898233f_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h5bc82ec_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py312h8025657_1.conda
@@ -5779,7 +5779,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzenohc-1.7.2-h2b5bd82_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lld-22.1.8-h98a3de6_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22.1.8-hdb3d66b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lodepng-20220109-hf86a087_0.tar.bz2
@@ -5809,7 +5809,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-np2py312h7620b8a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pkg-config-0.29.2-he0b766d_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py312ha82ef1f_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py312ha82ef1f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/psutil-7.2.2-py312hbd136b4_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hb001647_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py312h1f38498_1.conda
@@ -6243,7 +6243,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzenohc-1.7.2-h86dd174_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lld-22.1.8-he13e66b_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lodepng-20220109-h2d74725_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/lxml-6.1.3-py312h1476a5e_0.conda
@@ -6270,7 +6270,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-python-4.1.0-py312h95acbbb_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pixman-0.46.4-h5112557_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pkg-config-0.29.2-hffdb5b9_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py312hcbb8dce_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py312hcbb8dce_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/psutil-7.2.2-py312he5662c2_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pynput-1.8.2-py312h2e8e312_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyreadline3-3.5.6-py312h2e8e312_1.conda
@@ -6850,7 +6850,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-np2py314h3d74583_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pkg-config-0.29.2-h1114479_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py314hb3b7642_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py314hb3b7642_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py314hfe1a184_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py314hdafbbf9_1.conda
@@ -7419,7 +7419,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-np2py314h6341bac_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pkg-config-0.29.2-hfbd14cd_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py314h41d2e7e_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py314h41d2e7e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/psutil-7.2.2-py314ha22a00f_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h5bc82ec_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py314ha42fa4b_1.conda
@@ -8048,7 +8048,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzenohc-1.9.0-h389a063_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lld-22.1.8-h98a3de6_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22.1.8-hdb3d66b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lodepng-20220109-hf86a087_0.tar.bz2
@@ -8079,7 +8079,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-np2py314h8299c0a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pkg-config-0.29.2-he0b766d_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py314h730d39a_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py314h730d39a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/psutil-7.2.2-py314hd98292b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hb001647_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py314he55896b_1.conda
@@ -8524,7 +8524,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzenohc-1.10.1-h7a25a18_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lld-22.1.8-he13e66b_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lodepng-20220109-h2d74725_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/lxml-6.1.3-py314h3fc22ad_0.conda
@@ -8552,7 +8552,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-python-4.1.0-py314hb56cc05_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pixman-0.46.4-h5112557_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pkg-config-0.29.2-hffdb5b9_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py314he502d87_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py314he502d87_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/psutil-7.2.2-py314hc5dbbe4_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pynput-1.8.2-py314h86ab7b2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyreadline3-3.5.6-py314h86ab7b2_1.conda
@@ -8980,7 +8980,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pinocchio-python-4.1.0-np2py314h3d74583_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pkg-config-0.29.2-h1114479_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py314hb3b7642_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py314hb3b7642_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py314hfe1a184_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pynput-1.8.2-py314hdafbbf9_1.conda
@@ -9549,7 +9549,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pinocchio-python-4.1.0-np2py314h6341bac_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pixman-0.46.4-h7ac5ae9_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pkg-config-0.29.2-hfbd14cd_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py314h41d2e7e_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py314h41d2e7e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/psutil-7.2.2-py314ha22a00f_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pthread-stubs-0.4-h5bc82ec_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/pynput-1.8.2-py314ha42fa4b_1.conda
@@ -10173,7 +10173,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzenohc-1.9.0-h389a063_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lld-22.1.8-h98a3de6_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22.1.8-hdb3d66b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/lodepng-20220109-hf86a087_0.tar.bz2
@@ -10204,7 +10204,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pinocchio-python-4.1.0-np2py314h8299c0a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pixman-0.46.4-h784d473_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pkg-config-0.29.2-he0b766d_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py314h730d39a_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py314h730d39a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/psutil-7.2.2-py314hd98292b_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pthread-stubs-0.4-hb001647_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pynput-1.8.2-py314he55896b_1.conda
@@ -10648,7 +10648,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzenohc-1.10.1-h7a25a18_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libzlib-1.3.2-hfd05255_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lld-22.1.8-he13e66b_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/lodepng-20220109-h2d74725_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/win-64/lxml-6.1.3-py314h3fc22ad_0.conda
@@ -10676,7 +10676,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/pinocchio-python-4.1.0-py314hb56cc05_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pixman-0.46.4-h5112557_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pkg-config-0.29.2-hffdb5b9_1013.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py314he502d87_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py314he502d87_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/psutil-7.2.2-py314hc5dbbe4_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pynput-1.8.2-py314h86ab7b2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/pyreadline3-3.5.6-py314h86ab7b2_1.conda
@@ -14784,9 +14784,9 @@ packages:
   run_exports: {}
   size: 141376
   timestamp: 1788677377648
-- conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py312ha5105d2_0.conda
-  sha256: 6c153b07260eba4ae65818f4f7cd8b70a33d22f8b4616e01e6656a1f43ebbea3
-  md5: 6203d34cdddf01361d68769f53c6fddb
+- conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py312ha5105d2_0.conda
+  sha256: 3d2673dbd9c071b2541625bf0a20fda3bb00e1f676d63e0a3fc140f99eb18d4e
+  md5: d7cdde1e11387165fa690050adfd96d7
   depends:
   - __glibc >=2.17,<3.0.a0
   - _openmp_mutex >=4.5
@@ -14802,11 +14802,11 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 951361
-  timestamp: 1792424140122
-- conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.0-py314hb3b7642_0.conda
-  sha256: 7efcfa4813dfeac4d069e4b389b7ac3c490a764f07ea2215898ca3a5d4f982d1
-  md5: 385eb4a129b62889ba37ce9abe483d7f
+  size: 952456
+  timestamp: 1793353634152
+- conda: https://conda.anaconda.org/conda-forge/linux-64/proxsuite-0.8.2-py314hb3b7642_0.conda
+  sha256: 420136367a5d4cf5825a684fc6ae99b5427b33411756cd65c3901471f9db55be
+  md5: c88ebd12fc404159126492d90e625b9b
   depends:
   - __glibc >=2.17,<3.0.a0
   - _openmp_mutex >=4.5
@@ -14822,8 +14822,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 952915
-  timestamp: 1792424127134
+  size: 952754
+  timestamp: 1793353606917
 - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h1b36aeb_3.conda
   sha256: 9b6f0247591f062a188cd42580916476c0d939a89d65f3ecefb37e84b5c17d7a
   md5: 2f8faed6c111c9ed0c1d217bc1be75f2
@@ -19617,9 +19617,9 @@ packages:
   run_exports: {}
   size: 338204
   timestamp: 1788677394334
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py312h39ec767_0.conda
-  sha256: 9277a48dc7a1d88366ea9f4b797506bd586992e8a61d420df97f40dc44a83ca7
-  md5: 7ced97e71d9d23ed2dc02a863bdc9273
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py312h39ec767_0.conda
+  sha256: 5a2c5022b43aa1f91b8e52409238eb70be6f9a8ea4cdf92c76ca4c79bdf21a1c
+  md5: 41a1a1e85798843daf108bbe076b2457
   depends:
   - _openmp_mutex >=4.5
   - cereal
@@ -19634,11 +19634,11 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 487307
-  timestamp: 1792424057774
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.0-py314h41d2e7e_0.conda
-  sha256: 7961b86ac02115092d36b115857a70d7103a7f5fba8dbcd3772179113f3de69d
-  md5: d142c45c8554e4c7a9159f8d765ea845
+  size: 488476
+  timestamp: 1793353599722
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/proxsuite-0.8.2-py314h41d2e7e_0.conda
+  sha256: 70164b592759ab65b363a4e6f67cec3d46ba86b245805b5b3c03fa5a42ee6083
+  md5: d0243198e708cc18f2e2176ae64482e5
   depends:
   - _openmp_mutex >=4.5
   - cereal
@@ -19653,8 +19653,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 488444
-  timestamp: 1792424071594
+  size: 488040
+  timestamp: 1793353592764
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/psutil-7.2.2-py312h898233f_3.conda
   sha256: 045eb67af4063f362b988453118cc21f744d9c03ef1007bda02d89163c0f23f4
   md5: febdb3bed07b1165a5c03cc53d8647cd
@@ -25045,21 +25045,21 @@ packages:
   run_exports: {}
   size: 6631619
   timestamp: 1787519842417
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.3-hdb3d66b_1.conda
-  sha256: eec66f3d0a0c428411e22a59c4726069ccef81a46864876b6e270c8c254d4045
-  md5: 5b7efd98534e6722de8d223b8654185b
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-openmp-23.1.4-hdb3d66b_0.conda
+  sha256: cc6d67df56d4ea967e17d938d3108cdf7d971531350df9e7fc5e18cb89066a70
+  md5: 9a6ec2a53da5d75951b88c51018c27fa
   depends:
   - __osx >=11.0
   constrains:
   - intel-openmp <0.0a0
-  - openmp 23.1.3|23.1.3.*
+  - openmp 23.1.4|23.1.4.*
   license: Apache-2.0 WITH LLVM-exception
   license_family: APACHE
   run_exports:
     strong:
-    - llvm-openmp >=23.1.3
-  size: 287944
-  timestamp: 1791950643503
+    - llvm-openmp >=23.1.4
+  size: 287495
+  timestamp: 1792567065537
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/llvm-tools-22-22.1.8-h79441dc_3.conda
   sha256: c12ad5ec1b2c49035ee7a3cce1cd50e343501197690c72f2c2a39ab191cb1b31
   md5: 5ace3459a3856a60a9186e690814f308
@@ -25684,16 +25684,16 @@ packages:
   run_exports: {}
   size: 273899
   timestamp: 1788677388168
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py312ha82ef1f_0.conda
-  sha256: a194643175337c67cf56d548dde53e86aeaf27f1b7c129a3e9cff131ddaf3951
-  md5: 03b1c9bc62eb4ec02a880a243b99e6ad
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py312ha82ef1f_0.conda
+  sha256: fe1d5930b87fa1f5705f173655453b9ad069ce3af7ce42fefac277a3e8d31860
+  md5: db6107aa572bfc9eca017c70580ce65a
   depends:
   - __osx >=11.0
   - cereal
   - eigen
   - libcxx >=21
   - llvm-openmp >=21.1.8
-  - llvm-openmp >=23.1.3
+  - llvm-openmp >=23.1.4
   - numpy
   - python >=3.12,<3.13.0a0
   - python_abi 3.12.* *_cp312
@@ -25702,18 +25702,18 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 472349
-  timestamp: 1792424044912
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.0-py314h730d39a_0.conda
-  sha256: 4224e88cefd463559f441ff4a896e9b4ea2f65344f96fa088a179b64f131e86f
-  md5: dfd74ad6b2ef29ed353865160c591c7f
+  size: 472370
+  timestamp: 1793353567093
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/proxsuite-0.8.2-py314h730d39a_0.conda
+  sha256: d70b0961b2062320b20d2aee8e191f9ac6c00860fcbb5111aa02a0d29901c3d5
+  md5: 70f4cd3509b3790e733fe2c1140aaa5e
   depends:
   - __osx >=11.0
   - cereal
   - eigen
   - libcxx >=21
   - llvm-openmp >=21.1.8
-  - llvm-openmp >=23.1.3
+  - llvm-openmp >=23.1.4
   - numpy
   - python >=3.14,<3.15.0a0
   - python_abi 3.14.* *_cp314
@@ -25722,8 +25722,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 472763
-  timestamp: 1792424045732
+  size: 472979
+  timestamp: 1793353564559
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/psutil-7.2.2-py312hbd136b4_3.conda
   sha256: 8ebaab5502af0f7f36223e23cc1f49ac4d3a3070f0b6d074153db897fd7bc74e
   md5: 3fd630bf639ce4512de776b9a275624b
@@ -28644,23 +28644,23 @@ packages:
   run_exports: {}
   size: 142972417
   timestamp: 1787520438416
-- conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.3-h49e36cd_1.conda
-  sha256: 3eed860d303cff84c3ab771312ebb3e0b26ad10d92b38ed98a33f3bef7edd01b
-  md5: 9a59330f44f2ad04123dda3f6fcc7bd3
+- conda: https://conda.anaconda.org/conda-forge/win-64/llvm-openmp-23.1.4-h49e36cd_0.conda
+  sha256: a3012ff7e6ec5e0a0a19ea8df76a504f3c2bea2d5b12a94f8aa5a50ac9eeab3c
+  md5: 2674733d6b58428f90f7afb0132d4202
   depends:
   - ucrt >=10.0.20348.0
   - vc >=14.3,<15
   - vc14_runtime >=14.44.35208
   constrains:
   - intel-openmp <0.0a0
-  - openmp 23.1.3|23.1.3.*
+  - openmp 23.1.4|23.1.4.*
   license: Apache-2.0 WITH LLVM-exception
   license_family: APACHE
   run_exports:
     strong:
-    - llvm-openmp >=23.1.3
-  size: 343582
-  timestamp: 1791951366925
+    - llvm-openmp >=23.1.4
+  size: 344047
+  timestamp: 1792567436843
 - conda: https://conda.anaconda.org/conda-forge/win-64/llvm-tools-22.1.8-he5be12e_3.conda
   sha256: 28c41f4a7c78bc49362365f93f2e66d312160d4db4ada252d0897982dd0bc113
   md5: fe067f91b36c104f79f32836cd85b77e
@@ -29296,13 +29296,13 @@ packages:
   run_exports: {}
   size: 37998
   timestamp: 1788677380581
-- conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py312hcbb8dce_0.conda
-  sha256: 052b89b199b3dac49e6547d1c61c6c45442d6fc23ee2caf18e331014ddc12adb
-  md5: 05b647b15808e3641ca4aa335b7100ec
+- conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py312hcbb8dce_0.conda
+  sha256: 10deacf114050300896dc10595bc10caa131fb6e91a06e92c4d2a47a16cbfbb5
+  md5: e10a5003885eaecebcd793bc782ca8da
   depends:
   - cereal
   - eigen
-  - llvm-openmp >=23.1.3
+  - llvm-openmp >=23.1.4
   - numpy
   - python >=3.12,<3.13.0a0
   - python_abi 3.12.* *_cp312
@@ -29315,15 +29315,15 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 921667
-  timestamp: 1792424196419
-- conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.0-py314he502d87_0.conda
-  sha256: db57976b2c7cf45a1d59ec4cf1b21710c5fc6e9b27e647f9bd7b743c676d3b3a
-  md5: 6ac287afc007f22cf997699280001b7b
+  size: 922092
+  timestamp: 1793353716372
+- conda: https://conda.anaconda.org/conda-forge/win-64/proxsuite-0.8.2-py314he502d87_0.conda
+  sha256: 95d18f43d58c97f4117d5685509be953181c4258556ad8c5569803a00c695a0a
+  md5: 4fd181ceeb3550c294d2e01f775fa7d3
   depends:
   - cereal
   - eigen
-  - llvm-openmp >=23.1.3
+  - llvm-openmp >=23.1.4
   - numpy
   - python >=3.14,<3.15.0a0
   - python_abi 3.14.* *_cp314
@@ -29336,8 +29336,8 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   run_exports: {}
-  size: 907819
-  timestamp: 1792424125079
+  size: 907745
+  timestamp: 1793353632487
 - conda: https://conda.anaconda.org/conda-forge/win-64/psutil-7.2.2-py312he5662c2_3.conda
   sha256: 499b676620082970d0972b22415ebe241fd455075b130e8cb4694ba7f68dbd33
   md5: 6e32e3f62040195ec6709aa4215d1e40

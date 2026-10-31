@@ -167,7 +167,7 @@ public:
   /// @details The planner traces the path by updating each `components.tracking_tasks` target
   /// every control step and solving with the provided solver, tasks, constraints, and barriers.
   /// Oink-related fields of `options` (costs, gains, limits, etc.) are ignored in this mode
-  /// since the caller owns the objectives; timing/tolerance fields (dt, speeds, max errors,
+  /// since the caller owns the objectives; timing/tolerance fields (dt, speeds, tolerances,
   /// speed_mode, scales) still apply.
   /// @param scene A pointer to the scene to use for planning.
   /// @param options A struct containing planner options.

@@ -60,7 +60,7 @@ void initRrt(nanobind::module_& m) {
               "exhausted and return the lowest-cost path.")
       .def_rw("constraint_projection", &RRTOptions::constraint_projection,
               "Options for the projection that pulls sampled configurations onto the constraints. "
-              "Only used when `plan` is given constraints.");
+              "Only used when `plan` or `planToAny` is given constraints.");
 
   nanobind::class_<RRTPlan>(m, "RRTPlan", "The result of planning to one of a set of goals.")
       .def_ro("path", &RRTPlan::path, "The joint-space path from the start to the reached goal.")

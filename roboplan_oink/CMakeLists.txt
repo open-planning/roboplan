@@ -56,7 +56,7 @@ else()
   FetchContent_Declare(
     proxsuite
     GIT_REPOSITORY https://github.com/Simple-Robotics/proxsuite.git
-    GIT_TAG v0.8.1
+    GIT_TAG v0.8.2
     GIT_SHALLOW TRUE)
   FetchContent_MakeAvailable(proxsuite)
 
