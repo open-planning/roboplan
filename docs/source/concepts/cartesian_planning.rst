@@ -27,9 +27,9 @@ Both speed modes respect the robot's joint **velocity and acceleration** limits,
   over a straight-segment + circular-blend geometry.
   ``toppra_blend_deviation`` bounds how far, in joint-space units, a rounded corner may stray from the sharp one.
   The result is time-optimal under the joint limits, so the tool speed varies along the path.
-- ``Bounded``: gives the tool a trapezoidal speed profile, speeding up, holding a constant speed, and slowing down at the commanded Cartesian maxima
+- ``Bounded``: speeds the tool up, holds a constant speed, and slows it down, at the commanded Cartesian maxima
   (``max_linear_speed`` / ``max_angular_speed`` and ``max_linear_acceleration`` / ``max_angular_acceleration``).
-  The path is split into runs at its sharp corners, where the tool stops, while a finely sampled curve flows through its waypoints.
+  The path is split into runs at its sharp corners (turns above ``corner_tolerance``), where the tool stops, while a finely sampled curve flows through its waypoints.
   The tool also slows down, at the same bounded acceleration, wherever the joint limits require it, so the commanded values act as **maxima**, not fixed values.
 
 Both modes return a ``JointTrajectory``.

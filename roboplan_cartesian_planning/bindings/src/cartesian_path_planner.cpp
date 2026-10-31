@@ -23,8 +23,8 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       m, "CartesianSpeedMode",
       "Selects how the planner assigns speed/timing along the Cartesian path.")
       .value("Bounded", CartesianSpeedMode::Bounded,
-             "Trace the path with a trapezoidal tool speed profile under bounded Cartesian "
-             "velocity and acceleration, stopping at sharp corners.")
+             "Trace the path at bounded Cartesian velocity and acceleration, stopping at sharp "
+             "corners and slowing down where the joint limits require it.")
       .value("TimeOptimal", CartesianSpeedMode::TimeOptimal,
              "Time-optimal re-timing respecting joint velocity and acceleration limits.");
 
@@ -32,7 +32,7 @@ void init_cartesian_path_planner(nanobind::module_& m) {
                                             "Options for the Cartesian path planner.")
       .def(nanobind::init<std::string, double, CartesianSpeedMode, double, double, double, double,
                           double, double, double, double, double, double, double, double, double,
-                          double, double, double>(),
+                          double, double, double, double>(),
            "group_name"_a = "", "dt"_a = 0.01, "speed_mode"_a = CartesianSpeedMode::Bounded,
            "max_linear_speed"_a = 0.1, "max_angular_speed"_a = 0.5,
            "max_linear_acceleration"_a = 0.5, "max_angular_acceleration"_a = 2.5,
@@ -40,7 +40,8 @@ void init_cartesian_path_planner(nanobind::module_& m) {
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
            "lm_damping"_a = 0.01, "regularization"_a = 1e-6, "config_task_weight"_a = 0.05,
            "velocity_scale"_a = 1.0, "acceleration_scale"_a = 1.0,
-           "toppra_blend_deviation"_a = 0.0025, "position_limit_gain"_a = 1.0)
+           "toppra_blend_deviation"_a = 0.0025, "position_limit_gain"_a = 1.0,
+           "corner_tolerance"_a = 0.175)
       .def_rw("group_name", &CartesianPlannerOptions::group_name, "Joint group name.")
       .def_rw("dt", &CartesianPlannerOptions::dt, "Output trajectory sample period (s).")
       .def_rw("speed_mode", &CartesianPlannerOptions::speed_mode, "Speed/timing strategy.")
@@ -79,7 +80,9 @@ void init_cartesian_path_planner(nanobind::module_& m) {
               "value <= 0 disables blending, so the trajectory stops at every waypoint. "
               "TimeOptimal mode only.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
-              "Gain (0, 1] for the joint position-limit constraint.");
+              "Gain (0, 1] for the joint position-limit constraint.")
+      .def_rw("corner_tolerance", &CartesianPlannerOptions::corner_tolerance,
+              "Turn angle at a waypoint (rad) above which the tool stops there, Bounded mode.");
 
   nanobind::class_<CartesianPlannerComponents>(
       m, "CartesianPlannerComponents",

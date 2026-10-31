@@ -11,7 +11,7 @@ class CartesianSpeedMode(enum.Enum):
 
     Bounded = 0
     """
-    Trace the path with a trapezoidal tool speed profile under bounded Cartesian velocity and acceleration, stopping at sharp corners.
+    Trace the path at bounded Cartesian velocity and acceleration, stopping at sharp corners and slowing down where the joint limits require it.
     """
 
     TimeOptimal = 1
@@ -22,7 +22,7 @@ class CartesianSpeedMode(enum.Enum):
 class CartesianPlannerOptions:
     """Options for the Cartesian path planner."""
 
-    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, position_tolerance: float = 0.005, orientation_tolerance: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.0025, position_limit_gain: float = 1.0) -> None: ...
+    def __init__(self, group_name: str = '', dt: float = 0.01, speed_mode: CartesianSpeedMode = CartesianSpeedMode.Bounded, max_linear_speed: float = 0.1, max_angular_speed: float = 0.5, max_linear_acceleration: float = 0.5, max_angular_acceleration: float = 2.5, position_tolerance: float = 0.005, orientation_tolerance: float = 0.01, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.01, regularization: float = 1e-06, config_task_weight: float = 0.05, velocity_scale: float = 1.0, acceleration_scale: float = 1.0, toppra_blend_deviation: float = 0.0025, position_limit_gain: float = 1.0, corner_tolerance: float = 0.175) -> None: ...
 
     @property
     def group_name(self) -> str:
@@ -162,6 +162,15 @@ class CartesianPlannerOptions:
 
     @position_limit_gain.setter
     def position_limit_gain(self, arg: float, /) -> None: ...
+
+    @property
+    def corner_tolerance(self) -> float:
+        """
+        Turn angle at a waypoint (rad) above which the tool stops there, Bounded mode.
+        """
+
+    @corner_tolerance.setter
+    def corner_tolerance(self, arg: float, /) -> None: ...
 
 class CartesianPlannerComponents:
     """

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -55,12 +54,6 @@ constexpr double kSeedStepFraction = 0.5;
 /// consecutive waypoints bows off the commanded path, and again on how far the time
 /// parameterization rounds the corners between them. Splitting it leaves room for both.
 constexpr double kSubdivisionToleranceFraction = 0.5;
-
-/// @brief Relative change in a frame's Cartesian velocity across a waypoint that makes the Bounded
-/// mode stop there.
-/// @details For a pure direction change this is about the turn angle in radians, so
-/// a finely sampled curve flows through its waypoints while a sharp corner is stopped at.
-constexpr double kCornerTolerance = 10.0 * std::numbers::pi / 180.0;
 
 /// @brief Resolves a joint group, throwing the planner's construction error if it does not exist.
 JointGroupInfo resolveJointGroup(const Scene& scene, const std::string& group_name) {
@@ -181,6 +174,9 @@ tl::expected<void, std::string> CartesianPlannerOptions::validate() const {
   }
   if (acceleration_scale <= 0.0 || acceleration_scale > 1.0) {
     return tl::make_unexpected("acceleration_scale must be in the interval (0, 1].");
+  }
+  if (corner_tolerance < 0.0) {
+    return tl::make_unexpected("corner_tolerance must be non-negative.");
   }
   return {};
 }
@@ -384,7 +380,7 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
 
   // For each span, the number of IK seed steps it needs, and for each breakpoint, whether it is a
   // corner to stop at. A corner is where some frame's Cartesian velocity per unit path parameter
-  // (translation, and rotation vector in the base frame) changes by more than `kCornerTolerance`
+  // (translation, and rotation vector in the base frame) changes by more than `corner_tolerance`
   // of its magnitude, which no smooth timing can pass through.
   const double seed_linear_step = kSeedStepFraction * options_.position_tolerance;
   const double seed_angular_step = kSeedStepFraction * options_.orientation_tolerance;
@@ -410,7 +406,8 @@ CartesianPathPlanner::resolvePath(const CartesianPath& path, const Eigen::Vector
         const double scale =
             std::max(rate_before.segment<3>(offset).norm(), rate.segment<3>(offset).norm());
         // The floor ignores the rounding noise of a motion that has no translation or rotation.
-        corners.at(j) = corners.at(j) || (j > 0 && change > kCornerTolerance * scale + kEps);
+        corners.at(j) =
+            corners.at(j) || (j > 0 && change > options_.corner_tolerance * scale + kEps);
       }
       rate_before = rate;
     }

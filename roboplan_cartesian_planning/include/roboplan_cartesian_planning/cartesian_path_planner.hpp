@@ -20,8 +20,7 @@ struct FrameTask;
 
 /// @brief Selects how the planner assigns speed/timing along the Cartesian path.
 enum class CartesianSpeedMode {
-  /// @brief Trace the path with a trapezoidal tool speed profile under bounded Cartesian velocity
-  /// and acceleration.
+  /// @brief Trace the path at bounded Cartesian velocity and acceleration.
   /// @details Along each smooth run of the path the tool speeds up, holds a constant speed, and
   /// slows down, stopping at sharp corners. It also slows down, at the same bounded acceleration,
   /// wherever the joint limits require it.
@@ -109,6 +108,12 @@ struct CartesianPlannerOptions {
   /// @brief Gain (0, 1] for the position-limit constraint that steers each step away
   /// from the joint position limits.
   double position_limit_gain = 1.0;
+
+  /// @brief Turn angle at a waypoint, in radians, above which Bounded mode stops there.
+  /// @details A relative change in speed of the same size also counts. Below it, the tool flows
+  /// through the waypoint, so a finely sampled curve should turn by less than this per waypoint.
+  /// Only used in Bounded speed mode.
+  double corner_tolerance = 0.175;
 
   /// @brief Validates the mode-independent option values (dt, tolerances, scales).
   /// @details Mode-specific options (e.g. the Bounded mode's commanded speeds/accelerations) are
