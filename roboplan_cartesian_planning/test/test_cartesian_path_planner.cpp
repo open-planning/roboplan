@@ -415,6 +415,60 @@ TEST_F(CartesianPlannerTest, BoundedModeBoundsAccelerationAndStartsStopsAtRest) 
   EXPECT_LE(peak_velocity_ratio, 1.1);
 }
 
+// Bounded mode speeds the tool up and slows it down monotonically along a straight run, holding the
+// commanded speed in between, and stops at the path's sharp corners.
+TEST_F(CartesianPlannerTest, BoundedModeHasTrapezoidalToolSpeed) {
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  q_start.positions.head(6) << 0.0, -1.5708, 1.5708, -1.5708, -1.5708, 0.0;
+  scene_->setJointPositions(q_start.positions);
+
+  CartesianPlannerOptions options;
+  options.group_name = kGroup;
+  options.speed_mode = CartesianSpeedMode::Bounded;
+  CartesianPathPlanner planner(scene_, options);
+
+  const auto tool_speeds = [&](const JointTrajectory& traj) {
+    std::vector<double> speeds;
+    Eigen::Vector3d previous = Eigen::Vector3d::Zero();
+    for (size_t i = 0; i < traj.positions.size(); ++i) {
+      const Eigen::VectorXd q_full = scene_->toFullJointPositions(kGroup, traj.positions.at(i));
+      const Eigen::Vector3d position =
+          scene_->forwardKinematics(q_full, kTipFrame, kBaseFrame).block<3, 1>(0, 3);
+      if (i > 0) {
+        speeds.push_back((position - previous).norm() / options.dt);
+      }
+      previous = position;
+    }
+    return speeds;
+  };
+
+  // Collinear waypoints form a single run.
+  const auto line = planner.plan(makeLinePath(q_start.positions, 4, 0.05), q_start);
+  ASSERT_TRUE(line.has_value()) << line.error();
+  const std::vector<double> speeds = tool_speeds(*line);
+  const auto peak = std::max_element(speeds.begin(), speeds.end());
+  EXPECT_NEAR(*peak, options.max_linear_speed, 0.002);
+  for (auto it = speeds.begin(); it + 1 < speeds.end(); ++it) {
+    if (it < peak) {
+      EXPECT_LE(*it, *(it + 1) + 1e-4);
+    } else {
+      EXPECT_GE(*it, *(it + 1) - 1e-4);
+    }
+  }
+
+  // The zigzag's tool speed drops to rest at each of its 4 interior corners.
+  const auto zigzag = planner.plan(makeZigzagPath(q_start.positions, 3, 0.08), q_start);
+  ASSERT_TRUE(zigzag.has_value()) << zigzag.error();
+  const std::vector<double> zigzag_speeds = tool_speeds(*zigzag);
+  int stops = 0;
+  for (size_t i = 1; i + 1 < zigzag_speeds.size(); ++i) {
+    stops += zigzag_speeds.at(i) < 0.01 && zigzag_speeds.at(i) <= zigzag_speeds.at(i - 1) &&
+             zigzag_speeds.at(i) < zigzag_speeds.at(i + 1);
+  }
+  EXPECT_EQ(stops, 4);
+}
+
 TEST_F(CartesianPlannerTest, PeakLimitRatiosSkipUnlimitedJoints) {
   // Without the YAML config the URDF provides no acceleration limits.
   const auto model_prefix = example_models::get_package_models_dir();

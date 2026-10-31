@@ -234,7 +234,6 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   acc_constraint = std::make_shared<toppra::constraint::LinearJointAcceleration>(
       acc_lower_limits_ * options.acceleration_scale,
       acc_upper_limits_ * options.acceleration_scale);
-  acc_constraint->discretizationType(toppra::DiscretizationType::Interpolation);
   toppra::LinearConstraintPtrs constraints = {vel_constraint, acc_constraint};
 
   auto maybe_path_pos_vecs = getPathPositionVectors(path);
@@ -346,6 +345,12 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   const auto gridpoints = geom_path->proposeGridpoints(
       /* max_segment_error */ 1.0e-5, /* max_iteration */ 100, /* max_segment_length */ 0.02,
       /* min_num_points */ 100, initial_gridpoints);
+
+  // Interpolation can fail the forward pass numerically where the profile rides the acceleration
+  // limit along a blend arc, which collocation avoids. The splines keep interpolation, since
+  // collocation would not enforce the limit on the near side of their curvature jumps at knots.
+  acc_constraint->discretizationType(using_blend_path ? toppra::DiscretizationType::Collocation
+                                                      : toppra::DiscretizationType::Interpolation);
 
   // Solve TOPP-RA problem, limiting and reporting planar joints in their body frames.
   if (!planar_q_indices_.empty()) {

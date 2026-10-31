@@ -23,7 +23,8 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       m, "CartesianSpeedMode",
       "Selects how the planner assigns speed/timing along the Cartesian path.")
       .value("Bounded", CartesianSpeedMode::Bounded,
-             "Trace the path under bounded Cartesian velocity and acceleration.")
+             "Trace the path with a trapezoidal tool speed profile under bounded Cartesian "
+             "velocity and acceleration, stopping at sharp corners.")
       .value("TimeOptimal", CartesianSpeedMode::TimeOptimal,
              "Time-optimal re-timing respecting joint velocity and acceleration limits.");
 
@@ -75,7 +76,8 @@ void init_cartesian_path_planner(nanobind::module_& m) {
       .def_rw("toppra_blend_deviation", &CartesianPlannerOptions::toppra_blend_deviation,
               "Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend "
               "geometry. Each corner becomes an arc straying from it by at most this much. A "
-              "value <= 0 disables blending, so the trajectory stops at every waypoint.")
+              "value <= 0 disables blending, so the trajectory stops at every waypoint. "
+              "TimeOptimal mode only.")
       .def_rw("position_limit_gain", &CartesianPlannerOptions::position_limit_gain,
               "Gain (0, 1] for the joint position-limit constraint.");
 

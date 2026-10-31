@@ -10,7 +10,9 @@ class CartesianSpeedMode(enum.Enum):
     """Selects how the planner assigns speed/timing along the Cartesian path."""
 
     Bounded = 0
-    """Trace the path under bounded Cartesian velocity and acceleration."""
+    """
+    Trace the path with a trapezoidal tool speed profile under bounded Cartesian velocity and acceleration, stopping at sharp corners.
+    """
 
     TimeOptimal = 1
     """
@@ -148,7 +150,7 @@ class CartesianPlannerOptions:
     @property
     def toppra_blend_deviation(self) -> float:
         """
-        Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend geometry. Each corner becomes an arc straying from it by at most this much. A value <= 0 disables blending, so the trajectory stops at every waypoint.
+        Corner-rounding tolerance, in joint-space units, for the TOPP-RA line+blend geometry. Each corner becomes an arc straying from it by at most this much. A value <= 0 disables blending, so the trajectory stops at every waypoint. TimeOptimal mode only.
         """
 
     @toppra_blend_deviation.setter
