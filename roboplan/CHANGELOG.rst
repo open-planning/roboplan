@@ -2,6 +2,9 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.0 (2026-10-31)
+------------------
+
 0.7.0 (2026-09-19)
 ------------------
 * Fix metapackage builds with colcon symlink install (`#334 <https://github.com/open-planning/roboplan/issues/334>`_)

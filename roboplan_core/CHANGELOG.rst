@@ -2,6 +2,19 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.0 (2026-10-31)
+------------------
+* Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
+* Enable constraint projection in path shortcutting (`#387 <https://github.com/open-planning/roboplan/issues/387>`_)
+* Add joint limits + pullback to PositionLimit (`#378 <https://github.com/open-planning/roboplan/issues/378>`_)
+* Keep exporting roboplan::tl_expected when the system tl-expected is used (`#372 <https://github.com/open-planning/roboplan/issues/372>`_)
+* Use the system tl::expected when available and keep bundled copies out of include/ (`#369 <https://github.com/open-planning/roboplan/issues/369>`_)
+* SimpleIK randomization should only touch joints in the group (`#366 <https://github.com/open-planning/roboplan/issues/366>`_)
+* Make empty frame name mean world in CartesianPath (`#364 <https://github.com/open-planning/roboplan/issues/364>`_)
+* Add attach/detach object API (`#355 <https://github.com/open-planning/roboplan/issues/355>`_)
+* Fix placement locations in collision geometry methods (`#352 <https://github.com/open-planning/roboplan/issues/352>`_)
+* Contributors: Andrew Hoelscher, Sebastian Castro, Tobias Fischer
+
 0.7.0 (2026-09-19)
 ------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)

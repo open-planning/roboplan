@@ -36,7 +36,7 @@ copyright = "2025-2026, Open Planning"
 author = "Sebastian Castro"
 
 # The full version, including alpha/beta/rc tags
-version = release = "0.7.0"
+version = release = "0.8.0"
 
 
 # -- General configuration ---------------------------------------------------

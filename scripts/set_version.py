@@ -8,7 +8,7 @@ from pathlib import Path
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("version", help="New version, e.g., 0.7.0+dev")
+    parser.add_argument("version", help="New version, e.g., 0.8.0+dev")
     args = parser.parse_args()
 
     pattern = re.compile(r'(^version = ")[^"]+', re.MULTILINE)

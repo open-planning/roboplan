@@ -2,6 +2,17 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.0 (2026-10-31)
+------------------
+* Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
+* Depend on libcereal-dev in OInK (`#391 <https://github.com/open-planning/roboplan/issues/391>`_)
+* Upgrade to ProxSuite 0.8 (`#386 <https://github.com/open-planning/roboplan/issues/386>`_)
+* Add joint limits + pullback to PositionLimit (`#378 <https://github.com/open-planning/roboplan/issues/378>`_)
+* Bind refreshContext; remove scene argument (`#379 <https://github.com/open-planning/roboplan/issues/379>`_)
+* Iterative interface for OInK (`#371 <https://github.com/open-planning/roboplan/issues/371>`_)
+* Change OInK to solve cascade of QPs + add Relative pose constraint (`#363 <https://github.com/open-planning/roboplan/issues/363>`_)
+* Contributors: Andrew Hoelscher, Sebastian Castro
+
 0.7.0 (2026-09-19)
 ------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)

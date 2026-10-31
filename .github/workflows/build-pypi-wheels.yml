@@ -216,7 +216,7 @@ jobs:
         with:
           package-dir: roboplan_toppra
           output-dir: wheelhouse
-      - name: Build and test roboplan-cartesian-planning wheels
+      - name: Build roboplan-cartesian-planning wheels
         uses: pypa/cibuildwheel@v4.1.0
         with:
           package-dir: roboplan_cartesian_planning

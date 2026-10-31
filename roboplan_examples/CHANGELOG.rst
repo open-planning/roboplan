@@ -2,6 +2,24 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.0 (2026-10-31)
+------------------
+* Cartesian path planning robustness improvements (`#393 <https://github.com/open-planning/roboplan/issues/393>`_)
+* Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
+* Enable constraint projection in path shortcutting (`#387 <https://github.com/open-planning/roboplan/issues/387>`_)
+* Fix lighting in MuJoCo example (`#389 <https://github.com/open-planning/roboplan/issues/389>`_)
+* Add bimanual pick-and-place example for TiagoPro (`#381 <https://github.com/open-planning/roboplan/issues/381>`_)
+* Iterative interface for OInK (`#371 <https://github.com/open-planning/roboplan/issues/371>`_)
+* Change OInK to solve cascade of QPs + add Relative pose constraint (`#363 <https://github.com/open-planning/roboplan/issues/363>`_)
+* Add benchmarks and actually check CI (`#357 <https://github.com/open-planning/roboplan/issues/357>`_)
+* Add Stretch 4 PG4 gripper model  (`#374 <https://github.com/open-planning/roboplan/issues/374>`_)
+* Load joint limits in C++ Cartesian planning example (`#368 <https://github.com/open-planning/roboplan/issues/368>`_)
+* Add support for multiple goals in RRT (`#361 <https://github.com/open-planning/roboplan/issues/361>`_)
+* Add TIAGo Pro example model + pick example (`#365 <https://github.com/open-planning/roboplan/issues/365>`_)
+* Add an example that uses the attach/detach API (`#359 <https://github.com/open-planning/roboplan/issues/359>`_)
+* Convert MuJoCo RRT example to do pick and place (`#358 <https://github.com/open-planning/roboplan/issues/358>`_)
+* Contributors: Andrew Hoelscher, Erik Holum, Ola Ghattas, Sebastian Castro
+
 0.7.0 (2026-09-19)
 ------------------
 * Improve MuJoCo RRT example (`#349 <https://github.com/open-planning/roboplan/issues/349>`_)

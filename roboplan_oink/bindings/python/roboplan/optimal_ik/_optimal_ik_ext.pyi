@@ -331,7 +331,7 @@ class AccelerationLimit(Constraints):
         """
 
     @delta_q_target.setter
-    def delta_q_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None) -> None: ...
+    def delta_q_target(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None, /) -> None: ...
 
 class RelativePoseConstraint(Constraints):
     """
@@ -523,7 +523,7 @@ class SelfCollisionBarrierOptions:
         """
 
     @d_max.setter
-    def d_max(self, arg: float | None) -> None: ...
+    def d_max(self, arg: float | None, /) -> None: ...
 
 class SelfCollisionBarrier(Barrier):
     """

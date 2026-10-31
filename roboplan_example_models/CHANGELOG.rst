@@ -2,6 +2,12 @@
 Changelog for package roboplan_example_models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.0 (2026-10-31)
+------------------
+* Add Stretch 4 PG4 gripper model  (`#374 <https://github.com/open-planning/roboplan/issues/374>`_)
+* Add TIAGo Pro example model + pick example (`#365 <https://github.com/open-planning/roboplan/issues/365>`_)
+* Contributors: Andrew Hoelscher, Ola Ghattas
+
 0.7.0 (2026-09-19)
 ------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
