@@ -441,18 +441,28 @@ TEST(PlanarToppraTest, LimitsAndReportsPlanarVelocitiesInTheBodyFrame) {
       <parent link="world"/>
       <child link="base"/>
     </joint>
+    <link name="arm"/>
+    <joint name="arm_joint" type="revolute">
+      <parent link="base"/>
+      <child link="arm"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-3.14" upper="3.14" effort="1.0" velocity="0.5"/>
+    </joint>
   </robot>)";
   auto scene = std::make_shared<Scene>("planar_scene", loadUrdfSceneDescriptionFromXml(urdf, {}));
   scene->importJointLimitsFromConfig(YAML::Load(R"(
     joint_limits:
       base_joint:
         max_velocity: [1.0, 0.2, 1.0]
-        max_acceleration: [0.5, 0.5, 1.0])"));
+        max_acceleration: [0.5, 0.5, 1.0]
+      arm_joint:
+        max_acceleration: [1.0])"));
 
-  // Planar positions are (x, y, cos(theta), sin(theta)).
+  // Planar positions are (x, y, cos(theta), sin(theta)), followed by the arm joint.
   JointPath path;
-  path.joint_names = {"base_joint"};
-  path.positions = {Eigen::Vector4d(0.0, 0.0, 1.0, 0.0), Eigen::Vector4d(2.0, 0.0, 0.0, 1.0)};
+  path.joint_names = {"base_joint", "arm_joint"};
+  path.positions = {Eigen::Vector<double, 5>(0.0, 0.0, 1.0, 0.0, 0.0),
+                    Eigen::Vector<double, 5>(2.0, 0.0, 0.0, 1.0, 1.0)};
 
   auto toppra = PathParameterizerTOPPRA(scene, "");
   const auto result = toppra.generate(path, {0.01, SplineFittingMode::Cubic});
