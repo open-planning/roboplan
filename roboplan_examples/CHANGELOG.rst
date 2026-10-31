@@ -2,8 +2,8 @@
 Changelog for package roboplan_examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2026-10-31)
+------------------
 * Cartesian path planning robustness improvements (`#393 <https://github.com/open-planning/roboplan/issues/393>`_)
 * Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
 * Enable constraint projection in path shortcutting (`#387 <https://github.com/open-planning/roboplan/issues/387>`_)

@@ -2,8 +2,8 @@
 Changelog for package roboplan_oink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2026-10-31)
+------------------
 * Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
 * Depend on libcereal-dev in OInK (`#391 <https://github.com/open-planning/roboplan/issues/391>`_)
 * Upgrade to ProxSuite 0.8 (`#386 <https://github.com/open-planning/roboplan/issues/386>`_)

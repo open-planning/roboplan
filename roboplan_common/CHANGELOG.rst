@@ -2,8 +2,8 @@
 Changelog for package roboplan_common
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2026-10-31)
+------------------
 * Don't install into CONDA_PREFIX in pixi build (`#382 <https://github.com/open-planning/roboplan/issues/382>`_)
 * Contributors: Ezra Brooks
 

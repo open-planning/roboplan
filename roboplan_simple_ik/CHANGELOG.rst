@@ -2,8 +2,8 @@
 Changelog for package roboplan_simple_ik
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2026-10-31)
+------------------
 * SimpleIK randomization should only touch joints in the group (`#366 <https://github.com/open-planning/roboplan/issues/366>`_)
 * Contributors: Andrew Hoelscher
 

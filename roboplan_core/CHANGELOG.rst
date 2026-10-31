@@ -2,8 +2,8 @@
 Changelog for package roboplan
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2026-10-31)
+------------------
 * Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
 * Enable constraint projection in path shortcutting (`#387 <https://github.com/open-planning/roboplan/issues/387>`_)
 * Add joint limits + pullback to PositionLimit (`#378 <https://github.com/open-planning/roboplan/issues/378>`_)
