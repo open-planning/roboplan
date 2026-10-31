@@ -2,6 +2,15 @@
 Changelog for package roboplan_cartesian_planning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Cartesian path planning robustness improvements (`#393 <https://github.com/open-planning/roboplan/issues/393>`_)
+* Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
+* Iterative interface for OInK (`#371 <https://github.com/open-planning/roboplan/issues/371>`_)
+* Load joint limits in C++ Cartesian planning example (`#368 <https://github.com/open-planning/roboplan/issues/368>`_)
+* Make empty frame name mean world in CartesianPath (`#364 <https://github.com/open-planning/roboplan/issues/364>`_)
+* Contributors: Andrew Hoelscher, Sebastian Castro
+
 0.7.0 (2026-09-19)
 ------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)

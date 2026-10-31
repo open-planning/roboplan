@@ -2,6 +2,14 @@
 Changelog for package roboplan_toppra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Cartesian path planning robustness improvements (`#393 <https://github.com/open-planning/roboplan/issues/393>`_)
+* Repo passthrough before 0.8.0 release (`#392 <https://github.com/open-planning/roboplan/issues/392>`_)
+* Fix TOPP-RA planar joint path calculations (`#388 <https://github.com/open-planning/roboplan/issues/388>`_)
+* Enable constraint projection in path shortcutting (`#387 <https://github.com/open-planning/roboplan/issues/387>`_)
+* Contributors: Sebastian Castro
+
 0.7.0 (2026-09-19)
 ------------------
 * Pre-0.7.0 docs and consistency passthrough (`#324 <https://github.com/open-planning/roboplan/issues/324>`_)
