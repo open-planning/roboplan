@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -41,7 +42,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto goal = CartesianConfiguration{
       .base_frame = "base",
       .tip_frame = "tool0",
-      .tform = scene->forwardKinematics(q_tgt, "tool0"),
+      .tform = scene->forwardKinematics(q_tgt, "tool0", "base"),
   };
 
   JointConfiguration start;

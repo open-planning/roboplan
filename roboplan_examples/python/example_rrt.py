@@ -77,7 +77,7 @@ def main(
         toppra_mode: The spline fitting mode for TOPP-RA trajectory generation.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
-        rng_seed: The seed for the RRT planner's random number generator.
+        rng_seed: The seed for the scene's and RRT planner's random number generators.
         include_obstacles: Whether or not to include additional obstacles in the scene.
             Don't use with `include_octrees`.
         include_octrees: Whether or not to include additional octrees in the scene.
@@ -162,7 +162,8 @@ def main(
     cur_traj = None
     animate = False
 
-    if rng_seed:
+    if rng_seed is not None:
+        scene.setRngSeed(rng_seed)
         rrt.setRngSeed(rng_seed)
 
     q_full = scene.randomCollisionFreePositions()

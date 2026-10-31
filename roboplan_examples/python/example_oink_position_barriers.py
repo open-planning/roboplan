@@ -62,7 +62,7 @@ def main(
         barrier_gain: Barrier gain (gamma) for the CBF constraint. Typically 5-20; higher
             values give a stronger barrier response.
         barrier_size: Size of the cubic barrier box around the EE start position (meters).
-        safety_margin: Distance from the boundary where the barrier activates (meters).
+        safety_margin: Distance the barrier box is shrunk inward by (meters).
             Typically 0.02-0.1.
         position_saturation: Per-step cap on the position error norm (meters).
         orientation_saturation: Per-step cap on the orientation error norm (radians).
@@ -311,9 +311,6 @@ def main(
             elapsed = time.time() - loop_start
             time.sleep(max(0, dt - elapsed))
 
-    control_thread = threading.Thread(target=control_loop, daemon=True)
-    control_thread.start()
-
     reset_button = viz.viewer.gui.add_button("Reset Marker")
 
     @reset_button.on_click
@@ -382,7 +379,7 @@ def main(
             p_max,
             dt,
             gain=barrier_gain,
-            safe_displacement_gain=1.0,
+            safe_displacement_gain=0.01,
             safety_margin=safety_margin,
         )
         barriers.append(position_barrier)
@@ -407,6 +404,9 @@ def main(
 
     viz.display(q_full)
     reset_position(None)
+
+    control_thread = threading.Thread(target=control_loop, daemon=True)
+    control_thread.start()
 
     # Sleep forever, control loop runs in background thread
     try:
