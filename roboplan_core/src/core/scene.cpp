@@ -35,10 +35,6 @@ namespace {
 /// to be on the unit circle.
 constexpr double kUnitCircleTol = 1.0e-6;
 
-/// @brief Default position bound, in meters, for planar joint translation when randomly sampling.
-/// @details TODO Make this more configurable by users.
-constexpr double kDefaultPlanarJointTranslationLimit = 2.0;
-
 }  // namespace
 
 namespace roboplan {
@@ -578,11 +574,12 @@ Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name, const
                                             const Eigen::VectorXd& q_reference) const {
   Eigen::VectorXd q_out = q_reference;
 
-  const auto maybe_group_info = getJointGroupInfo(group_name);
-  if (!maybe_group_info) {
-    throw std::runtime_error("Failed to get full joint positions: " + maybe_group_info.error());
+  const auto group_it = joint_group_info_map_.find(group_name);
+  if (group_it == joint_group_info_map_.end()) {
+    throw std::runtime_error("Failed to get full joint positions: Group name '" + group_name +
+                             "' not found in joint_group_info_map_.");
   }
-  const auto& q_indices = maybe_group_info.value().q_indices;
+  const auto& q_indices = group_it->second.q_indices;
   if (q_indices.size() != q.size()) {
     throw std::runtime_error("Failed to get full joint positions: Joint group '" + group_name +
                              "' has nq=" + std::to_string(q_indices.size()) +
@@ -602,11 +599,12 @@ Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
 Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
                                              const Eigen::VectorXd& v,
                                              const Eigen::VectorXd& v_reference) const {
-  const auto maybe_group_info = getJointGroupInfo(group_name);
-  if (!maybe_group_info) {
-    throw std::runtime_error("Failed to get full joint velocities: " + maybe_group_info.error());
+  const auto group_it = joint_group_info_map_.find(group_name);
+  if (group_it == joint_group_info_map_.end()) {
+    throw std::runtime_error("Failed to get full joint velocities: Group name '" + group_name +
+                             "' not found in joint_group_info_map_.");
   }
-  const auto& v_indices = maybe_group_info.value().v_indices;
+  const auto& v_indices = group_it->second.v_indices;
   if (v_indices.size() != v.size()) {
     throw std::runtime_error("Failed to get full joint velocities: Joint group '" + group_name +
                              "' has nv=" + std::to_string(v_indices.size()) +
