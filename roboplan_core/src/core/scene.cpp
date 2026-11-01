@@ -329,12 +329,13 @@ Eigen::VectorXd Scene::getCurrentJointPositionsWithMimics() const {
   return jointPositionsWithMimicsFromPinocchio(*this, cur_state_.positions);
 }
 
-tl::expected<JointInfo, std::string> Scene::getJointInfo(const std::string& joint_name) const {
+tl::expected<std::reference_wrapper<const JointInfo>, std::string>
+Scene::getJointInfo(const std::string& joint_name) const {
   auto it = joint_info_map_.find(joint_name);
   if (it == joint_info_map_.end()) {
     return tl::make_unexpected("Joint '" + joint_name + "' is not in the scene.");
   }
-  return it->second;
+  return std::cref(it->second);
 }
 
 double Scene::configurationDistance(const Eigen::VectorXd& q_start,
@@ -582,7 +583,7 @@ Eigen::VectorXd Scene::toFullJointPositions(const std::string& group_name, const
   if (!maybe_group_info) {
     throw std::runtime_error("Failed to get full joint positions: " + maybe_group_info.error());
   }
-  const auto& q_indices = maybe_group_info.value().q_indices;
+  const auto& q_indices = maybe_group_info->get().q_indices;
   if (q_indices.size() != q.size()) {
     throw std::runtime_error("Failed to get full joint positions: Joint group '" + group_name +
                              "' has nq=" + std::to_string(q_indices.size()) +
@@ -606,7 +607,7 @@ Eigen::VectorXd Scene::toFullJointVelocities(const std::string& group_name,
   if (!maybe_group_info) {
     throw std::runtime_error("Failed to get full joint velocities: " + maybe_group_info.error());
   }
-  const auto& v_indices = maybe_group_info.value().v_indices;
+  const auto& v_indices = maybe_group_info->get().v_indices;
   if (v_indices.size() != v.size()) {
     throw std::runtime_error("Failed to get full joint velocities: Joint group '" + group_name +
                              "' has nv=" + std::to_string(v_indices.size()) +
@@ -786,12 +787,13 @@ tl::expected<pinocchio::FrameIndex, std::string> Scene::getFrameId(const std::st
   return it->second;
 }
 
-tl::expected<JointGroupInfo, std::string> Scene::getJointGroupInfo(const std::string& name) const {
+tl::expected<std::reference_wrapper<const JointGroupInfo>, std::string>
+Scene::getJointGroupInfo(const std::string& name) const {
   auto it = joint_group_info_map_.find(name);
   if (it == joint_group_info_map_.end()) {
     return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_map_.");
   }
-  return it->second;
+  return std::cref(it->second);
 }
 
 tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
@@ -865,10 +867,10 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
           return tl::make_unexpected("Group '" + std::string(name) + "' specifies a subgroup '" +
                                      group_name + "' which has not yet been parsed in the SRDF.");
         }
-        joint_names.insert(joint_names.end(), maybe_group->joint_names.begin(),
-                           maybe_group->joint_names.end());
-        extra_link_names.insert(extra_link_names.end(), maybe_group->link_names.begin(),
-                                maybe_group->link_names.end());
+        joint_names.insert(joint_names.end(), maybe_group->get().joint_names.begin(),
+                           maybe_group->get().joint_names.end());
+        extra_link_names.insert(extra_link_names.end(), maybe_group->get().link_names.begin(),
+                                maybe_group->get().link_names.end());
       }
     }
 
@@ -907,10 +909,10 @@ Scene::addGroupFromGroups(const std::string& name, const std::vector<std::string
     if (!maybe_group) {
       return tl::make_unexpected(maybe_group.error());
     }
-    joint_names.insert(joint_names.end(), maybe_group->joint_names.begin(),
-                       maybe_group->joint_names.end());
-    extra_link_names.insert(extra_link_names.end(), maybe_group->link_names.begin(),
-                            maybe_group->link_names.end());
+    joint_names.insert(joint_names.end(), maybe_group->get().joint_names.begin(),
+                       maybe_group->get().joint_names.end());
+    extra_link_names.insert(extra_link_names.end(), maybe_group->get().link_names.begin(),
+                            maybe_group->get().link_names.end());
   }
   return addGroup(name, joint_names, extra_link_names);
 }
@@ -968,7 +970,7 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
     return tl::make_unexpected("Failed to get position limit vectors: " +
                                maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
   const auto num_dofs =
@@ -985,7 +987,7 @@ Scene::getPositionLimitVectors(const std::string& group_name, const bool collaps
       return tl::make_unexpected("Failed to get position limit vectors: " +
                                  maybe_joint_info.error());
     }
-    const auto& joint_info = maybe_joint_info.value();
+    const JointInfo& joint_info = maybe_joint_info.value();
     if (joint_info.mimic_info) {
       // Mimic joints have nq=0; they do not occupy slots in the configuration vector.
       continue;
@@ -1038,7 +1040,7 @@ Scene::getVelocityLimitVectors(const std::string& group_name) const {
     return tl::make_unexpected("Failed to get velocity limit vectors: " +
                                maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
   Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
@@ -1053,7 +1055,7 @@ Scene::getVelocityLimitVectors(const std::string& group_name) const {
       return tl::make_unexpected("Failed to get velocity limit vectors: " +
                                  maybe_joint_info.error());
     }
-    const auto& joint_info = maybe_joint_info.value();
+    const JointInfo& joint_info = maybe_joint_info.value();
 
     for (size_t dof = 0; dof < joint_info.num_velocity_dofs; ++dof) {
       const auto& max_vel = joint_info.limits.max_velocity(dof);
@@ -1072,7 +1074,7 @@ Scene::getAccelerationLimitVectors(const std::string& group_name) const {
     return tl::make_unexpected("Failed to get acceleration limit vectors: " +
                                maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
   Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
@@ -1087,7 +1089,7 @@ Scene::getAccelerationLimitVectors(const std::string& group_name) const {
       return tl::make_unexpected("Failed to get acceleration limit vectors: " +
                                  maybe_joint_info.error());
     }
-    const auto& joint_info = maybe_joint_info.value();
+    const JointInfo& joint_info = maybe_joint_info.value();
 
     for (size_t dof = 0; dof < joint_info.num_velocity_dofs; ++dof) {
       const auto& max_accel = joint_info.limits.max_acceleration(dof);
@@ -1106,7 +1108,7 @@ Scene::getJerkLimitVectors(const std::string& group_name) const {
     return tl::make_unexpected("Failed to get jerk limit vectors: " +
                                maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
   Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
@@ -1120,7 +1122,7 @@ Scene::getJerkLimitVectors(const std::string& group_name) const {
     if (!maybe_joint_info) {
       return tl::make_unexpected("Failed to get jerk limit vectors: " + maybe_joint_info.error());
     }
-    const auto& joint_info = maybe_joint_info.value();
+    const JointInfo& joint_info = maybe_joint_info.value();
 
     for (size_t dof = 0; dof < joint_info.num_velocity_dofs; ++dof) {
       const auto& max_jerk = joint_info.limits.max_jerk(dof);

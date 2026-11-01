@@ -73,7 +73,7 @@ TEST_F(RoboPlanSceneTest, SceneProperties) {
 
   const auto maybe_joint_info = scene->getJointInfo("shoulder_pan_joint");
   ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
-  const auto& joint_info = maybe_joint_info.value();
+  const JointInfo& joint_info = maybe_joint_info.value();
   EXPECT_EQ(joint_info.type, JointType::REVOLUTE);
   EXPECT_EQ(joint_info.num_position_dofs, 1u);
   EXPECT_EQ(joint_info.num_velocity_dofs, 1u);
@@ -884,7 +884,7 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
 
   const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
   ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
-  const auto& limits = maybe_joint_info.value().limits;
+  const auto& limits = maybe_joint_info->get().limits;
   ASSERT_EQ(limits.min_position.size(), 1u);
   EXPECT_NEAR(limits.min_position[0], -1.0, kTolerance);
   ASSERT_EQ(limits.max_position.size(), 1u);
@@ -893,8 +893,8 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideFromYaml) {
   // A non-overridden joint should keep its URDF limits.
   const auto maybe_other = scene.getJointInfo("elbow_joint");
   ASSERT_TRUE(maybe_other.has_value()) << maybe_other.error();
-  EXPECT_NEAR(maybe_other.value().limits.min_position[0], -std::numbers::pi, kTolerance);
-  EXPECT_NEAR(maybe_other.value().limits.max_position[0], std::numbers::pi, kTolerance);
+  EXPECT_NEAR(maybe_other->get().limits.min_position[0], -std::numbers::pi, kTolerance);
+  EXPECT_NEAR(maybe_other->get().limits.max_position[0], std::numbers::pi, kTolerance);
 
   std::filesystem::remove(tmp_config);
 }
@@ -921,7 +921,7 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideInfinityFromYaml) {
 
   const auto maybe_joint_info = scene.getJointInfo("shoulder_pan_joint");
   ASSERT_TRUE(maybe_joint_info.has_value()) << maybe_joint_info.error();
-  const auto& limits = maybe_joint_info.value().limits;
+  const auto& limits = maybe_joint_info->get().limits;
   ASSERT_EQ(limits.min_position.size(), 1u);
   EXPECT_TRUE(std::isfinite(limits.min_position[0]));
   EXPECT_EQ(limits.min_position[0], std::numeric_limits<double>::lowest());
@@ -1000,7 +1000,7 @@ TEST_F(RoboPlanSceneSo101Test, ToFullJointVelocitiesPlacesGroupZerosRest) {
 
   const auto maybe_group_info = scene->getJointGroupInfo("arm");
   ASSERT_TRUE(maybe_group_info.has_value()) << maybe_group_info.error();
-  const auto& v_indices = maybe_group_info.value().v_indices;
+  const auto& v_indices = maybe_group_info->get().v_indices;
   ASSERT_EQ(v_indices.size(), 5);  // "arm" excludes the "gripper" joint's DOF.
 
   Eigen::VectorXd v_reduced(5);

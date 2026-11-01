@@ -41,8 +41,8 @@ SimpleIk::SimpleIk(const std::shared_ptr<Scene> scene, const SimpleIkOptions& op
     if (!maybe_joint_info) {
       throw std::runtime_error("Could not initialize IK solver: " + maybe_joint_info.error());
     }
-    const auto nq = static_cast<Eigen::Index>(maybe_joint_info.value().num_position_dofs);
-    const auto nv = static_cast<Eigen::Index>(maybe_joint_info.value().num_velocity_dofs);
+    const auto nq = static_cast<Eigen::Index>(maybe_joint_info->get().num_position_dofs);
+    const auto nv = static_cast<Eigen::Index>(maybe_joint_info->get().num_velocity_dofs);
     if (nq == 1 && nv == 1) {
       limit_q_slot_[v_offset] = static_cast<int>(q_offset);
     }

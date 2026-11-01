@@ -109,7 +109,7 @@ bool urdfExtendedLimitsSupported() {
   static const bool supported = [] {
     try {
       const Scene probe("probe", loadUrdfSceneDescriptionFromXml(kUrdfAccelOnly));
-      return probe.getJointInfo("joint1").value().limits.max_acceleration[0] != kUnlimited;
+      return probe.getJointInfo("joint1")->get().limits.max_acceleration[0] != kUnlimited;
     } catch (const std::exception&) {
       return false;
     }
@@ -129,7 +129,7 @@ TEST(UrdfExtendedLimits, AllLimitsSet) {
   SKIP_IF_NO_URDF_EXTENDED_LIMITS();
   Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfAllLimits));
 
-  const auto info = scene.getJointInfo("joint1").value();
+  const JointInfo& info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 5.0, kTolerance);
   EXPECT_NEAR(info.limits.max_jerk[0], 50.0, kTolerance);
 }
@@ -141,7 +141,7 @@ TEST(UrdfExtendedLimits, AccelerationOnlyJerkUnlimited) {
   SKIP_IF_NO_URDF_EXTENDED_LIMITS();
   Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfAccelOnly));
 
-  const auto info = scene.getJointInfo("joint1").value();
+  const JointInfo& info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 5.0, kTolerance);
   EXPECT_DOUBLE_EQ(info.limits.max_jerk[0], kUnlimited);
 }
@@ -152,7 +152,7 @@ TEST(UrdfExtendedLimits, AccelerationOnlyJerkUnlimited) {
 TEST(UrdfExtendedLimits, NoExtendedLimitsStayUnlimited) {
   Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfNoExtendedLimits));
 
-  const auto info = scene.getJointInfo("joint1").value();
+  const JointInfo& info = scene.getJointInfo("joint1").value();
   EXPECT_DOUBLE_EQ(info.limits.max_acceleration[0], kUnlimited);
   EXPECT_DOUBLE_EQ(info.limits.max_jerk[0], kUnlimited);
 }
@@ -174,7 +174,7 @@ TEST(UrdfExtendedLimits, YamlOverridesUrdf) {
   Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfForYamlOverride));
   scene.importJointLimitsFromConfig(loadJointLimitsConfig(tmp_yaml));
 
-  const auto info = scene.getJointInfo("joint1").value();
+  const JointInfo& info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(info.limits.max_acceleration[0], 10.0, kTolerance);
   EXPECT_NEAR(info.limits.max_jerk[0], 100.0, kTolerance);
 
@@ -188,12 +188,12 @@ TEST(UrdfExtendedLimits, MimicJointInheritsScaledLimits) {
   SKIP_IF_NO_URDF_EXTENDED_LIMITS();
   Scene scene("test", loadUrdfSceneDescriptionFromXml(kUrdfWithMimic));
 
-  const auto joint1_info = scene.getJointInfo("joint1").value();
+  const JointInfo& joint1_info = scene.getJointInfo("joint1").value();
   EXPECT_NEAR(joint1_info.limits.max_acceleration[0], 6.0, kTolerance);
   EXPECT_NEAR(joint1_info.limits.max_jerk[0], 60.0, kTolerance);
 
   // mimic multiplier=2.0, so limits scale by |2.0|.
-  const auto mimic_info = scene.getJointInfo("mimic_joint").value();
+  const JointInfo& mimic_info = scene.getJointInfo("mimic_joint").value();
   EXPECT_NEAR(mimic_info.limits.max_acceleration[0], 12.0, kTolerance);
   EXPECT_NEAR(mimic_info.limits.max_jerk[0], 120.0, kTolerance);
 }

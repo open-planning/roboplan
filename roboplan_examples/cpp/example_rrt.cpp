@@ -46,7 +46,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
   const auto& q_full = q_full_opt.value();
   scene->setJointPositions(q_full);
 
-  const auto q_indices = scene->getJointGroupInfo("arm")->q_indices;
+  const auto q_indices = scene->getJointGroupInfo("arm")->get().q_indices;
 
   JointConfiguration start;
   start.positions = q_full(q_indices);

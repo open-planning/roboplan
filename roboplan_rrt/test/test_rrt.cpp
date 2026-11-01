@@ -592,7 +592,7 @@ protected:
     constraint = std::make_shared<PoseConstraint>(scene, "arm", "tool0", lower, upper, tform);
     constraints = {constraint};
     projector = std::make_unique<ConstraintProjector>(scene, "arm", constraints);
-    q_indices = scene->getJointGroupInfo("arm").value().q_indices;
+    q_indices = scene->getJointGroupInfo("arm")->get().q_indices;
 
     // Projection is a local operation and does not converge from every configuration sampled
     // uniformly at random, since those can start arbitrarily far from the constraint. Pin the
@@ -812,7 +812,7 @@ TEST_F(RoboPlanConstrainedRRTTest, ReferenceFrameMakesTheConstraintRelative) {
   // Joints upstream of both frames move them rigidly together, so they cannot change a relative
   // displacement. The first three UR5 joints are upstream of wrist_1_link, so their Jacobian
   // columns must vanish -- the property that separates a relative constraint from an absolute one.
-  const auto v_indices = scene->getJointGroupInfo("arm").value().v_indices;
+  const auto v_indices = scene->getJointGroupInfo("arm")->get().v_indices;
   Eigen::VectorXd error(6);
   Eigen::MatrixXd jacobian(6, v_indices.size());
   relative->computeErrorAndJacobian(q, error, jacobian);
