@@ -204,7 +204,7 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
     return tl::make_unexpected("Failed to collapse continuous degrees of freedom: " +
                                maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
 
   // Return in the trivial case of no continuous degrees of freedom.
   if (!joint_group_info.has_continuous_dofs) {
@@ -223,7 +223,7 @@ collapseContinuousJointPositions(const Scene& scene, const std::string& group_na
   size_t orig_nq = 0;
   size_t collapsed_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();
+    const JointInfo& joint_info = scene.getJointInfo(joint_name).value();
     if (joint_info.mimic_info) {
       continue;
     }
@@ -266,7 +266,7 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
     return tl::make_unexpected("Failed to expand continuous degrees of freedom: " +
                                maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
 
   // Return in the trivial case of no continuous degrees of freedom.
   if (!joint_group_info.has_continuous_dofs) {
@@ -285,7 +285,7 @@ expandContinuousJointPositions(const Scene& scene, const std::string& group_name
   size_t orig_nq = 0;
   size_t expanded_nq = 0;
   for (const auto& joint_name : joint_group_info.joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();
+    const JointInfo& joint_info = scene.getJointInfo(joint_name).value();
     if (joint_info.mimic_info) {
       continue;
     }
@@ -329,14 +329,14 @@ Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene,
 
   size_t total_size = 0;
   for (const auto& joint_name : joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();
+    const JointInfo& joint_info = scene.getJointInfo(joint_name).value();
     total_size += joint_info.num_position_dofs;
   }
 
   Eigen::VectorXd positions(static_cast<Eigen::Index>(total_size));
   Eigen::Index out_idx = 0;
   for (const auto& joint_name : joint_names) {
-    const auto joint_info = scene.getJointInfo(joint_name).value();
+    const JointInfo& joint_info = scene.getJointInfo(joint_name).value();
     if (joint_info.mimic_info) {
       const auto& mimic = joint_info.mimic_info.value();
       const auto mimicked_id = model.getJointId(mimic.mimicked_joint_name);
