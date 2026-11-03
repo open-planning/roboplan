@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -236,6 +238,32 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   if (!resolved) {
     return tl::make_unexpected(resolved.error());
   }
+
+  // The planner follows the commanded geometry and cannot route around an obstacle, so no timing
+  // can fix a collision on the resolved path. The whole path is scanned so a single error names
+  // every pair to allow, and only colliding samples pay for the all-pairs check.
+  std::set<std::string> colliding_pairs;
+  std::optional<double> first_collision;
+  for (size_t i = 0; i < resolved->samples.positions.size(); ++i) {
+    const auto& q = resolved->samples.positions.at(i);
+    if (scene_->hasCollisions(q)) {
+      const auto pairs = scene_->getCollidingPairs(q);
+      colliding_pairs.insert(pairs.begin(), pairs.end());
+      if (!first_collision) {
+        first_collision = resolved->parameters.at(i);
+      }
+    }
+  }
+  if (first_collision) {
+    std::string pairs;
+    for (const auto& pair : colliding_pairs) {
+      pairs += (pairs.empty() ? "" : ", ") + pair;
+    }
+    return tl::make_unexpected("The resolved path is in collision from path fraction " +
+                               std::to_string(*first_collision) + ", between: " + pairs +
+                               ". Allow these pairs if the contact is intended.");
+  }
+
   return bounded ? timeBounded(*resolved) : timeOptimal(*resolved);
 }
 
