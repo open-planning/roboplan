@@ -91,7 +91,7 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
     throw std::runtime_error("Could not initialize TOPP-RA path parameterizer: " +
                              maybe_joint_group_info.error());
   }
-  const auto& joint_group_info = maybe_joint_group_info.value();
+  const JointGroupInfo& joint_group_info = maybe_joint_group_info.value();
   joint_names_ = joint_group_info.joint_names;
   q_indices_ = joint_group_info.q_indices;
 
@@ -101,15 +101,15 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate TOPP-RA: " + maybe_joint_info.error());
     }
-    if (maybe_joint_info->type == JointType::CONTINUOUS) {
+    if (maybe_joint_info->get().type == JointType::CONTINUOUS) {
       continuous_q_indices_.push_back(q_idx);
       q_idx += 1;  // increment by collapsed indices
-    } else if (maybe_joint_info->type == JointType::PLANAR) {
+    } else if (maybe_joint_info->get().type == JointType::PLANAR) {
       continuous_q_indices_.push_back(q_idx + 2);
       planar_q_indices_.push_back(q_idx);
       q_idx += 3;  // increment by collapsed indices
     } else {
-      q_idx += maybe_joint_info->num_position_dofs;
+      q_idx += maybe_joint_info->get().num_position_dofs;
     }
   }
 }

@@ -159,9 +159,9 @@ Oink::Oink(const Scene& scene, const std::string& group_name)
     throw std::runtime_error("Oink: joint group '" + group_name +
                              "' not found: " + maybe_group_info.error());
   }
-  joint_names = maybe_group_info->joint_names;
-  q_indices = maybe_group_info->q_indices;
-  v_indices = maybe_group_info->v_indices;
+  joint_names = maybe_group_info->get().joint_names;
+  q_indices = maybe_group_info->get().q_indices;
+  v_indices = maybe_group_info->get().v_indices;
   num_variables = static_cast<int>(v_indices.size());
 
   H = Eigen::MatrixXd::Zero(num_variables, num_variables);
