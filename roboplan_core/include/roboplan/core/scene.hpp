@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -147,8 +148,10 @@ public:
 
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
-  /// @return The joint information struct if successful, else a string describing the error.
-  tl::expected<JointInfo, std::string> getJointInfo(const std::string& joint_name) const;
+  /// @return A reference to the joint information if successful, else a string describing the
+  /// error.
+  tl::expected<std::reference_wrapper<const JointInfo>, std::string>
+  getJointInfo(const std::string& joint_name) const;
 
   /// @brief Gets the configuration-space distance between two joint configurations.
   /// @param q_start The starting joint positions.
@@ -371,8 +374,10 @@ public:
 
   /// @brief Get the joint group information of a scene by its name.
   /// @param name The name of the joint group to look up.
-  /// @return The joint group information if successful, else a string describing the error.
-  tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
+  /// @return A reference to the joint group information if successful, else a string describing
+  /// the error.
+  tl::expected<std::reference_wrapper<const JointGroupInfo>, std::string>
+  getJointGroupInfo(const std::string& name) const;
 
   /// @brief Applies groups and disabled collision pairs from an SRDF document.
   /// @details Groups with the same name as an existing non-default group overwrite it. The

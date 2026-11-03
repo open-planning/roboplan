@@ -75,13 +75,13 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   ASSERT_EQ(scene->getJointNamesWithMimics(), expected_joint_names_with_mimics);
 
   // Verify mimic joint info is as expected
-  const auto mimic_joint_info = scene->getJointInfo("mimic_joint").value();
+  const JointInfo& mimic_joint_info = scene->getJointInfo("mimic_joint").value();
   ASSERT_EQ(mimic_joint_info.mimic_info.value().mimicked_joint_name, "revolute_joint");
   EXPECT_FLOAT_EQ(mimic_joint_info.mimic_info.value().scaling, 1.0);
   EXPECT_FLOAT_EQ(mimic_joint_info.mimic_info.value().offset, 0.0);
 
   // Verify joint group info is as expected for both the default and sub group.
-  const auto full_group_info = scene->getJointGroupInfo("").value();
+  const JointGroupInfo& full_group_info = scene->getJointGroupInfo("").value();
   ASSERT_EQ(full_group_info.joint_names, expected_joint_names_with_mimics);
   ASSERT_EQ(full_group_info.q_indices.size(), 3);  // Mimic joints have nq=0 in Pinocchio
   ASSERT_EQ(full_group_info.v_indices.size(), 2);
@@ -91,7 +91,7 @@ TEST_F(RoboPlanJointTest, SceneProperties) {
   EXPECT_THAT(full_group_info.link_names,
               ::testing::UnorderedElementsAre("base_link", "link1", "link2", "link3"));
 
-  const auto arm_group_info = scene->getJointGroupInfo("arm").value();
+  const JointGroupInfo& arm_group_info = scene->getJointGroupInfo("arm").value();
   const std::vector<std::string> expected_arm_joint_names = {"revolute_joint", "mimic_joint"};
   ASSERT_EQ(arm_group_info.joint_names, expected_arm_joint_names);
   ASSERT_EQ(arm_group_info.q_indices.size(), 1);  // Only revolute_joint has a q slot
@@ -137,14 +137,14 @@ TEST_F(RoboPlanJointTest, JointGroupLinksFromChainAndExplicitLinks) {
   ASSERT_TRUE(imported.has_value()) << imported.error();
 
   // The chain from base_link to link3 covers link1, link2, and link3 (base_link is excluded).
-  const auto chain_info = scene.getJointGroupInfo("chain_group").value();
+  const JointGroupInfo& chain_info = scene.getJointGroupInfo("chain_group").value();
   EXPECT_THAT(chain_info.link_names, ::testing::UnorderedElementsAre("link1", "link2", "link3"));
 
   // The explicit group derives link2 from revolute_joint and additionally includes base_link.
-  const auto explicit_info = scene.getJointGroupInfo("explicit_group").value();
+  const JointGroupInfo& explicit_info = scene.getJointGroupInfo("explicit_group").value();
   EXPECT_THAT(explicit_info.link_names, ::testing::UnorderedElementsAre("base_link", "link2"));
 
-  const auto nested_info = scene.getJointGroupInfo("nested").value();
+  const JointGroupInfo& nested_info = scene.getJointGroupInfo("nested").value();
   EXPECT_THAT(nested_info.joint_names, ::testing::ElementsAreArray(chain_info.joint_names));
 }
 
@@ -153,7 +153,7 @@ TEST(RoboPlanJointGroupTest, SceneWithoutSrdfExposesOnlyDefaultGroup) {
   // without any SRDF-defined groups.
   Scene scene("no_srdf_scene", loadUrdfSceneDescriptionFromXml(kUrdf));
 
-  const auto default_info = scene.getJointGroupInfo("").value();
+  const JointGroupInfo& default_info = scene.getJointGroupInfo("").value();
   EXPECT_THAT(default_info.joint_names,
               ::testing::ElementsAre("continuous_joint", "revolute_joint", "mimic_joint"));
 
@@ -165,20 +165,20 @@ TEST(RoboPlanJointGroupTest, AddGroupFromJointsChainAndGroups) {
 
   const auto arm = scene.addGroup("arm", {"revolute_joint", "mimic_joint"});
   ASSERT_TRUE(arm.has_value()) << arm.error();
-  const auto arm_info = scene.getJointGroupInfo("arm").value();
+  const JointGroupInfo& arm_info = scene.getJointGroupInfo("arm").value();
   EXPECT_THAT(arm_info.joint_names, ::testing::ElementsAre("revolute_joint", "mimic_joint"));
   EXPECT_THAT(arm_info.link_names, ::testing::UnorderedElementsAre("link2", "link3"));
 
   const auto chain = scene.addGroupFromChain("chain_group", "base_link", "link3");
   ASSERT_TRUE(chain.has_value()) << chain.error();
-  const auto chain_info = scene.getJointGroupInfo("chain_group").value();
+  const JointGroupInfo& chain_info = scene.getJointGroupInfo("chain_group").value();
   EXPECT_THAT(chain_info.joint_names,
               ::testing::ElementsAre("continuous_joint", "revolute_joint", "mimic_joint"));
   EXPECT_THAT(chain_info.link_names, ::testing::UnorderedElementsAre("link1", "link2", "link3"));
 
   const auto combined = scene.addGroupFromGroups("arm_and_base", {"", "arm"});
   ASSERT_TRUE(combined.has_value()) << combined.error();
-  const auto combined_info = scene.getJointGroupInfo("arm_and_base").value();
+  const JointGroupInfo& combined_info = scene.getJointGroupInfo("arm_and_base").value();
   EXPECT_THAT(combined_info.joint_names,
               ::testing::ElementsAre("continuous_joint", "revolute_joint", "mimic_joint",
                                      "revolute_joint", "mimic_joint"));

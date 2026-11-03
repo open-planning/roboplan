@@ -45,7 +45,7 @@ void RRT::initializeStateSpace() {
     if (!maybe_joint_info) {
       throw std::runtime_error("Failed to instantiate RRT planner: " + maybe_joint_info.error());
     }
-    const auto& joint_info = maybe_joint_info.value();
+    const JointInfo& joint_info = maybe_joint_info.value();
     if (joint_info.mimic_info) {
       // Mimic joints have nq=0; they are not separate entries in the collapsed state space.
       continue;
@@ -599,10 +599,9 @@ void RRT::propagateCost(std::vector<Node>& nodes, int root_id) {
 }
 
 Eigen::VectorXd RRT::collapse(const Eigen::VectorXd& q_group) const {
-  // Fast path: a group with no continuous/planar DOFs collapses to itself, so skip the work in
-  // collapseContinuousJointPositions (a group-info map lookup that copies the whole JointGroupInfo,
-  // plus a per-joint getJointInfo lookup). This runs on every k-d tree insert and nearest-neighbor
-  // query, so it is firmly on the RRT hot path.
+  // Fast path: a group with no continuous/planar DOFs collapses to itself, so skip the per-joint
+  // lookups in collapseContinuousJointPositions. This runs on every k-d tree insert and
+  // nearest-neighbor query, so it is firmly on the RRT hot path.
   if (!joint_group_info_.has_continuous_dofs) {
     return q_group;
   }
