@@ -40,7 +40,7 @@ if(NOT toppra_FOUND)
   FetchContent_Declare(
     toppra
     GIT_REPOSITORY https://github.com/hungpham2511/toppra.git
-    GIT_TAG 0.6.10
+    GIT_TAG 0.6.11
     SOURCE_SUBDIR
     cpp)
   # toppra maps the deprecated BUILD_TESTS variable onto BUILD_TESTING with a

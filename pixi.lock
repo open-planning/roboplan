@@ -173,7 +173,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.3.0-hdf11a46_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtinyobjloader-2.0.0rc13-h54a6638_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libvulkan-loader-1.4.357.0-h0e34353_2.conda
@@ -495,7 +495,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.3.0-hdbbeba8_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.2-h45f9f85_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtinyobjloader-2.0.0rc13-h7ac5ae9_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.4-hd6fdeab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libvulkan-loader-1.4.357.0-h82234cf_2.conda
@@ -867,7 +867,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-hbf2880b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtinyobjloader-2.0.0rc13-h784d473_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h202fb40_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hbffa61f_2.conda
@@ -1101,7 +1101,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h734d217_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtinyobjloader-2.0.0rc13-h5112557_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.357.0-h477610d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_1.conda
@@ -1317,7 +1317,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.3.0-hdf11a46_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtinyobjloader-2.0.0rc13-h54a6638_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libvulkan-loader-1.4.357.0-h0e34353_2.conda
@@ -1639,7 +1639,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.3.0-hdbbeba8_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.2-h45f9f85_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtinyobjloader-2.0.0rc13-h7ac5ae9_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.4-hd6fdeab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libvulkan-loader-1.4.357.0-h82234cf_2.conda
@@ -2011,7 +2011,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-hbf2880b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtinyobjloader-2.0.0rc13-h784d473_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h202fb40_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hbffa61f_2.conda
@@ -2245,7 +2245,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h734d217_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtinyobjloader-2.0.0rc13-h5112557_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.357.0-h477610d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_1.conda
@@ -2476,7 +2476,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.3.0-hdf11a46_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtinyobjloader-2.0.0rc13-h54a6638_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/liburcu-0.14.0-hac33072_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_1.conda
@@ -3035,7 +3035,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.3.0-hdbbeba8_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.2-h45f9f85_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtinyobjloader-2.0.0rc13-h7ac5ae9_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/liburcu-0.14.0-h0a1ffab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.4-hd6fdeab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_1.conda
@@ -3688,7 +3688,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-hbf2880b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtinyobjloader-2.0.0rc13-h784d473_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h202fb40_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hbffa61f_2.conda
@@ -4152,7 +4152,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h734d217_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtinyobjloader-2.0.0rc13-h5112557_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.357.0-h477610d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_1.conda
@@ -4554,7 +4554,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.3.0-hdf11a46_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtinyobjloader-2.0.0rc13-h54a6638_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/liburcu-0.14.0-hac33072_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_1.conda
@@ -5112,7 +5112,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.3.0-hdbbeba8_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.2-h45f9f85_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtinyobjloader-2.0.0rc13-h7ac5ae9_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/liburcu-0.14.0-h0a1ffab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.4-hd6fdeab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_1.conda
@@ -5769,7 +5769,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-hbf2880b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtinyobjloader-2.0.0rc13-h784d473_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h202fb40_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hbffa61f_2.conda
@@ -6232,7 +6232,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h734d217_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtinyobjloader-2.0.0rc13-h5112557_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.357.0-h477610d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_1.conda
@@ -6798,7 +6798,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.3.0-hdf11a46_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtinyobjloader-2.0.0rc13-h54a6638_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/liburcu-0.14.0-hac33072_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_1.conda
@@ -7367,7 +7367,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.3.0-hdbbeba8_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.2-h45f9f85_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtinyobjloader-2.0.0rc13-h7ac5ae9_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/liburcu-0.14.0-h0a1ffab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.4-hd6fdeab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_1.conda
@@ -8038,7 +8038,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-hbf2880b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtinyobjloader-2.0.0rc13-h784d473_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h202fb40_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hbffa61f_2.conda
@@ -8513,7 +8513,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h734d217_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtinyobjloader-2.0.0rc13-h5112557_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.357.0-h477610d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_1.conda
@@ -8928,7 +8928,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.3.0-hdf11a46_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtinyobjloader-2.0.0rc13-h54a6638_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/liburcu-0.14.0-hac33072_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuv-1.52.1-h280c20c_1.conda
@@ -9497,7 +9497,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libstdcxx-ng-15.3.0-hdbbeba8_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtiff-4.7.2-h45f9f85_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtinyobjloader-2.0.0rc13-h7ac5ae9_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/liburcu-0.14.0-h0a1ffab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuuid-2.42.4-hd6fdeab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libuv-1.52.1-h80f16a2_1.conda
@@ -10163,7 +10163,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libssh2-1.11.1-hbf2880b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtiff-4.7.2-hf67920b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtinyobjloader-2.0.0rc13-h784d473_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libwebp-base-1.6.0-h202fb40_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libxcb-1.17.0-hbffa61f_2.conda
@@ -10637,7 +10637,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/libssh2-1.11.1-h734d217_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtiff-4.7.2-h8f73337_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libtinyobjloader-2.0.0rc13-h5112557_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libvulkan-loader-1.4.357.0-h477610d_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libwebp-base-1.6.0-h4d5522a_1.conda
@@ -13769,9 +13769,9 @@ packages:
     - libtinyobjloader ==2.0.0rc13
   size: 95820
   timestamp: 1773673273941
-- conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.10-h079ac28_4.conda
-  sha256: e2448239d70804b7b70e9ba6d6ed6e14637a18c9fc1787ad62c7d2921312b5fb
-  md5: 428aeb91245d12a79abeb5078542c9f1
+- conda: https://conda.anaconda.org/conda-forge/linux-64/libtoppra-0.6.11-h079ac28_0.conda
+  sha256: c1a22653d598473dfa26a0b538f824f4bad43a1b8ba61f43e706eaabe384a39b
+  md5: 12d77420509e5cca48aacd175d00e326
   depends:
   - eigen-abi-devel
   - libstdcxx >=15
@@ -13779,12 +13779,11 @@ packages:
   - __glibc >=2.17,<3.0.a0
   - eigen-abi >=5.0.1.80,<5.0.1.81.0a0
   license: MIT
-  license_family: MIT
   run_exports:
     weak:
-    - libtoppra >=0.6.10,<0.6.11.0a0
-  size: 127908
-  timestamp: 1791051268815
+    - libtoppra >=0.6.11,<0.6.12.0a0
+  size: 129183
+  timestamp: 1793883382208
 - conda: https://conda.anaconda.org/conda-forge/linux-64/liburcu-0.14.0-hac33072_0.conda
   sha256: 208ead1ed147f588c722ef9dec7656f538111b15fb85c04f645758fa4fa8e3c3
   md5: 0b2b4f99717fe8f82dc21a3b0c504923
@@ -18655,21 +18654,20 @@ packages:
     - libtinyobjloader ==2.0.0rc13
   size: 94929
   timestamp: 1773673299675
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.10-h2d48502_4.conda
-  sha256: 12ec7fbf0d0cf6f4f61330ccdc94bdf61fade462f42dc3e0bf8509c4e041dfa3
-  md5: c3f474ba715111960be9fc214984c327
+- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libtoppra-0.6.11-h2d48502_0.conda
+  sha256: 9670adabc062043f6d48c1bc9b197fd5e48a7a0ac82f46ee99959279e1000313
+  md5: 8172a174941121d4ffc178d49d0bb8a0
   depends:
   - eigen-abi-devel
   - libstdcxx >=15
   - libgcc >=15
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   license: MIT
-  license_family: MIT
   run_exports:
     weak:
-    - libtoppra >=0.6.10,<0.6.11.0a0
-  size: 126631
-  timestamp: 1791051260303
+    - libtoppra >=0.6.11,<0.6.12.0a0
+  size: 127739
+  timestamp: 1793883383715
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/liburcu-0.14.0-h0a1ffab_0.conda
   sha256: 2f4ced78799e93470ac4db077ba9e0d3b715ba71a099f434e82b8873f1999ea1
   md5: 29830064c98f8dae8b72329c4f2cf0ed
@@ -24882,21 +24880,20 @@ packages:
     - libtinyobjloader ==2.0.0rc13
   size: 96576
   timestamp: 1773673377209
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.10-h81d9531_4.conda
-  sha256: 2ba0a70a4cbb645c6137167b9972a6241b4bb01bdeab00a365f6bda30a2aad79
-  md5: eed37e9a021016241bed75bdf7e42311
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/libtoppra-0.6.11-h069b6f4_0.conda
+  sha256: 90e0c658c0e512adef4bc630ae9b9762fd663a3e6a020c1124645fee65a6dc0e
+  md5: 590b73935b55f29aa267ced752822e89
   depends:
   - eigen-abi-devel
   - libcxx >=21
   - __osx >=11.0
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   license: MIT
-  license_family: MIT
   run_exports:
     weak:
-    - libtoppra >=0.6.10,<0.6.11.0a0
-  size: 112055
-  timestamp: 1791051319589
+    - libtoppra >=0.6.11,<0.6.12.0a0
+  size: 113043
+  timestamp: 1793883407041
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libuv-1.52.1-h1a92334_1.conda
   sha256: 4f47de9de1990efd998edbbd6793f89c8f02ffde987ae8120b1c006acefd2a04
   md5: de09bd0f175611e94f21b28f8c708e80
@@ -28455,9 +28452,9 @@ packages:
     - libtinyobjloader ==2.0.0rc13
   size: 187545
   timestamp: 1773673318232
-- conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.10-h53262c8_4.conda
-  sha256: 4e4fa82aa7c98e16130f06adebf2a5b6f53bfd5f8e2b359c3213e848b7ab684e
-  md5: a97256d5fe09102e0c362d2ce5aa7b2f
+- conda: https://conda.anaconda.org/conda-forge/win-64/libtoppra-0.6.11-h53262c8_0.conda
+  sha256: 5c41364116ee241d95bca9c972c66cb217203bd6922707b128a9584e2a999469
+  md5: 07de9ab2414cf05c17b10e1ab8c5200f
   depends:
   - eigen-abi-devel
   - vc >=14.3,<15
@@ -28465,12 +28462,11 @@ packages:
   - ucrt >=10.0.20348.0
   - eigen-abi >=5.0.1.100,<5.0.1.101.0a0
   license: MIT
-  license_family: MIT
   run_exports:
     weak:
-    - libtoppra >=0.6.10,<0.6.11.0a0
-  size: 762946
-  timestamp: 1791051283029
+    - libtoppra >=0.6.11,<0.6.12.0a0
+  size: 778877
+  timestamp: 1793883388396
 - conda: https://conda.anaconda.org/conda-forge/win-64/libuv-1.52.1-h6a83c73_1.conda
   sha256: 0d62467380061cd0fa4b27e579c805a95c7ef55a41ecb067de0c4d2d42490c66
   md5: 4ccef39545e98553cc900ea557dff085
