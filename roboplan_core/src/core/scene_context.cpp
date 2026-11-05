@@ -1,13 +1,18 @@
 #include <roboplan/core/scene_context.hpp>
 
+#include <iostream>
 #include <limits>
+#include <set>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/geometry.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/collision/broadphase.hpp>
+#include <pinocchio/collision/collision.hpp>
 #include <pinocchio/collision/distance.hpp>
 
 #include <roboplan/core/scene.hpp>
@@ -58,7 +63,34 @@ bool SceneContext::hasCollisions(const Eigen::VectorXd& q, const bool debug) con
   if (!debug) {
     return pinocchio::computeCollisions(model_, data_, *manager_, q, /*stopAtFirstCollision=*/true);
   }
-  return computeCollisionsVerbose(model_, data_, collision_model_, geom_data_, q);
+  const auto pairs = getCollidingPairs(q);
+  for (const auto& pair : pairs) {
+    std::cout << "Collision detected between " << pair << std::endl;
+  }
+  return !pairs.empty();
+}
+
+std::vector<std::string> SceneContext::getCollidingPairs(const Eigen::VectorXd& q) const {
+  checkGeometryCurrent("getCollidingPairs");
+  pinocchio::updateGeometryPlacements(model_, data_, collision_model_, geom_data_, q);
+  pinocchio::computeCollisions(model_, data_, collision_model_, geom_data_, q,
+                               /*stop_at_first_collision=*/false);
+
+  // URDF geometries are named "<link>_<index>". Anything else is an object added to the scene.
+  const auto body_name = [&](const pinocchio::GeomIndex index) -> const std::string& {
+    const auto& geometry = collision_model_.geometryObjects.at(index);
+    const auto& link = model_.frames.at(geometry.parentFrame).name;
+    return geometry.name.rfind(link, 0) == 0 ? link : geometry.name;
+  };
+
+  std::set<std::string> pairs;
+  for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
+    if (geom_data_.collisionResults.at(k).isCollision()) {
+      const auto& cp = collision_model_.collisionPairs.at(k);
+      pairs.insert(body_name(cp.first) + " <-> " + body_name(cp.second));
+    }
+  }
+  return {pairs.begin(), pairs.end()};
 }
 
 void SceneContext::computeDistances(const Eigen::VectorXd& q,

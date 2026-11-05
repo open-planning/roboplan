@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <random>
+#include <string>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -56,6 +57,14 @@ public:
   /// @param debug If true, prints every colliding pair instead of stopping at the first collision.
   /// @return True if there are collisions, else false.
   bool hasCollisions(const Eigen::VectorXd& q, const bool debug = false) const;
+
+  /// @brief Finds every colliding body pair at `q` using this context's own scratch.
+  /// @details Checks all pairs, so this is slower than hasCollisions().
+  /// @param q The joint positions.
+  /// @return The sorted, unique colliding pairs, each as "body1 <-> body2", naming the bodies
+  /// Scene::setCollisions() accepts: the parent link of a link's geometry, or the geometry's own
+  /// name for an object added to the scene. Empty if there are none.
+  std::vector<std::string> getCollidingPairs(const Eigen::VectorXd& q) const;
 
   /// @brief Refreshes geometry placements at `q` and computes the distance for every active
   /// collision pair into this context's own GeometryData.

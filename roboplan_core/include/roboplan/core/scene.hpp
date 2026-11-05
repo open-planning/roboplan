@@ -214,6 +214,13 @@ public:
   /// @return True if there are collisions, else false.
   bool hasCollisions(const Eigen::VectorXd& q, const bool debug = false) const;
 
+  /// @brief Finds every colliding body pair at specified joint positions.
+  /// @details Checks all pairs, so this is slower than hasCollisions().
+  /// @param q The joint positions.
+  /// @return The sorted, unique colliding pairs, each as "body1 <-> body2", naming the bodies
+  /// setCollisions() accepts. Empty if there are none.
+  std::vector<std::string> getCollidingPairs(const Eigen::VectorXd& q) const;
+
   /// @brief Checks if the specified joint positions are valid with respect to joint limits.
   /// @param q The joint positions.
   /// @return True if the positions respect joint limits, else false.

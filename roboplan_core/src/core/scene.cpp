@@ -27,6 +27,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/scene_utils.hpp>
 
 namespace {
@@ -460,7 +461,15 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
 
   // Debug path: the naive backend evaluates every pair (no stop-at-first) so all colliding pairs
   // can be printed; the broadphase fast path stops at the first collision.
-  return computeCollisionsVerbose(model_, model_data_, collision_model_, collision_model_data_, q);
+  const auto pairs = getCollidingPairs(q);
+  for (const auto& pair : pairs) {
+    std::cout << "Collision detected between " << pair << std::endl;
+  }
+  return !pairs.empty();
+}
+
+std::vector<std::string> Scene::getCollidingPairs(const Eigen::VectorXd& q) const {
+  return SceneContext(*this).getCollidingPairs(q);
 }
 
 void Scene::computeCollisionDistances(const Eigen::VectorXd& q) const {
