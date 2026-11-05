@@ -1,0 +1,236 @@
+<?xml version="1.0" ?>
+<robot name="tiago_pro_arm">
+  <group name="arm">
+    <joint name="arm_1_joint" />
+    <joint name="arm_2_joint" />
+    <joint name="arm_3_joint" />
+    <joint name="arm_4_joint" />
+    <joint name="arm_5_joint" />
+    <joint name="arm_6_joint" />
+    <joint name="arm_7_joint" />
+    <joint name="arm_tool_joint" />
+  </group>
+  <group name="gripper">
+    <link name="gripper_base_link" />
+    <link name="gripper_inner_finger_left_link" />
+    <link name="gripper_inner_finger_right_link" />
+    <link name="gripper_outer_finger_left_link" />
+    <link name="gripper_outer_finger_right_link" />
+    <link name="gripper_fingertip_left_link" />
+    <link name="gripper_fingertip_right_link" />
+    <joint name="gripper_finger_joint" />
+  </group>
+  <passive_joint name="gripper_inner_finger_left_joint" />
+  <passive_joint name="gripper_inner_finger_right_joint" />
+  <passive_joint name="gripper_outer_finger_right_joint" />
+  <passive_joint name="gripper_fingertip_left_joint" />
+  <passive_joint name="gripper_fingertip_right_joint" />
+  <end_effector group="gripper" name="gripper" parent_group="arm" parent_link="arm_tool_link" />
+  <disable_collisions link1="arm_1_link" link2="arm_2_link" reason="Adjacent" />
+  <disable_collisions link1="arm_1_link" link2="arm_3_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="arm_4_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="arm_5_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="arm_6_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="arm_root_link" reason="Adjacent" />
+  <disable_collisions link1="arm_1_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="arm_3_link" reason="Adjacent" />
+  <disable_collisions link1="arm_2_link" link2="arm_4_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="arm_5_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="arm_6_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="arm_7_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="arm_root_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="arm_tool_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="arm_4_link" reason="Adjacent" />
+  <disable_collisions link1="arm_3_link" link2="arm_5_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="arm_6_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="arm_7_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="arm_root_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="arm_tool_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="arm_5_link" reason="Adjacent" />
+  <disable_collisions link1="arm_4_link" link2="arm_6_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="arm_7_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="arm_root_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="arm_tool_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="arm_6_link" reason="Adjacent" />
+  <disable_collisions link1="arm_5_link" link2="arm_7_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="arm_root_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="arm_tool_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="arm_7_link" reason="Adjacent" />
+  <disable_collisions link1="arm_6_link" link2="arm_root_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="arm_tool_link" reason="Default" />
+  <disable_collisions link1="arm_6_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="arm_tool_link" reason="Adjacent" />
+  <disable_collisions link1="arm_7_link" link2="world" reason="Never" />
+  <disable_collisions link1="arm_root_link" link2="world" reason="Adjacent" />
+  <disable_collisions link1="arm_tool_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_inner_finger_left_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_inner_finger_right_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_outer_finger_left_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_base_link" link2="gripper_outer_finger_right_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_inner_finger_left_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_outer_finger_left_link" reason="Default" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_inner_finger_right_link" reason="Adjacent" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="gripper_outer_finger_right_link" reason="Default" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_dummy_mimic_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_dummy_mimic_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_dummy_mimic_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_dummy_mimic_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_outer_finger_left_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="gripper_outer_finger_left_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_outer_finger_right_dummy_mimic_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="arm_7_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="arm_tool_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_1_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_2_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_base_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_3_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_base_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_4_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_base_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_5_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_base_link" reason="Default" />
+  <disable_collisions link1="arm_6_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_6_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_base_link" reason="Default" />
+  <disable_collisions link1="arm_7_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_7_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_root_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_root_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_root_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_root_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_root_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_base_link" reason="Adjacent" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_fingertip_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_fingertip_left_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_fingertip_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_fingertip_right_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_inner_finger_left_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_inner_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_inner_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_inner_finger_right_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_outer_finger_left_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_outer_finger_right_dummy_mimic_link" reason="Never" />
+  <disable_collisions link1="arm_tool_link" link2="gripper_outer_finger_right_link" reason="Never" />
+  <disable_collisions link1="gripper_base_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_dummy_mimic_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_left_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_dummy_mimic_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_fingertip_right_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_dummy_mimic_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_left_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_dummy_mimic_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_inner_finger_right_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_outer_finger_left_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_outer_finger_right_dummy_mimic_link" link2="world" reason="Never" />
+  <disable_collisions link1="gripper_outer_finger_right_link" link2="world" reason="Never" />
+</robot>

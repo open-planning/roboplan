@@ -729,6 +729,45 @@ def get_model_data():
                 ),
             ],
         ),
+        "tiago_pro_arm": RobotModelConfig(
+            urdf_path=ROBOPLAN_MODELS_DIR
+            / "tiago_pro_arm_robot_model"
+            / "tiago_pro_arm.urdf",
+            srdf_path=ROBOPLAN_MODELS_DIR
+            / "tiago_pro_arm_robot_model"
+            / "tiago_pro_arm.srdf",
+            yaml_config_path=ROBOPLAN_MODELS_DIR
+            / "tiago_pro_arm_robot_model"
+            / "tiago_pro_arm_config.yaml",
+            default_joint_group="arm",
+            ee_names=["gripper_grasping_link"],
+            base_link="base_link",
+            starting_joint_config=[
+                # nq=11 with Pinocchio mimic joints (gripper finger mimics collapsed).
+                # Continuous joints use [cos(theta), sin(theta)]
+                1.0,
+                0.0,  # arm_1_joint
+                -0.5,  # arm_2_joint
+                1.0,
+                0.0,  # arm_3_joint
+                -1.5,  # arm_4_joint
+                1.0,
+                0.0,  # arm_5_joint
+                0.5,  # arm_6_joint
+                0.0,  # arm_7_joint
+                0.0,  # gripper_finger_joint
+            ],
+            obstacles=[
+                ObstacleConfig(
+                    name="ground_plane",
+                    geom=coal.Box(1.5, 1.5, 0.2),
+                    parent_frame="universe",
+                    tform=pin.SE3(np.eye(3), np.array([0.0, 0.0, -0.1])).homogeneous,
+                    color=np.array([0.5, 0.5, 0.5, 0.5]),
+                    disabled_collisions=["base_link", "arm_root_link"],
+                ),
+            ],
+        ),
     }
 
 

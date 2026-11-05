@@ -1,0 +1,597 @@
+<?xml version="1.0" ?>
+<robot name="tiago_pro_arm">
+  <material name="Blue">
+    <color rgba="0.0 0.0 0.8 1.0" />
+  </material>
+  <material name="Green">
+    <color rgba="0.0 0.8 0.0 1.0" />
+  </material>
+  <material name="Grey">
+    <color rgba="0.7 0.7 0.7 1.0" />
+  </material>
+  <material name="LightGrey">
+    <color rgba="0.9 0.9 0.9 1.0" />
+  </material>
+  <material name="DarkGrey">
+    <color rgba="0.1 0.1 0.1 1.0" />
+  </material>
+  <material name="Red">
+    <color rgba="0.8 0.0 0.0 1.0" />
+  </material>
+  <material name="White">
+    <color rgba="1.0 1.0 1.0 1.0" />
+  </material>
+  <material name="Yellow">
+    <color rgba="0.96 0.88 0.14 1.0" />
+  </material>
+  <material name="Black">
+    <color rgba="0.0 0.0 0.0 1.0" />
+  </material>
+  <material name="FlatBlack">
+    <color rgba="0.09 0.09 0.09 1.0" />
+  </material>
+  <material name="Orange">
+    <color rgba="1.0 0.487 0.0 1.0" />
+  </material>
+  <material name="pal/Orange">
+    <color rgba="0.91373 0.61568 0.29411 1.0" />
+  </material>
+  <material name="pal/DarkGrey">
+    <color rgba="0.29804 0.29804 0.29804 1" />
+  </material>
+  <material name="aluminum">
+    <color rgba="0.5 0.5 0.5 1" />
+  </material>
+  <material name="plastic">
+    <color rgba="0.1 0.1 0.1 1" />
+  </material>
+  <link name="world" />
+  <joint name="base_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 -0.08" />
+    <parent link="world" />
+    <child link="base_link" />
+  </joint>
+  <link name="base_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <mass value="0.01" />
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001" />
+    </inertial>
+  </link>
+  <joint name="arm_root_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.131" />
+    <parent link="base_link" />
+    <child link="arm_root_link" />
+  </joint>
+  <link name="arm_root_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-2.3588E-05 0.0015892 0.056605" />
+      <mass value="1.6168" />
+      <inertia ixx="0.0042498" ixy="-5.8047E-07" ixz="-9.9114E-07" iyy="0.0041293" iyz="-0.00026598" izz="0.0053829" />
+    </inertial>
+    <visual>
+      <origin rpy="1.57 0 0 " xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/base_link.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.89412 0.91373 0.92941 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="1.57 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/base_link.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="arm_1_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0043916 0.016184 0.15576" />
+      <mass value="1.1325" />
+      <inertia ixx="0.0025497" ixy="2.6206E-05" ixz="6.2082E-05" iyy="0.0023517" iyz="-0.00020617" izz="0.00097131" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_1_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_1_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_1_joint" type="continuous">
+    <origin rpy="0 0 0.5236" xyz="0 0 0" />
+    <parent link="arm_root_link" />
+    <child link="arm_1_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="43.0" velocity="1.36" />
+    <dynamics damping="1.0" friction="1.0" />
+  </joint>
+  <link name="arm_2_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.01786 -0.11956 -0.032097" />
+      <mass value="1.0436" />
+      <inertia ixx="0.0015021" ixy="0.00011264" ixz="1.0692E-05" iyy="0.00088017" iyz="-0.00015843" izz="0.0016021" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_2_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_2_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_2_joint" type="revolute">
+    <origin rpy="-1.57079632679489 0 -1.5707963267949" xyz="0.0371099999999995 0.02 0.18" />
+    <parent link="arm_1_link" />
+    <child link="arm_2_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="43.0" lower="-2.4399702942880728" upper="1.1000810275320259" velocity="1.36" />
+    <dynamics damping="1.0" friction="1.0" />
+    <safety_controller k_position="20" k_velocity="20" soft_lower_limit="-2.369970294288073" soft_upper_limit="1.0300810275320258" />
+  </joint>
+  <link name="arm_3_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.016184 -0.0043916 0.13565" />
+      <mass value="1.1325" />
+      <inertia ixx="0.0023517" ixy="-2.6206E-05" ixz="-0.00020617" iyy="0.0025497" iyz="-6.2082E-05" izz="0.00097131" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_3_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_3_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_3_joint" type="continuous">
+    <origin rpy="1.5707963267949 0 0" xyz="0.019999999999999 -0.17011 -0.037110000000001" />
+    <parent link="arm_2_link" />
+    <child link="arm_3_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="26" velocity="2.76" />
+    <dynamics damping="1.0" friction="1.0" />
+  </joint>
+  <link name="arm_4_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.01786 0.11956 -0.032097" />
+      <mass value="1.0436" />
+      <inertia ixx="0.0015021" ixy="0.00011264" ixz="-1.0692E-05" iyy="0.00088017" iyz="0.00015843" izz="0.0016021" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_4_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/arm_4_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_4_joint" type="revolute">
+    <origin rpy="1.57079632679489 0 0" xyz="0.0199999999999993 -0.0371100000000008 0.15989" />
+    <parent link="arm_3_link" />
+    <child link="arm_4_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="26" lower="-2.4399702942880728" upper="1.1000810275320259" velocity="2.76" />
+    <dynamics damping="1.0" friction="1.0" />
+    <safety_controller k_position="20" k_velocity="20" soft_lower_limit="-2.369970294288073" soft_upper_limit="1.0300810275320258" />
+  </joint>
+  <link name="arm_5_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-6.6854E-07 -0.02662 0.067326" />
+      <mass value="0.34802" />
+      <inertia ixx="0.0014602" ixy="-1.4931E-08" ixz="8.1828E-08" iyy="0.0014558" iyz="0.00033448" izz="0.00040968" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/spherical-wrist/arm_5_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/spherical-wrist/arm_5_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_5_joint" type="continuous">
+    <origin rpy="-1.5707963267949 3.14 0" xyz="-0.0199999999999971 0.17011 -0.037110000000002" />
+    <parent link="arm_4_link" />
+    <child link="arm_5_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="26" velocity="3.95" />
+    <dynamics damping="1.0" friction="1.0" />
+  </joint>
+  <link name="arm_6_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.031968 -0.0065097 -0.040676" />
+      <mass value="1.378" />
+      <inertia ixx="0.0011002" ixy="0.00012805" ixz="-5.6797E-06" iyy="0.0011658" iyz="5.4596E-07" izz="0.0011909" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/spherical-wrist/arm_6_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/spherical-wrist/arm_6_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_6_joint" type="revolute">
+    <origin rpy="-1.5708 0 3.14" xyz="0 -0.0422 0.1654" />
+    <parent link="arm_5_link" />
+    <child link="arm_6_link" />
+    <axis xyz="0 0 -1" />
+    <limit effort="26" lower="-1.710422666954443" upper="3.001966313430247" velocity="3.95" />
+    <dynamics damping="1.0" friction="1.0" />
+    <safety_controller k_position="20" k_velocity="20" soft_lower_limit="-1.6404226669544428" soft_upper_limit="2.931966313430247" />
+  </joint>
+  <link name="arm_7_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0016034 0.001194 0.0075583" />
+      <mass value="0.1354" />
+      <inertia ixx="5.0537E-05" ixy="-8.1184E-07" ixz="1.9023E-07" iyy="5.1762E-05" iyz="-3.2751E-07" izz="9.5274E-05" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/spherical-wrist/arm_7_link.stl" scale="1 1 1" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_arm_robot_model/meshes/tiago_pro_arm/spherical-wrist/arm_7_link_collision.stl" scale="1 1 1" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="arm_7_joint" type="revolute">
+    <origin rpy="1.5708 0 0" xyz="0.07 -0.0534 -0.0422" />
+    <parent link="arm_6_link" />
+    <child link="arm_7_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="26" lower="-2.443460952792061" upper="2.443460952792061" velocity="3.95" />
+    <dynamics damping="1.0" friction="1.0" />
+    <safety_controller k_position="20" k_velocity="20" soft_lower_limit="-2.3734609527920614" soft_upper_limit="2.3734609527920614" />
+  </joint>
+  <link name="arm_tool_link" />
+  <joint name="arm_tool_joint" type="fixed">
+    <parent link="arm_7_link" />
+    <child link="arm_tool_link" />
+    <origin rpy="0 0 0" xyz="0 0 0.017" />
+  </joint>
+  <link name="gripper_base_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-5.081E-05 6.06E-06 0.04330857" />
+      <mass value="0.59671873" />
+      <inertia ixx="0.00064209" ixy="-2.1E-07" ixz="6.5E-07" iyy="0.00060742" iyz="2.1E-07" izz="0.00037836" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/base_link_tc.stl" />
+      </geometry>
+      <material name="pal/DarkGrey" />
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/base_link_tc.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_base_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+    <parent link="arm_tool_link" />
+    <child link="gripper_base_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  <joint name="gripper_grasping_frame_joint" type="fixed">
+    <parent link="gripper_base_link" />
+    <child link="gripper_grasping_link" />
+    <origin rpy="0 -1.57 0" xyz="0.0 0.0 0.157157" />
+  </joint>
+  <link name="gripper_grasping_link">
+    <inertial>
+      <mass value="1e-9" />
+      <inertia ixx="1e-9" ixy="0.0" ixz="0.0" iyy="1e-9" iyz="0.0" izz="1e-9" />
+    </inertial>
+  </link>
+  <link name="gripper_screw_left_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <mass value="0.02" />
+      <inertia ixx="7.4666667e-07" ixy="0.0" ixz="0.0" iyy="7.4666667e-07" iyz="0.0" izz="1.6e-07" />
+    </inertial>
+  </link>
+  <joint name="gripper_finger_joint" type="prismatic">
+    <origin rpy="0 0 0" xyz="-0.0178 0.0088 0.0" />
+    <parent link="gripper_base_finger_left_link" />
+    <child link="gripper_screw_left_link" />
+    <axis xyz="0 1 0" />
+    <limit effort="10.0" lower="0.0" upper="0.07" velocity="2" />
+    <safety_controller k_position="20" k_velocity="20" soft_lower_limit="0.0" soft_upper_limit="0.07" />
+    <dynamics damping="0.03" />
+  </joint>
+  <link name="gripper_base_finger_left_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <mass value="0.02" />
+      <inertia ixx="7.4666667e-07" ixy="0.0" ixz="0.0" iyy="7.4666667e-07" iyz="0.0" izz="1.6e-07" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <sphere radius="0.001" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <sphere radius="0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_base_finger_left_joint" type="fixed">
+    <origin rpy="1.5708 0 -1.5708" xyz="0.0 -0.0288 0.07565" />
+    <parent link="gripper_base_link" />
+    <child link="gripper_base_finger_left_link" />
+  </joint>
+  <link name="gripper_inner_finger_left_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-1.7347E-18 0.024759 0" />
+      <mass value="0.018619" />
+      <inertia ixx="4.8806E-06" ixy="-7.6762E-22" ixz="1.0244E-22" iyy="2.5471E-07" iyz="-1.1841E-21" izz="4.9573E-06" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/inner_finger.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/inner_finger.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_inner_finger_left_joint" type="revolute">
+    <origin rpy="0.0 0.0 0.0" xyz="-0.01482273272 0.00453176142 0.0" />
+    <parent link="gripper_base_finger_left_link" />
+    <child link="gripper_inner_finger_left_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="0.1" lower="-0.7476990515543709" upper="0.1396437934520663" velocity="2" />
+    <mimic joint="gripper_finger_joint" multiplier="-8.28" offset="0.0" />
+  </joint>
+  <link name="gripper_outer_finger_left_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.00128298420356912 0.0143974756929021 1.5011142385525E-15" />
+      <mass value="0.0159887772377711" />
+      <inertia ixx="5.98786243781872E-06" ixy="-5.21728921919786E-07" ixz="-7.65398863989897E-20" iyy="4.87250835241547E-07" iyz="-7.03393901384231E-19" izz="6.14972693188202E-06" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/outer_finger.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/outer_finger.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_outer_finger_left_joint" type="revolute">
+    <origin rpy="1.5708 0 -1.5708" xyz="0.0 -0.0288 0.07565" />
+    <parent link="gripper_base_link" />
+    <child link="gripper_outer_finger_left_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="0.1" lower="-0.7476990515543709" upper="0.1396437934520663" velocity="2" />
+    <mimic joint="gripper_finger_joint" multiplier="-8.28" offset="0.0" />
+  </joint>
+  <link name="gripper_fingertip_left_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.000864586242839444 0.0119290372347422 -2.732444563276E-11" />
+      <mass value="0.0335029606041878" />
+      <inertia ixx="3.6391786422032E-06" ixy="3.4052204633865E-07" ixz="-1.41918626749374E-14" iyy="1.70950026855986E-06" iyz="-4.24736685249643E-14" izz="2.84428135741107E-06" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/fingertip.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/fingertip.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_fingertip_left_joint" type="revolute">
+    <origin rpy="0 0 0" xyz="0 0.05 0" />
+    <parent link="gripper_inner_finger_left_link" />
+    <child link="gripper_fingertip_left_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="0.1" lower="-0.1396437934520663" upper="0.7476990515543709" velocity="2" />
+    <mimic joint="gripper_finger_joint" multiplier="8.28" offset="0.0" />
+  </joint>
+  <link name="gripper_screw_right_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <mass value="0.02" />
+      <inertia ixx="7.4666667e-07" ixy="0.0" ixz="0.0" iyy="7.4666667e-07" iyz="0.0" izz="1.6e-07" />
+    </inertial>
+  </link>
+  <joint name="gripper_finger_right_joint" type="prismatic">
+    <origin rpy="0 0 0" xyz="-0.0178 0.0088 0.0" />
+    <parent link="gripper_base_finger_right_link" />
+    <child link="gripper_screw_right_link" />
+    <axis xyz="0 1 0" />
+    <limit effort="10.0" lower="0.0" upper="0.07" velocity="2" />
+    <safety_controller k_position="20" k_velocity="20" soft_lower_limit="0.0" soft_upper_limit="0.07" />
+    <mimic joint="gripper_finger_joint" multiplier="0.22" offset="0" />
+  </joint>
+  <link name="gripper_base_finger_right_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+      <mass value="0.02" />
+      <inertia ixx="7.4666667e-07" ixy="0.0" ixz="0.0" iyy="7.4666667e-07" iyz="0.0" izz="1.6e-07" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <sphere radius="0.001" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <sphere radius="0.001" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_base_finger_right_joint" type="fixed">
+    <origin rpy="1.5708 0 1.5708" xyz="0.0 0.0288 0.07565" />
+    <parent link="gripper_base_link" />
+    <child link="gripper_base_finger_right_link" />
+  </joint>
+  <link name="gripper_inner_finger_right_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-1.7347E-18 0.024759 0" />
+      <mass value="0.018619" />
+      <inertia ixx="4.8806E-06" ixy="-7.6762E-22" ixz="1.0244E-22" iyy="2.5471E-07" iyz="-1.1841E-21" izz="4.9573E-06" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/inner_finger.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/inner_finger.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_inner_finger_right_joint" type="revolute">
+    <origin rpy="0.0 0.0 0.0" xyz="-0.01482273272 0.00453176142 0.0" />
+    <parent link="gripper_base_finger_right_link" />
+    <child link="gripper_inner_finger_right_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="0.1" lower="-0.7476990515543709" upper="0.1396437934520663" velocity="2" />
+    <mimic joint="gripper_finger_joint" multiplier="-8.28" offset="0.0" />
+  </joint>
+  <link name="gripper_outer_finger_right_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.00128298420356912 0.0143974756929021 1.5011142385525E-15" />
+      <mass value="0.0159887772377711" />
+      <inertia ixx="5.98786243781872E-06" ixy="-5.21728921919786E-07" ixz="-7.65398863989897E-20" iyy="4.87250835241547E-07" iyz="-7.03393901384231E-19" izz="6.14972693188202E-06" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/outer_finger.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/outer_finger.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_outer_finger_right_joint" type="revolute">
+    <origin rpy="1.5708 0 1.5708" xyz="0.0 0.0288 0.07565" />
+    <parent link="gripper_base_link" />
+    <child link="gripper_outer_finger_right_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="0.1" lower="-0.7476990515543709" upper="0.1396437934520663" velocity="2" />
+    <mimic joint="gripper_finger_joint" multiplier="-8.28" offset="0.0" />
+  </joint>
+  <link name="gripper_fingertip_right_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.000864586242839444 0.0119290372347422 -2.732444563276E-11" />
+      <mass value="0.0335029606041878" />
+      <inertia ixx="3.6391786422032E-06" ixy="3.4052204633865E-07" ixz="-1.41918626749374E-14" iyy="1.70950026855986E-06" iyz="-4.24736685249643E-14" izz="2.84428135741107E-06" />
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/fingertip.stl" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <mesh filename="package://roboplan_example_models/models/tiago_pro_robot_model/meshes/pal_pro_gripper_description/fingertip.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="gripper_fingertip_right_joint" type="revolute">
+    <origin rpy="0 0 0" xyz="0 0.05 0" />
+    <parent link="gripper_inner_finger_right_link" />
+    <child link="gripper_fingertip_right_link" />
+    <axis xyz="0 0 1" />
+    <limit effort="0.1" lower="-0.1396437934520663" upper="0.7476990515543709" velocity="2" />
+    <mimic joint="gripper_finger_joint" multiplier="8.28" offset="0.0" />
+  </joint>
+</robot>

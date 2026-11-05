@@ -1,0 +1,24 @@
+# RoboPlan configuration file for PAL Robotics TIAGo Pro Arm.
+
+joint_limits:
+  arm_1_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_2_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_3_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_4_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_5_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_6_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
+  arm_7_joint:
+    max_acceleration: [2.0]
+    max_jerk: [10.0]
