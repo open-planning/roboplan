@@ -188,6 +188,27 @@ TEST(RoboPlanJointGroupTest, AddGroupFromJointsChainAndGroups) {
   EXPECT_FALSE(scene.addGroupFromGroups("bad", {"missing_group"}).has_value());
 }
 
+TEST(RoboPlanJointGroupTest, RemoveGroup) {
+  Scene scene("groups_scene", loadUrdfSceneDescriptionFromXml(kUrdf));
+
+  ASSERT_TRUE(scene.addGroup("arm", {"revolute_joint", "mimic_joint"}).has_value());
+  ASSERT_TRUE(scene.addGroupFromGroups("arm_copy", {"arm"}).has_value());
+
+  // Removing the group works, and it can no longer be looked up.
+  const auto removed = scene.removeGroup("arm");
+  ASSERT_TRUE(removed.has_value()) << removed.error();
+  EXPECT_FALSE(scene.getJointGroupInfo("arm").has_value());
+
+  // A group built from the removed group is not affected.
+  const auto copy_info = scene.getJointGroupInfo("arm_copy").value();
+  EXPECT_THAT(copy_info.joint_names, ::testing::ElementsAre("revolute_joint", "mimic_joint"));
+
+  // Removing a missing group, or the default group, is an error.
+  EXPECT_FALSE(scene.removeGroup("arm").has_value());
+  EXPECT_FALSE(scene.removeGroup("").has_value());
+  EXPECT_TRUE(scene.getJointGroupInfo("").has_value());
+}
+
 TEST_F(RoboPlanJointTest, CurrentJointPositionsWithMimics) {
   Eigen::VectorXd q(3);
   q << 1.0, 0.0, 0.5;
