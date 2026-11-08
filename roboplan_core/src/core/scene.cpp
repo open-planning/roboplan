@@ -929,6 +929,16 @@ tl::expected<void, std::string> Scene::addGroup(const std::string& name,
   return {};
 }
 
+tl::expected<void, std::string> Scene::removeGroup(const std::string& name) {
+  if (name.empty()) {
+    return tl::make_unexpected("Cannot remove the default whole-model group.");
+  }
+  if (joint_group_info_map_.erase(name) == 0) {
+    return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_map_.");
+  }
+  return {};
+}
+
 Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
   std::vector<int> q_indices;
   for (const auto& joint_name : joint_names) {
