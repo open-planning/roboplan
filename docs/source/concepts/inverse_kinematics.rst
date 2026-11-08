@@ -242,6 +242,9 @@ Tracks a target 6-DOF pose (position + orientation).
 +------------------------------+-----------------------------------------------------+-----------+
 | ``priority``                 | Priority level (1 = highest; see Task Priorities)   | 1         |
 +------------------------------+-----------------------------------------------------+-----------+
+| ``singularity_threshold``    | Damps directions of :math:`WJ` with singular values | 0.0       |
+|                              | below this (0 = disabled)                           |           |
++------------------------------+-----------------------------------------------------+-----------+
 
 ConfigurationTask
 """""""""""""""""

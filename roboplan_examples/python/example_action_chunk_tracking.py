@@ -269,7 +269,8 @@ def main(
     segment_time: float = 0.5,
     control_freq: float = 100.0,
     task_gain: float = 1.0,
-    lm_damping: float = 0.01,
+    lm_damping: float = 1.0,
+    singularity_threshold: float = 0.1,
     regularization: float = 1e-6,
     limit_acceleration: bool = False,
     sleep: bool = False,
@@ -288,6 +289,8 @@ def main(
         control_freq: Dense interpolation/tracking frequency, in Hz.
         task_gain: OInK task gain (FrameTask in Cartesian mode, ConfigurationTask in joint mode).
         lm_damping: OInK task Levenberg-Marquardt damping.
+        singularity_threshold: Damps near-singular directions of the frame task (0 disables).
+            Higher values stop the arm more smoothly there but can add lag in some directions.
         regularization: Tikhonov regularization passed to OInK.
         limit_acceleration: If true (and the model defines acceleration limits), add an OInK
             AccelerationLimit so the executed motion respects joint acceleration limits.
@@ -401,7 +404,7 @@ def main(
         # the FrameTasks leave free and never sacrifices end-effector tracking.
         joint_weights = np.full(num_variables, 1e-4)
         config_options = ConfigurationTaskOptions(
-            task_gain=1.0, lm_damping=0.0, priority=2
+            task_gain=0.1, lm_damping=0.0, priority=2
         )
         config_task = ConfigurationTask(
             oink,
@@ -415,6 +418,7 @@ def main(
             orientation_cost=0.1,
             task_gain=task_gain,
             lm_damping=lm_damping,
+            singularity_threshold=singularity_threshold,
         )
 
         frame_tasks = []

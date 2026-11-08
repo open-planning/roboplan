@@ -43,6 +43,7 @@ FrameTask::FrameTask(const Oink& oink, const Scene& scene,
   }
 
   v_indices = oink.v_indices;
+  singularity_threshold = options.singularity_threshold;
 
   // Pre-allocate storage: 6 rows (SE(3) task) × group velocity DOFs columns
   initializeStorage(kSpatialDimension, v_indices.size());

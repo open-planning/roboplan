@@ -50,6 +50,11 @@ struct FrameTaskOptions {
   /// @brief Priority level (default: 1). Tasks at higher priority numbers are projected
   /// into the nullspace of all lower priority numbers. Must be >= 1.
   int priority = 1;
+
+  /// @brief Singular values of the weighted Jacobian W*J below this are damped, which bounds the
+  /// step in near-singular directions.
+  /// @details Lower priority levels may use the damped directions at a soft cost. 0 disables.
+  double singularity_threshold = 0.0;
 };
 
 /// @brief Task for tracking a target Cartesian pose with a specified frame.
