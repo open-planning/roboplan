@@ -415,6 +415,11 @@ public:
                                            const std::vector<std::string>& joint_names,
                                            const std::vector<std::string>& extra_link_names = {});
 
+  /// @brief Removes a joint group from an explicit list of joints.
+  /// @param name The name of the group to remove.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string> removeGroup(const std::string& name);
+
   /// @brief Get the current Pinocchio configuration vector (model.nq).
   /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).
   /// Its size may differ from getJointNames().size().
