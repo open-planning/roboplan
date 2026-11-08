@@ -524,6 +524,9 @@ class Scene:
     def addGroup(self, name: str, joint_names: Sequence[str], extra_link_names: Sequence[str] = []) -> None:
         """Adds a joint group from an explicit list of joints."""
 
+    def removeGroup(self, name: str) -> None:
+        """Removes a joint group by name."""
+
     def getCurrentJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Get the current Pinocchio configuration vector (model.nq)."""
 
