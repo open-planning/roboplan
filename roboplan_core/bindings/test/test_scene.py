@@ -520,6 +520,28 @@ def test_add_group_from_joints_chain_and_groups() -> None:
     ]
 
 
+def test_remove_group() -> None:
+    scene = Scene("groups_scene", loadUrdfSceneDescriptionFromXml(URDF))
+    scene.addGroup("arm", ["revolute_joint", "mimic_joint"])
+    scene.addGroupFromGroups("arm_copy", ["arm"])
+
+    scene.removeGroup("arm")
+    with pytest.raises(RuntimeError):
+        scene.getJointGroupInfo("arm")
+
+    # A group built from the removed group is not affected.
+    assert scene.getJointGroupInfo("arm_copy").joint_names == [
+        "revolute_joint",
+        "mimic_joint",
+    ]
+
+    # Removing a missing group, or the default group, is an error.
+    with pytest.raises(RuntimeError):
+        scene.removeGroup("arm")
+    with pytest.raises(RuntimeError):
+        scene.removeGroup("")
+
+
 def test_mimics() -> None:
     # Native Pinocchio mimics: mimic has no q slot; link3 pose follows revolute via FK.
     test_scene = Scene("test_scene", loadUrdfSceneDescriptionFromXml(URDF))
