@@ -540,7 +540,7 @@ def test_remove_group() -> None:
     # Removing a missing group is an error
     with pytest.raises(RuntimeError) as exc_info:
         scene.removeGroup("arm")
-    assert str(exc_info.value) == "Group name 'arm' not found in joint_group_info_map_"
+    assert str(exc_info.value) == "Group name 'arm' not found in joint_group_info_map_."
 
     # Removing the default group is an error
     with pytest.raises(RuntimeError) as exc_info:
