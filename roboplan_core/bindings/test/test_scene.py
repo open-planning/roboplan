@@ -525,21 +525,27 @@ def test_remove_group() -> None:
     scene.addGroup("arm", ["revolute_joint", "mimic_joint"])
     scene.addGroupFromGroups("arm_copy", ["arm"])
 
+    # Removing the group works, and it can no longer be looked up
     scene.removeGroup("arm")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError) as exc_info:
         scene.getJointGroupInfo("arm")
+    assert str(exc_info.value) == "Group name 'arm' not found in joint_group_info_map_."
 
-    # A group built from the removed group is not affected.
+    # A group built from the removed group is not affected
     assert scene.getJointGroupInfo("arm_copy").joint_names == [
         "revolute_joint",
         "mimic_joint",
     ]
 
-    # Removing a missing group, or the default group, is an error.
-    with pytest.raises(RuntimeError):
+    # Removing a missing group is an error
+    with pytest.raises(RuntimeError) as exc_info:
         scene.removeGroup("arm")
-    with pytest.raises(RuntimeError):
+    assert str(exc_info.value) == "Group name 'arm' not found in joint_group_info_map_"
+
+    # Removing the default group is an error
+    with pytest.raises(RuntimeError) as exc_info:
         scene.removeGroup("")
+    assert str(exc_info.value) == "Cannot remove the default whole-model group."
 
 
 def test_mimics() -> None:
