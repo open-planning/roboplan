@@ -1,7 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <functional>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -148,10 +147,8 @@ public:
 
   /// @brief Gets the information for a specific joint.
   /// @param joint_name The name of the joint.
-  /// @return A reference to the joint information if successful, else a string describing the
-  /// error.
-  tl::expected<std::reference_wrapper<const JointInfo>, std::string>
-  getJointInfo(const std::string& joint_name) const;
+  /// @return The joint information struct if successful, else a string describing the error.
+  tl::expected<JointInfo, std::string> getJointInfo(const std::string& joint_name) const;
 
   /// @brief Gets the configuration-space distance between two joint configurations.
   /// @param q_start The starting joint positions.
@@ -374,10 +371,8 @@ public:
 
   /// @brief Get the joint group information of a scene by its name.
   /// @param name The name of the joint group to look up.
-  /// @return A reference to the joint group information if successful, else a string describing
-  /// the error.
-  tl::expected<std::reference_wrapper<const JointGroupInfo>, std::string>
-  getJointGroupInfo(const std::string& name) const;
+  /// @return The joint group information if successful, else a string describing the error.
+  tl::expected<JointGroupInfo, std::string> getJointGroupInfo(const std::string& name) const;
 
   /// @brief Applies groups and disabled collision pairs from an SRDF document.
   /// @details Groups with the same name as an existing non-default group overwrite it. The
@@ -419,6 +414,11 @@ public:
   tl::expected<void, std::string> addGroup(const std::string& name,
                                            const std::vector<std::string>& joint_names,
                                            const std::vector<std::string>& extra_link_names = {});
+
+  /// @brief Removes a joint group from an explicit list of joints.
+  /// @param name The name of the group to remove.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string> removeGroup(const std::string& name);
 
   /// @brief Get the current Pinocchio configuration vector (model.nq).
   /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).
