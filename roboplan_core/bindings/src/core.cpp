@@ -316,6 +316,8 @@ void init_core_scene(nanobind::module_& m) {
       .def("addGroup", unwrap_expected(&Scene::addGroup),
            "Adds a joint group from an explicit list of joints.", "name"_a, "joint_names"_a,
            "extra_link_names"_a = std::vector<std::string>{})
+      .def("removeGroup", unwrap_expected(&Scene::removeGroup), "Removes a joint group by name.",
+           "name"_a)
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions,
            "Get the current Pinocchio configuration vector (model.nq).")
       .def("getCurrentJointPositionsWithMimics", &Scene::getCurrentJointPositionsWithMimics,

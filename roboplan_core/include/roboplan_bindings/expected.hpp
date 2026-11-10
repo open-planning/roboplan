@@ -1,14 +1,8 @@
 #pragma once
 
-#include <functional>
 #include <stdexcept>
 #include <string>
 #include <tl/expected.hpp>
-#include <type_traits>
-
-/// @brief The value type handed to Python: a `std::reference_wrapper<const T>` is copied out as
-/// `T`.
-template <typename T> using unwrapped_t = std::decay_t<std::unwrap_ref_decay_t<T>>;
 
 /// @brief Helper function for checking if a tl::expected return type has a value or an error.
 /// @details If a value exists, we return it as is. When handling unexpected values, if
@@ -16,8 +10,7 @@ template <typename T> using unwrapped_t = std::decay_t<std::unwrap_ref_decay_t<T
 /// Otherwise we do not know the details of the underlying exception.
 /// @return The unwrapped value, or throw an exception.
 /// @throw std::runtime_error if the result is an error.
-template <typename Expected>
-unwrapped_t<typename Expected::value_type> handle_expected(Expected&& result) {
+template <typename Expected> typename Expected::value_type handle_expected(Expected&& result) {
   if (result.has_value()) {
     if constexpr (std::is_void_v<typename Expected::value_type>) {
       return;  // Return nothing since it's a void type
@@ -38,7 +31,7 @@ unwrapped_t<typename Expected::value_type> handle_expected(Expected&& result) {
 /// @return The unwrapped value, or throw a runtime_error.
 template <typename Class, typename Ret, typename Err, typename... Args>
 auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...)) {
-  return [method](Class& self, Args... args) -> unwrapped_t<Ret> {
+  return [method](Class& self, Args... args) -> Ret {
     return handle_expected((self.*method)(args...));
   };
 }
@@ -48,7 +41,7 @@ auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...)) {
 /// @return The unwrapped value, or throw a runtime_error.
 template <typename Class, typename Ret, typename Err, typename... Args>
 auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...) const) {
-  return [method](const Class& self, Args... args) -> unwrapped_t<Ret> {
+  return [method](const Class& self, Args... args) -> Ret {
     return handle_expected((self.*method)(args...));
   };
 }
@@ -57,5 +50,5 @@ auto unwrap_expected(tl::expected<Ret, Err> (Class::*method)(Args...) const) {
 /// @return The unwrapped value, or throw a runtime_error.
 template <typename Ret, typename Err, typename... Args>
 auto unwrap_expected(tl::expected<Ret, Err> (*method)(Args...)) {
-  return [method](Args... args) -> unwrapped_t<Ret> { return handle_expected((*method)(args...)); };
+  return [method](Args... args) -> Ret { return handle_expected((*method)(args...)); };
 }
