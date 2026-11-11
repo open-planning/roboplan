@@ -108,6 +108,20 @@ TEST_F(RoboPlanSceneContextTest, DebugCollisionsEnumerateEveryPair) {
   // does.
   EXPECT_EQ(context_output, scene_output);
   EXPECT_NE(context_output.find("Collision detected between"), std::string::npos);
+
+  // The same pairs are available without printing, named by what setCollisions accepts.
+  const auto pairs = scene->getCollidingPairs(colliding);
+  ASSERT_FALSE(pairs.empty());
+  EXPECT_EQ(pairs, context.getCollidingPairs(colliding));
+  for (const auto& pair : pairs) {
+    EXPECT_NE(scene_output.find(pair), std::string::npos) << pair;
+    const auto separator = pair.find(" <-> ");
+    ASSERT_NE(separator, std::string::npos) << pair;
+    EXPECT_TRUE(scene->setCollisions(pair.substr(0, separator), pair.substr(separator + 5), false))
+        << pair;
+  }
+  EXPECT_FALSE(scene->hasCollisions(colliding));
+  EXPECT_TRUE(scene->getCollidingPairs(colliding).empty());
 }
 
 TEST_F(RoboPlanSceneContextTest, ConcurrentQueriesMatchSerialResults) {

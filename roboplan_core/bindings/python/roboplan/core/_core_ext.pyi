@@ -465,6 +465,9 @@ class Scene:
     def hasCollisions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], debug: bool = False) -> bool:
         """Checks collisions at specified joint positions."""
 
+    def getCollidingPairs(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> list[str]:
+        """Finds every colliding body pair at specified joint positions."""
+
     def isValidConfiguration(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> bool:
         """
         Checks if the specified joint positions are valid with respect to joint limits.

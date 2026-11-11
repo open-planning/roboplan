@@ -1,11 +1,8 @@
 #include <cmath>
-#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
-
-#include <pinocchio/collision/collision.hpp>
 
 #include <roboplan/core/scene_utils.hpp>
 
@@ -355,26 +352,6 @@ Eigen::VectorXd jointPositionsWithMimicsFromPinocchio(const Scene& scene,
     }
   }
   return positions;
-}
-
-bool computeCollisionsVerbose(const pinocchio::Model& model, pinocchio::Data& data,
-                              const pinocchio::GeometryModel& collision_model,
-                              pinocchio::GeometryData& geom_data, const Eigen::VectorXd& q) {
-  pinocchio::updateGeometryPlacements(model, data, collision_model, geom_data, q);
-  const auto result = pinocchio::computeCollisions(model, data, collision_model, geom_data, q,
-                                                   /*stop_at_first_collision=*/false);
-
-  for (size_t k = 0; k < collision_model.collisionPairs.size(); ++k) {
-    const auto& cp = collision_model.collisionPairs.at(k);
-    const auto& cr = geom_data.collisionResults.at(k);
-    if (cr.isCollision()) {
-      const auto& body1 = collision_model.geometryObjects.at(cp.first).name;
-      const auto& body2 = collision_model.geometryObjects.at(cp.second).name;
-      std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
-    }
-  }
-
-  return result;
 }
 
 }  // namespace roboplan

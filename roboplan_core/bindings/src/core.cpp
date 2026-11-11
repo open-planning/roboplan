@@ -235,6 +235,8 @@ void init_core_scene(nanobind::module_& m) {
            "joint_names"_a, "q_reference"_a, "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions,
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
+      .def("getCollidingPairs", &Scene::getCollidingPairs,
+           "Finds every colliding body pair at specified joint positions.", "q"_a)
       .def("isValidConfiguration", &Scene::isValidConfiguration,
            "Checks if the specified joint positions are valid with respect to joint limits.", "q"_a)
       .def("clampToValidConfiguration", &Scene::clampToValidConfiguration,
