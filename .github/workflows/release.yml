@@ -34,6 +34,7 @@ jobs:
           - roboplan-simple-ik
           - roboplan-toppra
           - roboplan-cartesian-planning
+          - roboplan-vex
     # Each package publishes from its own environment so that PyPI's trusted
     # publisher configuration is unique per project.
     environment:
