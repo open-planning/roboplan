@@ -72,7 +72,7 @@ else()
 endif()
 
 # Add libraries
-add_library(roboplan_vex SHARED src/qp_backend.cpp)
+add_library(roboplan_vex SHARED src/qp_backend.cpp src/scp.cpp src/vex.cpp)
 target_include_directories(
   roboplan_vex PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                       $<INSTALL_INTERFACE:include>)

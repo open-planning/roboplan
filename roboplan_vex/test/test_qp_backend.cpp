@@ -8,6 +8,8 @@
 namespace roboplan::detail {
 namespace {
 
+constexpr double kInfinity = std::numeric_limits<double>::infinity();
+
 Eigen::SparseMatrix<double> toSparse(const Eigen::MatrixXd& dense) { return dense.sparseView(); }
 
 }  // namespace
@@ -34,7 +36,6 @@ TEST(SparseQpBackend, InequalityActive) {
   qp.g = -Eigen::Vector2d(2.0, -1.0);
   qp.A.resize(0, 2);
   qp.C = toSparse(Eigen::MatrixXd::Identity(2, 2));
-  constexpr double kInfinity = std::numeric_limits<double>::infinity();
   qp.l = Eigen::Vector2d(-kInfinity, -kInfinity);
   qp.u = Eigen::Vector2d(1.0, kInfinity);
 
