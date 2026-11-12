@@ -37,7 +37,7 @@ struct VexOptions {
   /// @brief The number of trajectory nodes N (>= 3), uniformly spaced in time.
   size_t num_nodes = 50;
 
-  /// @brief Collision samples per segment, used by the collision term (0 = nodes only).
+  /// @brief Collision samples per segment, in addition to the nodes (0 = nodes only).
   size_t samples_per_segment = 3;
 
   /// @brief Weight of the path-energy cost, the exact integral of ||v(t)||^2 over the trajectory.
@@ -46,10 +46,10 @@ struct VexOptions {
   /// @brief Weight of the smoothing cost, the exact integral of ||a(t)||^2 over the trajectory.
   double acceleration_weight = 1e-2;
 
-  /// @brief Minimum signed distance d_safe (m), used by the collision term.
+  /// @brief Minimum signed distance d_safe (m) between every active collision pair.
   double collision_margin = 0.01;
 
-  /// @brief Pairs closer than this distance d_check (m) enter the QP; used by the collision term.
+  /// @brief Pairs closer than this distance d_check (m) enter the QP; must exceed d_safe.
   double collision_check_distance = 0.05;
 
   /// @brief Initial ℓ1 penalty weight on nonconvex constraint violations.
@@ -101,8 +101,8 @@ struct VexResult {
   double max_violation = 0.0;
 
   /// @brief Whether a dense collision post-check over all active pairs passed.
-  /// @details Always false until the collision post-check is implemented: the result never
-  /// claims more than was checked.
+  /// @details Samples the trajectory's piecewise-quadratic positions so that no group joint moves
+  /// more than 0.01 rad (or m) between consecutive checks. Independent of the status.
   bool continuous_collision_free = false;
 };
 
@@ -123,14 +123,17 @@ public:
   /// @brief Optimizes a rest-to-rest trajectory from start to goal.
   /// @details The trajectory satisfies q_0 = start, q_{N-1} = goal, v_0 = v_{N-1} = 0, the
   /// dynamics, and the Scene's joint position / velocity / acceleration limits at the nodes as
-  /// hard constraints. The seed is resampled to N nodes and projected onto those constraints before
+  /// hard constraints. Every active collision pair of the Scene keeps a signed distance of at
+  /// least `collision_margin` at the nodes and the collision samples (ℓ1-penalized). The seed is
+  /// resampled to N nodes and projected onto those constraints before
   /// the SCP loop. Joints outside the group stay at the Scene's configuration.
   /// The trust box bounds the step in position units: |dq| <= r, |dv| dt <= r, |da| dt^2 <= r.
   /// @param start The start configuration of the group joints.
   /// @param goal The goal configuration of the group joints.
   /// @param duration The trajectory duration T > 0 (s).
   /// @param seed The seed path over the group joints (at least 2 waypoints).
-  /// @return The result, or an error for invalid input or an infeasible problem.
+  /// @return The result, or an error for invalid input, a start or goal in collision, or an
+  /// infeasible problem.
   tl::expected<VexResult, std::string> solve(const JointConfiguration& start,
                                              const JointConfiguration& goal, double duration,
                                              const JointPath& seed);

@@ -8,6 +8,7 @@
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene_context.hpp>
 
+#include "collision_term.hpp"
 #include "scp.hpp"
 
 namespace roboplan {
@@ -80,6 +81,10 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
   if (options_.velocity_weight < 0.0 || options_.acceleration_weight < 0.0) {
     return tl::make_unexpected("VexOptions cost weights must be nonnegative.");
   }
+  if (!(options_.collision_check_distance > options_.collision_margin)) {
+    return tl::make_unexpected(
+        "VexOptions::collision_check_distance must be greater than collision_margin.");
+  }
 
   const auto maybe_group = scene_->getJointGroupInfo(options_.group_name);
   if (!maybe_group) {
@@ -132,9 +137,15 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
     }
   }
 
-  // Per-solve scratch (design L3): never touches the Scene's shared state. Joints outside the
-  // group keep the Scene's configuration. Consumed by the collision term.
-  [[maybe_unused]] const SceneContext context(*scene_);
+  // Per-solve scratch (design L3): never touches the Scene's shared state. The context reads the
+  // Scene's current joint positions once, here; joints outside the group keep them.
+  const SceneContext context(*scene_);
+  if (context.hasCollisions(context.toFullJointPositions(options_.group_name, start.positions))) {
+    return tl::make_unexpected("The start configuration is in collision.");
+  }
+  if (context.hasCollisions(context.toFullJointPositions(options_.group_name, goal.positions))) {
+    return tl::make_unexpected("The goal configuration is in collision.");
+  }
 
   const detail::VexLayout layout{.n = group.v_indices.size(),
                                  .num_nodes = static_cast<Eigen::Index>(options_.num_nodes),
@@ -152,7 +163,13 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
                                z0.error() + ")");
   }
 
-  const std::vector<std::shared_ptr<detail::NonconvexTerm>> terms;
+  std::vector<std::shared_ptr<detail::NonconvexTerm>> terms;
+  const auto& active_pairs = context.getCollisionData().activeCollisionPairs;
+  if (std::ranges::find(active_pairs, true) != active_pairs.end()) {
+    terms.push_back(std::make_shared<detail::CollisionTerm>(
+        context, options_.group_name, group.v_indices, options_.samples_per_segment,
+        options_.collision_margin, options_.collision_check_distance));
+  }
   const auto scp = detail::runScp(problem, terms, *z0, options_);
   if (!scp) {
     return tl::make_unexpected(scp.error());
@@ -180,6 +197,10 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
   trajectory.positions.back() = goal.positions;
   trajectory.velocities.front().setZero();
   trajectory.velocities.back().setZero();
+
+  // Independent of the status: the flag reports exactly what this dense check covered.
+  result.continuous_collision_free =
+      detail::isContinuousCollisionFree(context, options_.group_name, trajectory);
   return result;
 }
 
