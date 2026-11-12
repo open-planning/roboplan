@@ -13,6 +13,7 @@ roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
 roboplan-core = { path = "../roboplan" }
 roboplan-example-models = { path = "../roboplan_example_models" }
 roboplan-oink = { path = "../roboplan_oink" }
+roboplan-ompl = { path = "../roboplan_ompl" }
 roboplan-rrt = { path = "../roboplan_rrt" }
 roboplan-simple-ik = { path = "../roboplan_simple_ik" }
 roboplan-toppra = { path = "../roboplan_toppra" }
@@ -29,6 +30,7 @@ roboplan-cartesian-planning = { path = "../roboplan_cartesian_planning" }
 roboplan-core = { path = "../roboplan" }
 roboplan-example-models = { path = "../roboplan_example_models" }
 roboplan-oink = { path = "../roboplan_oink" }
+roboplan-ompl = { path = "../roboplan_ompl" }
 roboplan-rrt = { path = "../roboplan_rrt" }
 roboplan-simple-ik = { path = "../roboplan_simple_ik" }
 roboplan-toppra = { path = "../roboplan_toppra" }

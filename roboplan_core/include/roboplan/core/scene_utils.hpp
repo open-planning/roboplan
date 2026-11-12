@@ -12,6 +12,10 @@
 
 namespace roboplan {
 
+/// @brief Default position bound, in meters, for planar joint translation when it has no limits.
+/// @details Used by random sampling and by sampling-based planners. TODO Make this configurable.
+inline constexpr double kDefaultPlanarJointTranslationLimit = 2.0;
+
 /// @brief Map from Pinocchio joint model short names to RoboPlan joint type enums.
 const std::map<std::string, roboplan::JointType> kPinocchioJointTypeMap = {
     {"JointModelPrismaticUnaligned", JointType::PRISMATIC},
