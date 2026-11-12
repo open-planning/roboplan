@@ -66,3 +66,12 @@ Cartesian Planning
     :content-only:
     :members:
     :undoc-members:
+
+Vex (Trajectory Optimization)
+-----------------------------
+
+.. doxygennamespace:: roboplan
+    :project: roboplan_vex
+    :content-only:
+    :members:
+    :undoc-members:

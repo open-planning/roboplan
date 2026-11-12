@@ -17,6 +17,7 @@ autoapi_dirs = [
     "../../roboplan_simple_ik/bindings/python",
     "../../roboplan_toppra/bindings/python",
     "../../roboplan_cartesian_planning/bindings/python",
+    "../../roboplan_vex/bindings/python",
 ]
 
 # -- Path setup --------------------------------------------------------------
@@ -98,6 +99,7 @@ breathe_package_dirs = {
     "roboplan_oink": "roboplan_oink",
     "roboplan_toppra": "roboplan_toppra",
     "roboplan_cartesian_planning": "roboplan_cartesian_planning",
+    "roboplan_vex": "roboplan_vex",
 }
 
 if shutil.which("doxygen") is None:
