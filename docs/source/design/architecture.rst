@@ -23,6 +23,7 @@ The diagram below shows the major components, the external libraries they build 
            OINK["OInK<br/>(roboplan.optimal_ik)"]
            RRT["RRT<br/>(roboplan.rrt)"]
            TOPPRA["TOPP-RA<br/>(roboplan.toppra)"]
+           VEX["Vex<br/>(roboplan.vex)"]
        end
 
        subgraph CORE["Core package (roboplan.core)"]
@@ -52,9 +53,11 @@ The diagram below shows the major components, the external libraries they build 
        RRT --> CORE
        TOPPRA --> CORE
        CART --> CORE
+       VEX --> CORE
        SHORT --> SCENE
 
        OINK --> PROXSUITE
+       VEX --> PROXSUITE
        RRT --> NANOFLANN
        TOPPRA --> TOPPRALIB
        SCENE --> PIN
@@ -77,7 +80,7 @@ The diagram below shows the major components, the external libraries they build 
 
        class LCPP,PROXSUITE,TOPPRALIB,NANOFLANN cpp
        class LPY,VIZ,INTERP,VISER,MPL python
-       class LBOTH,CART,SINK,OINK,RRT,TOPPRA,SCENE,TYPES,SHORT,PIN,COAL both
+       class LBOTH,CART,SINK,OINK,RRT,TOPPRA,VEX,SCENE,TYPES,SHORT,PIN,COAL both
        class USER neutral
 
 All components use `Eigen <https://eigen.tuxfamily.org/>`_ for linear algebra; it is omitted from the diagram for clarity.
@@ -114,6 +117,9 @@ Each C++ package ships its own Python bindings, exposed as a submodule of the ``
    * - ``roboplan_cartesian_planning``
      - ``roboplan.cartesian_planning``
      - :doc:`Cartesian path planning </concepts/cartesian_planning>`, composing OInK and TOPP-RA.
+   * - ``roboplan_vex``
+     - ``roboplan.vex``
+     - :doc:`Sequential convex trajectory optimization </concepts/sequential_convex_trajectory_optimization>` (vex).
    * - ``roboplan_example_models``
      - ``roboplan.example_models``
      - Example robot models (URDF/SRDF) used in examples and tests.
@@ -174,6 +180,7 @@ Each algorithm package builds on the core package, bringing in its own external 
 - **OInK** formulates IK as a quadratic program over tasks, constraints, and control barrier functions, and solves it with `ProxSuite <https://github.com/Simple-Robotics/proxsuite>`_.
 - **RRT** grows search trees in configuration space, using the ``Scene`` for sampling and collision checks and the `nanoflann <https://github.com/jlblancoc/nanoflann>`_ k-d tree for nearest-neighbor lookups.
 - **TOPP-RA** wraps the `toppra <https://github.com/hungpham2511/toppra>`_ library to time-parameterize joint paths subject to the velocity and acceleration limits stored in the ``Scene``.
+- **Vex** optimizes a seed path (e.g., from RRT) into a smooth, collision-free, fixed-duration trajectory by sequential convex programming, solving each sparse QP with ProxSuite.
 - **CartesianPathPlanner** is the main integration point: it resolves a task-space path into a joint path with an internal OInK solver, then times that path with TOPP-RA.
 
 See the :doc:`Concepts </concepts/index>` section for a detailed description of each algorithm.
