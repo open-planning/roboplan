@@ -73,6 +73,7 @@ add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_toppra"
                  "roboplan_toppra")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_cartesian_planning"
                  "roboplan_cartesian_planning")
+add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_vex" "roboplan_vex")
 if(ROBOPLAN_BUILD_EXAMPLES)
   add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_examples"
                    "roboplan_examples")

@@ -13,6 +13,7 @@ PACKAGES=(
     roboplan_oink
     roboplan_toppra
     roboplan_cartesian_planning
+    roboplan_vex
 )
 
 if command -v ros2 >/dev/null 2>&1;
