@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_vex/vex.hpp>
@@ -107,9 +108,12 @@ TEST_F(VexTest, NoObstaclesGivesStraightLine) {
   const auto result = vex.solve(config(start), config(goal), 4.0, path({start, detour, goal}));
   ASSERT_TRUE(result.has_value()) << result.error();
   EXPECT_EQ(result->status, VexStatus::Converged);
-  EXPECT_EQ(result->iterations, 1u);
+  // The ur5 has active self-collision pairs, so the collision term (and the trust box) is in the
+  // loop and the solve takes more than one iteration; the one-iteration exactness of the convex
+  // model without terms is covered by ScpTest.WithoutTermsConvergesInOneIteration.
   EXPECT_EQ(result->max_violation, 0.0);
-  EXPECT_FALSE(result->continuous_collision_free);
+  // The ur5 is collision-free along the straight line between these configurations.
+  EXPECT_TRUE(result->continuous_collision_free);
   EXPECT_EQ(result->trajectory.joint_names, joint_names_);
   expectFeasible(result->trajectory, start, goal);
 
@@ -197,8 +201,104 @@ TEST_F(VexTest, InvalidInputReturnsError) {
   options.num_nodes = 2;
   EXPECT_FALSE(Vex(scene_, options).solve(config(start), config(goal), 2.0, seed).has_value());
   options = options_;
+  options.collision_check_distance = options.collision_margin;
+  EXPECT_FALSE(Vex(scene_, options).solve(config(start), config(goal), 2.0, seed).has_value());
+  options = options_;
   options.group_name = "no_such_group";
   EXPECT_FALSE(Vex(scene_, options).solve(config(start), config(goal), 2.0, seed).has_value());
+}
+
+// A sphere obstacle centered on the tool0 position halfway along the straight joint-space line
+// from start to goal, swept by rotating the shoulder pan joint.
+class VexCollisionTest : public VexTest {
+protected:
+  void SetUp() override {
+    VexTest::SetUp();
+    start_.resize(6);
+    start_ << -0.8, -1.2, 1.4, -1.8, -1.57, 0.0;
+    goal_ = start_;
+    goal_(0) = 0.8;
+    addSphere("obstacle", toolPosition(0.5 * (start_ + goal_)), 0.08);
+  }
+
+  [[nodiscard]] Eigen::Vector3d toolPosition(const Eigen::VectorXd& q) const {
+    return scene_->forwardKinematics(scene_->toFullJointPositions("arm", q), "tool0")
+        .block<3, 1>(0, 3);
+  }
+
+  void addSphere(const std::string& name, const Eigen::Vector3d& center, double radius) {
+    Eigen::Matrix4d tform = Eigen::Matrix4d::Identity();
+    tform.block<3, 1>(0, 3) = center;
+    const auto added = scene_->addSphereGeometry(name, "universe", Sphere(radius), tform,
+                                                 Eigen::Vector4d(1.0, 0.0, 0.0, 0.5));
+    ASSERT_TRUE(added.has_value()) << added.error();
+  }
+
+  [[nodiscard]] double pathLength(const std::vector<Eigen::VectorXd>& positions) const {
+    return computePathLength(*scene_, "arm", path(positions)).value();
+  }
+
+  Eigen::VectorXd start_;
+  Eigen::VectorXd goal_;
+};
+
+TEST_F(VexCollisionTest, StraightLineSeedIsPushedOutOfObstacle) {
+  // The straight line is in collision, so the seed alone would fail the post-check.
+  ASSERT_TRUE(hasCollisionsAlongPath(*scene_, scene_->toFullJointPositions("arm", start_),
+                                     scene_->toFullJointPositions("arm", goal_), 0.01));
+
+  Vex vex(scene_, options_);
+  const auto result = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->status, VexStatus::Converged);
+  EXPECT_LE(result->max_violation, options_.tolerance);
+  EXPECT_TRUE(result->continuous_collision_free);
+  expectFeasible(result->trajectory, start_, goal_);
+
+  // The optimized path leaves the straight line. 0.05 rad is orders of magnitude above the QP
+  // residual (the straight line itself deviates by < 1e-6) and well below the detour needed.
+  const Eigen::VectorXd direction = goal_ - start_;
+  double max_deviation = 0.0;
+  for (const auto& q : result->trajectory.positions) {
+    const Eigen::VectorXd offset = q - start_;
+    const double fraction = offset.dot(direction) / direction.squaredNorm();
+    max_deviation =
+        std::max(max_deviation, (offset - fraction * direction).lpNorm<Eigen::Infinity>());
+  }
+  EXPECT_GT(max_deviation, 0.05);
+
+  // Same input, same output.
+  const auto again = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
+  ASSERT_TRUE(again.has_value());
+  EXPECT_EQ(again->trajectory.positions, result->trajectory.positions);
+}
+
+TEST_F(VexCollisionTest, DetourSeedIsShortened) {
+  // A collision-free detour that lifts the arm far above the obstacle.
+  Eigen::VectorXd detour = 0.5 * (start_ + goal_);
+  detour(1) -= 0.8;
+  const std::vector<Eigen::VectorXd> seed{start_, detour, goal_};
+  for (size_t i = 0; i + 1 < seed.size(); ++i) {
+    ASSERT_FALSE(hasCollisionsAlongPath(*scene_, scene_->toFullJointPositions("arm", seed[i]),
+                                        scene_->toFullJointPositions("arm", seed[i + 1]), 0.01));
+  }
+
+  Vex vex(scene_, options_);
+  const auto result = vex.solve(config(start_), config(goal_), 4.0, path(seed));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->status, VexStatus::Converged);
+  EXPECT_TRUE(result->continuous_collision_free);
+  expectFeasible(result->trajectory, start_, goal_);
+  EXPECT_LT(pathLength(result->trajectory.positions), pathLength(seed));
+}
+
+TEST_F(VexCollisionTest, StartInCollisionReturnsError) {
+  addSphere("start_obstacle", toolPosition(start_), 0.05);
+  Vex vex(scene_, options_);
+  const auto result = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
+  ASSERT_FALSE(result.has_value());
+  EXPECT_NE(result.error().find("start configuration is in collision"), std::string::npos)
+      << result.error();
 }
 
 TEST(VexLieGroupTest, ContinuousJointReturnsError) {
