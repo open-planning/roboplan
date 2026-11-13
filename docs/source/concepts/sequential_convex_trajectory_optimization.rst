@@ -33,9 +33,11 @@ Collision handling
 
 Collision avoidance uses every active collision pair of the ``Scene`` (the same pairs ``hasCollisions`` checks: self, environment, and attached objects).
 Each pair must keep a signed distance of at least ``collision_margin``.
+The start and goal must already have that clearance on every active pair, since the trajectory begins and ends there: otherwise ``solve`` returns an error (raised as ``RuntimeError`` in Python) naming the endpoint, the two geometries, their distance and the margin, instead of optimizing a problem that cannot be satisfied.
+Increase the endpoint's clearance or reduce ``collision_margin``.
 It is checked at every interior node and at ``samples_per_segment`` interior points of each segment, on the exact polynomial :math:`q(t) = q_k + v_k t + \tfrac{1}{2} a_k t^2`.
-At each sample, every pair closer than ``collision_check_distance`` gets one linearized row, built from the signed-distance gradient (``SceneContext::computeDistanceJacobian``).
-The merit used to accept steps evaluates the same pairs, so a pair the QP did not model can only cause a rejected step, never a silently accepted collision.
+At each sample, every pair closer than ``collision_check_distance`` gets one linearized row, built from the signed-distance gradient (``SceneContext::computeDistanceJacobian``); rows whose gradient over the group's joints is zero (pairs the group cannot move) are constant and stay out of the QP.
+The merit used to accept steps evaluates all of these pairs, so a pair the QP did not model can only cause a rejected step, never a silently accepted collision.
 
 The samples alone do not prove the trajectory between them is collision-free.
 After the solve, a dense post-check samples every segment so that no joint moves more than 0.01 rad (or m) between consecutive collision checks, and reports the result as ``VexResult.continuous_collision_free``, independently of the status.

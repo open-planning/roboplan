@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -32,6 +34,49 @@ tl::expected<void, std::string> checkConfiguration(const std::string& label,
     return tl::make_unexpected("The " + label + " configuration is outside the joint limits.");
   }
   return {};
+}
+
+// Rejects an endpoint closer than the collision margin to anything, over all active collision
+// pairs: the trajectory starts / ends there, so such a margin row can never be satisfied (and a
+// pair the group cannot move never changes). In collision is the same case; hasCollisions() backs
+// up the distances because coal reports mesh-mesh distances unsigned.
+tl::expected<void, std::string> checkClearance(const std::string& label,
+                                               const SceneContext& context,
+                                               const Eigen::VectorXd& q_full,
+                                               const VexOptions& options) {
+  context.computeDistances(q_full, options.collision_check_distance);
+  const auto& geometry_model = context.getCollisionModel();
+  const auto& geometry_data = context.getCollisionData();
+  double min_distance = std::numeric_limits<double>::infinity();
+  size_t closest_pair = 0;
+  for (size_t pair = 0; pair < geometry_data.distanceResults.size(); ++pair) {
+    if (!geometry_data.activeCollisionPairs[pair]) {
+      continue;
+    }
+    const double distance = geometry_data.distanceResults[pair].min_distance;
+    if (std::isnan(distance)) {
+      return tl::make_unexpected("Collision pair " + std::to_string(pair) +
+                                 " returned a NaN signed distance at the " + label +
+                                 " configuration.");
+    }
+    if (distance < min_distance) {
+      min_distance = distance;
+      closest_pair = pair;
+    }
+  }
+  const bool in_collision = min_distance <= 0.0 || context.hasCollisions(q_full);
+  if (!in_collision && min_distance >= options.collision_margin) {
+    return {};
+  }
+  const auto& pair = geometry_model.collisionPairs.at(closest_pair);
+  std::ostringstream message;
+  message << "The " << label << " configuration "
+          << (in_collision ? "is in collision" : "has a clearance below collision_margin") << ": '"
+          << geometry_model.geometryObjects.at(pair.first).name << "' and '"
+          << geometry_model.geometryObjects.at(pair.second).name << "' have a signed distance of "
+          << min_distance << " m, below VexOptions::collision_margin = " << options.collision_margin
+          << " m. Increase the " << label << "'s clearance or reduce VexOptions::collision_margin.";
+  return tl::make_unexpected(message.str());
 }
 
 // Resamples the seed to `count` nodes, uniformly in arc length. resampleUniform only downsamples
@@ -140,11 +185,17 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
   // Per-solve scratch (design L3): never touches the Scene's shared state. The context reads the
   // Scene's current joint positions once, here; joints outside the group keep them.
   const SceneContext context(*scene_);
-  if (context.hasCollisions(context.toFullJointPositions(options_.group_name, start.positions))) {
-    return tl::make_unexpected("The start configuration is in collision.");
+  if (auto checked = checkClearance(
+          "start", context, context.toFullJointPositions(options_.group_name, start.positions),
+          options_);
+      !checked) {
+    return tl::make_unexpected(checked.error());
   }
-  if (context.hasCollisions(context.toFullJointPositions(options_.group_name, goal.positions))) {
-    return tl::make_unexpected("The goal configuration is in collision.");
+  if (auto checked = checkClearance(
+          "goal", context, context.toFullJointPositions(options_.group_name, goal.positions),
+          options_);
+      !checked) {
+    return tl::make_unexpected(checked.error());
   }
 
   const detail::VexLayout layout{.n = group.v_indices.size(),

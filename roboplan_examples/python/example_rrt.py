@@ -88,7 +88,8 @@ def main(
         include_octrees: Whether or not to include additional octrees in the scene.
             Don't use with `include_obstacles`.
         vex: Whether to optimize the found (and optionally shortcutted) path with vex and show
-            the vex trajectory instead of the TOPP-RA one.
+            the vex trajectory instead of the TOPP-RA one (falls back to TOPP-RA if vex
+            returns an error).
         vex_duration: The duration (in seconds) of the vex trajectory.
     """
     model_data = get_model_data().get(model)
@@ -212,6 +213,7 @@ def main(
             shortened_path = shortcutter.shortcut(path)
             print(f"Shortcutted path in {time.time() - t_start:.3f} s")
 
+        traj = None
         if vex:
             # Optimize the path with vex, which also time-parameterizes it.
             print("Optimizing trajectory with vex...")
@@ -219,22 +221,28 @@ def main(
             vex_options = VexOptions()
             vex_options.group_name = model_data.default_joint_group
             t_start = time.time()
-            result = Vex(scene, vex_options).solve(start, goal, vex_duration, seed)
-            print(f"Optimized trajectory in {time.time() - t_start:.3f} s")
-            traj = result.trajectory
-            optimized = JointPath()
-            optimized.joint_names = traj.joint_names
-            optimized.positions = traj.positions
-            group_name = model_data.default_joint_group
-            print(
-                f"Path length: {computePathLength(scene, group_name, seed):.3f} before, "
-                f"{computePathLength(scene, group_name, optimized):.3f} after vex"
-            )
-            print(
-                f"vex status: {result.status}, "
-                f"continuous collision free: {result.continuous_collision_free}"
-            )
-        else:
+            try:
+                result = Vex(scene, vex_options).solve(start, goal, vex_duration, seed)
+            except RuntimeError as error:
+                # E.g. a start or goal with a clearance below collision_margin.
+                print(f"vex failed: {error}")
+                print("Falling back to TOPP-RA.")
+            else:
+                print(f"Optimized trajectory in {time.time() - t_start:.3f} s")
+                traj = result.trajectory
+                optimized = JointPath()
+                optimized.joint_names = traj.joint_names
+                optimized.positions = traj.positions
+                group_name = model_data.default_joint_group
+                print(
+                    f"Path length: {computePathLength(scene, group_name, seed):.3f} before, "
+                    f"{computePathLength(scene, group_name, optimized):.3f} after vex"
+                )
+                print(
+                    f"vex status: {result.status}, "
+                    f"continuous collision free: {result.continuous_collision_free}"
+                )
+        if traj is None:
             # Set up TOPP-RA to time-parameterize the path
             print("Generating trajectory...")
             t_start = time.time()
