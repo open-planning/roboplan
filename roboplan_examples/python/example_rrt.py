@@ -32,6 +32,26 @@ from roboplan.visualization import (
     visualizePath,
 )
 
+# One color per visual element, used for both the drawing and the GUI legend.
+START_COLOR = (0, 200, 0)
+GOAL_COLOR = (200, 0, 0)
+START_TREE_COLOR = (0, 100, 100)
+GOAL_TREE_COLOR = (100, 0, 100)
+RRT_PATH_COLOR = (100, 0, 0)
+SHORTCUT_PATH_COLOR = (230, 140, 0)
+TRAJECTORY_COLOR = (0, 70, 220)
+
+
+def legend_html(entries: list[tuple[str, tuple]]) -> str:
+    """Builds a compact HTML legend of colored swatches for the Viser GUI panel."""
+    rows = "".join(
+        f'<div style="display:flex;align-items:center;gap:6px;margin:2px 0;">'
+        f'<span style="width:14px;height:4px;background:rgb{color};display:inline-block;"></span>'
+        f"<span>{label}</span></div>"
+        for label, color in entries
+    )
+    return f'<div style="font-size:0.8em;">{rows}</div>'
+
 
 def main(
     model: str = "ur5",
@@ -254,7 +274,15 @@ def main(
 
         # Visualize the tree and path
         viz.display(q_full)
-        visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
+        visualizeTree(
+            viz,
+            scene,
+            rrt,
+            model_data.ee_names,
+            0.05,
+            start_tree_color=START_TREE_COLOR,
+            goal_tree_color=GOAL_TREE_COLOR,
+        )
 
         # Show the start (green) and goal (red) end-effector positions.
         q_start_full = scene.toFullJointPositions(
@@ -267,32 +295,39 @@ def main(
             viz.viewer.scene.add_icosphere(
                 f"/rrt/start/{ee_name}",
                 radius=0.03,
-                color=(0, 200, 0),
+                color=START_COLOR,
                 position=scene.forwardKinematics(q_start_full, ee_name)[:3, 3],
             )
             viz.viewer.scene.add_icosphere(
                 f"/rrt/goal/{ee_name}",
                 radius=0.03,
-                color=(200, 0, 0),
+                color=GOAL_COLOR,
                 position=scene.forwardKinematics(q_goal_full, ee_name)[:3, 3],
             )
 
+        # The raw RRT path, the optional shortcut path, and the final trajectory (vex or TOPP-RA)
+        # always use the same colors, matching the legend in the GUI panel.
+        visualizePath(
+            viz, scene, path, model_data.ee_names, 0.05, RRT_PATH_COLOR, "/rrt/path"
+        )
         if include_shortcutting:
             visualizePath(
-                viz, scene, path, model_data.ee_names, 0.05, (100, 0, 0), "/rrt/path"
-            )
-            visualizeJointTrajectory(
                 viz,
                 scene,
-                traj,
+                shortened_path,
                 model_data.ee_names,
-                (0, 100, 0),
+                0.05,
+                SHORTCUT_PATH_COLOR,
                 "/rrt/shortcut_path",
             )
-        else:
-            visualizeJointTrajectory(
-                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/path"
-            )
+        visualizeJointTrajectory(
+            viz,
+            scene,
+            traj,
+            model_data.ee_names,
+            TRAJECTORY_COLOR,
+            "/rrt/trajectory",
+        )
 
         traj_queue.put(traj)
         plan_button.disabled = False
@@ -300,6 +335,21 @@ def main(
 
     animate_button = viz.viewer.gui.add_button("Animate trajectory")
     animate_button.disabled = True
+
+    legend_entries = [("Start", START_COLOR), ("Goal", GOAL_COLOR)]
+    legend_entries.append(("RRT start tree", START_TREE_COLOR))
+    if rrt_connect:
+        legend_entries.append(("RRT goal tree", GOAL_TREE_COLOR))
+    legend_entries.append(("RRT path", RRT_PATH_COLOR))
+    if include_shortcutting:
+        legend_entries.append(("Shortcut path", SHORTCUT_PATH_COLOR))
+    legend_entries.append(
+        (
+            "Trajectory (vex, TOPP-RA on failure)" if vex else "Trajectory (TOPP-RA)",
+            TRAJECTORY_COLOR,
+        )
+    )
+    viz.viewer.gui.add_html(legend_html(legend_entries))
 
     @animate_button.on_click
     def animate_trajectory(_):
