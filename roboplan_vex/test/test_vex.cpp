@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -8,6 +10,7 @@
 
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_vex/vex.hpp>
 
@@ -290,6 +293,49 @@ TEST_F(VexCollisionTest, DetourSeedIsShortened) {
   EXPECT_TRUE(result->continuous_collision_free);
   expectFeasible(result->trajectory, start_, goal_);
   EXPECT_LT(pathLength(result->trajectory.positions), pathLength(seed));
+}
+
+TEST_F(VexCollisionTest, GoalWithinMarginReturnsError) {
+  // A probe sphere above the goal's tool, then resized so that its clearance to the robot is
+  // half the margin: sphere-to-convex signed distance shrinks one-to-one with the radius.
+  const Eigen::Vector3d center = toolPosition(goal_) + Eigen::Vector3d(0.0, 0.0, 0.25);
+  const double probe_radius = 0.05;
+  const auto closest_distance = [&]() {
+    const SceneContext context(*scene_);
+    context.computeDistances(scene_->toFullJointPositions("arm", goal_));
+    const auto& data = context.getCollisionData();
+    double distance = std::numeric_limits<double>::infinity();
+    for (size_t pair = 0; pair < data.distanceResults.size(); ++pair) {
+      if (data.activeCollisionPairs[pair]) {
+        distance = std::min(distance, data.distanceResults[pair].min_distance);
+      }
+    }
+    return distance;
+  };
+  addSphere("probe", center, probe_radius);
+  const double probe_distance = closest_distance();
+  ASSERT_GT(probe_distance, 0.0);
+  ASSERT_TRUE(scene_->removeGeometry("probe").has_value());
+  addSphere("near_goal", center, probe_radius + probe_distance - 0.5 * options_.collision_margin);
+  // Outside collision but within the margin (1e-6 m: far above GJK's precision, far below the
+  // 5 mm target clearance).
+  const double clearance = closest_distance();
+  ASSERT_NEAR(clearance, 0.5 * options_.collision_margin, 1e-6);
+  ASSERT_FALSE(scene_->hasCollisions(scene_->toFullJointPositions("arm", goal_)));
+
+  Vex vex(scene_, options_);
+  const auto result = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
+  ASSERT_FALSE(result.has_value());
+  EXPECT_NE(result.error().find("goal configuration has a clearance below collision_margin"),
+            std::string::npos)
+      << result.error();
+  EXPECT_NE(result.error().find("near_goal"), std::string::npos) << result.error();
+  EXPECT_NE(result.error().find("collision_margin"), std::string::npos) << result.error();
+
+  // Same input, same output.
+  const auto again = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
+  ASSERT_FALSE(again.has_value());
+  EXPECT_EQ(again.error(), result.error());
 }
 
 TEST_F(VexCollisionTest, StartInCollisionReturnsError) {

@@ -47,6 +47,8 @@ struct VexOptions {
   double acceleration_weight = 1e-2;
 
   /// @brief Minimum signed distance d_safe (m) between every active collision pair.
+  /// @details The start and goal must already have this clearance on every active pair: the
+  /// trajectory begins and ends there, so solve() returns an error instead of optimizing.
   double collision_margin = 0.01;
 
   /// @brief Pairs closer than this distance d_check (m) enter the QP; must exceed d_safe.
@@ -132,8 +134,10 @@ public:
   /// @param goal The goal configuration of the group joints.
   /// @param duration The trajectory duration T > 0 (s).
   /// @param seed The seed path over the group joints (at least 2 waypoints).
-  /// @return The result, or an error for invalid input, a start or goal in collision, or an
-  /// infeasible problem.
+  /// @return The result, or an error for invalid input, a start or goal whose signed distance on
+  /// any active collision pair is below `collision_margin` (including in collision; the message
+  /// names the endpoint, the two geometries, the distance and the margin), or an infeasible
+  /// problem.
   tl::expected<VexResult, std::string> solve(const JointConfiguration& start,
                                              const JointConfiguration& goal, double duration,
                                              const JointPath& seed);

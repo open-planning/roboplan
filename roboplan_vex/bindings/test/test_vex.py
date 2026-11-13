@@ -132,3 +132,21 @@ def test_start_in_collision_raises(test_scene: Scene) -> None:
     options.group_name = "arm"
     with pytest.raises(RuntimeError, match="collision"):
         Vex(test_scene, options).solve(start, goal, 5.0, seed)
+
+
+def test_endpoint_within_margin_raises(test_scene: Scene) -> None:
+    # Collision-free endpoints, but a 0.5 m margin is more than their clearance.
+    start = JointConfiguration()
+    start.positions = np.array([0.0, -1.57, 1.57, 0.0, 0.0, 0.0])
+    goal = JointConfiguration()
+    goal.positions = np.array([0.5, -1.57, 1.57, 0.0, 0.0, 0.0])
+    seed = JointPath()
+    seed.joint_names = test_scene.getJointGroupInfo("arm").joint_names
+    seed.positions = [start.positions, goal.positions]
+
+    options = VexOptions()
+    options.group_name = "arm"
+    options.collision_margin = 0.5
+    options.collision_check_distance = 0.6
+    with pytest.raises(RuntimeError, match="clearance below collision_margin"):
+        Vex(test_scene, options).solve(start, goal, 5.0, seed)
