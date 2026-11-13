@@ -429,6 +429,16 @@ void init_core_scene(nanobind::module_& m) {
            "Runs forward kinematics and refreshes every frame placement.", "q"_a)
       .def("computeJointJacobians", &SceneContext::computeJointJacobians,
            "Computes the joint Jacobians for every joint.", "q"_a)
+      .def(
+          "computeDistanceJacobian",
+          [](const SceneContext& self, std::size_t pair_index) -> Eigen::VectorXd {
+            Eigen::RowVectorXd jacobian(self.getModel().nv);
+            self.computeDistanceJacobian(pair_index, jacobian);
+            return jacobian.transpose();
+          },
+          "Gradient (size nv) of a collision pair's signed distance w.r.t. the joint velocities. "
+          "Requires computeDistances(q) and computeJointJacobians(q) at the same q first.",
+          "pair_index"_a)
       .def("setRngSeed", &SceneContext::setRngSeed,
            "Sets the seed of this context's random number generator.", "seed"_a)
       .def("randomPositions", &SceneContext::randomPositions,
