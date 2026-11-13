@@ -654,6 +654,11 @@ class SceneContext:
     def computeJointJacobians(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
         """Computes the joint Jacobians for every joint."""
 
+    def computeDistanceJacobian(self, pair_index: int) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Gradient (size nv) of a collision pair's signed distance w.r.t. the joint velocities. Requires computeDistances(q) and computeJointJacobians(q) at the same q first.
+        """
+
     def setRngSeed(self, seed: int) -> None:
         """Sets the seed of this context's random number generator."""
 

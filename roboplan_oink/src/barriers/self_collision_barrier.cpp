@@ -1,14 +1,12 @@
 #include <roboplan_oink/barriers/self_collision_barrier.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/collision/distance.hpp>
 
@@ -38,10 +36,7 @@ SelfCollisionBarrier::SelfCollisionBarrier(const Oink& oink, const Scene& scene,
   closest_pair_indices.assign(n_collision_pairs, 0);
   all_distances = Eigen::VectorXd::Zero(total_pairs);
 
-  const auto nv = scene.getModel().nv;
-  joint_jacobian1 = Eigen::MatrixXd::Zero(6, nv);
-  joint_jacobian2 = Eigen::MatrixXd::Zero(6, nv);
-  full_row = Eigen::RowVectorXd::Zero(nv);
+  full_row = Eigen::RowVectorXd::Zero(scene.getModel().nv);
 
   // Track the Oink solver rather than its context. Every distance and joint-Jacobian query below
   // runs on the solver's current context, so the barrier never touches scene state and never holds
@@ -102,69 +97,16 @@ tl::expected<void, std::string> SelfCollisionBarrier::computeBarrier(const Scene
 
 tl::expected<void, std::string> SelfCollisionBarrier::computeJacobian(const SceneContext& context) {
   const auto& scene_context = this->context();
-  const auto& model = scene_context.getModel();
-  const auto& data = scene_context.getData();
-  const auto& geom_model = scene_context.getCollisionModel();
-  const auto& geom_data = scene_context.getCollisionData();
 
-  // Joint Jacobians are needed for parent-joint Jacobian extraction below. They share the same
-  // scratch Data as computeDistances(), so its forward kinematics and the witness points line up.
+  // Joint Jacobians share the same scratch Data as computeDistances(), so its forward kinematics
+  // and the witness points line up. Distances were already computed in computeBarrier(), so the
+  // witness points and normals in the context's GeometryData are reused without recomputation.
   const Eigen::VectorXd& q = context.getJointPositions();
   scene_context.computeJointJacobians(q);
 
-  // NOTE: collision distances should have already been computed in computeBarrier(),
-  // so we can reuse the witness points in geom_data without recomputing distances.
   jacobian_container.setZero();
   for (int i = 0; i < n_collision_pairs; ++i) {
-    const std::size_t k = closest_pair_indices[i];
-    const auto& coll_pair = geom_model.collisionPairs[k];
-    const auto& dist_result = geom_data.distanceResults[k];
-
-    const auto& geom_obj_1 = geom_model.geometryObjects[coll_pair.first];
-    const auto& geom_obj_2 = geom_model.geometryObjects[coll_pair.second];
-
-    const auto joint1_id = geom_obj_1.parentJoint;
-    const auto joint2_id = geom_obj_2.parentJoint;
-
-    const Eigen::Vector3d& witness_point_1 = dist_result.nearest_points[0];
-    const Eigen::Vector3d& witness_point_2 = dist_result.nearest_points[1];
-
-    // When the witness points coincide, the contact normal is undefined.
-    // Skip this row (left at zero) to mirror Pink's behaviour.
-    Eigen::Vector3d diff = witness_point_1 - witness_point_2;
-    const double diff_norm = diff.norm();
-    if (diff_norm < std::numeric_limits<double>::epsilon()) {
-      continue;
-    }
-    diff = diff / diff_norm;
-
-    // r_k: vector from joint k's origin to the witness point on body k (world frame).
-    // Used as the lever arm coupling the joint's angular velocity into the witness point's
-    // linear velocity via v = v_joint + ω × r.
-    const Eigen::Vector3d r1 = witness_point_1 - data.oMi[joint1_id].translation();
-    const Eigen::Vector3d r2 = witness_point_2 - data.oMi[joint2_id].translation();
-
-    joint_jacobian1.setZero();
-    joint_jacobian2.setZero();
-    pinocchio::getJointJacobian(model, data, joint1_id,
-                                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian1);
-    pinocchio::getJointJacobian(model, data, joint2_id,
-                                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian2);
-
-    // J_i = n^T J^1_p + (r_1 × n)^T J^1_w - n^T J^2_p - (r_2 × n)^T J^2_w
-    full_row.noalias() = diff.transpose() * joint_jacobian1.topRows<3>();
-    full_row.noalias() += r1.cross(diff).transpose() * joint_jacobian1.bottomRows<3>();
-    full_row.noalias() -= diff.transpose() * joint_jacobian2.topRows<3>();
-    full_row.noalias() -= r2.cross(diff).transpose() * joint_jacobian2.bottomRows<3>();
-
-    // Coal can produce NaN witness points / normals in pathological cases.
-    // Mirror Pink's `np.nan_to_num`: replace NaN/inf with zero.
-    for (int col = 0; col < full_row.size(); ++col) {
-      if (!std::isfinite(full_row[col])) {
-        full_row[col] = 0.0;
-      }
-    }
-
+    scene_context.computeDistanceJacobian(closest_pair_indices[i], full_row);
     jacobian_container.row(i) = full_row(v_indices);
   }
 

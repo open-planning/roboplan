@@ -194,6 +194,7 @@ roboplan-rrt = { path = "roboplan_rrt" }
 roboplan-simple-ik = { path = "roboplan_simple_ik" }
 roboplan-toppra = { path = "roboplan_toppra" }
 roboplan-cartesian-planning = { path = "roboplan_cartesian_planning" }
+roboplan-vex = { path = "roboplan_vex" }
 roboplan-examples = { path = "roboplan_examples" }
 
 [tool.pixi.feature.lint.tasks]
