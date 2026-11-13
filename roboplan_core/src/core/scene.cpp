@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -1168,44 +1169,45 @@ Scene::makeGeometryObject(const std::string& name, const std::string& parent_fra
   return geom_obj;
 }
 
-tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
-                                                      const std::string& parent_frame,
-                                                      const Box& box, const Eigen::Matrix4d& tform,
-                                                      const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addBoxGeometry(const std::string& name, const std::string& parent_frame, const Box& box,
+                      const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                      const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, box.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add box: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name,
-                                                         const std::string& parent_frame,
-                                                         const Sphere& sphere,
-                                                         const Eigen::Matrix4d& tform,
-                                                         const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addSphereGeometry(const std::string& name, const std::string& parent_frame,
+                         const Sphere& sphere, const Eigen::Matrix4d& tform,
+                         const Eigen::Vector4d& color,
+                         const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, sphere.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add sphere: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addCylinderGeometry(const std::string& name,
-                                                           const std::string& parent_frame,
-                                                           const Cylinder& cylinder,
-                                                           const Eigen::Matrix4d& tform,
-                                                           const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addCylinderGeometry(const std::string& name, const std::string& parent_frame,
+                           const Cylinder& cylinder, const Eigen::Matrix4d& tform,
+                           const Eigen::Vector4d& color,
+                           const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, cylinder.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add cylinder: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
 tl::expected<void, std::string>
 Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame, const Mesh& mesh,
-                       const Eigen::Matrix4d& tform, const Eigen::Vector4d& color) {
+                       const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                       const std::vector<std::string>& allowed_collision_bodies) {
   if (!mesh.geom_ptr) {
     return tl::make_unexpected("Failed to add mesh: mesh geometry is null.");
   }
@@ -1213,36 +1215,46 @@ Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame,
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add mesh: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name,
-                                                         const std::string& parent_frame,
-                                                         const OcTree& octree,
-                                                         const Eigen::Matrix4d& tform,
-                                                         const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addOcTreeGeometry(const std::string& name, const std::string& parent_frame,
+                         const OcTree& octree, const Eigen::Matrix4d& tform,
+                         const Eigen::Vector4d& color,
+                         const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, octree.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add octree: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
-  auto it = collision_geometry_map_.find(geom_obj.name);
-  if (it != collision_geometry_map_.end()) {
+tl::expected<void, std::string>
+Scene::addGeometry(const pinocchio::GeometryObject& geom_obj,
+                   const std::vector<std::string>& allowed_collision_bodies) {
+  if (collision_geometry_map_.contains(geom_obj.name)) {
     return tl::make_unexpected("Object '" + geom_obj.name +
                                "' already exists in the scene. Cannot add.");
+  }
+
+  // Resolve the allowed bodies before touching the model, so that an error leaves it unchanged.
+  std::unordered_set<pinocchio::GeomIndex> allowed_ids;
+  for (const auto& body : allowed_collision_bodies) {
+    const auto maybe_ids = getCollisionGeometryIds(body);
+    if (!maybe_ids) {
+      return tl::make_unexpected("Failed to add '" + geom_obj.name + "': " + maybe_ids.error());
+    }
+    allowed_ids.insert(maybe_ids->begin(), maybe_ids->end());
   }
 
   const auto collision_geom_idx = collision_model_.addGeometryObject(geom_obj, model_);
   collision_geometry_map_[geom_obj.name] = collision_geom_idx;
 
-  // Add all collision pairs
-  // TODO: Allow specifying filtered geometries
+  // Pair the new object with every other geometry, except the allowed ones.
   for (size_t idx = 0; idx < collision_model_.ngeoms; ++idx) {
-    if (idx == collision_geom_idx) {
-      continue;  // Don't add a self-collision pair.
+    if (idx == collision_geom_idx || allowed_ids.contains(idx)) {
+      continue;
     }
     collision_model_.addCollisionPair(pinocchio::CollisionPair(idx, collision_geom_idx));
   }

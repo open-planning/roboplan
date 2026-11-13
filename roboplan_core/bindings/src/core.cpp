@@ -340,19 +340,19 @@ void init_core_scene(nanobind::module_& m) {
            "Get the joint jerk limit vectors for a specified group.", "group_name"_a = "")
       .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry),
            "Adds a box geometry to the scene.", "name"_a, "parent_frame"_a, "box"_a, "tform"_a,
-           "color"_a)
+           "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry),
            "Adds a sphere geometry to the scene.", "name"_a, "parent_frame"_a, "sphere"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addCylinderGeometry", unwrap_expected(&Scene::addCylinderGeometry),
            "Adds a cylinder geometry to the scene.", "name"_a, "parent_frame"_a, "cylinder"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addMeshGeometry", unwrap_expected(&Scene::addMeshGeometry),
            "Adds a triangle mesh geometry to the scene.", "name"_a, "parent_frame"_a, "mesh"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addOcTreeGeometry", unwrap_expected(&Scene::addOcTreeGeometry),
            "Adds an octree geometry to the scene.", "name"_a, "parent_frame"_a, "octree"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement),
            "Updates the placement of an object geometry in the scene. Fails if the object is "
            "attached.",
