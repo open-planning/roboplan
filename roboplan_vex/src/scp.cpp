@@ -15,11 +15,33 @@ using Triplets = std::vector<Eigen::Triplet<double>>;
 
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
+// The SCP subproblem is feasible by construction (dy = 0 with s = max(g, 0)), so ProxQP's primal
+// infeasibility certificate can only be a false positive there; it was observed on ~1 in 20
+// subproblems at the default threshold (1e-4) and never at this one.
+constexpr double kSubproblemPrimalInfeasibility = 1e-12;
+
 // Weight of the velocity / acceleration regularization in the projection QP; only there so the
 // QP Hessian is not singular on blocks that the equality rows already determine.
 constexpr double kProjectionRegularization = 1e-6;
 
+// Rows whose gradient norm is at or below this are constant under the step and stay out of the
+// QP. Measured on the collision rows (ur5 + gripper): pairs the group cannot move have gradient
+// norms below 1e-15, the smallest influenceable ones are many orders of magnitude above 1e-9.
+constexpr double kMinRowGradientNorm = 1e-9;
+
 bool isBounded(double value) { return std::isfinite(value) && std::abs(value) < 1e20; }
+
+// Whether the step can change the row's value. A row with a (numerically) zero gradient, e.g. a
+// collision pair between two bodies the group does not move, adds the same constant to the QP
+// model and to the merit; it is therefore left out of the QP (no row, no slack) but still counted
+// in the merit and the violation (design §6), so a violated one is still reported.
+bool isInfluenceable(const NonconvexRow& row) {
+  double squared_norm = 0.0;
+  for (const auto& [index, derivative] : row.jacobian) {
+    squared_norm += derivative * derivative;
+  }
+  return squared_norm > kMinRowGradientNorm * kMinRowGradientNorm;
+}
 
 Eigen::SparseMatrix<double> fromTriplets(Eigen::Index rows, Eigen::Index cols,
                                          const Triplets& triplets) {
@@ -87,12 +109,16 @@ ScaledProblem scaleProblem(const ConvexProblem& problem) {
   return scaled;
 }
 
-// Builds the SCP subproblem in increments dy (and one slack per nonconvex row) at z:
+// Builds the SCP subproblem in increments dy (and one slack per QP row) at z:
 //   min 1/2 dy^T H dy + (S P z)^T dy + penalty * sum(s)
+// passed to the solver divided by `penalty` (same minimizer). With the slack cost at 1 the dual
+// variables stay O(1) as the penalty grows; unscaled, ProxQP needed hundreds of iterations at
+// penalty >= 1e2 and reported PROXQP_PRIMAL_INFEASIBLE at 1e5..1e6, although dy = 0 with
+// s = max(g, 0) is always feasible.
 //   s.t. A S dy = b - A z,  l - C z <= C S dy <= u - C z,  -box <= dy <= box,
 //        J S dy - s <= -g (all rows),  J S dy + s >= -g (equality rows),  s >= 0.
 SparseQp assembleSubproblem(const ConvexProblem& problem, const ScaledProblem& scaled,
-                            const Eigen::VectorXd& z, const std::vector<NonconvexRow>& rows,
+                            const Eigen::VectorXd& z, const std::vector<const NonconvexRow*>& rows,
                             double penalty, double box) {
   const Eigen::Index nz = problem.layout.size();
   const auto ns = static_cast<Eigen::Index>(rows.size());
@@ -101,9 +127,9 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const ScaledProblem& s
   SparseQp qp;
   Triplets h_triplets;
   appendTriplets(scaled.hessian, 0, h_triplets);
-  qp.H = fromTriplets(nx, nx, h_triplets);
-  qp.g = Eigen::VectorXd::Constant(nx, penalty);
-  qp.g.head(nz) = problem.scale.cwiseProduct(problem.P * z);
+  qp.H = fromTriplets(nx, nx, h_triplets) / penalty;
+  qp.g = Eigen::VectorXd::Ones(nx);
+  qp.g.head(nz) = problem.scale.cwiseProduct(problem.P * z) / penalty;
 
   Triplets a_triplets;
   appendTriplets(scaled.equality, 0, a_triplets);
@@ -112,7 +138,7 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const ScaledProblem& s
 
   const bool use_box = std::isfinite(box);
   const Eigen::Index num_equality_rows =
-      std::count_if(rows.begin(), rows.end(), [](const auto& row) { return row.equality; });
+      std::count_if(rows.begin(), rows.end(), [](const auto* row) { return row->equality; });
   const Eigen::Index num_rows =
       scaled.inequality.rows() + (use_box ? nz : 0) + ns + num_equality_rows + ns;
   Triplets c_triplets;
@@ -137,7 +163,7 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const ScaledProblem& s
 
   // Linearized nonconvex rows with their ℓ1 slacks.
   for (Eigen::Index i = 0; i < ns; ++i) {
-    const auto& nonconvex_row = rows.at(static_cast<size_t>(i));
+    const auto& nonconvex_row = *rows.at(static_cast<size_t>(i));
     const int num_sides = nonconvex_row.equality ? 2 : 1;
     for (int side = 0; side < num_sides; ++side, ++row) {
       for (const auto& [index, derivative] : nonconvex_row.jacobian) {
@@ -314,18 +340,22 @@ runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<Nonconvex
   double penalty = options.initial_penalty;
   double box = has_terms ? options.initial_trust_box : kInfinity;
 
+  // `linearized` always holds all rows (values and Jacobians) at the current z: candidates are
+  // evaluated with Jacobians, so an accepted candidate's rows are swapped in without evaluating
+  // the terms again (the signed distances dominate the cost; the Jacobians are cheap).
   std::vector<NonconvexRow> linearized;
   std::vector<NonconvexRow> candidate_rows;
+  std::vector<const NonconvexRow*> qp_rows;
   ScpResult result;
+  if (auto evaluated = evaluateTerms(terms, layout, z, true, linearized); !evaluated) {
+    return tl::make_unexpected(evaluated.error());
+  }
 
   const auto finish = [&](VexStatus status) -> tl::expected<ScpResult, std::string> {
-    if (auto evaluated = evaluateTerms(terms, layout, z, false, candidate_rows); !evaluated) {
-      return tl::make_unexpected(evaluated.error());
-    }
     result.z = z;
     result.status = status;
     result.cost = problem.cost(z);
-    result.max_violation = maxViolation(candidate_rows);
+    result.max_violation = maxViolation(linearized);
     return result;
   };
   const auto timed_out = [&]() {
@@ -336,11 +366,14 @@ runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<Nonconvex
   for (size_t penalty_round = 0;; ++penalty_round) {
     bool converged = false;
     while (!converged) {
-      // Linearize the nonconvex terms at the current reference.
-      if (auto evaluated = evaluateTerms(terms, layout, z, true, linearized); !evaluated) {
-        return tl::make_unexpected(evaluated.error());
-      }
+      // The merit counts all rows; only the rows the step can influence enter the QP.
       const double merit = problem.cost(z) + penalty * sumViolation(linearized);
+      qp_rows.clear();
+      for (const auto& row : linearized) {
+        if (isInfluenceable(row)) {
+          qp_rows.push_back(&row);
+        }
+      }
 
       // Trust region loop: shrink the box until a step passes the ratio test.
       while (true) {
@@ -354,13 +387,14 @@ runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<Nonconvex
 
         // Primal warm start at dy = 0 with the smallest feasible slacks.
         Eigen::VectorXd guess =
-            Eigen::VectorXd::Zero(nz + static_cast<Eigen::Index>(linearized.size()));
-        for (size_t i = 0; i < linearized.size(); ++i) {
+            Eigen::VectorXd::Zero(nz + static_cast<Eigen::Index>(qp_rows.size()));
+        for (size_t i = 0; i < qp_rows.size(); ++i) {
           guess(nz + static_cast<Eigen::Index>(i)) =
-              violation(linearized.at(i), linearized.at(i).value);
+              violation(*qp_rows.at(i), qp_rows.at(i)->value);
         }
-        const SparseQp qp = assembleSubproblem(problem, scaled, z, linearized, penalty, box);
-        const auto solution = solveSparseQp(qp, SparseQpSettings{}, guess);
+        const SparseQp qp = assembleSubproblem(problem, scaled, z, qp_rows, penalty, box);
+        const auto solution = solveSparseQp(
+            qp, SparseQpSettings{.eps_primal_inf = kSubproblemPrimalInfeasibility}, guess);
         if (!solution) {
           box *= options.trust_shrink;
           if (!has_terms || box < options.tolerance) {
@@ -379,7 +413,7 @@ runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<Nonconvex
           break;
         }
 
-        if (auto evaluated = evaluateTerms(terms, layout, z_candidate, false, candidate_rows);
+        if (auto evaluated = evaluateTerms(terms, layout, z_candidate, true, candidate_rows);
             !evaluated) {
           return tl::make_unexpected(evaluated.error());
         }
@@ -387,6 +421,7 @@ runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<Nonconvex
             merit - (candidate_cost + penalty * sumViolation(candidate_rows));
         if (exact_improve / approx_improve >= options.improve_ratio) {
           z = z_candidate;
+          linearized.swap(candidate_rows);
           box *= options.trust_expand;
           // An exact model's accepted step is the optimum.
           converged = !has_terms;
@@ -401,10 +436,7 @@ runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<Nonconvex
     }
 
     // Converged for this penalty: done if feasible, else increase the penalty.
-    if (auto evaluated = evaluateTerms(terms, layout, z, false, candidate_rows); !evaluated) {
-      return tl::make_unexpected(evaluated.error());
-    }
-    if (maxViolation(candidate_rows) <= options.tolerance) {
+    if (maxViolation(linearized) <= options.tolerance) {
       return finish(VexStatus::Converged);
     }
     if (penalty_round >= options.max_penalty_increases) {
