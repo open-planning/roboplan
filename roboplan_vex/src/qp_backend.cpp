@@ -29,12 +29,14 @@ solveSparseQp(const SparseQp& qp, const SparseQpSettings& settings,
   solver.settings.eps_abs = settings.eps_abs;
   solver.settings.eps_rel = settings.eps_rel;
   solver.settings.max_iter = settings.max_iter;
+  solver.settings.eps_primal_inf = settings.eps_primal_inf;
   solver.settings.verbose = false;
   using OptMat = proxsuite::optional<proxsuite::proxqp::sparse::SparseMat<double, int>>;
   using OptVec = proxsuite::optional<proxsuite::proxqp::sparse::VecRef<double>>;
   solver.init(qp.H, qp.g, n_eq > 0 ? OptMat(qp.A) : nullopt, n_eq > 0 ? OptVec(qp.b) : nullopt,
               n_in > 0 ? OptMat(qp.C) : nullopt, n_in > 0 ? OptVec(qp.l) : nullopt,
-              n_in > 0 ? OptVec(qp.u) : nullopt);
+              n_in > 0 ? OptVec(qp.u) : nullopt, /*compute_preconditioner_=*/true,
+              /*rho=*/nullopt, /*mu_eq=*/nullopt, /*mu_in=*/settings.mu_in);
 
   if (primal_guess) {
     solver.solve(*primal_guess, nullopt, nullopt);

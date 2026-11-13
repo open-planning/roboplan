@@ -37,6 +37,18 @@ struct SparseQpSettings {
 
   /// @brief Maximum number of ProxQP iterations.
   int max_iter = 10000;
+
+  /// @brief Initial inequality proximal parameter mu_in of ProxQP's augmented Lagrangian.
+  /// @details ProxQP's default (1e-1) is far too large for the SCP subproblems: the solver then
+  /// spends most of its time in mu_in updates, each of which updates the sparse LDLT for every
+  /// inequality row. Measured on the vex collision QPs (~1400 variables, ~2900 inequality rows),
+  /// 1e-3 cuts the solve time from ~1.6 s to ~0.04 s with the same solution.
+  double mu_in = 1e-3;
+
+  /// @brief Threshold of ProxQP's primal infeasibility certificate (ProxQP default 1e-4).
+  /// @details Callers whose QP is feasible by construction can lower it to suppress false
+  /// PROXQP_PRIMAL_INFEASIBLE reports; a solve that then does not converge ends at max_iter.
+  double eps_primal_inf = 1e-4;
 };
 
 /// @brief Solves a sparse QP with ProxQP, re-initializing the solver from scratch.

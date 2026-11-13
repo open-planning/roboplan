@@ -10,6 +10,7 @@ namespace roboplan::detail {
 namespace {
 
 constexpr double kRadius = 0.5;
+constexpr double kConstantViolation = 0.2;
 
 // Nonconvex inequality g(q) = r^2 - q_k^2 <= 0 on joint 0 of node k: keep |q_k| >= r.
 class OutsideIntervalTerm : public NonconvexTerm {
@@ -65,6 +66,60 @@ TEST(ScpTest, NonconvexTermIsSatisfied) {
   EXPECT_GE(result->z(layout.q(5)), kRadius - options.tolerance);
   // The hard rows still hold (1e-6: QP tolerance 1e-9 accumulated over the 10 segments).
   EXPECT_LT((problem.A * result->z - problem.b).lpNorm<Eigen::Infinity>(), 1e-6);
+
+  // Same input, same output.
+  const auto again = runScp(problem, terms, *z0, options);
+  ASSERT_TRUE(again.has_value());
+  EXPECT_EQ(again->z, result->z);
+}
+
+// A violated row the step cannot change (zero gradient, like a collision pair between bodies the
+// group does not move): it stays out of the QP but must still be reported.
+class ConstantViolationTerm : public NonconvexTerm {
+public:
+  explicit ConstantViolationTerm(double value) : value_{value} {}
+
+  tl::expected<void, std::string> evaluate(const VexLayout& layout, const Eigen::VectorXd& /*z*/,
+                                           bool compute_jacobian,
+                                           std::vector<NonconvexRow>& rows) override {
+    NonconvexRow row;
+    row.value = value_;
+    if (compute_jacobian) {
+      row.jacobian.emplace_back(layout.q(1), 0.0);
+    }
+    rows.push_back(std::move(row));
+    return {};
+  }
+
+private:
+  double value_;
+};
+
+TEST(ScpTest, ZeroGradientRowIsReportedButDoesNotBlockOtherTerms) {
+  const VexLayout layout{.n = 1, .num_nodes = 11, .dt = 0.1};
+  const Eigen::VectorXd zero = Eigen::VectorXd::Zero(1);
+  const Eigen::VectorXd unbounded =
+      Eigen::VectorXd::Constant(1, std::numeric_limits<double>::max());
+  const JointBounds bounds{
+      .q_min = -unbounded, .q_max = unbounded, .v_max = unbounded, .a_max = unbounded};
+  const auto problem = buildConvexProblem(layout, zero, zero, bounds, 1.0, 1e-2);
+  std::vector<Eigen::VectorXd> q_seed(11, zero);
+  q_seed.at(5)(0) = 0.05;
+  const auto z0 = projectOntoConstraints(problem, q_seed);
+  ASSERT_TRUE(z0.has_value()) << z0.error();
+
+  VexOptions options;
+  options.max_iterations = 200;
+  const std::vector<std::shared_ptr<NonconvexTerm>> terms = {
+      std::make_shared<OutsideIntervalTerm>(5, kRadius),
+      std::make_shared<ConstantViolationTerm>(kConstantViolation)};
+  const auto result = runScp(problem, terms, *z0, options);
+  ASSERT_TRUE(result.has_value()) << result.error();
+  // The constant row cannot be fixed: reported honestly, not dropped.
+  EXPECT_EQ(result->status, VexStatus::ConvergedInfeasible);
+  EXPECT_DOUBLE_EQ(result->max_violation, kConstantViolation);
+  // The influenceable term is still satisfied (within the SCP tolerance, as above).
+  EXPECT_GE(result->z(layout.q(5)), kRadius - options.tolerance);
 
   // Same input, same output.
   const auto again = runScp(problem, terms, *z0, options);
