@@ -327,7 +327,8 @@ def test_add_geometry_with_allowed_collision_bodies(test_scene: Scene) -> None:
     test_scene.setCollisions("cube", "table", True)
     assert test_scene.hasCollisions(q)
 
-    with pytest.raises(RuntimeError):
+    # An unknown body name should raise.
+    with pytest.raises(RuntimeError) as exc_info:
         test_scene.addBoxGeometry(
             "other_cube",
             "universe",
@@ -336,6 +337,11 @@ def test_add_geometry_with_allowed_collision_bodies(test_scene: Scene) -> None:
             color,
             allowed_collision_bodies=["nonexistent_link"],
         )
+    expected_error = (
+        "Failed to add 'other_cube': Could not get collision geometry IDs: "
+        "Frame name 'nonexistent_link' not found in frame_map_."
+    )
+    assert str(exc_info.value) == expected_error
 
 
 def test_attach_detach_object(test_scene: Scene) -> None:
