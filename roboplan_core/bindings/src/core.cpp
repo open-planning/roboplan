@@ -436,8 +436,8 @@ void init_core_scene(nanobind::module_& m) {
             self.computeDistanceJacobian(pair_index, jacobian);
             return jacobian.transpose();
           },
-          "Gradient (size nv) of a collision pair's signed distance w.r.t. the joint velocities. "
-          "Requires computeDistances(q) and computeJointJacobians(q) at the same q first.",
+          "Computes the Jacobian of a collision pair's signed distance w.r.t. the joint "
+          "velocities.",
           "pair_index"_a)
       .def("setRngSeed", &SceneContext::setRngSeed,
            "Sets the seed of this context's random number generator.", "seed"_a)

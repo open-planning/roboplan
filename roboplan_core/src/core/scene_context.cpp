@@ -21,6 +21,13 @@
 
 namespace roboplan {
 
+namespace {
+
+/// Tolerance on |normal| - 1 for accepting coal's contact normal as a valid unit vector.
+constexpr double kUnitNormalTolerance = 1.0e-6;
+
+}  // namespace
+
 SceneContext::SceneContext(const Scene& scene)
     : scene_(scene), model_(scene.getModel()), collision_model_(scene.getCollisionModel()),
       data_(scene.getModel()), geom_data_(scene.getCollisionModel()),
@@ -171,21 +178,19 @@ void SceneContext::computeDistanceJacobian(std::size_t pair_index,
   const Eigen::Vector3d& witness_point_1 = result.nearest_points[0];
   const Eigen::Vector3d& witness_point_2 = result.nearest_points[1];
 
-  // u: unit direction along which moving witness point 1 (relative to point 2) increases the
-  // signed distance, i.e. minus coal's o1 -> o2 normal. Coal's normal stays valid under
-  // penetration and when the witness points coincide, where the witness difference flips sign or
-  // is undefined. Mesh-mesh distance leaves the normal unset, and culled pairs have it zeroed, so
-  // those fall back to the witness difference, oriented by the sign of the distance.
+  // Direction that increases the distance. Use coal's normal when valid, since it handles
+  // penetration; mesh-mesh pairs don't set it, so fall back to the witness point difference.
   Eigen::Vector3d u;
   const bool mesh_mesh = geom_obj_1.geometry->getObjectType() == coal::OT_BVH &&
                          geom_obj_2.geometry->getObjectType() == coal::OT_BVH;
-  if (!mesh_mesh && result.normal.allFinite() && std::abs(result.normal.norm() - 1.0) < 1.0e-6) {
+  if (!mesh_mesh && result.normal.allFinite() &&
+      std::abs(result.normal.norm() - 1.0) < kUnitNormalTolerance) {
     u = -result.normal;
   } else {
     u = witness_point_1 - witness_point_2;
     const double norm = u.norm();
     if (!(norm >= std::numeric_limits<double>::epsilon())) {
-      return;  // Coincident (or culled, or non-finite) witness points: the gradient is undefined.
+      return;  // Undefined when the witness points coincide.
     }
     u /= norm;
     if (result.min_distance < 0.0) {
@@ -193,8 +198,7 @@ void SceneContext::computeDistanceJacobian(std::size_t pair_index,
     }
   }
 
-  // r_k: lever arm from joint k's origin to its witness point (world frame), coupling the joint's
-  // angular velocity into the witness point's linear velocity via v = v_joint + w x r.
+  // Lever arms from each parent joint to its witness point.
   const auto joint_1 = geom_obj_1.parentJoint;
   const auto joint_2 = geom_obj_2.parentJoint;
   const Eigen::Vector3d r1 = witness_point_1 - data_.oMi[joint_1].translation();
@@ -207,13 +211,13 @@ void SceneContext::computeDistanceJacobian(std::size_t pair_index,
   pinocchio::getJointJacobian(model_, data_, joint_2,
                               pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian_2_);
 
-  // J = u^T J^1_p + (r_1 x u)^T J^1_w - u^T J^2_p - (r_2 x u)^T J^2_w
+  // Project the relative velocity of the witness points (linear + angular x lever arm) onto u.
   jacobian.noalias() = u.transpose() * joint_jacobian_1_.topRows<3>();
   jacobian.noalias() += r1.cross(u).transpose() * joint_jacobian_1_.bottomRows<3>();
   jacobian.noalias() -= u.transpose() * joint_jacobian_2_.topRows<3>();
   jacobian.noalias() -= r2.cross(u).transpose() * joint_jacobian_2_.bottomRows<3>();
 
-  // Coal can produce non-finite witness points or normals in pathological cases.
+  // Coal can return non-finite values in degenerate cases.
   jacobian = jacobian.unaryExpr([](double x) { return std::isfinite(x) ? x : 0.0; });
 }
 

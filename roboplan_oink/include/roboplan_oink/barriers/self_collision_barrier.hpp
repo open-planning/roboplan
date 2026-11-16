@@ -49,10 +49,6 @@ struct SelfCollisionBarrierOptions {
 ///     h_i(q) = d(p_a, p_b)_i - d_min  for i in 0 .. n_collision_pairs - 1
 /// where the index `i` refers to the i-th closest pair at the current configuration.
 ///
-/// The barrier Jacobian row of each pair is the gradient of its signed distance, computed by
-/// SceneContext::computeDistanceJacobian() from the witness points, the contact normal and the
-/// parent-joint Jacobians of the two bodies, restricted to the joint group's velocity columns.
-///
 /// Uses the same saturating class-K function α(h) = γ·h/(1+|h|) as other barriers.
 ///
 /// @note Inspired by Pink's pink.barriers.SelfCollisionBarrier (Apache-2.0).
@@ -85,8 +81,6 @@ struct SelfCollisionBarrier : public Barrier {
   /// @brief Compute the Jacobian rows for the closest n_collision_pairs collision pairs.
   ///
   /// Assumes computeBarrier() has been called first (it caches the selected pair indices).
-  /// Each row is SceneContext::computeDistanceJacobian() for the selected pair, restricted to
-  /// the group's velocity indices; see there for when a row is zero.
   ///
   /// @param context The context supplying the configuration and the kinematics scratch to write.
   /// @return Expected void on success, error message on failure.

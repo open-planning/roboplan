@@ -98,9 +98,7 @@ tl::expected<void, std::string> SelfCollisionBarrier::computeBarrier(const Scene
 tl::expected<void, std::string> SelfCollisionBarrier::computeJacobian(const SceneContext& context) {
   const auto& scene_context = this->context();
 
-  // Joint Jacobians share the same scratch Data as computeDistances(), so its forward kinematics
-  // and the witness points line up. Distances were already computed in computeBarrier(), so the
-  // witness points and normals in the context's GeometryData are reused without recomputation.
+  // Distances were already computed in computeBarrier().
   const Eigen::VectorXd& q = context.getJointPositions();
   scene_context.computeJointJacobians(q);
 

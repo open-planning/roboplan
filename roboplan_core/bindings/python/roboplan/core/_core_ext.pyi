@@ -656,7 +656,7 @@ class SceneContext:
 
     def computeDistanceJacobian(self, pair_index: int) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """
-        Gradient (size nv) of a collision pair's signed distance w.r.t. the joint velocities. Requires computeDistances(q) and computeJointJacobians(q) at the same q first.
+        Computes the Jacobian of a collision pair's signed distance w.r.t. the joint velocities.
         """
 
     def setRngSeed(self, seed: int) -> None:
