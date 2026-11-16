@@ -577,6 +577,81 @@ TEST_F(RoboPlanSceneTest, TestSetCollisionsLeavesSceneUnchangedOnError) {
   EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
 }
 
+// A 1 x 1 x 0.1 m table away from the robot, and a 0.1 m cube resting 1 cm into it: neither moves
+// with q, so their pair is in collision at every configuration.
+void addTableAndCube(Scene& scene, const std::vector<std::string>& cube_allowed_collision_bodies) {
+  const Eigen::Vector4d color(0.5, 0.5, 0.5, 0.5);
+  Eigen::Matrix4d table_tform = Eigen::Matrix4d::Identity();
+  table_tform.col(3).head<3>() << 2.0, 0.0, 0.5;
+  const auto add_table_result =
+      scene.addBoxGeometry("table", "universe", Box(1.0, 1.0, 0.1), table_tform, color);
+  ASSERT_TRUE(add_table_result.has_value()) << add_table_result.error();
+
+  Eigen::Matrix4d cube_tform = Eigen::Matrix4d::Identity();
+  cube_tform.col(3).head<3>() << 2.2, 0.0, 0.59;
+  const auto add_cube_result = scene.addBoxGeometry(
+      "cube", "universe", Box(0.1, 0.1, 0.1), cube_tform, color, cube_allowed_collision_bodies);
+  ASSERT_TRUE(add_cube_result.has_value()) << add_cube_result.error();
+}
+
+TEST_F(RoboPlanSceneTest, TestAddGeometryPairsWithEverythingByDefault) {
+  const Eigen::VectorXd q = Eigen::VectorXd::Zero(6);
+  addTableAndCube(*scene, {});
+
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "table"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "base_link"));
+  EXPECT_TRUE(scene->hasCollisions(q));
+}
+
+TEST_F(RoboPlanSceneTest, TestAddGeometryWithAllowedCollisionBodies) {
+  const Eigen::VectorXd q = Eigen::VectorXd::Zero(6);
+  // An added object and a model frame.
+  addTableAndCube(*scene, {"table", "base_link"});
+
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "table"));
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "base_link"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "forearm_link"));
+  EXPECT_FALSE(scene->hasCollisions(q));
+
+  // As if disabled with setCollisions, the pair can be enabled again.
+  const auto enable_result = scene->setCollisions("cube", "table", true);
+  ASSERT_TRUE(enable_result.has_value()) << enable_result.error();
+  EXPECT_TRUE(scene->hasCollisions(q));
+}
+
+TEST_F(RoboPlanSceneTest, TestAddGeometryWithUnknownAllowedBodyLeavesSceneUnchanged) {
+  const auto& collision_model = scene->getCollisionModel();
+  const auto num_geoms = collision_model.ngeoms;
+  const auto num_pairs = collision_model.collisionPairs.size();
+
+  const auto result =
+      scene->addBoxGeometry("cube", "universe", Box(0.1, 0.1, 0.1), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5), {"nonexistent_link"});
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "Failed to add 'cube': Could not get collision geometry IDs: Frame "
+                            "name 'nonexistent_link' not found in frame_map_.");
+  EXPECT_EQ(collision_model.ngeoms, num_geoms);
+  EXPECT_EQ(collision_model.collisionPairs.size(), num_pairs);
+  EXPECT_FALSE(scene->getCollisionGeometryIds("cube").has_value());
+
+  // The name is still free.
+  const auto readd_result =
+      scene->addBoxGeometry("cube", "universe", Box(0.1, 0.1, 0.1), Eigen::Matrix4d::Identity(),
+                            Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  EXPECT_TRUE(readd_result.has_value()) << readd_result.error();
+}
+
+TEST_F(RoboPlanSceneTest, TestDetachKeepsThePairsExcludedOnAdd) {
+  addTableAndCube(*scene, {"table"});
+
+  ASSERT_TRUE(scene->attachObject("cube", "wrist_3_link").has_value());
+  ASSERT_TRUE(scene->detachObject("cube").has_value());
+
+  // detachObject restores only what attachObject disabled.
+  EXPECT_FALSE(hasCollisionPair(*scene, "cube", "table"));
+  EXPECT_TRUE(hasCollisionPair(*scene, "cube", "wrist_3_link"));
+}
+
 TEST_F(RoboPlanSceneTest, TestAttachDetachObject) {
   const auto add_result =
       scene->addBoxGeometry("cube", "universe", Box(0.05, 0.05, 0.05), Eigen::Matrix4d::Identity(),
