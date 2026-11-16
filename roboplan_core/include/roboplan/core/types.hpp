@@ -248,4 +248,18 @@ struct CartesianTrajectory {
   friend std::ostream& operator<<(std::ostream& os, const CartesianTrajectory& traj);
 };
 
+/// @brief A specific joint state with a meaningful name, associated with a specific joint group.
+struct NamedJointState {
+  /// @brief The name of this state (e.g. 'home')
+  std::string state_name;
+
+  /// @brief The name of the group this state is scoped by (e.g. "arms_and_torso")
+  std::string group_name;
+
+  /// @brief Joint positions.
+  /// @details Ordered in the same way as JointGroupInfo::joint_names, size of nq_collapsed,
+  /// continuous joints are a single angle, mimic joints are excluded.
+  Eigen::VectorXd positions;
+};
+
 }  // namespace roboplan

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <numbers>
 #include <numeric>
 #include <optional>
@@ -888,6 +889,70 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
     }
   }
 
+  // Named joint states are parsed after all groups, so a <group_state> may reference a group
+  // defined anywhere in the SRDF.
+  for (const tinyxml2::XMLElement* group_state = robot->FirstChildElement("group_state");
+       group_state != nullptr; group_state = group_state->NextSiblingElement("group_state")) {
+    const char* state_name = nullptr;
+    const char* group_name = nullptr;
+    if (group_state->QueryStringAttribute("name", &state_name) != tinyxml2::XML_SUCCESS ||
+        group_state->QueryStringAttribute("group", &group_name) != tinyxml2::XML_SUCCESS) {
+      return tl::make_unexpected(
+          "Found a group_state with no 'name' or 'group' attribute in the SRDF!");
+    }
+    const std::string state_label =
+        "group_state '" + std::string(state_name) + "' for group '" + group_name + "'";
+
+    std::map<std::string, double> positions;
+    std::string skip_reason;
+    for (const tinyxml2::XMLElement* joint = group_state->FirstChildElement("joint");
+         joint != nullptr; joint = joint->NextSiblingElement("joint")) {
+      const char* joint_name = nullptr;
+      const char* value_str = nullptr;
+      if (joint->QueryStringAttribute("name", &joint_name) != tinyxml2::XML_SUCCESS ||
+          joint->QueryStringAttribute("value", &value_str) != tinyxml2::XML_SUCCESS) {
+        return tl::make_unexpected("SRDF " + state_label +
+                                   " specifies a joint with no 'name' or 'value' attribute!");
+      }
+
+      // Joints missing from the model are skipped, matching how <group> parsing treats them.
+      if (model_.getJointId(joint_name) >= static_cast<size_t>(model_.njoints)) {
+        continue;
+      }
+
+      // Multi-DOF joints have a space-separated list of values. tinyxml2 would only read the
+      // first one, so count them explicitly.
+      std::istringstream value_stream(value_str);
+      std::vector<double> values;
+      double value = 0.0;
+      while (value_stream >> value) {
+        values.push_back(value);
+      }
+      if (!value_stream.eof()) {
+        skip_reason =
+            "joint '" + std::string(joint_name) + "' has a non-numeric value '" + value_str + "'";
+        break;
+      }
+      if (values.size() != 1) {
+        skip_reason = "joint '" + std::string(joint_name) + "' has " +
+                      std::to_string(values.size()) +
+                      " values, but only single-value (1-DOF) joints are supported";
+        break;
+      }
+      positions[joint_name] = values.front();
+    }
+
+    if (skip_reason.empty()) {
+      const auto added = addNamedJointState(group_name, state_name, positions);
+      if (!added) {
+        skip_reason = added.error();
+      }
+    }
+    if (!skip_reason.empty()) {
+      std::cout << "Warning: skipping SRDF " << state_label << ": " << skip_reason << std::endl;
+    }
+  }
+
   try {
     pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf_xml);
   } catch (const std::exception& e) {
@@ -936,6 +1001,8 @@ tl::expected<void, std::string> Scene::addGroup(const std::string& name,
     return tl::make_unexpected(maybe_info.error());
   }
   joint_group_info_map_[name] = maybe_info.value();
+  named_joint_states_.erase(name);
+
   return {};
 }
 
@@ -946,6 +1013,9 @@ tl::expected<void, std::string> Scene::removeGroup(const std::string& name) {
   if (joint_group_info_map_.erase(name) == 0) {
     return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_map_.");
   }
+
+  named_joint_states_.erase(name);
+
   return {};
 }
 
@@ -1524,6 +1594,170 @@ tl::expected<void, std::string> Scene::allowAdjacentLinkCollisions() {
     }
   }
   return setCollisions(pairs, false);
+}
+
+tl::expected<void, std::string>
+Scene::addNamedJointState(const std::string& group_name, const std::string& state_name,
+                          const std::map<std::string, double>& positions) {
+  const auto maybe_group_info = getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    return tl::make_unexpected("Failed to add named joint state '" + state_name +
+                               "': " + maybe_group_info.error());
+  }
+  const auto& group_info = maybe_group_info.value();
+
+  // Every specified joint must belong to the group.
+  const std::unordered_set<std::string> group_joint_names(group_info.joint_names.begin(),
+                                                          group_info.joint_names.end());
+  for (const auto& [joint_name, _] : positions) {
+    if (!group_joint_names.contains(joint_name)) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
+                                 joint_name + "' is not in group '" + group_name + "'.");
+    }
+  }
+
+  // Fill in the collapsed group positions in group order. Mimic joints have no entry, since their
+  // positions follow from the joints they mimic, so any values given for them are ignored.
+  Eigen::VectorXd q_collapsed = Eigen::VectorXd::Zero(group_info.nq_collapsed);
+  Eigen::Index collapsed_idx = 0;
+  std::vector<std::string> missing_joint_names;
+  for (const auto& joint_name : group_info.joint_names) {
+    const auto maybe_joint_info = getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name +
+                                 "': " + maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
+
+    switch (joint_info.type) {
+    case JointType::REVOLUTE:
+    case JointType::PRISMATIC:
+    case JointType::CONTINUOUS:
+      break;
+    default:
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
+                                 joint_name +
+                                 "' has multiple degrees of freedom, which named joint states do "
+                                 "not support.");
+    }
+
+    const auto it = positions.find(joint_name);
+    if (it == positions.end()) {
+      missing_joint_names.push_back(joint_name);
+      ++collapsed_idx;
+      continue;
+    }
+
+    // Continuous joints have unbounded position limits, so this only bounds revolute and prismatic
+    // joints.
+    const double position = it->second;
+    if (!std::isfinite(position) || position < joint_info.limits.min_position[0] ||
+        position > joint_info.limits.max_position[0]) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Position " +
+                                 std::to_string(position) + " for joint '" + joint_name +
+                                 "' is outside its limits [" +
+                                 std::to_string(joint_info.limits.min_position[0]) + ", " +
+                                 std::to_string(joint_info.limits.max_position[0]) + "].");
+    }
+    q_collapsed(collapsed_idx) = position;
+    ++collapsed_idx;
+  }
+
+  if (!missing_joint_names.empty()) {
+    std::string missing_list;
+    for (const auto& joint_name : missing_joint_names) {
+      missing_list += (missing_list.empty() ? "'" : ", '") + joint_name + "'";
+    }
+    return tl::make_unexpected("Failed to add named joint state '" + state_name +
+                               "': Missing positions for joints in group '" + group_name +
+                               "': " + missing_list + ".");
+  }
+
+  named_joint_states_[group_name][state_name] = NamedJointState{
+      .state_name = state_name, .group_name = group_name, .positions = std::move(q_collapsed)};
+  return {};
+}
+
+tl::expected<void, std::string> Scene::removeNamedJointState(const std::string& group_name,
+                                                             const std::string& state_name) {
+  const auto group_it = named_joint_states_.find(group_name);
+  if (group_it == named_joint_states_.end()) {
+    return tl::make_unexpected("Group name '" + group_name + "' not found.");
+  }
+
+  if (group_it->second.erase(state_name) == 0) {
+    return tl::make_unexpected("Named joint state '" + state_name + "' not found for '" +
+                               group_name + "'.");
+  }
+
+  return {};
+}
+
+tl::expected<NamedJointState, std::string>
+Scene::getNamedJointState(const std::string& group_name, const std::string& state_name) const {
+  const auto group_it = named_joint_states_.find(group_name);
+  if (group_it == named_joint_states_.end()) {
+    return tl::make_unexpected("Group name '" + group_name + "' not found.");
+  }
+
+  const auto named_joint_state_it = group_it->second.find(state_name);
+  if (named_joint_state_it == group_it->second.end()) {
+    return tl::make_unexpected("Named joint state '" + state_name + "' not found for '" +
+                               group_name + "'.");
+  }
+
+  return named_joint_state_it->second;
+}
+
+std::map<std::string, std::vector<std::string>> Scene::getNamedJointStateNames() const {
+  std::map<std::string, std::vector<std::string>> names;
+
+  for (auto const& [group, joint_states] : named_joint_states_) {
+    if (joint_states.empty()) {
+      continue;
+    }
+
+    names[group].reserve(joint_states.size());
+
+    for (auto const& [joint_state_name, _] : joint_states) {
+      names[group].push_back(joint_state_name);
+    }
+
+    std::sort(names[group].begin(), names[group].end());
+  }
+
+  return names;
+}
+
+tl::expected<Eigen::VectorXd, std::string>
+Scene::getNamedJointStatePositions(const std::string& group_name, const std::string& state_name,
+                                   const std::optional<Eigen::VectorXd>& q_reference) const {
+  const auto maybe_named_joint_state = getNamedJointState(group_name, state_name);
+  if (!maybe_named_joint_state) {
+    return tl::make_unexpected(maybe_named_joint_state.error());
+  }
+
+  const auto& named_joint_state = maybe_named_joint_state.value();
+
+  const auto maybe_q =
+      expandContinuousJointPositions(*this, group_name, named_joint_state.positions);
+  if (!maybe_q) {
+    return tl::make_unexpected(maybe_q.error());
+  }
+
+  if (q_reference) {
+    if (q_reference->size() != model_.nq) {
+      return tl::make_unexpected("q_reference has " + std::to_string(q_reference->size()) +
+                                 " entries, expected " + std::to_string(model_.nq) + ".");
+    }
+
+    return toFullJointPositions(named_joint_state.group_name, maybe_q.value(), *q_reference);
+  } else {
+    return toFullJointPositions(named_joint_state.group_name, maybe_q.value());
+  }
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {
