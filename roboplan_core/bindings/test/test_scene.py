@@ -302,6 +302,48 @@ def test_set_collisions(test_scene: Scene) -> None:
     assert str(exc_info.value) == expected_error
 
 
+def test_add_geometry_with_allowed_collision_bodies(test_scene: Scene) -> None:
+    q = np.zeros(6)
+    color = np.array([0.5, 0.5, 0.5, 0.5])
+
+    # A table away from the robot, and a cube resting 1 cm into it.
+    table_tform = np.eye(4)
+    table_tform[:3, 3] = [2.0, 0.0, 0.5]
+    test_scene.addBoxGeometry(
+        "table", "universe", Box(1.0, 1.0, 0.1), table_tform, color
+    )
+    cube_tform = np.eye(4)
+    cube_tform[:3, 3] = [2.2, 0.0, 0.59]
+    test_scene.addBoxGeometry(
+        "cube",
+        "universe",
+        Box(0.1, 0.1, 0.1),
+        cube_tform,
+        color,
+        allowed_collision_bodies=["table"],
+    )
+    assert not test_scene.hasCollisions(q)
+
+    test_scene.setCollisions("cube", "table", True)
+    assert test_scene.hasCollisions(q)
+
+    # An unknown body name should raise.
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.addBoxGeometry(
+            "other_cube",
+            "universe",
+            Box(0.1, 0.1, 0.1),
+            cube_tform,
+            color,
+            allowed_collision_bodies=["nonexistent_link"],
+        )
+    expected_error = (
+        "Failed to add 'other_cube': Could not get collision geometry IDs: "
+        "Frame name 'nonexistent_link' not found in frame_map_."
+    )
+    assert str(exc_info.value) == expected_error
+
+
 def test_attach_detach_object(test_scene: Scene) -> None:
     q_grasp = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])
     q_place = np.array([1.0, -1.57, 1.57, 0.0, 0.0, 0.0])

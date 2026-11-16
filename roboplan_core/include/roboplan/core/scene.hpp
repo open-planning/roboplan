@@ -487,11 +487,13 @@ public:
   /// @param box The box geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addBoxGeometry(const std::string& name,
-                                                 const std::string& parent_frame, const Box& box,
-                                                 const Eigen::Matrix4d& tform,
-                                                 const Eigen::Vector4d& color);
+  tl::expected<void, std::string>
+  addBoxGeometry(const std::string& name, const std::string& parent_frame, const Box& box,
+                 const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                 const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a sphere geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -499,10 +501,13 @@ public:
   /// @param sphere The sphere geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   addSphereGeometry(const std::string& name, const std::string& parent_frame, const Sphere& sphere,
-                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
+                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                    const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a cylinder geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -510,12 +515,14 @@ public:
   /// @param cylinder The cylinder geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addCylinderGeometry(const std::string& name,
-                                                      const std::string& parent_frame,
-                                                      const Cylinder& cylinder,
-                                                      const Eigen::Matrix4d& tform,
-                                                      const Eigen::Vector4d& color);
+  tl::expected<void, std::string>
+  addCylinderGeometry(const std::string& name, const std::string& parent_frame,
+                      const Cylinder& cylinder, const Eigen::Matrix4d& tform,
+                      const Eigen::Vector4d& color,
+                      const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a triangle mesh geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -523,11 +530,13 @@ public:
   /// @param mesh The mesh geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addMeshGeometry(const std::string& name,
-                                                  const std::string& parent_frame, const Mesh& mesh,
-                                                  const Eigen::Matrix4d& tform,
-                                                  const Eigen::Vector4d& color);
+  tl::expected<void, std::string>
+  addMeshGeometry(const std::string& name, const std::string& parent_frame, const Mesh& mesh,
+                  const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                  const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds an octree geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -535,17 +544,24 @@ public:
   /// @param octree The octree geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   addOcTreeGeometry(const std::string& name, const std::string& parent_frame, const OcTree& octree,
-                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
+                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                    const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a Pinocchio geometry object to the scene.
   /// @details This can be made the sole public entrypoint to add a geometry once
   /// Pinocchio and Coal have working nanobind bindings compatible with this library.
   /// @param geom_obj The geometry object instance to add.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj);
+  tl::expected<void, std::string>
+  addGeometry(const pinocchio::GeometryObject& geom_obj,
+              const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Updates the placement of an object geometry in the scene.
   /// @details Fails if the object is attached; use `reparentAttachedObject` instead.
