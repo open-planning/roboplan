@@ -14,6 +14,7 @@ from roboplan.core import (
     JointType,
     Mesh,
     Scene,
+    SceneContext,
     Sphere,
     hasCollisionsAlongPath,
     loadJointLimitsConfig,
@@ -154,6 +155,23 @@ def test_collision_check(test_scene: Scene) -> None:
     # In collision
     q_coll = np.array([0.0, -1.57, 3.0, 0.0, 0.0, 0.0])
     assert test_scene.hasCollisions(q_coll)
+
+
+def test_scene_context_distance_jacobian(test_scene: Scene) -> None:
+    context = SceneContext(test_scene)
+    q = np.array([0.5, -1.0, 1.0, 0.3, -0.4, 0.2])
+    context.computeDistances(q)
+    context.computeJointJacobians(q)
+
+    nv = len(q)  # The UR5 has only revolute joints, so nv == nq.
+    rows = [context.computeDistanceJacobian(k) for k in range(5)]
+    for row in rows:
+        assert row.shape == (nv,)
+        assert np.all(np.isfinite(row))
+    assert any(np.any(row != 0.0) for row in rows)
+
+    with pytest.raises(ValueError):
+        context.computeDistanceJacobian(10**6)
 
 
 def test_collision_check_along_path(test_scene: Scene) -> None:

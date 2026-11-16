@@ -81,6 +81,16 @@ public:
   /// @details Results are available via getData().
   void computeJointJacobians(const Eigen::VectorXd& q) const;
 
+  /// @brief Computes the Jacobian of a collision pair's signed distance with respect to the
+  /// joint velocities.
+  /// @details Requires computeDistances() and computeJointJacobians() at the same `q` first.
+  /// @param pair_index Index into getCollisionModel().collisionPairs.
+  /// @param jacobian Output row of size model.nv.
+  /// @throws std::invalid_argument if `pair_index` is out of range or `jacobian` is not sized nv.
+  /// @throws std::runtime_error if the scene's collision geometry changed since construction.
+  void computeDistanceJacobian(std::size_t pair_index,
+                               Eigen::Ref<Eigen::RowVectorXd> jacobian) const;
+
   /// @brief Runs forward kinematics at `q` and refreshes every frame placement in getData().oMf.
   void updateFramePlacements(const Eigen::VectorXd& q) const;
 
@@ -184,6 +194,10 @@ private:
   /// @brief One coal collision object per geometry object, parallel to collision_model_'s
   /// geometryObjects, reused by computeDistances() to refresh world AABBs for broadphase culling.
   mutable std::vector<coal::CollisionObject> aabb_objects_;
+
+  /// @brief Joint Jacobian scratch for computeDistanceJacobian().
+  mutable Eigen::MatrixXd joint_jacobian_1_;
+  mutable Eigen::MatrixXd joint_jacobian_2_;
 
   /// @brief This context's own random number generator.
   std::mt19937 rng_gen_;

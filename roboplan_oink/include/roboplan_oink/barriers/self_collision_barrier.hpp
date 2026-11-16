@@ -49,14 +49,6 @@ struct SelfCollisionBarrierOptions {
 ///     h_i(q) = d(p_a, p_b)_i - d_min  for i in 0 .. n_collision_pairs - 1
 /// where the index `i` refers to the i-th closest pair at the current configuration.
 ///
-/// The barrier Jacobian row is built from the witness points returned by collision checking
-/// and the joint Jacobians of the parent joints of each colliding body:
-///     J_i = n^T  J^1_p + (r_1 × n)^T  J^1_w
-///         - n^T  J^2_p - (r_2 × n)^T  J^2_w
-/// where n is the unit vector from witness point 1 to witness point 2 (in world coordinates),
-/// r_k is the vector from joint k origin to its witness point, and J^k_p / J^k_w are the
-/// linear / angular parts of the LOCAL_WORLD_ALIGNED joint Jacobian.
-///
 /// Uses the same saturating class-K function α(h) = γ·h/(1+|h|) as other barriers.
 ///
 /// @note Inspired by Pink's pink.barriers.SelfCollisionBarrier (Apache-2.0).
@@ -89,9 +81,6 @@ struct SelfCollisionBarrier : public Barrier {
   /// @brief Compute the Jacobian rows for the closest n_collision_pairs collision pairs.
   ///
   /// Assumes computeBarrier() has been called first (it caches the selected pair indices).
-  /// Each row uses the witness points and the parent-joint Jacobians of the two bodies in
-  /// the collision pair. If the witness points coincide, the row is zeroed (Jacobian is
-  /// undefined there). Any NaN values are clamped to zero.
   ///
   /// @param context The context supplying the configuration and the kinematics scratch to write.
   /// @return Expected void on success, error message on failure.
@@ -138,12 +127,6 @@ struct SelfCollisionBarrier : public Barrier {
   /// @brief Workspace buffer holding `min_distance` for every collision pair in the model,
   ///        repopulated on each computeBarrier() call from the SceneContext's GeometryData.
   Eigen::VectorXd all_distances;
-
-  /// @brief Pre-allocated workspace for one parent-joint Jacobian (6 x model.nv).
-  mutable Eigen::MatrixXd joint_jacobian1;
-
-  /// @brief Pre-allocated workspace for the other parent-joint Jacobian (6 x model.nv).
-  mutable Eigen::MatrixXd joint_jacobian2;
 
   /// @brief Pre-allocated workspace for a single barrier-Jacobian row across all model.nv
   ///        velocity DOFs (before selecting the joint-group columns).
