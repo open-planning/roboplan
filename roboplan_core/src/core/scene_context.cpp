@@ -1,11 +1,13 @@
 #include <roboplan/core/scene_context.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <limits>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <pinocchio/algorithm/frames.hpp>
@@ -75,12 +77,13 @@ bool SceneContext::hasCollisions(const Eigen::VectorXd& q, const bool debug) con
   }
   const auto pairs = getCollidingPairs(q);
   for (const auto& pair : pairs) {
-    std::cout << "Collision detected between " << pair << std::endl;
+    std::cout << "Collision detected between " << collidingPairToString(pair) << std::endl;
   }
   return !pairs.empty();
 }
 
-std::vector<std::string> SceneContext::getCollidingPairs(const Eigen::VectorXd& q) const {
+std::vector<std::pair<std::string, std::string>>
+SceneContext::getCollidingPairs(const Eigen::VectorXd& q) const {
   checkGeometryCurrent("getCollidingPairs");
   pinocchio::updateGeometryPlacements(model_, data_, collision_model_, geom_data_, q);
   pinocchio::computeCollisions(model_, data_, collision_model_, geom_data_, q,
@@ -93,11 +96,14 @@ std::vector<std::string> SceneContext::getCollidingPairs(const Eigen::VectorXd& 
     return geometry.name.rfind(link, 0) == 0 ? link : geometry.name;
   };
 
-  std::set<std::string> pairs;
+  // Several geometry pairs can join the same two bodies, in either order: sorting the names of
+  // each pair lets the set merge them.
+  std::set<std::pair<std::string, std::string>> pairs;
   for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
     if (geom_data_.collisionResults.at(k).isCollision()) {
       const auto& cp = collision_model_.collisionPairs.at(k);
-      pairs.insert(body_name(cp.first) + " <-> " + body_name(cp.second));
+      const auto [body1, body2] = std::minmax(body_name(cp.first), body_name(cp.second));
+      pairs.emplace(body1, body2);
     }
   }
   return {pairs.begin(), pairs.end()};

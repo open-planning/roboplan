@@ -64,6 +64,11 @@ loadUrdfSceneDescription(const std::filesystem::path& urdf_path,
 /// @brief Loads an MJCF model and its collision geometry from disk.
 PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
 
+/// @brief Formats a body pair, such as one returned by Scene::getCollidingPairs(), for printing.
+/// @param pair The two body names.
+/// @return The pair as "body1 <-> body2".
+std::string collidingPairToString(const std::pair<std::string, std::string>& pair);
+
 /// @brief Primary scene representation for planning and control.
 ///
 /// @par Thread safety
@@ -214,9 +219,11 @@ public:
   /// @brief Finds every colliding body pair at specified joint positions.
   /// @details Checks all pairs, so this is slower than hasCollisions().
   /// @param q The joint positions.
-  /// @return The sorted, unique colliding pairs, each as "body1 <-> body2", naming the bodies
-  /// setCollisions() accepts. Empty if there are none.
-  std::vector<std::string> getCollidingPairs(const Eigen::VectorXd& q) const;
+  /// @return The colliding body pairs, named as setCollisions() accepts them, so the result can be
+  /// passed to it directly. The two names of a pair are in sorted order and the list is sorted
+  /// without duplicates. Empty if there are none. Use collidingPairToString() to print a pair.
+  std::vector<std::pair<std::string, std::string>>
+  getCollidingPairs(const Eigen::VectorXd& q) const;
 
   /// @brief Checks if the specified joint positions are valid with respect to joint limits.
   /// @param q The joint positions.

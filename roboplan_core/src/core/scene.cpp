@@ -96,6 +96,10 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path) 
   return description;
 }
 
+std::string collidingPairToString(const std::pair<std::string, std::string>& pair) {
+  return pair.first + " <-> " + pair.second;
+}
+
 Scene::Scene(const std::string& name, const PinocchioSceneDescription& description)
     : name_{name}, model_{description.model}, collision_model_{description.collision_model} {
   // Initialize the RNG to be pseudorandom. You can use setRngSeed() to fix this.
@@ -463,12 +467,13 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
   // can be printed; the broadphase fast path stops at the first collision.
   const auto pairs = getCollidingPairs(q);
   for (const auto& pair : pairs) {
-    std::cout << "Collision detected between " << pair << std::endl;
+    std::cout << "Collision detected between " << collidingPairToString(pair) << std::endl;
   }
   return !pairs.empty();
 }
 
-std::vector<std::string> Scene::getCollidingPairs(const Eigen::VectorXd& q) const {
+std::vector<std::pair<std::string, std::string>>
+Scene::getCollidingPairs(const Eigen::VectorXd& q) const {
   return SceneContext(*this).getCollidingPairs(q);
 }
 

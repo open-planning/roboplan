@@ -207,6 +207,10 @@ void init_core_scene(nanobind::module_& m) {
         "urdf_path"_a, "package_paths"_a = std::vector<std::filesystem::path>());
   m.def("loadMjcfModel", &loadMjcfModel, "Loads an MJCF file into a PinocchioSceneDescription.",
         "mjcf_path"_a);
+  m.def("collidingPairToString", &collidingPairToString,
+        "Formats a body pair, such as one returned by Scene.getCollidingPairs(), as "
+        "\"body1 <-> body2\" for printing.",
+        "pair"_a);
 
   nanobind::class_<Scene>(m, "Scene", "Primary scene representation for planning and control.")
       .def(nanobind::init<const std::string&, const PinocchioSceneDescription&>(), "name"_a,
@@ -236,7 +240,10 @@ void init_core_scene(nanobind::module_& m) {
       .def("hasCollisions", &Scene::hasCollisions,
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
       .def("getCollidingPairs", &Scene::getCollidingPairs,
-           "Finds every colliding body pair at specified joint positions.", "q"_a)
+           "Finds every colliding body pair at specified joint positions, as (body1, body2) tuples "
+           "named as setCollisions() accepts them. The two names of a pair are in sorted order "
+           "and the list is sorted without duplicates.",
+           "q"_a)
       .def("isValidConfiguration", &Scene::isValidConfiguration,
            "Checks if the specified joint positions are valid with respect to joint limits.", "q"_a)
       .def("clampToValidConfiguration", &Scene::clampToValidConfiguration,
