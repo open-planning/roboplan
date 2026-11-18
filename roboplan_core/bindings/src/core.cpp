@@ -121,7 +121,8 @@ void init_core_types(nanobind::module_& m) {
       .def_rw("group_name", &NamedJointState::group_name,
               "The name of the group this state is scoped by.")
       .def_rw("positions", &NamedJointState::positions,
-              "The collapsed joint group positions, ordered as the group's joint names.");
+              "The joint group positions in Pinocchio layout, ordered like the group's "
+              "q_indices, with continuous joints expanded to [cos, sin].");
 
   nanobind::class_<JointPath>(m, "JointPath", "Contains a path of joint configurations.")
       .def(nanobind::init<>())

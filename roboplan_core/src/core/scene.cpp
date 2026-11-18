@@ -1676,8 +1676,15 @@ Scene::addNamedJointState(const std::string& group_name, const std::string& stat
                                "': " + missing_list + ".");
   }
 
-  named_joint_states_[group_name][state_name] = NamedJointState{
-      .state_name = state_name, .group_name = group_name, .positions = std::move(q_collapsed)};
+  auto q_expanded = expandContinuousJointPositions(*this, group_name, q_collapsed);
+  if (!q_expanded) {
+    return tl::make_unexpected(q_expanded.error());
+  }
+
+  named_joint_states_[group_name][state_name] =
+      NamedJointState{.state_name = state_name,
+                      .group_name = group_name,
+                      .positions = std::move(q_expanded.value())};
   return {};
 }
 
@@ -1742,21 +1749,16 @@ Scene::getNamedJointStatePositions(const std::string& group_name, const std::str
 
   const auto& named_joint_state = maybe_named_joint_state.value();
 
-  const auto maybe_q =
-      expandContinuousJointPositions(*this, group_name, named_joint_state.positions);
-  if (!maybe_q) {
-    return tl::make_unexpected(maybe_q.error());
-  }
-
   if (q_reference) {
     if (q_reference->size() != model_.nq) {
       return tl::make_unexpected("q_reference has " + std::to_string(q_reference->size()) +
                                  " entries, expected " + std::to_string(model_.nq) + ".");
     }
 
-    return toFullJointPositions(named_joint_state.group_name, maybe_q.value(), *q_reference);
+    return toFullJointPositions(named_joint_state.group_name, named_joint_state.positions,
+                                *q_reference);
   } else {
-    return toFullJointPositions(named_joint_state.group_name, maybe_q.value());
+    return toFullJointPositions(named_joint_state.group_name, named_joint_state.positions);
   }
 }
 

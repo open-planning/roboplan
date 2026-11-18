@@ -1110,14 +1110,18 @@ TEST(RoboPlanSceneKinovaTest, TestNamedJointStatesFromSrdf) {
   EXPECT_THAT(names["manipulator"],
               ContainerEq(std::vector<std::string>{"Home", "Retract", "Vertical"}));
 
-  // The manipulator's continuous joints are stored as single angles in the collapsed layout...
+  // The manipulator's continuous joints are stored expanded to [cos, sin], in the group's
+  // Pinocchio layout...
   const auto home = scene.getNamedJointState("manipulator", "Home");
   ASSERT_TRUE(home.has_value()) << home.error();
   Eigen::VectorXd q_collapsed(7);
   q_collapsed << 0.0, 0.26, 3.14, -2.27, 0.0, 0.96, 1.57;
-  EXPECT_TRUE(home->positions.isApprox(q_collapsed, kTolerance));
+  const auto q_expanded = expandContinuousJointPositions(scene, "manipulator", q_collapsed);
+  ASSERT_TRUE(q_expanded.has_value()) << q_expanded.error();
+  EXPECT_EQ(home->positions.size(), scene.getJointGroupInfo("manipulator")->q_indices.size());
+  EXPECT_TRUE(home->positions.isApprox(*q_expanded, kTolerance));
 
-  // ... and expanded to [cos, sin] in the full positions, with non-group joints from q_reference.
+  // ... and copied as-is into the full positions, with non-group joints from q_reference.
   const Eigen::VectorXd q_reference = scene.randomPositions();
   const auto maybe_q = scene.getNamedJointStatePositions("manipulator", "Home", q_reference);
   ASSERT_TRUE(maybe_q.has_value()) << maybe_q.error();

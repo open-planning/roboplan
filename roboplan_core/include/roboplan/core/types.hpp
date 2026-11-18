@@ -257,8 +257,9 @@ struct NamedJointState {
   std::string group_name;
 
   /// @brief Joint positions.
-  /// @details Ordered in the same way as JointGroupInfo::joint_names, size of nq_collapsed,
-  /// continuous joints are a single angle, mimic joints are excluded.
+  /// @details In the group's Pinocchio layout, ordered like JointGroupInfo::q_indices (size
+  /// q_indices.size()). Continuous joints are expanded to [cos(theta), sin(theta)], and mimic
+  /// joints are excluded.
   Eigen::VectorXd positions;
 };
 

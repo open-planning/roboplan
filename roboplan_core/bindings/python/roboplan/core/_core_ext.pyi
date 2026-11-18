@@ -262,7 +262,7 @@ class NamedJointState:
     @property
     def positions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """
-        The collapsed joint group positions, ordered as the group's joint names.
+        The joint group positions in Pinocchio layout, ordered like the group's q_indices, with continuous joints expanded to [cos, sin].
         """
 
     @positions.setter

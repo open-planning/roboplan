@@ -678,8 +678,9 @@ public:
 
   /// @brief Adds a named joint state to a joint group. Overwrites an existing state of the same
   /// name in the group.
-  /// @details The positions are stored in the group's collapsed layout, with the following
-  /// restrictions:
+  /// @details The positions are stored in the group's Pinocchio layout (ordered like
+  /// JointGroupInfo::q_indices, with continuous joints expanded to [cos, sin]). The input map has
+  /// the following restrictions:
   ///   1. Every non-mimic joint in the group must be given a position.
   ///   2. Every joint must belong to the group.
   ///   3. Positions given for mimic joints are ignored.
