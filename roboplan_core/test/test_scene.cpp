@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <gmock/gmock.h>
@@ -6,6 +7,8 @@
 #include <memory>
 #include <numbers>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <roboplan/core/path_utils.hpp>
@@ -531,6 +534,38 @@ TEST_F(RoboPlanSceneTest, TestSetCollisions) {
   ASSERT_EQ(bad_set_collision_result.error(),
             "Could not set collisions: Could not get collision geometry IDs: Frame name "
             "'nonexistent_link' not found in frame_map_.");
+}
+
+TEST_F(RoboPlanSceneTest, TestGetCollidingPairs) {
+  Eigen::VectorXd q = Eigen::VectorXd::Zero(6);
+  ASSERT_TRUE(scene->getCollidingPairs(q).empty());
+
+  // The sphere comes after forearm_link in the collision model but its name sorts before it, so
+  // the pair has to be reordered.
+  Eigen::Matrix4d sphere_tform = Eigen::Matrix4d::Identity();
+  sphere_tform(0, 3) = 0.6;  // x position, enough to collide with forearm_link.
+  ASSERT_TRUE(scene
+                  ->addSphereGeometry("a_sphere", "universe", Sphere(0.1), sphere_tform,
+                                      Eigen::Vector4d(0.5, 0.5, 0.5, 0.5))
+                  .has_value());
+
+  const auto pairs = scene->getCollidingPairs(q);
+  const std::pair<std::string, std::string> sphere_pair{"a_sphere", "forearm_link"};
+  EXPECT_THAT(pairs, testing::Contains(sphere_pair));
+  for (const auto& [body1, body2] : pairs) {
+    EXPECT_LE(body1, body2);
+  }
+  EXPECT_TRUE(std::is_sorted(pairs.begin(), pairs.end()));
+  EXPECT_EQ(std::adjacent_find(pairs.begin(), pairs.end()), pairs.end());
+
+  // The pairs can be passed to setCollisions as they are.
+  ASSERT_TRUE(scene->setCollisions(pairs, false).has_value());
+  EXPECT_FALSE(scene->hasCollisions(q));
+  EXPECT_TRUE(scene->getCollidingPairs(q).empty());
+}
+
+TEST_F(RoboPlanSceneTest, TestCollidingPairToString) {
+  EXPECT_EQ(collidingPairToString({"forearm_link", "test_sphere"}), "forearm_link <-> test_sphere");
 }
 
 bool hasCollisionPair(Scene& scene, const std::string& body1, const std::string& body2) {

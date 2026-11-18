@@ -465,8 +465,10 @@ class Scene:
     def hasCollisions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], debug: bool = False) -> bool:
         """Checks collisions at specified joint positions."""
 
-    def getCollidingPairs(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> list[str]:
-        """Finds every colliding body pair at specified joint positions."""
+    def getCollidingPairs(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> list[tuple[str, str]]:
+        """
+        Finds every colliding body pair at specified joint positions, as (body1, body2) tuples named as setCollisions() accepts them. The two names of a pair are in sorted order and the list is sorted without duplicates.
+        """
 
     def isValidConfiguration(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> bool:
         """

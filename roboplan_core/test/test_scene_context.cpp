@@ -147,12 +147,10 @@ TEST_F(RoboPlanSceneContextTest, DebugCollisionsEnumerateEveryPair) {
   ASSERT_FALSE(pairs.empty());
   EXPECT_EQ(pairs, context.getCollidingPairs(colliding));
   for (const auto& pair : pairs) {
-    EXPECT_NE(scene_output.find(pair), std::string::npos) << pair;
-    const auto separator = pair.find(" <-> ");
-    ASSERT_NE(separator, std::string::npos) << pair;
-    EXPECT_TRUE(scene->setCollisions(pair.substr(0, separator), pair.substr(separator + 5), false))
-        << pair;
+    EXPECT_NE(scene_output.find(collidingPairToString(pair)), std::string::npos)
+        << collidingPairToString(pair);
   }
+  ASSERT_TRUE(scene->setCollisions(pairs, false).has_value());
   EXPECT_FALSE(scene->hasCollisions(colliding));
   EXPECT_TRUE(scene->getCollidingPairs(colliding).empty());
 }

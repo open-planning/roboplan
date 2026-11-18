@@ -320,6 +320,31 @@ def test_set_collisions(test_scene: Scene) -> None:
     assert str(exc_info.value) == expected_error
 
 
+def test_get_colliding_pairs(test_scene: Scene) -> None:
+    q = np.zeros(6)
+    assert test_scene.getCollidingPairs(q) == []
+
+    # The sphere comes after forearm_link in the collision model but its name sorts
+    # before it, so the pair has to be reordered.
+    sphere_tform = np.eye(4)
+    sphere_tform[0, 3] = 0.6
+    test_scene.addSphereGeometry(
+        "a_sphere",
+        "universe",
+        Sphere(0.1),
+        sphere_tform,
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+    pairs = test_scene.getCollidingPairs(q)
+    assert ("a_sphere", "forearm_link") in pairs
+    assert all(body1 <= body2 for body1, body2 in pairs)
+    assert pairs == sorted(set(pairs))
+
+    # The pairs can be passed to setCollisions as they are.
+    test_scene.setCollisions(pairs, False)
+    assert not test_scene.hasCollisions(q)
+
+
 def test_add_geometry_with_allowed_collision_bodies(test_scene: Scene) -> None:
     q = np.zeros(6)
     color = np.array([0.5, 0.5, 0.5, 0.5])

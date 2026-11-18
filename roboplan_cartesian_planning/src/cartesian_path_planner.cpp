@@ -8,6 +8,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <Eigen/Geometry>
 
@@ -242,7 +243,7 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   // The planner follows the commanded geometry and cannot route around an obstacle, so no timing
   // can fix a collision on the resolved path. The whole path is scanned so a single error names
   // every pair to allow, and only colliding samples pay for the all-pairs check.
-  std::set<std::string> colliding_pairs;
+  std::set<std::pair<std::string, std::string>> colliding_pairs;
   std::optional<double> first_collision;
   for (size_t i = 0; i < resolved->samples.positions.size(); ++i) {
     const auto& q = resolved->samples.positions.at(i);
@@ -257,7 +258,7 @@ CartesianPathPlanner::plan(const CartesianPath& path, const JointConfiguration& 
   if (first_collision) {
     std::string pairs;
     for (const auto& pair : colliding_pairs) {
-      pairs += (pairs.empty() ? "" : ", ") + pair;
+      pairs += (pairs.empty() ? "" : ", ") + collidingPairToString(pair);
     }
     return tl::make_unexpected("The resolved path is in collision from path fraction " +
                                std::to_string(*first_collision) + ", between: " + pairs +
