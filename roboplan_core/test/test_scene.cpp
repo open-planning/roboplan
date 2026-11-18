@@ -656,6 +656,27 @@ TEST_F(RoboPlanSceneTest, TestAddGeometryWithAllowedCollisionBodies) {
   EXPECT_TRUE(scene->hasCollisions(q));
 }
 
+TEST_F(RoboPlanSceneTest, TestCloneIsIndependent) {
+  const Eigen::VectorXd q = Eigen::VectorXd::Zero(6);
+  addTableAndCube(*scene, {"table", "base_link"});
+  scene->setRngSeed(1234);
+
+  auto clone = scene->clone("clone");
+  EXPECT_EQ(clone->getName(), "clone");
+  EXPECT_FALSE(clone->hasCollisions(q));  // Disabled pairs are carried over.
+  EXPECT_THAT(clone->randomPositions(), ContainerEq(scene->randomPositions()));
+
+  // Changes to the clone don't affect the original.
+  const auto enable_result = clone->setCollisions("cube", "table", true);
+  ASSERT_TRUE(enable_result.has_value()) << enable_result.error();
+  EXPECT_TRUE(clone->hasCollisions(q));
+  EXPECT_FALSE(scene->hasCollisions(q));
+
+  // The clone doesn't reference the original's collision data.
+  scene.reset();
+  EXPECT_TRUE(clone->hasCollisions(q));
+}
+
 TEST_F(RoboPlanSceneTest, TestAddGeometryWithUnknownAllowedBodyLeavesSceneUnchanged) {
   const auto& collision_model = scene->getCollisionModel();
   const auto num_geoms = collision_model.ngeoms;

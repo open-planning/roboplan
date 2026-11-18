@@ -461,6 +461,11 @@ class Scene:
 
     def __init__(self, name: str, description: PinocchioSceneDescription) -> None: ...
 
+    def clone(self, name: str) -> Scene:
+        """
+        Creates an independent copy of this scene with a new name. Collision geometry shapes (meshes, octrees) are shared with the original; the RNG state is copied.
+        """
+
     def getName(self) -> str:
         """Gets the scene's name."""
 
