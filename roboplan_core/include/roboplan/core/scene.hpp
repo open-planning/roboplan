@@ -105,7 +105,6 @@ public:
   // `model_` and `collision_model_data_`, so a copy or move would collide against the *original*
   // Scene's data. Share a Scene with `std::shared_ptr<Scene>` and give each thread a SceneContext.
   // See `clone` for a way of deep-copying the scene.
-  Scene(const Scene&) = delete;
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&&) = delete;
   Scene& operator=(Scene&&) = delete;
@@ -747,8 +746,7 @@ public:
 private:
   /// @brief Private copy-constructor to support the clone function.
   /// @param other Scene to clone from.
-  /// @param name The name of the clone.
-  Scene(const Scene& other, const std::string& name);
+  Scene(const Scene& other) = default;
 
   void applyMimicJointLimits();
 

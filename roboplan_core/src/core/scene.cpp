@@ -185,22 +185,12 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
-Scene::Scene(const Scene& other, const std::string& name)
-    : name_{name}, model_{other.model_}, collision_model_{other.collision_model_},
-      joint_names_{other.joint_names_}, actuated_joint_names_{other.actuated_joint_names_},
-      joint_info_map_{other.joint_info_map_}, joint_group_info_map_{other.joint_group_info_map_},
-      rng_gen_(other.rng_gen_), cur_state_{other.cur_state_}, frame_map_{other.frame_map_},
-      collision_geometry_map_{other.collision_geometry_map_},
-      attached_object_pairs_{other.attached_object_pairs_},
-      robot_collision_geometry_ids_{other.robot_collision_geometry_ids_},
-      geometry_version_{other.geometry_version_} {
-  model_data_ = pinocchio::Data(model_);
-  refreshCollisionData();
-}
-
 std::unique_ptr<Scene> Scene::clone(const std::string& name) const {
   // can't use make_unique here because it doesn't have access to private members...
-  return std::unique_ptr<Scene>(new Scene(*this, name));
+  auto scene = std::unique_ptr<Scene>(new Scene(*this));
+  scene->name_ = name;
+  scene->refreshCollisionData();
+  return scene;
 }
 
 void Scene::applyMimicJointLimits() {
