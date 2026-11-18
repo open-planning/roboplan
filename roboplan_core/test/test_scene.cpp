@@ -4,6 +4,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <limits>
+#include <map>
 #include <memory>
 #include <numbers>
 #include <stdexcept>
@@ -13,6 +14,7 @@
 
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_utils.hpp>
 #include <roboplan_example_models/resources.hpp>
 
 namespace {
@@ -1080,6 +1082,178 @@ TEST_F(RoboPlanSceneTest, TestPositionLimitsOverrideWrongSizeThrows) {
       std::runtime_error);
 
   std::filesystem::remove(tmp_config);
+}
+
+TEST_F(RoboPlanSceneTest, TestNamedJointStates) {
+  const std::map<std::string, std::vector<double>> positions = {
+      {"shoulder_pan_joint", {0.1}}, {"shoulder_lift_joint", {0.2}}, {"elbow_joint", {0.3}},
+      {"wrist_1_joint", {0.4}},      {"wrist_2_joint", {0.5}},       {"wrist_3_joint", {0.6}}};
+  const auto added = scene->addNamedJointState("arm", "home", positions);
+  ASSERT_TRUE(added.has_value()) << added.error();
+
+  const auto maybe_q = scene->getNamedJointStatePositions("arm", "home");
+  ASSERT_TRUE(maybe_q.has_value()) << maybe_q.error();
+  Eigen::VectorXd q_expected(6);
+  q_expected << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
+  EXPECT_TRUE(maybe_q->isApprox(q_expected, kTolerance));
+  EXPECT_THAT(scene->getNamedJointStateNames()["arm"],
+              ContainerEq(std::vector<std::string>{"home"}));
+
+  // Re-adding the group clears its named joint states.
+  ASSERT_TRUE(scene->addGroupFromChain("arm", "base_link", "tool0").has_value());
+  EXPECT_FALSE(scene->getNamedJointState("arm", "home").has_value());
+
+  ASSERT_TRUE(scene->addNamedJointState("arm", "home", positions).has_value());
+  EXPECT_TRUE(scene->removeNamedJointState("arm", "home").has_value());
+  EXPECT_FALSE(scene->removeNamedJointState("arm", "home").has_value());
+  EXPECT_FALSE(scene->getNamedJointState("arm", "home").has_value());
+}
+
+TEST_F(RoboPlanSceneTest, TestNamedJointStatesDefaultGroup) {
+  // The empty group name refers to the whole model, so every joint must be specified.
+  std::map<std::string, std::vector<double>> positions = {
+      {"shoulder_pan_joint", {0.1}}, {"shoulder_lift_joint", {0.2}}, {"elbow_joint", {0.3}},
+      {"wrist_1_joint", {0.4}},      {"wrist_2_joint", {0.5}},       {"wrist_3_joint", {0.6}}};
+  const auto added = scene->addNamedJointState("", "home", positions);
+  ASSERT_TRUE(added.has_value()) << added.error();
+
+  const auto maybe_q = scene->getNamedJointStatePositions("", "home");
+  ASSERT_TRUE(maybe_q.has_value()) << maybe_q.error();
+  Eigen::VectorXd q_expected(6);
+  q_expected << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
+  EXPECT_TRUE(maybe_q->isApprox(q_expected, kTolerance));
+  EXPECT_THAT(scene->getNamedJointStateNames()[""], ContainerEq(std::vector<std::string>{"home"}));
+
+  positions.erase("elbow_joint");
+  EXPECT_FALSE(scene->addNamedJointState("", "partial", positions).has_value());
+
+  EXPECT_TRUE(scene->removeNamedJointState("", "home").has_value());
+  EXPECT_FALSE(scene->getNamedJointState("", "home").has_value());
+}
+
+TEST_F(RoboPlanSceneTest, TestNamedJointStateErrors) {
+  std::map<std::string, std::vector<double>> positions = {
+      {"shoulder_pan_joint", {0.0}}, {"shoulder_lift_joint", {0.0}}, {"elbow_joint", {0.0}},
+      {"wrist_1_joint", {0.0}},      {"wrist_2_joint", {0.0}},       {"wrist_3_joint", {0.0}}};
+  EXPECT_FALSE(scene->addNamedJointState("no_such_group", "home", positions).has_value());
+
+  auto missing = positions;
+  missing.erase("elbow_joint");
+  EXPECT_FALSE(scene->addNamedJointState("arm", "home", missing).has_value());
+
+  auto extra = positions;
+  extra["not_a_joint"] = {0.0};
+  EXPECT_FALSE(scene->addNamedJointState("arm", "home", extra).has_value());
+
+  positions["elbow_joint"] = {100.0};
+  EXPECT_FALSE(scene->addNamedJointState("arm", "home", positions).has_value());
+
+  EXPECT_TRUE(scene->getNamedJointStateNames().empty());
+}
+
+TEST(RoboPlanSceneKinovaTest, TestNamedJointStatesFromSrdf) {
+  const auto model_prefix = example_models::get_package_models_dir();
+  const std::vector<std::filesystem::path> package_paths = {
+      example_models::get_package_share_dir()};
+  Scene scene("test_scene",
+              loadUrdfSceneDescription(model_prefix / "kinova_robot_model" / "kinova_robotiq.urdf",
+                                       package_paths));
+  const auto imported =
+      scene.importSrdf(loadTextFile(model_prefix / "kinova_robot_model" / "kinova_robotiq.srdf"));
+  ASSERT_TRUE(imported.has_value()) << imported.error();
+
+  auto names = scene.getNamedJointStateNames();
+  EXPECT_THAT(names["gripper"], ContainerEq(std::vector<std::string>{"Close", "Open"}));
+  EXPECT_THAT(names["manipulator"],
+              ContainerEq(std::vector<std::string>{"Home", "Retract", "Vertical"}));
+
+  // The manipulator's continuous joints are stored expanded to [cos, sin], in the group's
+  // Pinocchio layout...
+  const auto home = scene.getNamedJointState("manipulator", "Home");
+  ASSERT_TRUE(home.has_value()) << home.error();
+  Eigen::VectorXd q_collapsed(7);
+  q_collapsed << 0.0, 0.26, 3.14, -2.27, 0.0, 0.96, 1.57;
+  const auto q_expanded = expandContinuousJointPositions(scene, "manipulator", q_collapsed);
+  ASSERT_TRUE(q_expanded.has_value()) << q_expanded.error();
+  EXPECT_EQ(home->positions.size(), scene.getJointGroupInfo("manipulator")->q_indices.size());
+  EXPECT_TRUE(home->positions.isApprox(*q_expanded, kTolerance));
+
+  // ... and copied as-is into the full positions, with non-group joints from q_reference.
+  const Eigen::VectorXd q_reference = scene.randomPositions();
+  const auto maybe_q = scene.getNamedJointStatePositions("manipulator", "Home", q_reference);
+  ASSERT_TRUE(maybe_q.has_value()) << maybe_q.error();
+  const auto collapsed = collapseContinuousJointPositions(
+      scene, "manipulator", (*maybe_q)(scene.getJointGroupInfo("manipulator")->q_indices));
+  ASSERT_TRUE(collapsed.has_value()) << collapsed.error();
+  EXPECT_TRUE(collapsed->isApprox(q_collapsed, kTolerance));
+
+  // The gripper's mimic joints follow the mimicked joint.
+  const auto close = scene.getNamedJointStatePositions("gripper", "Close", q_reference);
+  ASSERT_TRUE(close.has_value()) << close.error();
+  const auto& knuckle_q_idx =
+      scene.getModel().idx_qs[scene.getModel().getJointId("robotiq_85_left_knuckle_joint")];
+  EXPECT_NEAR((*close)(knuckle_q_idx), 0.8, kTolerance);
+}
+
+TEST(RoboPlanScenePlanarTest, TestNamedJointStatesPlanar) {
+  const std::string urdf = R"(
+<robot name="robot">
+  <link name="base_link"/>
+  <link name="mobile_link"/>
+  <link name="lift_link"/>
+  <joint name="planar_base_joint" type="planar">
+    <parent link="base_link"/>
+    <child link="mobile_link"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+  <joint name="lift_joint" type="prismatic">
+    <parent link="mobile_link"/>
+    <child link="lift_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0.0" upper="1.0" effort="100" velocity="1.0"/>
+  </joint>
+</robot>
+)";
+  const std::string srdf = R"(
+<robot name="robot">
+  <group name="base_and_lift">
+    <joint name="planar_base_joint"/>
+    <joint name="lift_joint"/>
+  </group>
+  <group_state name="charge_pose" group="base_and_lift">
+    <joint name="planar_base_joint" value="0.0 0.0 0.0" />
+    <joint name="lift_joint" value="0.0" />
+  </group_state>
+</robot>
+)";
+  Scene scene("planar_scene", loadUrdfSceneDescriptionFromXml(urdf));
+  const auto imported = scene.importSrdf(srdf);
+  ASSERT_TRUE(imported.has_value()) << imported.error();
+  EXPECT_THAT(scene.getNamedJointStateNames()["base_and_lift"],
+              ContainerEq(std::vector<std::string>{"charge_pose"}));
+
+  // Planar joints are stored as [x, y, cos(theta), sin(theta)].
+  const auto charge_pose = scene.getNamedJointStatePositions("base_and_lift", "charge_pose");
+  ASSERT_TRUE(charge_pose.has_value()) << charge_pose.error();
+  Eigen::VectorXd q_expected(5);
+  q_expected << 0.0, 0.0, 1.0, 0.0, 0.0;
+  EXPECT_TRUE(charge_pose->isApprox(q_expected, kTolerance));
+
+  std::map<std::string, std::vector<double>> positions = {
+      {"planar_base_joint", {1.0, -2.0, std::numbers::pi / 2}}, {"lift_joint", {0.5}}};
+  const auto added = scene.addNamedJointState("base_and_lift", "dock", positions);
+  ASSERT_TRUE(added.has_value()) << added.error();
+  const auto dock = scene.getNamedJointStatePositions("base_and_lift", "dock");
+  ASSERT_TRUE(dock.has_value()) << dock.error();
+  q_expected << 1.0, -2.0, 0.0, 1.0, 0.5;
+  EXPECT_TRUE(dock->isApprox(q_expected, kTolerance));
+
+  // Each joint must be given one value per velocity DOF.
+  positions["planar_base_joint"] = {1.0};
+  EXPECT_FALSE(scene.addNamedJointState("base_and_lift", "bad", positions).has_value());
+  positions["planar_base_joint"] = {1.0, -2.0, 0.0};
+  positions["lift_joint"] = {0.5, 0.5};
+  EXPECT_FALSE(scene.addNamedJointState("base_and_lift", "bad", positions).has_value());
 }
 
 // so101's "arm" group (shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll) is a

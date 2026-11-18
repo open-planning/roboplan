@@ -86,9 +86,10 @@ std::string collidingPairToString(const std::pair<std::string, std::string>& pai
 ///    scratch over this Scene's immutable description, and call the equivalent methods there.
 ///
 /// 3. Mutable bookkeeping (`setJointPositions`, `setRngSeed`, geometry mutators, `importSrdf`,
-///    `importJointLimitsFromConfig`, and the group mutators). These are for single-threaded setup
-///    and interactive use. Library code must not write them while other threads are querying, and
-///    must not read `getCurrentJointPositions()` in the middle of an algorithm.
+///    `importJointLimitsFromConfig`, named joint state mutators, and the group mutators). These are
+///    for single-threaded setup and interactive use. Library code must not write them while other
+///    threads are querying, and must not read `getCurrentJointPositions()` in the middle of an
+///    algorithm.
 ///
 /// For items 2. and 3., use a SceneContext when you need thread safety.
 class Scene {
@@ -390,7 +391,9 @@ public:
 
   /// @brief Applies groups and disabled collision pairs from an SRDF document.
   /// @details Groups with the same name as an existing non-default group overwrite it. The
-  /// default whole-model group is left unchanged.
+  /// default whole-model group is left unchanged. Named joint states are imported from
+  /// <group_state> tags. See addNamedJointState for requirements; `<group_state>`s that
+  /// don't meet those requirements are skipped with a warning.
   /// @param srdf_xml The SRDF XML contents.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> importSrdf(const std::string& srdf_xml);
@@ -401,10 +404,13 @@ public:
   /// number of velocity DOFs. Mimic joints inherit scaled limits from the joints they mimic after
   /// overrides are applied. Position limits for free-rotating DOFs are discarded with a warning
   /// unless given as `.inf` / `-.inf`.
+  /// @note This doesn't recalculate the joint limits for named joint states, so after this
+  /// operation some named joint states may be outside the new limits.
   /// @param yaml_config The parsed YAML configuration node (may be empty/null).
   void importJointLimitsFromConfig(const YAML::Node& yaml_config);
 
   /// @brief Adds a joint group defined by a kinematic chain.
+  /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param base_link The name of the chain's base link.
   /// @param tip_link The name of the chain's tip link.
@@ -414,6 +420,7 @@ public:
                                                     const std::string& tip_link);
 
   /// @brief Adds a joint group by concatenating existing groups.
+  /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param group_names The existing groups to concatenate, in order.
   /// @return Void if successful, else a string describing the error.
@@ -421,6 +428,7 @@ public:
                                                      const std::vector<std::string>& group_names);
 
   /// @brief Adds a joint group from an explicit list of joints.
+  /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param joint_names The joints that make up the group, in order.
   /// @param extra_link_names Additional link names to include besides those driven by the joints.
@@ -675,6 +683,54 @@ public:
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> allowAdjacentLinkCollisions();
 
+  /// @brief Adds a named joint state to a joint group. Overwrites an existing state of the same
+  /// name in the group.
+  /// @details The positions are stored in the group's Pinocchio layout (ordered like
+  /// JointGroupInfo::q_indices, with continuous joints expanded to [cos, sin]). The input map has
+  /// the following restrictions:
+  ///   1. Every non-mimic joint in the group must be given a position.
+  ///   2. Every joint must belong to the group.
+  ///   3. Positions given for mimic joints are ignored.
+  ///   4. Each joint takes one value per velocity DOF. Positions must be within the joint limits.
+  ///   5. Groups containing floating joints are not supported.
+  /// @param group_name The name of the joint group the state belongs to. The empty-string all-joint
+  /// group is supported.
+  /// @param state_name The name of the state to add.
+  /// @param positions A map from joint names to joint positions.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string>
+  addNamedJointState(const std::string& group_name, const std::string& state_name,
+                     const std::map<std::string, std::vector<double>>& positions);
+
+  /// @brief Removes an existing named joint state from the group named by `group_name`.
+  /// @param group_name the name of the group to remove the joint state from.
+  /// @param state_name the name of the joint state to remove.
+  /// @return void if successful, else a string describing the error.
+  tl::expected<void, std::string> removeNamedJointState(const std::string& group_name,
+                                                        const std::string& state_name);
+
+  /// @brief Returns the NamedJointState struct for an existing named joint state.
+  /// @param group_name the name of the group the joint state is associated with.
+  /// @param state_name the name of the joint state to return.
+  /// @return the named joint state struct if successful, else a string describing the error.
+  tl::expected<NamedJointState, std::string>
+  getNamedJointState(const std::string& group_name, const std::string& state_name) const;
+
+  /// @brief Returns the names of all the named joint states.
+  /// @return a map from the group name to the list of names of named joint states.
+  std::map<std::string, std::vector<std::string>> getNamedJointStateNames() const;
+
+  /// @brief Returns the full joint positions for a named joint state.
+  /// @param group_name the name of the group the joint state is associated with.
+  /// @param state_name the name of the joint state to return.
+  /// @param q_reference the reference state to use for filling in the joints not associated with
+  /// `group_name`. If not specified, defaults to getCurrentJointPositions().
+  /// @return the full joint positions in pinocchio layout with model.nq entries if successful, else
+  /// a string describing the error.
+  tl::expected<Eigen::VectorXd, std::string> getNamedJointStatePositions(
+      const std::string& group_name, const std::string& state_name,
+      const std::optional<Eigen::VectorXd>& q_reference = std::nullopt) const;
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
@@ -799,6 +855,10 @@ private:
 
   /// @brief The collision geometry IDs of the robot itself (see getRobotCollisionGeometryIds).
   std::vector<pinocchio::GeomIndex> robot_collision_geometry_ids_;
+
+  /// @brief Named joint states, keyed by group name and then state name.
+  std::unordered_map<std::string, std::unordered_map<std::string, NamedJointState>>
+      named_joint_states_;
 
   /// @brief Incremented on every change to the collision geometry, so that SceneContexts
   /// snapshotted from an older version can detect that they are stale.

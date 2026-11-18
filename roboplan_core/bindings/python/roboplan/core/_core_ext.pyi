@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import enum
 import os
 from typing import Annotated, overload
@@ -237,6 +237,36 @@ class JointGroupInfo:
     def nq_collapsed(self, arg: int, /) -> None: ...
 
     def __repr__(self) -> str: ...
+
+class NamedJointState:
+    """
+    A specific joint state with a meaningful name, associated with a specific joint group.
+    """
+
+    def __init__(self) -> None: ...
+
+    @property
+    def state_name(self) -> str:
+        """The name of this state."""
+
+    @state_name.setter
+    def state_name(self, arg: str, /) -> None: ...
+
+    @property
+    def group_name(self) -> str:
+        """The name of the group this state is scoped by."""
+
+    @group_name.setter
+    def group_name(self, arg: str, /) -> None: ...
+
+    @property
+    def positions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        The joint group positions in Pinocchio layout, ordered like the group's q_indices, with continuous joints expanded to [cos, sin].
+        """
+
+    @positions.setter
+    def positions(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
 
 class JointPath:
     """Contains a path of joint configurations."""
@@ -531,6 +561,25 @@ class Scene:
 
     def removeGroup(self, name: str) -> None:
         """Removes a joint group by name."""
+
+    def addNamedJointState(self, group_name: str, state_name: str, positions: Mapping[str, Sequence[float]]) -> None:
+        """Adds a named joint state to a joint group."""
+
+    def removeNamedJointState(self, group_name: str, state_name: str) -> None:
+        """Removes a named joint state from a joint group."""
+
+    def getNamedJointState(self, group_name: str, state_name: str) -> NamedJointState:
+        """Returns a named joint state."""
+
+    def getNamedJointStateNames(self) -> dict[str, list[str]]:
+        """
+        Returns a map from group names to the names of their named joint states.
+        """
+
+    def getNamedJointStatePositions(self, group_name: str, state_name: str, q_reference: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Returns the full joint positions (model.nq) for a named joint state, with the joints outside its group taken from q_reference, or the current positions if not given.
+        """
 
     def getCurrentJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Get the current Pinocchio configuration vector (model.nq)."""

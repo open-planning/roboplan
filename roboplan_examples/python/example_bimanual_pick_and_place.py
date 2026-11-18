@@ -666,7 +666,10 @@ def main(
     viz = ViserVisualizer(model, collision_model, visual_model)
     viz.initViewer(open=True, loadModel=True, host=host, port=port)
 
-    q_home = np.array(model_data.starting_joint_config)
+    # Start from the SRDF's home pose with both grippers open, and the base and wheels neutral.
+    q_home = scene.getNamedJointStatePositions("both_arms_torso", "home")
+    for gripper in ("gripper_left", "gripper_right"):
+        q_home = scene.getNamedJointStatePositions(gripper, "open", q_home)
     scene.setJointPositions(q_home)
     viz.display(q_home)
 

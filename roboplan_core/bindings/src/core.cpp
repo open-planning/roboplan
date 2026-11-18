@@ -4,6 +4,7 @@
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
+#include <nanobind/stl/map.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
@@ -111,6 +112,17 @@ void init_core_types(nanobind::module_& m) {
         ss << info;
         return ss.str();
       });
+
+  nanobind::class_<NamedJointState>(
+      m, "NamedJointState",
+      "A specific joint state with a meaningful name, associated with a specific joint group.")
+      .def(nanobind::init<>())
+      .def_rw("state_name", &NamedJointState::state_name, "The name of this state.")
+      .def_rw("group_name", &NamedJointState::group_name,
+              "The name of the group this state is scoped by.")
+      .def_rw("positions", &NamedJointState::positions,
+              "The joint group positions in Pinocchio layout, ordered like the group's "
+              "q_indices, with continuous joints expanded to [cos, sin].");
 
   nanobind::class_<JointPath>(m, "JointPath", "Contains a path of joint configurations.")
       .def(nanobind::init<>())
@@ -321,6 +333,19 @@ void init_core_scene(nanobind::module_& m) {
            "extra_link_names"_a = std::vector<std::string>{})
       .def("removeGroup", unwrap_expected(&Scene::removeGroup), "Removes a joint group by name.",
            "name"_a)
+      .def("addNamedJointState", unwrap_expected(&Scene::addNamedJointState),
+           "Adds a named joint state to a joint group.", "group_name"_a, "state_name"_a,
+           "positions"_a)
+      .def("removeNamedJointState", unwrap_expected(&Scene::removeNamedJointState),
+           "Removes a named joint state from a joint group.", "group_name"_a, "state_name"_a)
+      .def("getNamedJointState", unwrap_expected(&Scene::getNamedJointState),
+           "Returns a named joint state.", "group_name"_a, "state_name"_a)
+      .def("getNamedJointStateNames", &Scene::getNamedJointStateNames,
+           "Returns a map from group names to the names of their named joint states.")
+      .def("getNamedJointStatePositions", unwrap_expected(&Scene::getNamedJointStatePositions),
+           "Returns the full joint positions (model.nq) for a named joint state, with the joints "
+           "outside its group taken from q_reference, or the current positions if not given.",
+           "group_name"_a, "state_name"_a, "q_reference"_a = std::nullopt)
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions,
            "Get the current Pinocchio configuration vector (model.nq).")
       .def("getCurrentJointPositionsWithMimics", &Scene::getCurrentJointPositionsWithMimics,
