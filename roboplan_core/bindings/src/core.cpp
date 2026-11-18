@@ -207,10 +207,6 @@ void init_core_scene(nanobind::module_& m) {
         "urdf_path"_a, "package_paths"_a = std::vector<std::filesystem::path>());
   m.def("loadMjcfModel", &loadMjcfModel, "Loads an MJCF file into a PinocchioSceneDescription.",
         "mjcf_path"_a);
-  m.def("collidingPairToString", &collidingPairToString,
-        "Formats a body pair, such as one returned by Scene.getCollidingPairs(), as "
-        "\"body1 <-> body2\" for printing.",
-        "pair"_a);
 
   nanobind::class_<Scene>(m, "Scene", "Primary scene representation for planning and control.")
       .def(nanobind::init<const std::string&, const PinocchioSceneDescription&>(), "name"_a,

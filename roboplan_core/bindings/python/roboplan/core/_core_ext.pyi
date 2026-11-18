@@ -426,11 +426,6 @@ def loadUrdfSceneDescription(urdf_path: str | os.PathLike, package_paths: Sequen
 def loadMjcfModel(mjcf_path: str | os.PathLike) -> PinocchioSceneDescription:
     """Loads an MJCF file into a PinocchioSceneDescription."""
 
-def collidingPairToString(pair: tuple[str, str]) -> str:
-    """
-    Formats a body pair, such as one returned by Scene.getCollidingPairs(), as "body1 <-> body2" for printing.
-    """
-
 class Scene:
     """Primary scene representation for planning and control."""
 

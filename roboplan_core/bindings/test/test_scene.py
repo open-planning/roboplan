@@ -16,7 +16,6 @@ from roboplan.core import (
     Scene,
     SceneContext,
     Sphere,
-    collidingPairToString,
     hasCollisionsAlongPath,
     loadJointLimitsConfig,
     loadMjcfModel,
@@ -340,9 +339,6 @@ def test_get_colliding_pairs(test_scene: Scene) -> None:
     assert ("a_sphere", "forearm_link") in pairs
     assert all(body1 <= body2 for body1, body2 in pairs)
     assert pairs == sorted(set(pairs))
-    assert collidingPairToString(("a_sphere", "forearm_link")) == (
-        "a_sphere <-> forearm_link"
-    )
 
     # The pairs can be passed to setCollisions as they are.
     test_scene.setCollisions(pairs, False)
