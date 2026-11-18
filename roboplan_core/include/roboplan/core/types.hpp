@@ -1,7 +1,9 @@
 #pragma once
 
+#include <initializer_list>
 #include <iostream>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -9,6 +11,22 @@
 #include <Eigen/Dense>
 
 namespace roboplan {
+
+/// @brief A read-only, non-owning view of contiguous elements, used for list parameters.
+/// @details This type exists specifically to polyfill the braced initializer list constructor
+/// that C++26 adds to std::span (P2447) and that is missing from the C++20 std::span. Without it,
+/// calls such as `scene.addGroup("arm", {"joint1", "joint2"})` would not compile. Otherwise it is
+/// a `std::span<const T>`, so it accepts std::vector, std::array, and other contiguous ranges.
+/// Like the C++26 constructor, a braced list only lives until the end of the full expression, so
+/// only use this type for function parameters and never store one.
+template <typename T> class Span : public std::span<const T> {
+public:
+  using std::span<const T>::span;
+
+  Span() = default;
+
+  Span(std::initializer_list<T> list) : std::span<const T>(list.begin(), list.size()) {}
+};
 
 /// @brief A pair of vectors, e.g. (lower, upper) limits.
 using EigenVectorPair = std::pair<Eigen::VectorXd, Eigen::VectorXd>;
@@ -188,10 +206,10 @@ struct CartesianPath {
   /// @param tip_frames A list of tip (or target) frame names.
   /// @param tforms The transforms from each base frame to each tip frame, as
   /// tforms[frame_idx][path_idx].
-  CartesianPath(const std::vector<std::string>& base_frames,
-                const std::vector<std::string>& tip_frames,
-                const std::vector<std::vector<Eigen::Matrix4d>>& tforms)
-      : base_frames(base_frames), tip_frames(tip_frames), tforms(tforms) {}
+  CartesianPath(Span<std::string> base_frames, Span<std::string> tip_frames,
+                Span<std::vector<Eigen::Matrix4d>> tforms)
+      : base_frames(base_frames.begin(), base_frames.end()),
+        tip_frames(tip_frames.begin(), tip_frames.end()), tforms(tforms.begin(), tforms.end()) {}
 
   /// @brief The names of the base (or reference) frames. An empty frame name means the world
   /// frame.
@@ -223,10 +241,11 @@ struct CartesianTrajectory {
   /// @param times The list of times.
   /// @param tforms The transforms from each base frame to each tip frame, as
   /// tforms[frame_idx][time_idx].
-  CartesianTrajectory(const std::vector<std::string>& base_frames,
-                      const std::vector<std::string>& tip_frames, const std::vector<double>& times,
-                      const std::vector<std::vector<Eigen::Matrix4d>>& tforms)
-      : base_frames(base_frames), tip_frames(tip_frames), times(times), tforms(tforms) {}
+  CartesianTrajectory(Span<std::string> base_frames, Span<std::string> tip_frames,
+                      Span<double> times, Span<std::vector<Eigen::Matrix4d>> tforms)
+      : base_frames(base_frames.begin(), base_frames.end()),
+        tip_frames(tip_frames.begin(), tip_frames.end()), times(times.begin(), times.end()),
+        tforms(tforms.begin(), tforms.end()) {}
 
   /// @brief The names of the base (or reference) frames. An empty frame name means the world frame.
   std::vector<std::string> base_frames;

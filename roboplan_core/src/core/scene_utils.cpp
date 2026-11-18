@@ -89,9 +89,9 @@ jointNamesFromChain(const pinocchio::Model& model, const std::string& base_link,
   return joint_names;
 }
 
-tl::expected<JointGroupInfo, std::string>
-makeJointGroupInfo(const pinocchio::Model& model, const std::vector<std::string>& joint_names,
-                   const std::vector<std::string>& extra_link_names) {
+tl::expected<JointGroupInfo, std::string> makeJointGroupInfo(const pinocchio::Model& model,
+                                                             Span<std::string> joint_names,
+                                                             Span<std::string> extra_link_names) {
   std::vector<std::vector<std::string>> bodies_by_joint(static_cast<size_t>(model.njoints));
   for (const auto& frame : model.frames) {
     if (frame.type == pinocchio::BODY) {
@@ -137,7 +137,7 @@ makeJointGroupInfo(const pinocchio::Model& model, const std::vector<std::string>
     }
   }
 
-  return JointGroupInfo{.joint_names = joint_names,
+  return JointGroupInfo{.joint_names = {joint_names.begin(), joint_names.end()},
                         .joint_indices = std::move(joint_indices),
                         .link_names = {link_name_set.begin(), link_name_set.end()},
                         .q_indices = Eigen::VectorXi::Map(

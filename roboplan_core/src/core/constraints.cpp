@@ -163,11 +163,11 @@ void PoseConstraint::updateKinematics(const Eigen::VectorXd& q, bool with_jacobi
       (region_rotation.transpose() * group_jacobian.bottomRows<3>());
 }
 
-ConstraintProjector::ConstraintProjector(
-    const std::shared_ptr<Scene> scene, const std::string& group_name,
-    const std::vector<std::shared_ptr<Constraint>>& constraints,
-    const ConstraintProjectorOptions& options)
-    : scene_{scene}, constraints_{constraints}, options_{options} {
+ConstraintProjector::ConstraintProjector(const std::shared_ptr<Scene> scene,
+                                         const std::string& group_name,
+                                         Span<std::shared_ptr<Constraint>> constraints,
+                                         const ConstraintProjectorOptions& options)
+    : scene_{scene}, constraints_(constraints.begin(), constraints.end()), options_{options} {
 
   // Validate the joint group.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name);

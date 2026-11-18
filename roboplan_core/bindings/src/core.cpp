@@ -22,6 +22,7 @@
 
 #include <roboplan_bindings/core.hpp>
 #include <roboplan_bindings/expected.hpp>
+#include <roboplan_bindings/span.hpp>
 
 namespace roboplan {
 
@@ -240,7 +241,7 @@ void init_core_scene(nanobind::module_& m) {
            nanobind::overload_cast<size_t>(&Scene::randomCollisionFreePositions),
            "Generates random collision-free positions for the robot model.", "max_samples"_a = 1000)
       .def("randomCollisionFreePositions",
-           nanobind::overload_cast<const std::vector<std::string>&, const Eigen::VectorXd&, size_t>(
+           nanobind::overload_cast<Span<std::string>, const Eigen::VectorXd&, size_t>(
                &Scene::randomCollisionFreePositions),
            "Generates random collision-free positions, randomizing only the specified joints and "
            "taking all others from the reference configuration.",
@@ -422,8 +423,8 @@ void init_core_scene(nanobind::module_& m) {
            "enable"_a)
       .def("setCollisions",
            unwrap_expected(
-               nanobind::overload_cast<const std::vector<std::pair<std::string, std::string>>&,
-                                       const bool>(&Scene::setCollisions)),
+               nanobind::overload_cast<Span<std::pair<std::string, std::string>>, const bool>(
+                   &Scene::setCollisions)),
            "Sets the allowable collisions for many body pairs, rebuilding collision data once.",
            "pairs"_a, "enable"_a)
       .def("allowAdjacentLinkCollisions", unwrap_expected(&Scene::allowAdjacentLinkCollisions),
@@ -477,7 +478,7 @@ void init_core_scene(nanobind::module_& m) {
            "Generates random collision-free positions using this context's RNG and scratch.",
            "max_samples"_a = 1000)
       .def("randomCollisionFreePositions",
-           nanobind::overload_cast<const std::vector<std::string>&, const Eigen::VectorXd&, size_t>(
+           nanobind::overload_cast<Span<std::string>, const Eigen::VectorXd&, size_t>(
                &SceneContext::randomCollisionFreePositions),
            nanobind::call_guard<nanobind::gil_scoped_release>(),
            "Generates random collision-free positions using this context's RNG and scratch, "
@@ -598,8 +599,8 @@ void init_core_path_utils(nanobind::module_& m) {
         "Computes the Cartesian path of a specified frame by interpolating sparse positions.",
         "scene"_a, "q_start"_a, "q_end"_a, "frame_name"_a, "max_step_size"_a);
   m.def("computeFramePath",
-        nanobind::overload_cast<const Scene&, const std::vector<Eigen::VectorXd>&,
-                                const std::string&>(&computeFramePath),
+        nanobind::overload_cast<const Scene&, Span<Eigen::VectorXd>, const std::string&>(
+            &computeFramePath),
         "Computes the Cartesian path of a specified frame using a vector of provided points.",
         "scene"_a, "q_vec"_a, "frame_name"_a);
   m.def("hasCollisionsAlongPath",

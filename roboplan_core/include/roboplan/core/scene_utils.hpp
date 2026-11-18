@@ -56,8 +56,8 @@ jointNamesFromChain(const pinocchio::Model& model, const std::string& base_link,
 /// @param extra_link_names Additional link names to include besides those driven by the joints.
 /// @return The group info if successful, else a string describing the error.
 tl::expected<JointGroupInfo, std::string>
-makeJointGroupInfo(const pinocchio::Model& model, const std::vector<std::string>& joint_names,
-                   const std::vector<std::string>& extra_link_names = {});
+makeJointGroupInfo(const pinocchio::Model& model, Span<std::string> joint_names,
+                   Span<std::string> extra_link_names = {});
 
 /// @brief Collapses a joint position vector's continuous joints for downstream algorithms.
 /// @details That is, positions that are expressed as [cos(theta), sin(theta)] will be collapsed

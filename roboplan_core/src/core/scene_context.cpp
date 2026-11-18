@@ -256,8 +256,7 @@ void SceneContext::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed)
 
 Eigen::VectorXd SceneContext::randomPositions() { return scene_.randomPositions(rng_gen_); }
 
-void SceneContext::randomizeJointPositions(const std::vector<std::string>& joint_names,
-                                           Eigen::VectorXd& q) {
+void SceneContext::randomizeJointPositions(Span<std::string> joint_names, Eigen::VectorXd& q) {
   scene_.randomizeJointPositions(rng_gen_, joint_names, q);
 }
 
@@ -267,7 +266,7 @@ std::optional<Eigen::VectorXd> SceneContext::randomCollisionFreePositions(size_t
 }
 
 std::optional<Eigen::VectorXd>
-SceneContext::randomCollisionFreePositions(const std::vector<std::string>& joint_names,
+SceneContext::randomCollisionFreePositions(Span<std::string> joint_names,
                                            const Eigen::VectorXd& q_reference, size_t max_samples) {
   if (q_reference.size() != model_.nq) {
     throw std::invalid_argument(

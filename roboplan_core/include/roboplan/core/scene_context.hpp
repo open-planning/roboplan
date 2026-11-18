@@ -12,6 +12,8 @@
 #include <pinocchio/multibody/geometry.hpp>
 #include <pinocchio/multibody/model.hpp>
 
+#include <roboplan/core/types.hpp>
+
 // The concrete broadphase manager (AABB tree).
 #if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
@@ -128,7 +130,7 @@ public:
   /// @brief Randomizes the positions of the specified joints in-place, using this context's RNG.
   /// @param joint_names The names of the joints to randomize.
   /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
-  void randomizeJointPositions(const std::vector<std::string>& joint_names, Eigen::VectorXd& q);
+  void randomizeJointPositions(Span<std::string> joint_names, Eigen::VectorXd& q);
 
   /// @brief Generates random collision-free positions, using this context's RNG and scratch.
   /// @param max_samples The maximum number of samples to attempt.
@@ -143,9 +145,9 @@ public:
   /// @param q_reference The full configuration supplying the joints that are not randomized.
   /// @param max_samples The maximum number of samples to attempt.
   /// @return The random positions, if successful, else std::nullopt.
-  std::optional<Eigen::VectorXd>
-  randomCollisionFreePositions(const std::vector<std::string>& joint_names,
-                               const Eigen::VectorXd& q_reference, size_t max_samples = 1000);
+  std::optional<Eigen::VectorXd> randomCollisionFreePositions(Span<std::string> joint_names,
+                                                              const Eigen::VectorXd& q_reference,
+                                                              size_t max_samples = 1000);
 
   /// @brief This context's current joint positions (size model.nq).
   const Eigen::VectorXd& getJointPositions() const { return q_; }

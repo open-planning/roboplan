@@ -2,6 +2,8 @@
 
 #include <filesystem>
 
+#include <roboplan/core/types.hpp>
+
 // hppfcl was renamed to coal. Prefer the coal headers whenever they are available,
 // since modern hpp-fcl releases declare `namespace coal { }` as a real namespace
 // (with `hpp::fcl` as the backward-compatibility alias), which conflicts with
@@ -94,7 +96,7 @@ struct OcTree {
   /// `OcTree::toBoxes()`. The size column is ignored, and the first box's threshold is used as the
   /// tree's occupancy threshold.
   /// @param resolution The leaf (voxel) size of the octree, in meters.
-  OcTree(const std::vector<Eigen::Matrix<double, 6, 1>>& boxes, const double resolution) {
+  OcTree(Span<Eigen::Matrix<double, 6, 1>> boxes, const double resolution) {
     auto octree = std::make_shared<octomap::OcTree>(resolution);
 
     if (!boxes.empty()) {

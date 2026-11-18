@@ -52,14 +52,13 @@ YAML::Node loadJointLimitsConfig(const std::filesystem::path& path);
 /// @param package_paths Directories used to resolve `package://` mesh paths.
 PinocchioSceneDescription
 loadUrdfSceneDescriptionFromXml(const std::string& urdf_xml,
-                                const std::vector<std::filesystem::path>& package_paths = {});
+                                Span<std::filesystem::path> package_paths = {});
 
 /// @brief Loads a URDF from disk and builds a Pinocchio model and collision geometry.
 /// @param urdf_path Path to the URDF file.
 /// @param package_paths Directories used to resolve `package://` mesh paths.
-PinocchioSceneDescription
-loadUrdfSceneDescription(const std::filesystem::path& urdf_path,
-                         const std::vector<std::filesystem::path>& package_paths = {});
+PinocchioSceneDescription loadUrdfSceneDescription(const std::filesystem::path& urdf_path,
+                                                   Span<std::filesystem::path> package_paths = {});
 
 /// @brief Loads an MJCF model and its collision geometry from disk.
 PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
@@ -184,14 +183,14 @@ public:
   /// joints outside of a planning group on every call (e.g. in the RRT sampling loop).
   /// @param joint_names The names of the joints to randomize.
   /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
-  void randomizeJointPositions(const std::vector<std::string>& joint_names, Eigen::VectorXd& q);
+  void randomizeJointPositions(Span<std::string> joint_names, Eigen::VectorXd& q);
 
   /// @brief Randomizes the given joints in-place using a caller-supplied random number generator.
   /// @details The explicit-scratch overload of the above.
   /// @param rng The random number generator to draw from.
   /// @param joint_names The names of the joints to randomize.
   /// @param q The full configuration vector to modify in-place. Must be sized to the model's nq.
-  void randomizeJointPositions(std::mt19937& rng, const std::vector<std::string>& joint_names,
+  void randomizeJointPositions(std::mt19937& rng, Span<std::string> joint_names,
                                Eigen::VectorXd& q) const;
 
   /// @brief Generates random collision-free positions for the robot model.
@@ -207,9 +206,9 @@ public:
   /// @param q_reference The full configuration supplying the joints that are not randomized.
   /// @param max_samples The maximum number of samples to attempt.
   /// @return The random positions, if successful, else std::nullopt.
-  std::optional<Eigen::VectorXd>
-  randomCollisionFreePositions(const std::vector<std::string>& joint_names,
-                               const Eigen::VectorXd& q_reference, size_t max_samples = 1000);
+  std::optional<Eigen::VectorXd> randomCollisionFreePositions(Span<std::string> joint_names,
+                                                              const Eigen::VectorXd& q_reference,
+                                                              size_t max_samples = 1000);
 
   /// @brief Checks collisions at specified joint positions.
   /// @param q The joint positions.
@@ -425,7 +424,7 @@ public:
   /// @param group_names The existing groups to concatenate, in order.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> addGroupFromGroups(const std::string& name,
-                                                     const std::vector<std::string>& group_names);
+                                                     Span<std::string> group_names);
 
   /// @brief Adds a joint group from an explicit list of joints.
   /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
@@ -433,9 +432,8 @@ public:
   /// @param joint_names The joints that make up the group, in order.
   /// @param extra_link_names Additional link names to include besides those driven by the joints.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addGroup(const std::string& name,
-                                           const std::vector<std::string>& joint_names,
-                                           const std::vector<std::string>& extra_link_names = {});
+  tl::expected<void, std::string> addGroup(const std::string& name, Span<std::string> joint_names,
+                                           Span<std::string> extra_link_names = {});
 
   /// @brief Removes a joint group from an explicit list of joints.
   /// @param name The name of the group to remove.
@@ -462,13 +460,13 @@ public:
   /// @param joint_names The joint names for which to look up position indices.
   /// @return The corresponding joint position indices.
   /// @throws std::invalid_argument if a name is not a joint in the model.
-  Eigen::VectorXi getJointPositionIndices(const std::vector<std::string>& joint_names) const;
+  Eigen::VectorXi getJointPositionIndices(Span<std::string> joint_names) const;
 
   /// @brief Get the joint velocity indices for a set of joint names.
   /// @param joint_names The joint names for which to look up velocity indices.
   /// @return The corresponding joint velocity indices.
   /// @throws std::invalid_argument if a name is not a joint in the model.
-  Eigen::VectorXi getJointVelocityIndices(const std::vector<std::string>& joint_names) const;
+  Eigen::VectorXi getJointVelocityIndices(Span<std::string> joint_names) const;
 
   /// @brief Get the joint position limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.
@@ -505,10 +503,11 @@ public:
   /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
   /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string>
-  addBoxGeometry(const std::string& name, const std::string& parent_frame, const Box& box,
-                 const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
-                 const std::vector<std::string>& allowed_collision_bodies = {});
+  tl::expected<void, std::string> addBoxGeometry(const std::string& name,
+                                                 const std::string& parent_frame, const Box& box,
+                                                 const Eigen::Matrix4d& tform,
+                                                 const Eigen::Vector4d& color,
+                                                 Span<std::string> allowed_collision_bodies = {});
 
   /// @brief Adds a sphere geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -522,7 +521,7 @@ public:
   tl::expected<void, std::string>
   addSphereGeometry(const std::string& name, const std::string& parent_frame, const Sphere& sphere,
                     const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
-                    const std::vector<std::string>& allowed_collision_bodies = {});
+                    Span<std::string> allowed_collision_bodies = {});
 
   /// @brief Adds a cylinder geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -537,7 +536,7 @@ public:
   addCylinderGeometry(const std::string& name, const std::string& parent_frame,
                       const Cylinder& cylinder, const Eigen::Matrix4d& tform,
                       const Eigen::Vector4d& color,
-                      const std::vector<std::string>& allowed_collision_bodies = {});
+                      Span<std::string> allowed_collision_bodies = {});
 
   /// @brief Adds a triangle mesh geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -548,10 +547,11 @@ public:
   /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
   /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string>
-  addMeshGeometry(const std::string& name, const std::string& parent_frame, const Mesh& mesh,
-                  const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
-                  const std::vector<std::string>& allowed_collision_bodies = {});
+  tl::expected<void, std::string> addMeshGeometry(const std::string& name,
+                                                  const std::string& parent_frame, const Mesh& mesh,
+                                                  const Eigen::Matrix4d& tform,
+                                                  const Eigen::Vector4d& color,
+                                                  Span<std::string> allowed_collision_bodies = {});
 
   /// @brief Adds an octree geometry to the scene.
   /// @param name The name of the object to add. Must be unique.
@@ -565,7 +565,7 @@ public:
   tl::expected<void, std::string>
   addOcTreeGeometry(const std::string& name, const std::string& parent_frame, const OcTree& octree,
                     const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
-                    const std::vector<std::string>& allowed_collision_bodies = {});
+                    Span<std::string> allowed_collision_bodies = {});
 
   /// @brief Adds a Pinocchio geometry object to the scene.
   /// @details This can be made the sole public entrypoint to add a geometry once
@@ -574,9 +574,8 @@ public:
   /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
   /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string>
-  addGeometry(const pinocchio::GeometryObject& geom_obj,
-              const std::vector<std::string>& allowed_collision_bodies = {});
+  tl::expected<void, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj,
+                                              Span<std::string> allowed_collision_bodies = {});
 
   /// @brief Updates the placement of an object geometry in the scene.
   /// @details Fails if the object is attached; use `reparentAttachedObject` instead.
@@ -608,7 +607,7 @@ public:
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   attachObject(const std::string& object_name, const std::string& parent_frame,
-               const std::vector<std::string>& allowed_collision_bodies = {},
+               Span<std::string> allowed_collision_bodies = {},
                const std::optional<Eigen::Matrix4d>& tform = std::nullopt);
 
   /// @brief Detaches an object from its parent frame, returning it to the world.
@@ -631,7 +630,7 @@ public:
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   reparentAttachedObject(const std::string& object_name, const std::string& parent_frame,
-                         const std::vector<std::string>& allowed_collision_bodies = {},
+                         Span<std::string> allowed_collision_bodies = {},
                          const std::optional<Eigen::Matrix4d>& tform = std::nullopt);
 
   /// @brief Checks whether an object is attached via `attachObject`.
@@ -673,8 +672,8 @@ public:
   /// @param pairs Body name pairs. Names can be model frame names or names of added geometry.
   /// @param enable If true, enables each pair; if false, disables each pair.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string>
-  setCollisions(const std::vector<std::pair<std::string, std::string>>& pairs, const bool enable);
+  tl::expected<void, std::string> setCollisions(Span<std::pair<std::string, std::string>> pairs,
+                                                const bool enable);
 
   /// @brief Allows collisions between every parent-child link pair in the kinematic tree.
   /// @details Adjacent link geometries usually overlap across joint boundaries and make valid
@@ -753,12 +752,12 @@ private:
   /// @param pairs Body name pairs. Names can be model frame names or names of added geometry.
   /// @return The collision pairs if successful, else a string describing the error.
   tl::expected<std::vector<pinocchio::CollisionPair>, std::string>
-  getCollisionPairs(const std::vector<std::pair<std::string, std::string>>& pairs);
+  getCollisionPairs(Span<std::pair<std::string, std::string>> pairs);
 
   /// @brief Enables or disables collision pairs in the collision model, without rebuilding data.
   /// @param pairs The collision geometry index pairs to set.
   /// @param enable If true, enables each pair; if false, disables each pair.
-  void setCollisionPairs(const std::vector<pinocchio::CollisionPair>& pairs, const bool enable);
+  void setCollisionPairs(Span<pinocchio::CollisionPair> pairs, const bool enable);
 
   /// @brief Reassigns collision_model_data_ and rebuilds the broadphase manager to match it.
   void refreshCollisionData();
@@ -785,10 +784,10 @@ private:
   /// @param tform The transform between the parent frame and the object. If not set, the object
   /// keeps its current world pose.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string>
-  setAttachment(const std::string& object_name, const std::string& parent_frame,
-                const std::vector<std::string>& allowed_collision_bodies,
-                const std::optional<Eigen::Matrix4d>& tform);
+  tl::expected<void, std::string> setAttachment(const std::string& object_name,
+                                                const std::string& parent_frame,
+                                                Span<std::string> allowed_collision_bodies,
+                                                const std::optional<Eigen::Matrix4d>& tform);
 
   /// @brief The name of the scene.
   std::string name_;

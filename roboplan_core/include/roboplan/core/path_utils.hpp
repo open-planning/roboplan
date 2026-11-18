@@ -33,8 +33,7 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
 /// @param q_vec A vector of joint positions.
 /// @param frame_name The name of the frame whose path is computed.
 /// @return A list of 4x4 matrices corresponding to the poses of the frame along the path.
-std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
-                                              const std::vector<Eigen::VectorXd>& q_vec,
+std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, Span<Eigen::VectorXd> q_vec,
                                               const std::string& frame_name);
 
 /// @brief Resamples a dense sequence of group joint positions to `count` waypoints spaced
@@ -52,9 +51,8 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
 /// @param scene Scene providing the manifold-aware distance/interpolation over the full model.
 /// @param q_indices The full-configuration indices occupied by the group's coordinates.
 /// @return The resampled group joint positions.
-std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>& positions,
-                                             size_t count, const Scene& scene,
-                                             const Eigen::VectorXi& q_indices);
+std::vector<Eigen::VectorXd> resampleUniform(Span<Eigen::VectorXd> positions, size_t count,
+                                             const Scene& scene, const Eigen::VectorXi& q_indices);
 
 /// @brief Checks collisions along a specified configuration space path.
 /// @details All collision checks are answered by the caller-owned `scene_context`, so the traversal
@@ -162,8 +160,7 @@ public:
   /// @param path The JointPath to try to shorten. With constraints, it must already satisfy them.
   /// @param constraints Constraints that every configuration on the shortened path must satisfy.
   /// @return The shortcutted JointPath, or a copy of `path` if no shortcut applies.
-  JointPath shortcut(const JointPath& path,
-                     const std::vector<std::shared_ptr<Constraint>>& constraints = {});
+  JointPath shortcut(const JointPath& path, Span<std::shared_ptr<Constraint>> constraints = {});
 
   /// @brief Computes configuration distances from the start to each pose in a path.
   /// @param path The JointPath to evaluate.

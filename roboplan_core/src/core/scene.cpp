@@ -66,7 +66,7 @@ YAML::Node loadJointLimitsConfig(const std::filesystem::path& path) {
 
 PinocchioSceneDescription
 loadUrdfSceneDescriptionFromXml(const std::string& urdf_xml,
-                                const std::vector<std::filesystem::path>& package_paths) {
+                                Span<std::filesystem::path> package_paths) {
   PinocchioSceneDescription description;
   pinocchio::urdf::buildModelFromXML(urdf_xml, description.model, /*verbose*/ false,
                                      /*mimic*/ true);
@@ -82,9 +82,8 @@ loadUrdfSceneDescriptionFromXml(const std::string& urdf_xml,
   return description;
 }
 
-PinocchioSceneDescription
-loadUrdfSceneDescription(const std::filesystem::path& urdf_path,
-                         const std::vector<std::filesystem::path>& package_paths) {
+PinocchioSceneDescription loadUrdfSceneDescription(const std::filesystem::path& urdf_path,
+                                                   Span<std::filesystem::path> package_paths) {
   return loadUrdfSceneDescriptionFromXml(loadTextFile(urdf_path), package_paths);
 }
 
@@ -359,13 +358,11 @@ Eigen::VectorXd Scene::randomPositions(std::mt19937& rng) const {
   return positions;
 }
 
-void Scene::randomizeJointPositions(const std::vector<std::string>& joint_names,
-                                    Eigen::VectorXd& q) {
+void Scene::randomizeJointPositions(Span<std::string> joint_names, Eigen::VectorXd& q) {
   randomizeJointPositions(rng_gen_, joint_names, q);
 }
 
-void Scene::randomizeJointPositions(std::mt19937& rng_gen,
-                                    const std::vector<std::string>& joint_names,
+void Scene::randomizeJointPositions(std::mt19937& rng_gen, Span<std::string> joint_names,
                                     Eigen::VectorXd& q) const {
   for (const auto& joint_name : joint_names) {
     const auto& info = joint_info_map_.at(joint_name);
@@ -417,7 +414,7 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
 }
 
 std::optional<Eigen::VectorXd>
-Scene::randomCollisionFreePositions(const std::vector<std::string>& joint_names,
+Scene::randomCollisionFreePositions(Span<std::string> joint_names,
                                     const Eigen::VectorXd& q_reference, size_t max_samples) {
   if (q_reference.size() != model_.nq) {
     throw std::invalid_argument(
@@ -970,8 +967,8 @@ tl::expected<void, std::string> Scene::addGroupFromChain(const std::string& name
   return addGroup(name, maybe_joints.value());
 }
 
-tl::expected<void, std::string>
-Scene::addGroupFromGroups(const std::string& name, const std::vector<std::string>& group_names) {
+tl::expected<void, std::string> Scene::addGroupFromGroups(const std::string& name,
+                                                          Span<std::string> group_names) {
   std::vector<std::string> joint_names;
   std::vector<std::string> extra_link_names;
   for (const auto& group_name : group_names) {
@@ -988,8 +985,8 @@ Scene::addGroupFromGroups(const std::string& name, const std::vector<std::string
 }
 
 tl::expected<void, std::string> Scene::addGroup(const std::string& name,
-                                                const std::vector<std::string>& joint_names,
-                                                const std::vector<std::string>& extra_link_names) {
+                                                Span<std::string> joint_names,
+                                                Span<std::string> extra_link_names) {
   if (name.empty()) {
     return tl::make_unexpected("Cannot replace the default whole-model group.");
   }
@@ -1016,7 +1013,7 @@ tl::expected<void, std::string> Scene::removeGroup(const std::string& name) {
   return {};
 }
 
-Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& joint_names) const {
+Eigen::VectorXi Scene::getJointPositionIndices(Span<std::string> joint_names) const {
   std::vector<int> q_indices;
   for (const auto& joint_name : joint_names) {
     if (!joint_info_map_.contains(joint_name)) {
@@ -1032,7 +1029,7 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
   return Eigen::VectorXi::Map(q_indices.data(), q_indices.size());
 }
 
-Eigen::VectorXi Scene::getJointVelocityIndices(const std::vector<std::string>& joint_names) const {
+Eigen::VectorXi Scene::getJointVelocityIndices(Span<std::string> joint_names) const {
   std::vector<int> v_indices;
   for (const auto& joint_name : joint_names) {
     if (!joint_info_map_.contains(joint_name)) {
@@ -1236,10 +1233,11 @@ Scene::makeGeometryObject(const std::string& name, const std::string& parent_fra
   return geom_obj;
 }
 
-tl::expected<void, std::string>
-Scene::addBoxGeometry(const std::string& name, const std::string& parent_frame, const Box& box,
-                      const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
-                      const std::vector<std::string>& allowed_collision_bodies) {
+tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
+                                                      const std::string& parent_frame,
+                                                      const Box& box, const Eigen::Matrix4d& tform,
+                                                      const Eigen::Vector4d& color,
+                                                      Span<std::string> allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, box.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add box: " + geom_obj.error());
@@ -1250,8 +1248,7 @@ Scene::addBoxGeometry(const std::string& name, const std::string& parent_frame, 
 tl::expected<void, std::string>
 Scene::addSphereGeometry(const std::string& name, const std::string& parent_frame,
                          const Sphere& sphere, const Eigen::Matrix4d& tform,
-                         const Eigen::Vector4d& color,
-                         const std::vector<std::string>& allowed_collision_bodies) {
+                         const Eigen::Vector4d& color, Span<std::string> allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, sphere.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add sphere: " + geom_obj.error());
@@ -1263,7 +1260,7 @@ tl::expected<void, std::string>
 Scene::addCylinderGeometry(const std::string& name, const std::string& parent_frame,
                            const Cylinder& cylinder, const Eigen::Matrix4d& tform,
                            const Eigen::Vector4d& color,
-                           const std::vector<std::string>& allowed_collision_bodies) {
+                           Span<std::string> allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, cylinder.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add cylinder: " + geom_obj.error());
@@ -1274,7 +1271,7 @@ Scene::addCylinderGeometry(const std::string& name, const std::string& parent_fr
 tl::expected<void, std::string>
 Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame, const Mesh& mesh,
                        const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
-                       const std::vector<std::string>& allowed_collision_bodies) {
+                       Span<std::string> allowed_collision_bodies) {
   if (!mesh.geom_ptr) {
     return tl::make_unexpected("Failed to add mesh: mesh geometry is null.");
   }
@@ -1288,8 +1285,7 @@ Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame,
 tl::expected<void, std::string>
 Scene::addOcTreeGeometry(const std::string& name, const std::string& parent_frame,
                          const OcTree& octree, const Eigen::Matrix4d& tform,
-                         const Eigen::Vector4d& color,
-                         const std::vector<std::string>& allowed_collision_bodies) {
+                         const Eigen::Vector4d& color, Span<std::string> allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, octree.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add octree: " + geom_obj.error());
@@ -1297,9 +1293,8 @@ Scene::addOcTreeGeometry(const std::string& name, const std::string& parent_fram
   return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string>
-Scene::addGeometry(const pinocchio::GeometryObject& geom_obj,
-                   const std::vector<std::string>& allowed_collision_bodies) {
+tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj,
+                                                   Span<std::string> allowed_collision_bodies) {
   if (collision_geometry_map_.contains(geom_obj.name)) {
     return tl::make_unexpected("Object '" + geom_obj.name +
                                "' already exists in the scene. Cannot add.");
@@ -1391,10 +1386,10 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
   return {};
 }
 
-tl::expected<void, std::string>
-Scene::attachObject(const std::string& object_name, const std::string& parent_frame,
-                    const std::vector<std::string>& allowed_collision_bodies,
-                    const std::optional<Eigen::Matrix4d>& tform) {
+tl::expected<void, std::string> Scene::attachObject(const std::string& object_name,
+                                                    const std::string& parent_frame,
+                                                    Span<std::string> allowed_collision_bodies,
+                                                    const std::optional<Eigen::Matrix4d>& tform) {
   if (isObjectAttached(object_name)) {
     return tl::make_unexpected("Object '" + object_name +
                                "' is already attached. Use reparentAttachedObject to move it.");
@@ -1419,7 +1414,7 @@ tl::expected<void, std::string> Scene::detachObject(const std::string& object_na
 
 tl::expected<void, std::string>
 Scene::reparentAttachedObject(const std::string& object_name, const std::string& parent_frame,
-                              const std::vector<std::string>& allowed_collision_bodies,
+                              Span<std::string> allowed_collision_bodies,
                               const std::optional<Eigen::Matrix4d>& tform) {
   if (!isObjectAttached(object_name)) {
     return tl::make_unexpected("Object '" + object_name + "' is not attached. Cannot reparent.");
@@ -1427,10 +1422,10 @@ Scene::reparentAttachedObject(const std::string& object_name, const std::string&
   return setAttachment(object_name, parent_frame, allowed_collision_bodies, tform);
 }
 
-tl::expected<void, std::string>
-Scene::setAttachment(const std::string& object_name, const std::string& parent_frame,
-                     const std::vector<std::string>& allowed_collision_bodies,
-                     const std::optional<Eigen::Matrix4d>& tform) {
+tl::expected<void, std::string> Scene::setAttachment(const std::string& object_name,
+                                                     const std::string& parent_frame,
+                                                     Span<std::string> allowed_collision_bodies,
+                                                     const std::optional<Eigen::Matrix4d>& tform) {
   auto it = collision_geometry_map_.find(object_name);
   if (it == collision_geometry_map_.end()) {
     return tl::make_unexpected("Could not find object '" + object_name + "' to attach.");
@@ -1525,8 +1520,7 @@ tl::expected<void, std::string> Scene::setCollisions(const std::string& body1,
 }
 
 tl::expected<void, std::string>
-Scene::setCollisions(const std::vector<std::pair<std::string, std::string>>& pairs,
-                     const bool enable) {
+Scene::setCollisions(Span<std::pair<std::string, std::string>> pairs, const bool enable) {
   // Resolve every pair before modifying anything, so a bad name leaves the scene unchanged.
   const auto maybe_pairs = getCollisionPairs(pairs);
   if (!maybe_pairs) {
@@ -1538,7 +1532,7 @@ Scene::setCollisions(const std::vector<std::pair<std::string, std::string>>& pai
 }
 
 tl::expected<std::vector<pinocchio::CollisionPair>, std::string>
-Scene::getCollisionPairs(const std::vector<std::pair<std::string, std::string>>& pairs) {
+Scene::getCollisionPairs(Span<std::pair<std::string, std::string>> pairs) {
   std::vector<pinocchio::CollisionPair> collision_pairs;
   for (const auto& [body1, body2] : pairs) {
     const auto maybe_body1_collision_geom_ids = getCollisionGeometryIds(body1);
@@ -1562,8 +1556,7 @@ Scene::getCollisionPairs(const std::vector<std::pair<std::string, std::string>>&
   return collision_pairs;
 }
 
-void Scene::setCollisionPairs(const std::vector<pinocchio::CollisionPair>& pairs,
-                              const bool enable) {
+void Scene::setCollisionPairs(Span<pinocchio::CollisionPair> pairs, const bool enable) {
   for (const auto& pair : pairs) {
     if (enable) {
       collision_model_.addCollisionPair(pair);

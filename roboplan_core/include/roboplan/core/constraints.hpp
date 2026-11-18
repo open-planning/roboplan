@@ -262,7 +262,7 @@ public:
   /// configuration satisfies the (vacuous) constraint set and projection is a no-op.
   /// @param options A struct containing constraint projection options.
   ConstraintProjector(const std::shared_ptr<Scene> scene, const std::string& group_name,
-                      const std::vector<std::shared_ptr<Constraint>>& constraints,
+                      Span<std::shared_ptr<Constraint>> constraints,
                       const ConstraintProjectorOptions& options = ConstraintProjectorOptions());
 
   /// @brief Checks whether a configuration satisfies every constraint.

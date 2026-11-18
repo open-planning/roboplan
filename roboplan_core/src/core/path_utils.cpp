@@ -27,8 +27,7 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, const Eigen::V
   return frame_path;
 }
 
-std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
-                                              const std::vector<Eigen::VectorXd>& q_vec,
+std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene, Span<Eigen::VectorXd> q_vec,
                                               const std::string& frame_name) {
   std::vector<Eigen::Matrix4d> frame_path;
   frame_path.reserve(q_vec.size());
@@ -38,15 +37,14 @@ std::vector<Eigen::Matrix4d> computeFramePath(const Scene& scene,
   return frame_path;
 }
 
-std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>& positions,
-                                             size_t count, const Scene& scene,
-                                             const Eigen::VectorXi& q_indices) {
+std::vector<Eigen::VectorXd> resampleUniform(Span<Eigen::VectorXd> positions, size_t count,
+                                             const Scene& scene, const Eigen::VectorXi& q_indices) {
   // Slack guarding the divide-by-span when a segment has effectively zero length.
   constexpr double kEps = 1e-9;
 
   const size_t n = positions.size();
   if (n <= 2 || count < 2) {
-    return positions;
+    return {positions.begin(), positions.end()};
   }
 
   // configurationDistance / interpolate need full model configurations, but the input holds only
@@ -59,9 +57,9 @@ std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>&
   std::vector<double> cumulative(n, 0.0);
   q_lhs(q_indices) = positions.front();
   for (size_t i = 1; i < n; ++i) {
-    q_rhs(q_indices) = positions.at(i);
+    q_rhs(q_indices) = positions[i];
     cumulative.at(i) = cumulative.at(i - 1) + scene.configurationDistance(q_lhs, q_rhs);
-    q_lhs(q_indices) = positions.at(i);
+    q_lhs(q_indices) = positions[i];
   }
   const double total_length = cumulative.back();
   if (total_length <= 0.0) {
@@ -84,8 +82,8 @@ std::vector<Eigen::VectorXd> resampleUniform(const std::vector<Eigen::VectorXd>&
     }
     const double span = cumulative.at(segment + 1) - cumulative.at(segment);
     const double fraction = span > kEps ? (target - cumulative.at(segment)) / span : 0.0;
-    q_lhs(q_indices) = positions.at(segment);
-    q_rhs(q_indices) = positions.at(segment + 1);
+    q_lhs(q_indices) = positions[segment];
+    q_rhs(q_indices) = positions[segment + 1];
     result.push_back(scene.interpolate(q_lhs, q_rhs, fraction)(q_indices).eval());
   }
   // Pin the exact endpoints.
@@ -205,7 +203,7 @@ PathShortcutter::PathShortcutter(const std::shared_ptr<Scene> scene,
 }
 
 JointPath PathShortcutter::shortcut(const JointPath& path,
-                                    const std::vector<std::shared_ptr<Constraint>>& constraints) {
+                                    Span<std::shared_ptr<Constraint>> constraints) {
 
   const double max_step_size = options_.max_step_size;
   const unsigned int max_convergence_iters = options_.max_convergence_iters;
