@@ -687,7 +687,8 @@ public:
   ///   4. Continuous joints take a single angle, and revolute and prismatic positions must be
   ///   within the joint limits.
   ///   5. Groups containing planar or floating joints are not supported.
-  /// @param group_name The name of the joint group the state belongs to.
+  /// @param group_name The name of the joint group the state belongs to. The empty-string all-joint
+  /// group is supported.
   /// @param state_name The name of the state to add.
   /// @param positions A map from joint names to joint positions.
   /// @return Void if successful, else a string describing the error.

@@ -1074,6 +1074,28 @@ TEST_F(RoboPlanSceneTest, TestNamedJointStates) {
   EXPECT_FALSE(scene->getNamedJointState("arm", "home").has_value());
 }
 
+TEST_F(RoboPlanSceneTest, TestNamedJointStatesDefaultGroup) {
+  // The empty group name refers to the whole model, so every joint must be specified.
+  std::map<std::string, double> positions = {
+      {"shoulder_pan_joint", 0.1}, {"shoulder_lift_joint", 0.2}, {"elbow_joint", 0.3},
+      {"wrist_1_joint", 0.4},      {"wrist_2_joint", 0.5},       {"wrist_3_joint", 0.6}};
+  const auto added = scene->addNamedJointState("", "home", positions);
+  ASSERT_TRUE(added.has_value()) << added.error();
+
+  const auto maybe_q = scene->getNamedJointStatePositions("", "home");
+  ASSERT_TRUE(maybe_q.has_value()) << maybe_q.error();
+  Eigen::VectorXd q_expected(6);
+  q_expected << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
+  EXPECT_TRUE(maybe_q->isApprox(q_expected, kTolerance));
+  EXPECT_THAT(scene->getNamedJointStateNames()[""], ContainerEq(std::vector<std::string>{"home"}));
+
+  positions.erase("elbow_joint");
+  EXPECT_FALSE(scene->addNamedJointState("", "partial", positions).has_value());
+
+  EXPECT_TRUE(scene->removeNamedJointState("", "home").has_value());
+  EXPECT_FALSE(scene->getNamedJointState("", "home").has_value());
+}
+
 TEST_F(RoboPlanSceneTest, TestNamedJointStateErrors) {
   std::map<std::string, double> positions = {
       {"shoulder_pan_joint", 0.0}, {"shoulder_lift_joint", 0.0}, {"elbow_joint", 0.0},
