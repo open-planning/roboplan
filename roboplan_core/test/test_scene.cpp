@@ -663,6 +663,7 @@ TEST_F(RoboPlanSceneTest, TestCloneIsIndependent) {
 
   auto clone = scene->clone("clone");
   EXPECT_EQ(clone->getName(), "clone");
+  EXPECT_EQ(scene->clone()->getName(), "test_scene");
   EXPECT_FALSE(clone->hasCollisions(q));  // Disabled pairs are carried over.
   EXPECT_THAT(clone->randomPositions(), ContainerEq(scene->randomPositions()));
 

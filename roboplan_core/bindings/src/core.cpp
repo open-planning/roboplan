@@ -225,12 +225,13 @@ void init_core_scene(nanobind::module_& m) {
            "description"_a)
       .def(
           "clone",
-          [](const Scene& self, const std::string& name) {
+          [](const Scene& self, const std::optional<std::string>& name) {
             return std::shared_ptr<Scene>(self.clone(name));
           },
-          "name"_a,
-          "Creates an independent copy of this scene with a new name. Collision geometry shapes "
-          "(meshes, octrees) are shared with the original; the RNG state is copied.")
+          "name"_a = nanobind::none(),
+          "Creates an independent copy of this scene, optionally with a new name. Collision "
+          "geometry shapes (meshes, octrees) are shared with the original; the RNG state is "
+          "copied.")
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
            "Gets the scene's actuated joint names (non-mimic joints only).")

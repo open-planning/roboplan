@@ -113,9 +113,9 @@ public:
   /// @details Copies the scene data. Collision and per-query information like Pinocchio
   /// data and the broadphase manager is rebuilt for the new scene. Collision geometry
   /// shapes (meshes, octrees) are shared between the two scenes. The clone's RNG is not re-seeded.
-  /// @param name The name of the new scene.
+  /// @param name The name of the new scene. If not set, the clone keeps this scene's name.
   /// @return The cloned scene.
-  std::unique_ptr<Scene> clone(const std::string& name) const;
+  std::unique_ptr<Scene> clone(const std::optional<std::string>& name = std::nullopt) const;
 
   /// @brief Gets the scene's name.
   /// @return The scene name.

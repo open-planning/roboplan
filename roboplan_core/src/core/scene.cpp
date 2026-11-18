@@ -185,10 +185,12 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
-std::unique_ptr<Scene> Scene::clone(const std::string& name) const {
+std::unique_ptr<Scene> Scene::clone(const std::optional<std::string>& name) const {
   // can't use make_unique here because it doesn't have access to private members...
   auto scene = std::unique_ptr<Scene>(new Scene(*this));
-  scene->name_ = name;
+  if (name) {
+    scene->name_ = *name;
+  }
   scene->refreshCollisionData();
   return scene;
 }

@@ -323,6 +323,7 @@ def test_clone(test_scene: Scene) -> None:
 
     clone = test_scene.clone("clone")
     assert clone.getName() == "clone"
+    assert test_scene.clone().getName() == test_scene.getName()
     assert clone.hasCollisions(q)
 
     # Changes to the clone don't affect the original.
