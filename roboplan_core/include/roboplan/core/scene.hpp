@@ -684,9 +684,8 @@ public:
   ///   1. Every non-mimic joint in the group must be given a position.
   ///   2. Every joint must belong to the group.
   ///   3. Positions given for mimic joints are ignored.
-  ///   4. Continuous joints take a single angle, and revolute and prismatic positions must be
-  ///   within the joint limits.
-  ///   5. Groups containing planar or floating joints are not supported.
+  ///   4. Each joint takes one value per velocity DOF. Positions must be within the joint limits.
+  ///   5. Groups containing floating joints are not supported.
   /// @param group_name The name of the joint group the state belongs to. The empty-string all-joint
   /// group is supported.
   /// @param state_name The name of the state to add.
@@ -694,7 +693,7 @@ public:
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   addNamedJointState(const std::string& group_name, const std::string& state_name,
-                     const std::map<std::string, double>& positions);
+                     const std::map<std::string, std::vector<double>>& positions);
 
   /// @brief Removes an existing named joint state from the group named by `group_name`.
   /// @param group_name the name of the group to remove the joint state from.

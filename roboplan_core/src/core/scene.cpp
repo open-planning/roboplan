@@ -903,7 +903,7 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
     const std::string state_label =
         "group_state '" + std::string(state_name) + "' for group '" + group_name + "'";
 
-    std::map<std::string, double> positions;
+    std::map<std::string, std::vector<double>> positions;
     std::string skip_reason;
     for (const tinyxml2::XMLElement* joint = group_state->FirstChildElement("joint");
          joint != nullptr; joint = joint->NextSiblingElement("joint")) {
@@ -920,8 +920,6 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
         continue;
       }
 
-      // Multi-DOF joints have a space-separated list of values. tinyxml2 would only read the
-      // first one, so count them explicitly.
       std::istringstream value_stream(value_str);
       std::vector<double> values;
       double value = 0.0;
@@ -933,13 +931,7 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
             "joint '" + std::string(joint_name) + "' has a non-numeric value '" + value_str + "'";
         break;
       }
-      if (values.size() != 1) {
-        skip_reason = "joint '" + std::string(joint_name) + "' has " +
-                      std::to_string(values.size()) +
-                      " values, but only single-value (1-DOF) joints are supported";
-        break;
-      }
-      positions[joint_name] = values.front();
+      positions[joint_name] = std::move(values);
     }
 
     if (skip_reason.empty()) {
@@ -1598,7 +1590,7 @@ tl::expected<void, std::string> Scene::allowAdjacentLinkCollisions() {
 
 tl::expected<void, std::string>
 Scene::addNamedJointState(const std::string& group_name, const std::string& state_name,
-                          const std::map<std::string, double>& positions) {
+                          const std::map<std::string, std::vector<double>>& positions) {
   const auto maybe_group_info = getJointGroupInfo(group_name);
   if (!maybe_group_info) {
     return tl::make_unexpected("Failed to add named joint state '" + state_name +
@@ -1636,34 +1628,43 @@ Scene::addNamedJointState(const std::string& group_name, const std::string& stat
     case JointType::REVOLUTE:
     case JointType::PRISMATIC:
     case JointType::CONTINUOUS:
+    case JointType::PLANAR:
       break;
     default:
       return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
                                  joint_name +
-                                 "' has multiple degrees of freedom, which named joint states do "
-                                 "not support.");
+                                 "' is a floating joint, which named joint states do not support.");
     }
 
     const auto it = positions.find(joint_name);
     if (it == positions.end()) {
       missing_joint_names.push_back(joint_name);
-      ++collapsed_idx;
+      collapsed_idx += static_cast<Eigen::Index>(joint_info.num_velocity_dofs);
       continue;
     }
 
-    // Continuous joints have unbounded position limits, so this only bounds revolute and prismatic
-    // joints.
-    const double position = it->second;
-    if (!std::isfinite(position) || position < joint_info.limits.min_position[0] ||
-        position > joint_info.limits.max_position[0]) {
-      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Position " +
-                                 std::to_string(position) + " for joint '" + joint_name +
-                                 "' is outside its limits [" +
-                                 std::to_string(joint_info.limits.min_position[0]) + ", " +
-                                 std::to_string(joint_info.limits.max_position[0]) + "].");
+    const auto& values = it->second;
+    if (values.size() != joint_info.num_velocity_dofs) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
+                                 joint_name + "' expects " +
+                                 std::to_string(joint_info.num_velocity_dofs) + " values, got " +
+                                 std::to_string(values.size()) + ".");
     }
-    q_collapsed(collapsed_idx) = position;
-    ++collapsed_idx;
+
+    for (size_t dof = 0; dof < values.size(); ++dof) {
+      const double position = values[dof];
+      const double min_position = joint_info.limits.min_position[dof];
+      const double max_position = joint_info.limits.max_position[dof];
+      if (!std::isfinite(position) || (!isFreeRotatingDof(joint_info.type, static_cast<int>(dof)) &&
+                                       (position < min_position || position > max_position))) {
+        return tl::make_unexpected(
+            "Failed to add named joint state '" + state_name + "': Position " +
+            std::to_string(position) + " for joint '" + joint_name + "' is outside its limits [" +
+            std::to_string(min_position) + ", " + std::to_string(max_position) + "].");
+      }
+      q_collapsed(collapsed_idx) = position;
+      ++collapsed_idx;
+    }
   }
 
   if (!missing_joint_names.empty()) {

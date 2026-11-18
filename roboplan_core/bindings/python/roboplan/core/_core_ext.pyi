@@ -560,7 +560,7 @@ class Scene:
     def removeGroup(self, name: str) -> None:
         """Removes a joint group by name."""
 
-    def addNamedJointState(self, group_name: str, state_name: str, positions: Mapping[str, float]) -> None:
+    def addNamedJointState(self, group_name: str, state_name: str, positions: Mapping[str, Sequence[float]]) -> None:
         """Adds a named joint state to a joint group."""
 
     def removeNamedJointState(self, group_name: str, state_name: str) -> None:
