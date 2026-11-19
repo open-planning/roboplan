@@ -700,6 +700,28 @@ TEST_F(RoboPlanSceneTest, TestAddGeometryWithUnknownAllowedBodyLeavesSceneUnchan
   EXPECT_TRUE(readd_result.has_value()) << readd_result.error();
 }
 
+TEST_F(RoboPlanSceneTest, TestAddGeometryWithFrameNameIsRejected) {
+  const auto& collision_model = scene->getCollisionModel();
+  const auto num_geoms = collision_model.ngeoms;
+  const auto num_pairs = collision_model.collisionPairs.size();
+  const auto forearm_ids = scene->getCollisionGeometryIds("forearm_link").value();
+  ASSERT_FALSE(forearm_ids.empty());
+
+  // An object named like a robot frame would shadow that frame in getCollisionGeometryIds, and so
+  // in allowed_collision_bodies and setCollisions.
+  const auto result =
+      scene->addSphereGeometry("forearm_link", "universe", Sphere(0.1), Eigen::Matrix4d::Identity(),
+                               Eigen::Vector4d(0.5, 0.5, 0.5, 0.5));
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "Object 'forearm_link' has the same name as a frame in the model. "
+                            "Cannot add.");
+  EXPECT_EQ(collision_model.ngeoms, num_geoms);
+  EXPECT_EQ(collision_model.collisionPairs.size(), num_pairs);
+
+  // The frame name still resolves to the robot's own geometry.
+  EXPECT_THAT(scene->getCollisionGeometryIds("forearm_link").value(), ContainerEq(forearm_ids));
+}
+
 TEST_F(RoboPlanSceneTest, TestDetachKeepsThePairsExcludedOnAdd) {
   addTableAndCube(*scene, {"table"});
 

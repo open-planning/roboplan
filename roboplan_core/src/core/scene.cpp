@@ -1314,6 +1314,10 @@ Scene::addGeometry(const pinocchio::GeometryObject& geom_obj,
     return tl::make_unexpected("Object '" + geom_obj.name +
                                "' already exists in the scene. Cannot add.");
   }
+  if (frame_map_.contains(geom_obj.name)) {
+    return tl::make_unexpected("Object '" + geom_obj.name +
+                               "' has the same name as a frame in the model. Cannot add.");
+  }
 
   // Resolve the allowed bodies before touching the model, so that an error leaves it unchanged.
   std::unordered_set<pinocchio::GeomIndex> allowed_ids;
