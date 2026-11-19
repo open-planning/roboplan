@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -103,10 +104,18 @@ public:
   // Non-copyable and non-movable: `broadphase_manager_` caches raw pointers to this Scene's
   // `model_` and `collision_model_data_`, so a copy or move would collide against the *original*
   // Scene's data. Share a Scene with `std::shared_ptr<Scene>` and give each thread a SceneContext.
-  Scene(const Scene&) = delete;
+  // See `clone` for a way of deep-copying the scene.
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&&) = delete;
   Scene& operator=(Scene&&) = delete;
+
+  /// @brief Creates an independent copy of this scene with a new name.
+  /// @details Copies the scene data. Collision and per-query information like Pinocchio
+  /// data and the broadphase manager is rebuilt for the new scene. Collision geometry
+  /// shapes (meshes, octrees) are shared between the two scenes. The clone's RNG is not re-seeded.
+  /// @param name The name of the new scene. If not set, the clone keeps this scene's name.
+  /// @return The cloned scene.
+  std::unique_ptr<Scene> clone(const std::optional<std::string>& name = std::nullopt) const;
 
   /// @brief Gets the scene's name.
   /// @return The scene name.
@@ -735,6 +744,10 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
+  /// @brief Private copy-constructor to support the clone function.
+  /// @param other Scene to clone from.
+  Scene(const Scene& other) = default;
+
   void applyMimicJointLimits();
 
   /// @brief Builds a geometry object attached to a named frame.

@@ -185,6 +185,16 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
 }
 
+std::unique_ptr<Scene> Scene::clone(const std::optional<std::string>& name) const {
+  // can't use make_unique here because it doesn't have access to private members...
+  auto scene = std::unique_ptr<Scene>(new Scene(*this));
+  if (name) {
+    scene->name_ = *name;
+  }
+  scene->refreshCollisionData();
+  return scene;
+}
+
 void Scene::applyMimicJointLimits() {
   const auto num_mimics = model_.mimicked_joints.size();
   for (size_t idx = 0; idx < num_mimics; ++idx) {

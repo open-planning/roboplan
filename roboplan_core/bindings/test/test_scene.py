@@ -310,6 +310,27 @@ def test_set_collisions(test_scene: Scene) -> None:
     test_scene.setCollisions("test_sphere", "forearm_link", True)
     assert test_scene.hasCollisions(q)
 
+
+def test_clone(test_scene: Scene) -> None:
+    q = np.zeros(6)
+    test_scene.addSphereGeometry(
+        "test_sphere",
+        "universe",
+        Sphere(0.1),
+        np.array([[1, 0, 0, 0.6], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+
+    clone = test_scene.clone("clone")
+    assert clone.getName() == "clone"
+    assert test_scene.clone().getName() == test_scene.getName()
+    assert clone.hasCollisions(q)
+
+    # Changes to the clone don't affect the original.
+    clone.removeGeometry("test_sphere")
+    assert not clone.hasCollisions(q)
+    assert test_scene.hasCollisions(q)
+
     # An unknown body name should raise.
     with pytest.raises(RuntimeError) as exc_info:
         test_scene.setCollisions("nonexistent_link", "test_sphere", True)
