@@ -1342,7 +1342,7 @@ Scene::addGeometry(const pinocchio::GeometryObject& geom_obj,
 
 tl::expected<void, std::string> Scene::updateGeometryPlacement(const std::string& name,
                                                                const std::string& parent_frame,
-                                                               Eigen::Matrix4d& tform) {
+                                                               const Eigen::Matrix4d& tform) {
   auto it = collision_geometry_map_.find(name);
   if (it == collision_geometry_map_.end()) {
     return tl::make_unexpected("Could not find object '" + name + "' to update.");
