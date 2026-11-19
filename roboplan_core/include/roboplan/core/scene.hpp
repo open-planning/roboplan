@@ -506,7 +506,7 @@ public:
   getJerkLimitVectors(const std::string& group_name = "") const;
 
   /// @brief Adds a box geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param box The box geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -520,7 +520,7 @@ public:
                  const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a sphere geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param sphere The sphere geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -534,7 +534,7 @@ public:
                     const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a cylinder geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param cylinder The cylinder geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -549,7 +549,7 @@ public:
                       const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a triangle mesh geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param mesh The mesh geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -563,7 +563,7 @@ public:
                   const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds an octree geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param octree The octree geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
@@ -751,7 +751,7 @@ private:
   void applyMimicJointLimits();
 
   /// @brief Builds a geometry object attached to a named frame.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param geom_ptr The collision geometry shape.
   /// @param tform The transform between the parent frame and the geometry.
