@@ -2,6 +2,7 @@
 #include <stdexcept>
 
 #include <atomic>
+#include <cstddef>
 #include <thread>
 #include <vector>
 
@@ -35,6 +36,38 @@ protected:
       throw std::runtime_error(imported.error());
     }
     scene->setRngSeed(7);
+  }
+
+  /// @brief Returns the signed distance of a collision pair at `q`.
+  static double pairDistance(const SceneContext& context, const Eigen::VectorXd& q,
+                             std::size_t pair_index) {
+    context.computeDistances(q);
+    return context.getCollisionData().distanceResults.at(pair_index).min_distance;
+  }
+
+  /// @brief Returns computeDistanceJacobian() for a collision pair at `q`.
+  static Eigen::RowVectorXd distanceJacobian(const SceneContext& context, const Eigen::VectorXd& q,
+                                             std::size_t pair_index) {
+    context.computeDistances(q);
+    context.computeJointJacobians(q);
+    Eigen::RowVectorXd jacobian(context.getModel().nv);
+    context.computeDistanceJacobian(pair_index, jacobian);
+    return jacobian;
+  }
+
+  /// @brief Returns the central finite-difference Jacobian of a collision pair's signed distance.
+  Eigen::RowVectorXd finiteDifferenceJacobian(const SceneContext& context, const Eigen::VectorXd& q,
+                                              std::size_t pair_index) {
+    constexpr double kStep = 1.0e-6;
+    const auto nv = context.getModel().nv;
+    Eigen::RowVectorXd jacobian(nv);
+    for (int i = 0; i < nv; ++i) {
+      const Eigen::VectorXd step = kStep * Eigen::VectorXd::Unit(nv, i);
+      const double d_plus = pairDistance(context, scene->integrate(q, step), pair_index);
+      const double d_minus = pairDistance(context, scene->integrate(q, -step), pair_index);
+      jacobian[i] = (d_plus - d_minus) / (2.0 * kStep);
+    }
+    return jacobian;
   }
 
   /// @brief A fixed set of configurations for the workers to evaluate.
@@ -108,6 +141,18 @@ TEST_F(RoboPlanSceneContextTest, DebugCollisionsEnumerateEveryPair) {
   // does.
   EXPECT_EQ(context_output, scene_output);
   EXPECT_NE(context_output.find("Collision detected between"), std::string::npos);
+
+  // The same pairs are available without printing, named by what setCollisions accepts.
+  const auto pairs = scene->getCollidingPairs(colliding);
+  ASSERT_FALSE(pairs.empty());
+  EXPECT_EQ(pairs, context.getCollidingPairs(colliding));
+  for (const auto& pair : pairs) {
+    EXPECT_NE(scene_output.find(collidingPairToString(pair)), std::string::npos)
+        << collidingPairToString(pair);
+  }
+  ASSERT_TRUE(scene->setCollisions(pairs, false).has_value());
+  EXPECT_FALSE(scene->hasCollisions(colliding));
+  EXPECT_TRUE(scene->getCollidingPairs(colliding).empty());
 }
 
 TEST_F(RoboPlanSceneContextTest, ConcurrentQueriesMatchSerialResults) {
@@ -284,6 +329,101 @@ TEST_F(RoboPlanSceneContextTest, RandomCollisionFreePositionsForJointSubset) {
   SceneContext enclosed_context(*scene);
   EXPECT_FALSE(
       enclosed_context.randomCollisionFreePositions(joint_names, q_reference, 10).has_value());
+}
+
+TEST_F(RoboPlanSceneContextTest, DistanceJacobianMatchesFiniteDifferences) {
+  const SceneContext context(*scene);
+  const Eigen::VectorXd q{{0.5, -1.0, 1.0, 0.3, -0.4, 0.2}};
+  ASSERT_FALSE(context.hasCollisions(q));
+
+  const auto num_pairs = context.getCollisionModel().collisionPairs.size();
+  int num_checked = 0;
+  for (std::size_t k = 0; k < num_pairs; ++k) {
+    // Skip near-contact pairs, where the closest feature may switch within the FD step.
+    if (pairDistance(context, q, k) < 0.01) {
+      continue;
+    }
+    const Eigen::RowVectorXd analytic = distanceJacobian(context, q, k);
+    const Eigen::RowVectorXd numeric = finiteDifferenceJacobian(context, q, k);
+    EXPECT_TRUE(analytic.isApprox(numeric, 1.0e-4) || (analytic - numeric).norm() < 1.0e-6)
+        << "pair " << k << "\n analytic: " << analytic << "\n numeric:  " << numeric;
+    ++num_checked;
+  }
+  EXPECT_GE(num_checked, 3);
+}
+
+TEST_F(RoboPlanSceneContextTest, DistanceJacobianIncreasesDistanceUnderPenetration) {
+  const Eigen::VectorXd q{{0.5, -1.0, 1.0, 0.3, -0.4, 0.2}};
+  const Eigen::Vector4d color(1.0, 0.0, 0.0, 1.0);
+  ASSERT_TRUE(scene
+                  ->addBoxGeometry("tool_box", "tool0", Box(0.05, 0.05, 0.05),
+                                   Eigen::Matrix4d::Identity(), color)
+                  .has_value());
+  // Sphere overlapping the box by 1.5 cm.
+  Eigen::Matrix4d world_T_sphere = Eigen::Matrix4d::Identity();
+  world_T_sphere.topRightCorner<3, 1>() =
+      (scene->forwardKinematics(q, "tool0") * Eigen::Vector4d(0.06, 0.0, 0.0, 1.0)).head<3>();
+  ASSERT_TRUE(scene->addSphereGeometry("obstacle", "universe", Sphere(0.05), world_T_sphere, color)
+                  .has_value());
+
+  const SceneContext context(*scene);
+  const auto& collision_model = context.getCollisionModel();
+  const auto box_id = collision_model.getGeometryId("tool_box");
+  const auto sphere_id = collision_model.getGeometryId("obstacle");
+  std::size_t pair_index = collision_model.collisionPairs.size();
+  for (std::size_t k = 0; k < collision_model.collisionPairs.size(); ++k) {
+    const auto& pair = collision_model.collisionPairs[k];
+    if ((pair.first == box_id && pair.second == sphere_id) ||
+        (pair.first == sphere_id && pair.second == box_id)) {
+      pair_index = k;
+    }
+  }
+  ASSERT_LT(pair_index, collision_model.collisionPairs.size());
+
+  const double distance = pairDistance(context, q, pair_index);
+  ASSERT_NEAR(distance, -0.015, 1.0e-6);
+
+  const Eigen::RowVectorXd gradient = distanceJacobian(context, q, pair_index);
+  ASSERT_GT(gradient.norm(), 0.0);
+  EXPECT_TRUE(gradient.isApprox(finiteDifferenceJacobian(context, q, pair_index), 1.0e-3));
+
+  // Stepping along the gradient reduces penetration.
+  const Eigen::VectorXd step = 1.0e-3 * gradient.transpose() / gradient.norm();
+  EXPECT_GT(pairDistance(context, scene->integrate(q, step), pair_index), distance);
+  EXPECT_LT(pairDistance(context, scene->integrate(q, -step), pair_index), distance);
+}
+
+TEST_F(RoboPlanSceneContextTest, DistanceJacobianIsZeroForCulledPairs) {
+  const SceneContext context(*scene);
+  const Eigen::VectorXd q{{0.5, -1.0, 1.0, 0.3, -0.4, 0.2}};
+  context.computeDistances(q, /*broadphase_margin=*/1.0e-3);
+  context.computeJointJacobians(q);
+
+  const auto& results = context.getCollisionData().distanceResults;
+  Eigen::RowVectorXd jacobian(context.getModel().nv);
+  int num_culled = 0;
+  for (std::size_t k = 0; k < results.size(); ++k) {
+    if (results[k].nearest_points[0].isZero(0.0) && results[k].nearest_points[1].isZero(0.0)) {
+      context.computeDistanceJacobian(k, jacobian);
+      EXPECT_TRUE(jacobian.isZero(0.0)) << "pair " << k;
+      ++num_culled;
+    }
+  }
+  EXPECT_GT(num_culled, 0);
+}
+
+TEST_F(RoboPlanSceneContextTest, DistanceJacobianRejectsInvalidArguments) {
+  const SceneContext context(*scene);
+  const auto q = scene->randomPositions();
+  context.computeDistances(q);
+  context.computeJointJacobians(q);
+
+  Eigen::RowVectorXd jacobian(context.getModel().nv);
+  EXPECT_THROW(
+      context.computeDistanceJacobian(context.getCollisionModel().collisionPairs.size(), jacobian),
+      std::invalid_argument);
+  Eigen::RowVectorXd wrong_size(context.getModel().nv + 1);
+  EXPECT_THROW(context.computeDistanceJacobian(0, wrong_size), std::invalid_argument);
 }
 
 }  // namespace roboplan

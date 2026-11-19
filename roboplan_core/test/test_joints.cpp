@@ -188,6 +188,35 @@ TEST(RoboPlanJointGroupTest, AddGroupFromJointsChainAndGroups) {
   EXPECT_FALSE(scene.addGroupFromGroups("bad", {"missing_group"}).has_value());
 }
 
+TEST(RoboPlanJointGroupTest, RemoveGroup) {
+  Scene scene("groups_scene", loadUrdfSceneDescriptionFromXml(kUrdf));
+
+  ASSERT_TRUE(scene.addGroup("arm", {"revolute_joint", "mimic_joint"}).has_value());
+  ASSERT_TRUE(scene.addGroupFromGroups("arm_copy", {"arm"}).has_value());
+
+  // Removing the group works, and it can no longer be looked up
+  const auto removed = scene.removeGroup("arm");
+  ASSERT_TRUE(removed.has_value()) << removed.error();
+  const auto lookup = scene.getJointGroupInfo("arm");
+  ASSERT_FALSE(lookup.has_value());
+  EXPECT_EQ(lookup.error(), "Group name 'arm' not found in joint_group_info_map_.");
+
+  // A group built from the removed group is not affected.
+  const auto copy_info = scene.getJointGroupInfo("arm_copy").value();
+  EXPECT_THAT(copy_info.joint_names, ::testing::ElementsAre("revolute_joint", "mimic_joint"));
+
+  // Removing a missing group is an error
+  const auto missing = scene.removeGroup("arm");
+  ASSERT_FALSE(missing.has_value());
+  EXPECT_EQ(missing.error(), "Group name 'arm' not found in joint_group_info_map_.");
+
+  // Removing the default group is an error, and the default group is kept
+  const auto default_group = scene.removeGroup("");
+  ASSERT_FALSE(default_group.has_value());
+  EXPECT_EQ(default_group.error(), "Cannot remove the default whole-model group.");
+  EXPECT_TRUE(scene.getJointGroupInfo("").has_value());
+}
+
 TEST_F(RoboPlanJointTest, CurrentJointPositionsWithMimics) {
   Eigen::VectorXd q(3);
   q << 1.0, 0.0, 0.5;

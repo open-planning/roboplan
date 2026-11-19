@@ -54,7 +54,7 @@ def model_name(request):
 @pytest.fixture(scope="session")
 def cartesian_benchmark_setup(model_name):
     model_data = get_model_data()[model_name]
-    scene = build_scene(model_name)
+    scene = build_scene(model_name, with_obstacles=False)
     scene.setRngSeed(1234)
 
     q0_full = get_home_configuration(scene, model_data)

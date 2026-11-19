@@ -35,7 +35,7 @@ config = { extra-args = ["-DBUILD_PYTHON_BINDINGS=ON", "-DGENERATE_PYTHON_STUBS=
 # Conda package "host dependencies"; dependencies required at both build-time and run-time
 [tool.pixi.package.host-dependencies]
 roboplan-core = { path = "../roboplan_core" }
-libtoppra  = ">=0.6.10,<0.7"
+libtoppra  = ">=0.6.11,<0.7"
 python = { workspace = true }
 nanobind = { workspace = true }
 gtest = { workspace = true }

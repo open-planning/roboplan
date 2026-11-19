@@ -38,12 +38,13 @@ void init_optimal_ik(nanobind::module_& m) {
               "Singular values of the weighted Jacobian below this are damped (0 = off).");
 
   nanobind::class_<FrameTaskOptions>(m, "FrameTaskOptions", "Parameters for FrameTask.")
-      .def(nanobind::init<double, double, double, double, double, double, double, double, int>(),
+      .def(nanobind::init<double, double, double, double, double, double, double, double, int,
+                          double>(),
            "position_cost"_a = 1.0, "orientation_cost"_a = 1.0, "task_gain"_a = 1.0,
            "lm_damping"_a = 0.0, "position_saturation"_a = std::numeric_limits<double>::infinity(),
            "orientation_saturation"_a = std::numeric_limits<double>::infinity(),
            "position_tolerance"_a = 0.001, "orientation_tolerance"_a = 0.001, "priority"_a = 1,
-           "Constructor with custom parameters.")
+           "singularity_threshold"_a = 0.0, "Constructor with custom parameters.")
       .def_rw("position_cost", &FrameTaskOptions::position_cost, "Position cost weight.")
       .def_rw("orientation_cost", &FrameTaskOptions::orientation_cost, "Orientation cost weight.")
       .def_rw("task_gain", &FrameTaskOptions::task_gain, "Task gain for low-pass filtering.")
@@ -60,7 +61,11 @@ void init_optimal_ik(nanobind::module_& m) {
               "as reached.")
       .def_rw("priority", &FrameTaskOptions::priority,
               "Priority level (1 = highest). Tasks at higher priority numbers are projected "
-              "into the nullspace of lower priority numbers. Must be >= 1.");
+              "into the nullspace of lower priority numbers. Must be >= 1.")
+      .def_rw("singularity_threshold", &FrameTaskOptions::singularity_threshold,
+              "Singular values of the weighted Jacobian W*J below this are damped, which bounds "
+              "the step in near-singular directions. Lower priority levels may use the damped "
+              "directions at a soft cost. 0 disables.");
 
   nanobind::class_<FrameTask, Task>(m, "FrameTask",
                                     "Task to reach a target pose for a specified frame.")

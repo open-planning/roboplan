@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import enum
 import os
 from typing import Annotated, overload
@@ -238,6 +238,36 @@ class JointGroupInfo:
 
     def __repr__(self) -> str: ...
 
+class NamedJointState:
+    """
+    A specific joint state with a meaningful name, associated with a specific joint group.
+    """
+
+    def __init__(self) -> None: ...
+
+    @property
+    def state_name(self) -> str:
+        """The name of this state."""
+
+    @state_name.setter
+    def state_name(self, arg: str, /) -> None: ...
+
+    @property
+    def group_name(self) -> str:
+        """The name of the group this state is scoped by."""
+
+    @group_name.setter
+    def group_name(self, arg: str, /) -> None: ...
+
+    @property
+    def positions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        The joint group positions in Pinocchio layout, ordered like the group's q_indices, with continuous joints expanded to [cos, sin].
+        """
+
+    @positions.setter
+    def positions(self, arg: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], /) -> None: ...
+
 class JointPath:
     """Contains a path of joint configurations."""
 
@@ -431,6 +461,11 @@ class Scene:
 
     def __init__(self, name: str, description: PinocchioSceneDescription) -> None: ...
 
+    def clone(self, name: str | None = None) -> Scene:
+        """
+        Creates an independent copy of this scene, optionally with a new name. Collision geometry shapes (meshes, octrees) are shared with the original; the RNG state is copied.
+        """
+
     def getName(self) -> str:
         """Gets the scene's name."""
 
@@ -464,6 +499,11 @@ class Scene:
 
     def hasCollisions(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], debug: bool = False) -> bool:
         """Checks collisions at specified joint positions."""
+
+    def getCollidingPairs(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> list[tuple[str, str]]:
+        """
+        Finds every colliding body pair at specified joint positions, as (body1, body2) tuples named as setCollisions() accepts them. The two names of a pair are in sorted order and the list is sorted without duplicates.
+        """
 
     def isValidConfiguration(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> bool:
         """
@@ -524,6 +564,28 @@ class Scene:
     def addGroup(self, name: str, joint_names: Sequence[str], extra_link_names: Sequence[str] = []) -> None:
         """Adds a joint group from an explicit list of joints."""
 
+    def removeGroup(self, name: str) -> None:
+        """Removes a joint group by name."""
+
+    def addNamedJointState(self, group_name: str, state_name: str, positions: Mapping[str, Sequence[float]]) -> None:
+        """Adds a named joint state to a joint group."""
+
+    def removeNamedJointState(self, group_name: str, state_name: str) -> None:
+        """Removes a named joint state from a joint group."""
+
+    def getNamedJointState(self, group_name: str, state_name: str) -> NamedJointState:
+        """Returns a named joint state."""
+
+    def getNamedJointStateNames(self) -> dict[str, list[str]]:
+        """
+        Returns a map from group names to the names of their named joint states.
+        """
+
+    def getNamedJointStatePositions(self, group_name: str, state_name: str, q_reference: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')] | None = None) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Returns the full joint positions (model.nq) for a named joint state, with the joints outside its group taken from q_reference, or the current positions if not given.
+        """
+
     def getCurrentJointPositions(self) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
         """Get the current Pinocchio configuration vector (model.nq)."""
 
@@ -553,19 +615,19 @@ class Scene:
     def getJerkLimitVectors(self, group_name: str = '') -> tuple[Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]]:
         """Get the joint jerk limit vectors for a specified group."""
 
-    def addBoxGeometry(self, name: str, parent_frame: str, box: Box, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+    def addBoxGeometry(self, name: str, parent_frame: str, box: Box, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')], allowed_collision_bodies: Sequence[str] = []) -> None:
         """Adds a box geometry to the scene."""
 
-    def addSphereGeometry(self, name: str, parent_frame: str, sphere: Sphere, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+    def addSphereGeometry(self, name: str, parent_frame: str, sphere: Sphere, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')], allowed_collision_bodies: Sequence[str] = []) -> None:
         """Adds a sphere geometry to the scene."""
 
-    def addCylinderGeometry(self, name: str, parent_frame: str, cylinder: Cylinder, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+    def addCylinderGeometry(self, name: str, parent_frame: str, cylinder: Cylinder, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')], allowed_collision_bodies: Sequence[str] = []) -> None:
         """Adds a cylinder geometry to the scene."""
 
-    def addMeshGeometry(self, name: str, parent_frame: str, mesh: Mesh, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+    def addMeshGeometry(self, name: str, parent_frame: str, mesh: Mesh, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')], allowed_collision_bodies: Sequence[str] = []) -> None:
         """Adds a triangle mesh geometry to the scene."""
 
-    def addOcTreeGeometry(self, name: str, parent_frame: str, octree: OcTree, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')]) -> None:
+    def addOcTreeGeometry(self, name: str, parent_frame: str, octree: OcTree, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')], color: Annotated[NDArray[numpy.float64], dict(shape=(4), order='C')], allowed_collision_bodies: Sequence[str] = []) -> None:
         """Adds an octree geometry to the scene."""
 
     def updateGeometryPlacement(self, name: str, parent_frame: str, tform: Annotated[NDArray[numpy.float64], dict(shape=(4, 4), order='F')]) -> None:
@@ -647,6 +709,11 @@ class SceneContext:
 
     def computeJointJacobians(self, q: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]) -> None:
         """Computes the joint Jacobians for every joint."""
+
+    def computeDistanceJacobian(self, pair_index: int) -> Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')]:
+        """
+        Computes the Jacobian of a collision pair's signed distance w.r.t. the joint velocities.
+        """
 
     def setRngSeed(self, seed: int) -> None:
         """Sets the seed of this context's random number generator."""

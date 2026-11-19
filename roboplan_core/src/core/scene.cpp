@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <numbers>
 #include <numeric>
 #include <optional>
@@ -11,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -27,6 +29,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <roboplan/core/scene.hpp>
+#include <roboplan/core/scene_context.hpp>
 #include <roboplan/core/scene_utils.hpp>
 
 namespace {
@@ -88,6 +91,10 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path) 
                              description.collision_model);
   description.collision_model.addAllCollisionPairs();
   return description;
+}
+
+std::string collidingPairToString(const std::pair<std::string, std::string>& pair) {
+  return pair.first + " <-> " + pair.second;
 }
 
 Scene::Scene(const std::string& name, const PinocchioSceneDescription& description)
@@ -172,6 +179,16 @@ Scene::Scene(const std::string& name, const PinocchioSceneDescription& descripti
                                   .positions = pinocchio::neutral(model_),
                                   .velocities = Eigen::VectorXd::Zero(model_.nv),
                                   .accelerations = Eigen::VectorXd::Zero(model_.nv)};
+}
+
+std::unique_ptr<Scene> Scene::clone(const std::optional<std::string>& name) const {
+  // can't use make_unique here because it doesn't have access to private members...
+  auto scene = std::unique_ptr<Scene>(new Scene(*this));
+  if (name) {
+    scene->name_ = *name;
+  }
+  scene->refreshCollisionData();
+  return scene;
 }
 
 void Scene::applyMimicJointLimits() {
@@ -455,7 +472,16 @@ bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
 
   // Debug path: the naive backend evaluates every pair (no stop-at-first) so all colliding pairs
   // can be printed; the broadphase fast path stops at the first collision.
-  return computeCollisionsVerbose(model_, model_data_, collision_model_, collision_model_data_, q);
+  const auto pairs = getCollidingPairs(q);
+  for (const auto& pair : pairs) {
+    std::cout << "Collision detected between " << collidingPairToString(pair) << std::endl;
+  }
+  return !pairs.empty();
+}
+
+std::vector<std::pair<std::string, std::string>>
+Scene::getCollidingPairs(const Eigen::VectorXd& q) const {
+  return SceneContext(*this).getCollidingPairs(q);
 }
 
 void Scene::computeCollisionDistances(const Eigen::VectorXd& q) const {
@@ -876,6 +902,62 @@ tl::expected<void, std::string> Scene::importSrdf(const std::string& srdf_xml) {
     }
   }
 
+  // Named joint states are parsed after all groups, so a <group_state> may reference a group
+  // defined anywhere in the SRDF.
+  for (const tinyxml2::XMLElement* group_state = robot->FirstChildElement("group_state");
+       group_state != nullptr; group_state = group_state->NextSiblingElement("group_state")) {
+    const char* state_name = nullptr;
+    const char* group_name = nullptr;
+    if (group_state->QueryStringAttribute("name", &state_name) != tinyxml2::XML_SUCCESS ||
+        group_state->QueryStringAttribute("group", &group_name) != tinyxml2::XML_SUCCESS) {
+      return tl::make_unexpected(
+          "Found a group_state with no 'name' or 'group' attribute in the SRDF!");
+    }
+    const std::string state_label =
+        "group_state '" + std::string(state_name) + "' for group '" + group_name + "'";
+
+    std::map<std::string, std::vector<double>> positions;
+    std::string skip_reason;
+    for (const tinyxml2::XMLElement* joint = group_state->FirstChildElement("joint");
+         joint != nullptr; joint = joint->NextSiblingElement("joint")) {
+      const char* joint_name = nullptr;
+      const char* value_str = nullptr;
+      if (joint->QueryStringAttribute("name", &joint_name) != tinyxml2::XML_SUCCESS ||
+          joint->QueryStringAttribute("value", &value_str) != tinyxml2::XML_SUCCESS) {
+        return tl::make_unexpected("SRDF " + state_label +
+                                   " specifies a joint with no 'name' or 'value' attribute!");
+      }
+
+      // Joints missing from the model are skipped, matching how <group> parsing treats them.
+      if (model_.getJointId(joint_name) >= static_cast<size_t>(model_.njoints)) {
+        continue;
+      }
+
+      std::istringstream value_stream(value_str);
+      std::vector<double> values;
+      double value = 0.0;
+      while (value_stream >> value) {
+        values.push_back(value);
+      }
+      if (!value_stream.eof()) {
+        skip_reason =
+            "joint '" + std::string(joint_name) + "' has a non-numeric value '" + value_str + "'";
+        break;
+      }
+      positions[joint_name] = std::move(values);
+    }
+
+    if (skip_reason.empty()) {
+      const auto added = addNamedJointState(group_name, state_name, positions);
+      if (!added) {
+        skip_reason = added.error();
+      }
+    }
+    if (!skip_reason.empty()) {
+      std::cout << "Warning: skipping SRDF " << state_label << ": " << skip_reason << std::endl;
+    }
+  }
+
   try {
     pinocchio::srdf::removeCollisionPairsFromXML(model_, collision_model_, srdf_xml);
   } catch (const std::exception& e) {
@@ -924,6 +1006,21 @@ tl::expected<void, std::string> Scene::addGroup(const std::string& name,
     return tl::make_unexpected(maybe_info.error());
   }
   joint_group_info_map_[name] = maybe_info.value();
+  named_joint_states_.erase(name);
+
+  return {};
+}
+
+tl::expected<void, std::string> Scene::removeGroup(const std::string& name) {
+  if (name.empty()) {
+    return tl::make_unexpected("Cannot remove the default whole-model group.");
+  }
+  if (joint_group_info_map_.erase(name) == 0) {
+    return tl::make_unexpected("Group name '" + name + "' not found in joint_group_info_map_.");
+  }
+
+  named_joint_states_.erase(name);
+
   return {};
 }
 
@@ -1147,44 +1244,45 @@ Scene::makeGeometryObject(const std::string& name, const std::string& parent_fra
   return geom_obj;
 }
 
-tl::expected<void, std::string> Scene::addBoxGeometry(const std::string& name,
-                                                      const std::string& parent_frame,
-                                                      const Box& box, const Eigen::Matrix4d& tform,
-                                                      const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addBoxGeometry(const std::string& name, const std::string& parent_frame, const Box& box,
+                      const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                      const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, box.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add box: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addSphereGeometry(const std::string& name,
-                                                         const std::string& parent_frame,
-                                                         const Sphere& sphere,
-                                                         const Eigen::Matrix4d& tform,
-                                                         const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addSphereGeometry(const std::string& name, const std::string& parent_frame,
+                         const Sphere& sphere, const Eigen::Matrix4d& tform,
+                         const Eigen::Vector4d& color,
+                         const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, sphere.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add sphere: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addCylinderGeometry(const std::string& name,
-                                                           const std::string& parent_frame,
-                                                           const Cylinder& cylinder,
-                                                           const Eigen::Matrix4d& tform,
-                                                           const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addCylinderGeometry(const std::string& name, const std::string& parent_frame,
+                           const Cylinder& cylinder, const Eigen::Matrix4d& tform,
+                           const Eigen::Vector4d& color,
+                           const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, cylinder.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add cylinder: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
 tl::expected<void, std::string>
 Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame, const Mesh& mesh,
-                       const Eigen::Matrix4d& tform, const Eigen::Vector4d& color) {
+                       const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                       const std::vector<std::string>& allowed_collision_bodies) {
   if (!mesh.geom_ptr) {
     return tl::make_unexpected("Failed to add mesh: mesh geometry is null.");
   }
@@ -1192,36 +1290,50 @@ Scene::addMeshGeometry(const std::string& name, const std::string& parent_frame,
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add mesh: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addOcTreeGeometry(const std::string& name,
-                                                         const std::string& parent_frame,
-                                                         const OcTree& octree,
-                                                         const Eigen::Matrix4d& tform,
-                                                         const Eigen::Vector4d& color) {
+tl::expected<void, std::string>
+Scene::addOcTreeGeometry(const std::string& name, const std::string& parent_frame,
+                         const OcTree& octree, const Eigen::Matrix4d& tform,
+                         const Eigen::Vector4d& color,
+                         const std::vector<std::string>& allowed_collision_bodies) {
   auto geom_obj = makeGeometryObject(name, parent_frame, octree.geom_ptr, tform, color);
   if (!geom_obj) {
     return tl::make_unexpected("Failed to add octree: " + geom_obj.error());
   }
-  return addGeometry(geom_obj.value());
+  return addGeometry(geom_obj.value(), allowed_collision_bodies);
 }
 
-tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObject& geom_obj) {
-  auto it = collision_geometry_map_.find(geom_obj.name);
-  if (it != collision_geometry_map_.end()) {
+tl::expected<void, std::string>
+Scene::addGeometry(const pinocchio::GeometryObject& geom_obj,
+                   const std::vector<std::string>& allowed_collision_bodies) {
+  if (collision_geometry_map_.contains(geom_obj.name)) {
     return tl::make_unexpected("Object '" + geom_obj.name +
                                "' already exists in the scene. Cannot add.");
+  }
+  if (frame_map_.contains(geom_obj.name)) {
+    return tl::make_unexpected("Object '" + geom_obj.name +
+                               "' has the same name as a frame in the model. Cannot add.");
+  }
+
+  // Resolve the allowed bodies before touching the model, so that an error leaves it unchanged.
+  std::unordered_set<pinocchio::GeomIndex> allowed_ids;
+  for (const auto& body : allowed_collision_bodies) {
+    const auto maybe_ids = getCollisionGeometryIds(body);
+    if (!maybe_ids) {
+      return tl::make_unexpected("Failed to add '" + geom_obj.name + "': " + maybe_ids.error());
+    }
+    allowed_ids.insert(maybe_ids->begin(), maybe_ids->end());
   }
 
   const auto collision_geom_idx = collision_model_.addGeometryObject(geom_obj, model_);
   collision_geometry_map_[geom_obj.name] = collision_geom_idx;
 
-  // Add all collision pairs
-  // TODO: Allow specifying filtered geometries
+  // Pair the new object with every other geometry, except the allowed ones.
   for (size_t idx = 0; idx < collision_model_.ngeoms; ++idx) {
-    if (idx == collision_geom_idx) {
-      continue;  // Don't add a self-collision pair.
+    if (idx == collision_geom_idx || allowed_ids.contains(idx)) {
+      continue;
     }
     collision_model_.addCollisionPair(pinocchio::CollisionPair(idx, collision_geom_idx));
   }
@@ -1232,7 +1344,7 @@ tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObje
 
 tl::expected<void, std::string> Scene::updateGeometryPlacement(const std::string& name,
                                                                const std::string& parent_frame,
-                                                               Eigen::Matrix4d& tform) {
+                                                               const Eigen::Matrix4d& tform) {
   auto it = collision_geometry_map_.find(name);
   if (it == collision_geometry_map_.end()) {
     return tl::make_unexpected("Could not find object '" + name + "' to update.");
@@ -1491,6 +1603,181 @@ tl::expected<void, std::string> Scene::allowAdjacentLinkCollisions() {
     }
   }
   return setCollisions(pairs, false);
+}
+
+tl::expected<void, std::string>
+Scene::addNamedJointState(const std::string& group_name, const std::string& state_name,
+                          const std::map<std::string, std::vector<double>>& positions) {
+  const auto maybe_group_info = getJointGroupInfo(group_name);
+  if (!maybe_group_info) {
+    return tl::make_unexpected("Failed to add named joint state '" + state_name +
+                               "': " + maybe_group_info.error());
+  }
+  const auto& group_info = maybe_group_info.value();
+
+  // Every specified joint must belong to the group.
+  const std::unordered_set<std::string> group_joint_names(group_info.joint_names.begin(),
+                                                          group_info.joint_names.end());
+  for (const auto& [joint_name, _] : positions) {
+    if (!group_joint_names.contains(joint_name)) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
+                                 joint_name + "' is not in group '" + group_name + "'.");
+    }
+  }
+
+  // Fill in the collapsed group positions in group order. Mimic joints have no entry, since their
+  // positions follow from the joints they mimic, so any values given for them are ignored.
+  Eigen::VectorXd q_collapsed = Eigen::VectorXd::Zero(group_info.nq_collapsed);
+  Eigen::Index collapsed_idx = 0;
+  std::vector<std::string> missing_joint_names;
+  for (const auto& joint_name : group_info.joint_names) {
+    const auto maybe_joint_info = getJointInfo(joint_name);
+    if (!maybe_joint_info) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name +
+                                 "': " + maybe_joint_info.error());
+    }
+    const auto& joint_info = maybe_joint_info.value();
+    if (joint_info.mimic_info) {
+      continue;
+    }
+
+    switch (joint_info.type) {
+    case JointType::REVOLUTE:
+    case JointType::PRISMATIC:
+    case JointType::CONTINUOUS:
+    case JointType::PLANAR:
+      break;
+    default:
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
+                                 joint_name +
+                                 "' is a floating joint, which named joint states do not support.");
+    }
+
+    const auto it = positions.find(joint_name);
+    if (it == positions.end()) {
+      missing_joint_names.push_back(joint_name);
+      collapsed_idx += static_cast<Eigen::Index>(joint_info.num_velocity_dofs);
+      continue;
+    }
+
+    const auto& values = it->second;
+    if (values.size() != joint_info.num_velocity_dofs) {
+      return tl::make_unexpected("Failed to add named joint state '" + state_name + "': Joint '" +
+                                 joint_name + "' expects " +
+                                 std::to_string(joint_info.num_velocity_dofs) + " values, got " +
+                                 std::to_string(values.size()) + ".");
+    }
+
+    for (size_t dof = 0; dof < values.size(); ++dof) {
+      const double position = values[dof];
+      const double min_position = joint_info.limits.min_position[dof];
+      const double max_position = joint_info.limits.max_position[dof];
+      if (!std::isfinite(position) || (!isFreeRotatingDof(joint_info.type, static_cast<int>(dof)) &&
+                                       (position < min_position || position > max_position))) {
+        return tl::make_unexpected(
+            "Failed to add named joint state '" + state_name + "': Position " +
+            std::to_string(position) + " for joint '" + joint_name + "' is outside its limits [" +
+            std::to_string(min_position) + ", " + std::to_string(max_position) + "].");
+      }
+      q_collapsed(collapsed_idx) = position;
+      ++collapsed_idx;
+    }
+  }
+
+  if (!missing_joint_names.empty()) {
+    std::string missing_list;
+    for (const auto& joint_name : missing_joint_names) {
+      missing_list += (missing_list.empty() ? "'" : ", '") + joint_name + "'";
+    }
+    return tl::make_unexpected("Failed to add named joint state '" + state_name +
+                               "': Missing positions for joints in group '" + group_name +
+                               "': " + missing_list + ".");
+  }
+
+  auto q_expanded = expandContinuousJointPositions(*this, group_name, q_collapsed);
+  if (!q_expanded) {
+    return tl::make_unexpected(q_expanded.error());
+  }
+
+  named_joint_states_[group_name][state_name] =
+      NamedJointState{.state_name = state_name,
+                      .group_name = group_name,
+                      .positions = std::move(q_expanded.value())};
+  return {};
+}
+
+tl::expected<void, std::string> Scene::removeNamedJointState(const std::string& group_name,
+                                                             const std::string& state_name) {
+  const auto group_it = named_joint_states_.find(group_name);
+  if (group_it == named_joint_states_.end()) {
+    return tl::make_unexpected("Group name '" + group_name + "' not found.");
+  }
+
+  if (group_it->second.erase(state_name) == 0) {
+    return tl::make_unexpected("Named joint state '" + state_name + "' not found for '" +
+                               group_name + "'.");
+  }
+
+  return {};
+}
+
+tl::expected<NamedJointState, std::string>
+Scene::getNamedJointState(const std::string& group_name, const std::string& state_name) const {
+  const auto group_it = named_joint_states_.find(group_name);
+  if (group_it == named_joint_states_.end()) {
+    return tl::make_unexpected("Group name '" + group_name + "' not found.");
+  }
+
+  const auto named_joint_state_it = group_it->second.find(state_name);
+  if (named_joint_state_it == group_it->second.end()) {
+    return tl::make_unexpected("Named joint state '" + state_name + "' not found for '" +
+                               group_name + "'.");
+  }
+
+  return named_joint_state_it->second;
+}
+
+std::map<std::string, std::vector<std::string>> Scene::getNamedJointStateNames() const {
+  std::map<std::string, std::vector<std::string>> names;
+
+  for (auto const& [group, joint_states] : named_joint_states_) {
+    if (joint_states.empty()) {
+      continue;
+    }
+
+    names[group].reserve(joint_states.size());
+
+    for (auto const& [joint_state_name, _] : joint_states) {
+      names[group].push_back(joint_state_name);
+    }
+
+    std::sort(names[group].begin(), names[group].end());
+  }
+
+  return names;
+}
+
+tl::expected<Eigen::VectorXd, std::string>
+Scene::getNamedJointStatePositions(const std::string& group_name, const std::string& state_name,
+                                   const std::optional<Eigen::VectorXd>& q_reference) const {
+  const auto maybe_named_joint_state = getNamedJointState(group_name, state_name);
+  if (!maybe_named_joint_state) {
+    return tl::make_unexpected(maybe_named_joint_state.error());
+  }
+
+  const auto& named_joint_state = maybe_named_joint_state.value();
+
+  if (q_reference) {
+    if (q_reference->size() != model_.nq) {
+      return tl::make_unexpected("q_reference has " + std::to_string(q_reference->size()) +
+                                 " entries, expected " + std::to_string(model_.nq) + ".");
+    }
+
+    return toFullJointPositions(named_joint_state.group_name, named_joint_state.positions,
+                                *q_reference);
+  } else {
+    return toFullJointPositions(named_joint_state.group_name, named_joint_state.positions);
+  }
 }
 
 std::ostream& operator<<(std::ostream& os, const Scene& scene) {

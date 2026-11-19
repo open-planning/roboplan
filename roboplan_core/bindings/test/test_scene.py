@@ -14,6 +14,7 @@ from roboplan.core import (
     JointType,
     Mesh,
     Scene,
+    SceneContext,
     Sphere,
     hasCollisionsAlongPath,
     loadJointLimitsConfig,
@@ -156,6 +157,23 @@ def test_collision_check(test_scene: Scene) -> None:
     assert test_scene.hasCollisions(q_coll)
 
 
+def test_scene_context_distance_jacobian(test_scene: Scene) -> None:
+    context = SceneContext(test_scene)
+    q = np.array([0.5, -1.0, 1.0, 0.3, -0.4, 0.2])
+    context.computeDistances(q)
+    context.computeJointJacobians(q)
+
+    nv = len(q)  # The UR5 has only revolute joints, so nv == nq.
+    rows = [context.computeDistanceJacobian(k) for k in range(5)]
+    for row in rows:
+        assert row.shape == (nv,)
+        assert np.all(np.isfinite(row))
+    assert any(np.any(row != 0.0) for row in rows)
+
+    with pytest.raises(ValueError):
+        context.computeDistanceJacobian(10**6)
+
+
 def test_collision_check_along_path(test_scene: Scene) -> None:
     # Collision free
     q_start_free = np.array([0.0, -1.57, 0.0, 0.0, 0.0, 0.0])
@@ -292,11 +310,99 @@ def test_set_collisions(test_scene: Scene) -> None:
     test_scene.setCollisions("test_sphere", "forearm_link", True)
     assert test_scene.hasCollisions(q)
 
+
+def test_clone(test_scene: Scene) -> None:
+    q = np.zeros(6)
+    test_scene.addSphereGeometry(
+        "test_sphere",
+        "universe",
+        Sphere(0.1),
+        np.array([[1, 0, 0, 0.6], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+
+    clone = test_scene.clone("clone")
+    assert clone.getName() == "clone"
+    assert test_scene.clone().getName() == test_scene.getName()
+    assert clone.hasCollisions(q)
+
+    # Changes to the clone don't affect the original.
+    clone.removeGeometry("test_sphere")
+    assert not clone.hasCollisions(q)
+    assert test_scene.hasCollisions(q)
+
     # An unknown body name should raise.
     with pytest.raises(RuntimeError) as exc_info:
         test_scene.setCollisions("nonexistent_link", "test_sphere", True)
     expected_error = (
         "Could not set collisions: Could not get collision geometry IDs: "
+        "Frame name 'nonexistent_link' not found in frame_map_."
+    )
+    assert str(exc_info.value) == expected_error
+
+
+def test_get_colliding_pairs(test_scene: Scene) -> None:
+    q = np.zeros(6)
+    assert test_scene.getCollidingPairs(q) == []
+
+    # The sphere comes after forearm_link in the collision model but its name sorts
+    # before it, so the pair has to be reordered.
+    sphere_tform = np.eye(4)
+    sphere_tform[0, 3] = 0.6
+    test_scene.addSphereGeometry(
+        "a_sphere",
+        "universe",
+        Sphere(0.1),
+        sphere_tform,
+        np.array([0.5, 0.5, 0.5, 0.5]),
+    )
+    pairs = test_scene.getCollidingPairs(q)
+    assert ("a_sphere", "forearm_link") in pairs
+    assert all(body1 <= body2 for body1, body2 in pairs)
+    assert pairs == sorted(set(pairs))
+
+    # The pairs can be passed to setCollisions as they are.
+    test_scene.setCollisions(pairs, False)
+    assert not test_scene.hasCollisions(q)
+
+
+def test_add_geometry_with_allowed_collision_bodies(test_scene: Scene) -> None:
+    q = np.zeros(6)
+    color = np.array([0.5, 0.5, 0.5, 0.5])
+
+    # A table away from the robot, and a cube resting 1 cm into it.
+    table_tform = np.eye(4)
+    table_tform[:3, 3] = [2.0, 0.0, 0.5]
+    test_scene.addBoxGeometry(
+        "table", "universe", Box(1.0, 1.0, 0.1), table_tform, color
+    )
+    cube_tform = np.eye(4)
+    cube_tform[:3, 3] = [2.2, 0.0, 0.59]
+    test_scene.addBoxGeometry(
+        "cube",
+        "universe",
+        Box(0.1, 0.1, 0.1),
+        cube_tform,
+        color,
+        allowed_collision_bodies=["table"],
+    )
+    assert not test_scene.hasCollisions(q)
+
+    test_scene.setCollisions("cube", "table", True)
+    assert test_scene.hasCollisions(q)
+
+    # An unknown body name should raise.
+    with pytest.raises(RuntimeError) as exc_info:
+        test_scene.addBoxGeometry(
+            "other_cube",
+            "universe",
+            Box(0.1, 0.1, 0.1),
+            cube_tform,
+            color,
+            allowed_collision_bodies=["nonexistent_link"],
+        )
+    expected_error = (
+        "Failed to add 'other_cube': Could not get collision geometry IDs: "
         "Frame name 'nonexistent_link' not found in frame_map_."
     )
     assert str(exc_info.value) == expected_error
@@ -518,6 +624,34 @@ def test_add_group_from_joints_chain_and_groups() -> None:
         "revolute_joint",
         "mimic_joint",
     ]
+
+
+def test_remove_group() -> None:
+    scene = Scene("groups_scene", loadUrdfSceneDescriptionFromXml(URDF))
+    scene.addGroup("arm", ["revolute_joint", "mimic_joint"])
+    scene.addGroupFromGroups("arm_copy", ["arm"])
+
+    # Removing the group works, and it can no longer be looked up
+    scene.removeGroup("arm")
+    with pytest.raises(RuntimeError) as exc_info:
+        scene.getJointGroupInfo("arm")
+    assert str(exc_info.value) == "Group name 'arm' not found in joint_group_info_map_."
+
+    # A group built from the removed group is not affected
+    assert scene.getJointGroupInfo("arm_copy").joint_names == [
+        "revolute_joint",
+        "mimic_joint",
+    ]
+
+    # Removing a missing group is an error
+    with pytest.raises(RuntimeError) as exc_info:
+        scene.removeGroup("arm")
+    assert str(exc_info.value) == "Group name 'arm' not found in joint_group_info_map_."
+
+    # Removing the default group is an error
+    with pytest.raises(RuntimeError) as exc_info:
+        scene.removeGroup("")
+    assert str(exc_info.value) == "Cannot remove the default whole-model group."
 
 
 def test_mimics() -> None:

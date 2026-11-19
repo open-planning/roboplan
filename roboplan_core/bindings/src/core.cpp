@@ -4,6 +4,7 @@
 #include <nanobind/eigen/dense.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/filesystem.h>
+#include <nanobind/stl/map.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
@@ -112,6 +113,17 @@ void init_core_types(nanobind::module_& m) {
         return ss.str();
       });
 
+  nanobind::class_<NamedJointState>(
+      m, "NamedJointState",
+      "A specific joint state with a meaningful name, associated with a specific joint group.")
+      .def(nanobind::init<>())
+      .def_rw("state_name", &NamedJointState::state_name, "The name of this state.")
+      .def_rw("group_name", &NamedJointState::group_name,
+              "The name of the group this state is scoped by.")
+      .def_rw("positions", &NamedJointState::positions,
+              "The joint group positions in Pinocchio layout, ordered like the group's "
+              "q_indices, with continuous joints expanded to [cos, sin].");
+
   nanobind::class_<JointPath>(m, "JointPath", "Contains a path of joint configurations.")
       .def(nanobind::init<>())
       .def_rw("joint_names", &JointPath::joint_names, "The list of joint names.")
@@ -211,6 +223,15 @@ void init_core_scene(nanobind::module_& m) {
   nanobind::class_<Scene>(m, "Scene", "Primary scene representation for planning and control.")
       .def(nanobind::init<const std::string&, const PinocchioSceneDescription&>(), "name"_a,
            "description"_a)
+      .def(
+          "clone",
+          [](const Scene& self, const std::optional<std::string>& name) {
+            return std::shared_ptr<Scene>(self.clone(name));
+          },
+          "name"_a = nanobind::none(),
+          "Creates an independent copy of this scene, optionally with a new name. Collision "
+          "geometry shapes (meshes, octrees) are shared with the original; the RNG state is "
+          "copied.")
       .def("getName", &Scene::getName, "Gets the scene's name.")
       .def("getJointNames", &Scene::getJointNames,
            "Gets the scene's actuated joint names (non-mimic joints only).")
@@ -235,6 +256,11 @@ void init_core_scene(nanobind::module_& m) {
            "joint_names"_a, "q_reference"_a, "max_samples"_a = 1000)
       .def("hasCollisions", &Scene::hasCollisions,
            "Checks collisions at specified joint positions.", "q"_a, "debug"_a = false)
+      .def("getCollidingPairs", &Scene::getCollidingPairs,
+           "Finds every colliding body pair at specified joint positions, as (body1, body2) tuples "
+           "named as setCollisions() accepts them. The two names of a pair are in sorted order "
+           "and the list is sorted without duplicates.",
+           "q"_a)
       .def("isValidConfiguration", &Scene::isValidConfiguration,
            "Checks if the specified joint positions are valid with respect to joint limits.", "q"_a)
       .def("clampToValidConfiguration", &Scene::clampToValidConfiguration,
@@ -314,6 +340,21 @@ void init_core_scene(nanobind::module_& m) {
       .def("addGroup", unwrap_expected(&Scene::addGroup),
            "Adds a joint group from an explicit list of joints.", "name"_a, "joint_names"_a,
            "extra_link_names"_a = std::vector<std::string>{})
+      .def("removeGroup", unwrap_expected(&Scene::removeGroup), "Removes a joint group by name.",
+           "name"_a)
+      .def("addNamedJointState", unwrap_expected(&Scene::addNamedJointState),
+           "Adds a named joint state to a joint group.", "group_name"_a, "state_name"_a,
+           "positions"_a)
+      .def("removeNamedJointState", unwrap_expected(&Scene::removeNamedJointState),
+           "Removes a named joint state from a joint group.", "group_name"_a, "state_name"_a)
+      .def("getNamedJointState", unwrap_expected(&Scene::getNamedJointState),
+           "Returns a named joint state.", "group_name"_a, "state_name"_a)
+      .def("getNamedJointStateNames", &Scene::getNamedJointStateNames,
+           "Returns a map from group names to the names of their named joint states.")
+      .def("getNamedJointStatePositions", unwrap_expected(&Scene::getNamedJointStatePositions),
+           "Returns the full joint positions (model.nq) for a named joint state, with the joints "
+           "outside its group taken from q_reference, or the current positions if not given.",
+           "group_name"_a, "state_name"_a, "q_reference"_a = std::nullopt)
       .def("getCurrentJointPositions", &Scene::getCurrentJointPositions,
            "Get the current Pinocchio configuration vector (model.nq).")
       .def("getCurrentJointPositionsWithMimics", &Scene::getCurrentJointPositionsWithMimics,
@@ -336,19 +377,19 @@ void init_core_scene(nanobind::module_& m) {
            "Get the joint jerk limit vectors for a specified group.", "group_name"_a = "")
       .def("addBoxGeometry", unwrap_expected(&Scene::addBoxGeometry),
            "Adds a box geometry to the scene.", "name"_a, "parent_frame"_a, "box"_a, "tform"_a,
-           "color"_a)
+           "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addSphereGeometry", unwrap_expected(&Scene::addSphereGeometry),
            "Adds a sphere geometry to the scene.", "name"_a, "parent_frame"_a, "sphere"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addCylinderGeometry", unwrap_expected(&Scene::addCylinderGeometry),
            "Adds a cylinder geometry to the scene.", "name"_a, "parent_frame"_a, "cylinder"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addMeshGeometry", unwrap_expected(&Scene::addMeshGeometry),
            "Adds a triangle mesh geometry to the scene.", "name"_a, "parent_frame"_a, "mesh"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("addOcTreeGeometry", unwrap_expected(&Scene::addOcTreeGeometry),
            "Adds an octree geometry to the scene.", "name"_a, "parent_frame"_a, "octree"_a,
-           "tform"_a, "color"_a)
+           "tform"_a, "color"_a, "allowed_collision_bodies"_a = std::vector<std::string>{})
       .def("updateGeometryPlacement", unwrap_expected(&Scene::updateGeometryPlacement),
            "Updates the placement of an object geometry in the scene. Fails if the object is "
            "attached.",
@@ -425,6 +466,16 @@ void init_core_scene(nanobind::module_& m) {
            "Runs forward kinematics and refreshes every frame placement.", "q"_a)
       .def("computeJointJacobians", &SceneContext::computeJointJacobians,
            "Computes the joint Jacobians for every joint.", "q"_a)
+      .def(
+          "computeDistanceJacobian",
+          [](const SceneContext& self, std::size_t pair_index) -> Eigen::VectorXd {
+            Eigen::RowVectorXd jacobian(self.getModel().nv);
+            self.computeDistanceJacobian(pair_index, jacobian);
+            return jacobian.transpose();
+          },
+          "Computes the Jacobian of a collision pair's signed distance w.r.t. the joint "
+          "velocities.",
+          "pair_index"_a)
       .def("setRngSeed", &SceneContext::setRngSeed,
            "Sets the seed of this context's random number generator.", "seed"_a)
       .def("randomPositions", &SceneContext::randomPositions,

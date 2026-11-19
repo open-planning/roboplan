@@ -1,19 +1,34 @@
 #include <roboplan/core/scene_context.hpp>
 
+#include <algorithm>
+#include <cmath>
+#include <iostream>
 #include <limits>
+#include <set>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/geometry.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/collision/broadphase.hpp>
+#include <pinocchio/collision/collision.hpp>
 #include <pinocchio/collision/distance.hpp>
 
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_utils.hpp>
 
 namespace roboplan {
+
+namespace {
+
+/// Tolerance on |normal| - 1 for accepting coal's contact normal as a valid unit vector.
+constexpr double kUnitNormalTolerance = 1.0e-6;
+
+}  // namespace
 
 SceneContext::SceneContext(const Scene& scene)
     : scene_(scene), model_(scene.getModel()), collision_model_(scene.getCollisionModel()),
@@ -35,6 +50,8 @@ SceneContext::SceneContext(const Scene& scene)
   for (const auto& geom_obj : collision_model_.geometryObjects) {
     aabb_objects_.emplace_back(geom_obj.geometry, /*compute_local_aabb=*/false);
   }
+  joint_jacobian_1_ = Eigen::MatrixXd::Zero(6, model_.nv);
+  joint_jacobian_2_ = Eigen::MatrixXd::Zero(6, model_.nv);
 }
 
 bool SceneContext::isGeometryCurrent() const {
@@ -58,7 +75,38 @@ bool SceneContext::hasCollisions(const Eigen::VectorXd& q, const bool debug) con
   if (!debug) {
     return pinocchio::computeCollisions(model_, data_, *manager_, q, /*stopAtFirstCollision=*/true);
   }
-  return computeCollisionsVerbose(model_, data_, collision_model_, geom_data_, q);
+  const auto pairs = getCollidingPairs(q);
+  for (const auto& pair : pairs) {
+    std::cout << "Collision detected between " << collidingPairToString(pair) << std::endl;
+  }
+  return !pairs.empty();
+}
+
+std::vector<std::pair<std::string, std::string>>
+SceneContext::getCollidingPairs(const Eigen::VectorXd& q) const {
+  checkGeometryCurrent("getCollidingPairs");
+  pinocchio::updateGeometryPlacements(model_, data_, collision_model_, geom_data_, q);
+  pinocchio::computeCollisions(model_, data_, collision_model_, geom_data_, q,
+                               /*stop_at_first_collision=*/false);
+
+  // URDF geometries are named "<link>_<index>". Anything else is an object added to the scene.
+  const auto body_name = [&](const pinocchio::GeomIndex index) -> const std::string& {
+    const auto& geometry = collision_model_.geometryObjects.at(index);
+    const auto& link = model_.frames.at(geometry.parentFrame).name;
+    return geometry.name.rfind(link, 0) == 0 ? link : geometry.name;
+  };
+
+  // Several geometry pairs can join the same two bodies, in either order: sorting the names of
+  // each pair lets the set merge them.
+  std::set<std::pair<std::string, std::string>> pairs;
+  for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
+    if (geom_data_.collisionResults.at(k).isCollision()) {
+      const auto& cp = collision_model_.collisionPairs.at(k);
+      const auto [body1, body2] = std::minmax(body_name(cp.first), body_name(cp.second));
+      pairs.emplace(body1, body2);
+    }
+  }
+  return {pairs.begin(), pairs.end()};
 }
 
 void SceneContext::computeDistances(const Eigen::VectorXd& q,
@@ -99,6 +147,7 @@ void SceneContext::computeDistances(const Eigen::VectorXd& q,
       result.min_distance = aabb_gap;
       result.nearest_points[0].setZero();
       result.nearest_points[1].setZero();
+      result.normal.setZero();
     } else {
       pinocchio::computeDistance(collision_model_, geom_data_, k);
     }
@@ -107,6 +156,75 @@ void SceneContext::computeDistances(const Eigen::VectorXd& q,
 
 void SceneContext::computeJointJacobians(const Eigen::VectorXd& q) const {
   scene_.computeJointJacobians(data_, q);
+}
+
+void SceneContext::computeDistanceJacobian(std::size_t pair_index,
+                                           Eigen::Ref<Eigen::RowVectorXd> jacobian) const {
+  checkGeometryCurrent("computeDistanceJacobian");
+  const auto& pairs = collision_model_.collisionPairs;
+  if (pair_index >= pairs.size()) {
+    throw std::invalid_argument("SceneContext::computeDistanceJacobian: pair index " +
+                                std::to_string(pair_index) + " is out of range (" +
+                                std::to_string(pairs.size()) + " collision pairs).");
+  }
+  if (jacobian.size() != model_.nv) {
+    throw std::invalid_argument("SceneContext::computeDistanceJacobian: expected a row of " +
+                                std::to_string(model_.nv) + " entries (model.nv), got " +
+                                std::to_string(jacobian.size()) + ".");
+  }
+  jacobian.setZero();
+  if (!geom_data_.activeCollisionPairs[pair_index]) {
+    return;
+  }
+
+  const auto& pair = pairs[pair_index];
+  const auto& geom_obj_1 = collision_model_.geometryObjects[pair.first];
+  const auto& geom_obj_2 = collision_model_.geometryObjects[pair.second];
+  const auto& result = geom_data_.distanceResults[pair_index];
+  const Eigen::Vector3d& witness_point_1 = result.nearest_points[0];
+  const Eigen::Vector3d& witness_point_2 = result.nearest_points[1];
+
+  // Direction that increases the distance. Use coal's normal when valid, since it handles
+  // penetration; mesh-mesh pairs don't set it, so fall back to the witness point difference.
+  Eigen::Vector3d u;
+  const bool mesh_mesh = geom_obj_1.geometry->getObjectType() == coal::OT_BVH &&
+                         geom_obj_2.geometry->getObjectType() == coal::OT_BVH;
+  if (!mesh_mesh && result.normal.allFinite() &&
+      std::abs(result.normal.norm() - 1.0) < kUnitNormalTolerance) {
+    u = -result.normal;
+  } else {
+    u = witness_point_1 - witness_point_2;
+    const double norm = u.norm();
+    if (!(norm >= std::numeric_limits<double>::epsilon())) {
+      return;  // Undefined when the witness points coincide.
+    }
+    u /= norm;
+    if (result.min_distance < 0.0) {
+      u = -u;
+    }
+  }
+
+  // Lever arms from each parent joint to its witness point.
+  const auto joint_1 = geom_obj_1.parentJoint;
+  const auto joint_2 = geom_obj_2.parentJoint;
+  const Eigen::Vector3d r1 = witness_point_1 - data_.oMi[joint_1].translation();
+  const Eigen::Vector3d r2 = witness_point_2 - data_.oMi[joint_2].translation();
+
+  joint_jacobian_1_.setZero();
+  joint_jacobian_2_.setZero();
+  pinocchio::getJointJacobian(model_, data_, joint_1,
+                              pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian_1_);
+  pinocchio::getJointJacobian(model_, data_, joint_2,
+                              pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, joint_jacobian_2_);
+
+  // Project the relative velocity of the witness points (linear + angular x lever arm) onto u.
+  jacobian.noalias() = u.transpose() * joint_jacobian_1_.topRows<3>();
+  jacobian.noalias() += r1.cross(u).transpose() * joint_jacobian_1_.bottomRows<3>();
+  jacobian.noalias() -= u.transpose() * joint_jacobian_2_.topRows<3>();
+  jacobian.noalias() -= r2.cross(u).transpose() * joint_jacobian_2_.bottomRows<3>();
+
+  // Coal can return non-finite values in degenerate cases.
+  jacobian = jacobian.unaryExpr([](double x) { return std::isfinite(x) ? x : 0.0; });
 }
 
 void SceneContext::updateFramePlacements(const Eigen::VectorXd& q) const {

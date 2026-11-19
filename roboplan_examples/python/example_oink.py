@@ -36,7 +36,8 @@ from roboplan.optimal_ik import (
 def main(
     model: str = "ur5",
     task_gain: float = 1.0,
-    lm_damping: float = 0.01,
+    lm_damping: float = 1.0,
+    singularity_threshold: float = 0.1,
     regularization: float = 1e-3,
     control_freq: float = 100.0,
     reference_filter_tau: float = 0.1,
@@ -55,6 +56,8 @@ def main(
         model: The name of the model to use.
         task_gain: Task gain (alpha) for the IK solver (0-1).
         lm_damping: Levenberg-Marquardt damping for regularization.
+        singularity_threshold: Damps near-singular directions of the frame task (0 disables).
+            Higher values stop the arm more smoothly there but can add lag in some directions.
         regularization: Tikhonov regularization weight for the QP Hessian. Higher values
             improve numerical stability but may reduce task tracking accuracy.
         control_freq: Control loop frequency in Hz.
@@ -188,7 +191,7 @@ def main(
     # into the nullspace of the (priority 1) FrameTask, so it only uses the redundant degrees of
     # freedom the FrameTask leaves free and never sacrifices end-effector tracking.
     joint_weights = np.full(num_variables, 0.05)
-    config_options = ConfigurationTaskOptions(task_gain=1.0, lm_damping=0.0, priority=2)
+    config_options = ConfigurationTaskOptions(task_gain=0.1, lm_damping=0.0, priority=2)
     config_task = ConfigurationTask(
         oink, q_canonical[oink.q_indices], joint_weights, config_options
     )
@@ -198,6 +201,7 @@ def main(
         orientation_cost=0.1,
         task_gain=task_gain,
         lm_damping=lm_damping,
+        singularity_threshold=singularity_threshold,
     )
 
     # One FrameTask and interactive marker per end effector.

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -64,6 +65,11 @@ loadUrdfSceneDescription(const std::filesystem::path& urdf_path,
 /// @brief Loads an MJCF model and its collision geometry from disk.
 PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
 
+/// @brief Formats a body pair, such as one returned by Scene::getCollidingPairs(), for printing.
+/// @param pair The two body names.
+/// @return The pair as "body1 <-> body2".
+std::string collidingPairToString(const std::pair<std::string, std::string>& pair);
+
 /// @brief Primary scene representation for planning and control.
 ///
 /// @par Thread safety
@@ -81,9 +87,10 @@ PinocchioSceneDescription loadMjcfModel(const std::filesystem::path& mjcf_path);
 ///    scratch over this Scene's immutable description, and call the equivalent methods there.
 ///
 /// 3. Mutable bookkeeping (`setJointPositions`, `setRngSeed`, geometry mutators, `importSrdf`,
-///    `importJointLimitsFromConfig`, and the group mutators). These are for single-threaded setup
-///    and interactive use. Library code must not write them while other threads are querying, and
-///    must not read `getCurrentJointPositions()` in the middle of an algorithm.
+///    `importJointLimitsFromConfig`, named joint state mutators, and the group mutators). These are
+///    for single-threaded setup and interactive use. Library code must not write them while other
+///    threads are querying, and must not read `getCurrentJointPositions()` in the middle of an
+///    algorithm.
 ///
 /// For items 2. and 3., use a SceneContext when you need thread safety.
 class Scene {
@@ -97,10 +104,18 @@ public:
   // Non-copyable and non-movable: `broadphase_manager_` caches raw pointers to this Scene's
   // `model_` and `collision_model_data_`, so a copy or move would collide against the *original*
   // Scene's data. Share a Scene with `std::shared_ptr<Scene>` and give each thread a SceneContext.
-  Scene(const Scene&) = delete;
+  // See `clone` for a way of deep-copying the scene.
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&&) = delete;
   Scene& operator=(Scene&&) = delete;
+
+  /// @brief Creates an independent copy of this scene with a new name.
+  /// @details Copies the scene data. Collision and per-query information like Pinocchio
+  /// data and the broadphase manager is rebuilt for the new scene. Collision geometry
+  /// shapes (meshes, octrees) are shared between the two scenes. The clone's RNG is not re-seeded.
+  /// @param name The name of the new scene. If not set, the clone keeps this scene's name.
+  /// @return The cloned scene.
+  std::unique_ptr<Scene> clone(const std::optional<std::string>& name = std::nullopt) const;
 
   /// @brief Gets the scene's name.
   /// @return The scene name.
@@ -210,6 +225,15 @@ public:
   /// @param debug If true, prints every colliding pair instead of stopping at the first collision.
   /// @return True if there are collisions, else false.
   bool hasCollisions(const Eigen::VectorXd& q, const bool debug = false) const;
+
+  /// @brief Finds every colliding body pair at specified joint positions.
+  /// @details Checks all pairs, so this is slower than hasCollisions().
+  /// @param q The joint positions.
+  /// @return The colliding body pairs, named as setCollisions() accepts them, so the result can be
+  /// passed to it directly. The two names of a pair are in sorted order and the list is sorted
+  /// without duplicates. Empty if there are none. Use collidingPairToString() to print a pair.
+  std::vector<std::pair<std::string, std::string>>
+  getCollidingPairs(const Eigen::VectorXd& q) const;
 
   /// @brief Checks if the specified joint positions are valid with respect to joint limits.
   /// @param q The joint positions.
@@ -376,7 +400,9 @@ public:
 
   /// @brief Applies groups and disabled collision pairs from an SRDF document.
   /// @details Groups with the same name as an existing non-default group overwrite it. The
-  /// default whole-model group is left unchanged.
+  /// default whole-model group is left unchanged. Named joint states are imported from
+  /// <group_state> tags. See addNamedJointState for requirements; `<group_state>`s that
+  /// don't meet those requirements are skipped with a warning.
   /// @param srdf_xml The SRDF XML contents.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> importSrdf(const std::string& srdf_xml);
@@ -387,10 +413,13 @@ public:
   /// number of velocity DOFs. Mimic joints inherit scaled limits from the joints they mimic after
   /// overrides are applied. Position limits for free-rotating DOFs are discarded with a warning
   /// unless given as `.inf` / `-.inf`.
+  /// @note This doesn't recalculate the joint limits for named joint states, so after this
+  /// operation some named joint states may be outside the new limits.
   /// @param yaml_config The parsed YAML configuration node (may be empty/null).
   void importJointLimitsFromConfig(const YAML::Node& yaml_config);
 
   /// @brief Adds a joint group defined by a kinematic chain.
+  /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param base_link The name of the chain's base link.
   /// @param tip_link The name of the chain's tip link.
@@ -400,6 +429,7 @@ public:
                                                     const std::string& tip_link);
 
   /// @brief Adds a joint group by concatenating existing groups.
+  /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param group_names The existing groups to concatenate, in order.
   /// @return Void if successful, else a string describing the error.
@@ -407,6 +437,7 @@ public:
                                                      const std::vector<std::string>& group_names);
 
   /// @brief Adds a joint group from an explicit list of joints.
+  /// @details If this overwrites a group, then the original group's NamedJointStates are cleared.
   /// @param name The name of the group to add. Overwrites an existing group of the same name.
   /// @param joint_names The joints that make up the group, in order.
   /// @param extra_link_names Additional link names to include besides those driven by the joints.
@@ -414,6 +445,11 @@ public:
   tl::expected<void, std::string> addGroup(const std::string& name,
                                            const std::vector<std::string>& joint_names,
                                            const std::vector<std::string>& extra_link_names = {});
+
+  /// @brief Removes a joint group from an explicit list of joints.
+  /// @param name The name of the group to remove.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string> removeGroup(const std::string& name);
 
   /// @brief Get the current Pinocchio configuration vector (model.nq).
   /// @details This is the internal planning layout (e.g. continuous joints as [cos, sin]).
@@ -470,70 +506,86 @@ public:
   getJerkLimitVectors(const std::string& group_name = "") const;
 
   /// @brief Adds a box geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param box The box geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addBoxGeometry(const std::string& name,
-                                                 const std::string& parent_frame, const Box& box,
-                                                 const Eigen::Matrix4d& tform,
-                                                 const Eigen::Vector4d& color);
+  tl::expected<void, std::string>
+  addBoxGeometry(const std::string& name, const std::string& parent_frame, const Box& box,
+                 const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                 const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a sphere geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param sphere The sphere geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   addSphereGeometry(const std::string& name, const std::string& parent_frame, const Sphere& sphere,
-                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
+                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                    const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a cylinder geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param cylinder The cylinder geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addCylinderGeometry(const std::string& name,
-                                                      const std::string& parent_frame,
-                                                      const Cylinder& cylinder,
-                                                      const Eigen::Matrix4d& tform,
-                                                      const Eigen::Vector4d& color);
+  tl::expected<void, std::string>
+  addCylinderGeometry(const std::string& name, const std::string& parent_frame,
+                      const Cylinder& cylinder, const Eigen::Matrix4d& tform,
+                      const Eigen::Vector4d& color,
+                      const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a triangle mesh geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param mesh The mesh geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addMeshGeometry(const std::string& name,
-                                                  const std::string& parent_frame, const Mesh& mesh,
-                                                  const Eigen::Matrix4d& tform,
-                                                  const Eigen::Vector4d& color);
+  tl::expected<void, std::string>
+  addMeshGeometry(const std::string& name, const std::string& parent_frame, const Mesh& mesh,
+                  const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                  const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds an octree geometry to the scene.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param octree The octree geometry instance to add.
   /// @param tform The transform between the parent frame and the geometry.
   /// @param color The color of the geometry, in RGBA vector format.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string>
   addOcTreeGeometry(const std::string& name, const std::string& parent_frame, const OcTree& octree,
-                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color);
+                    const Eigen::Matrix4d& tform, const Eigen::Vector4d& color,
+                    const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Adds a Pinocchio geometry object to the scene.
   /// @details This can be made the sole public entrypoint to add a geometry once
   /// Pinocchio and Coal have working nanobind bindings compatible with this library.
   /// @param geom_obj The geometry object instance to add.
+  /// @param allowed_collision_bodies Bodies the object is not checked against, as model frame names
+  /// or names of added geometries. Fails, leaving the scene unchanged, if a name is unknown.
   /// @return Void if successful, else a string describing the error.
-  tl::expected<void, std::string> addGeometry(const pinocchio::GeometryObject& geom_obj);
+  tl::expected<void, std::string>
+  addGeometry(const pinocchio::GeometryObject& geom_obj,
+              const std::vector<std::string>& allowed_collision_bodies = {});
 
   /// @brief Updates the placement of an object geometry in the scene.
   /// @details Fails if the object is attached; use `reparentAttachedObject` instead.
@@ -542,7 +594,7 @@ public:
   /// @param tform The transform between the parent frame and the geometry.
   tl::expected<void, std::string> updateGeometryPlacement(const std::string& name,
                                                           const std::string& parent_frame,
-                                                          Eigen::Matrix4d& tform);
+                                                          const Eigen::Matrix4d& tform);
 
   /// @brief Removes a geometry from the scene.
   /// @details Fails if the object is attached; call `detachObject` first.
@@ -640,14 +692,66 @@ public:
   /// @return Void if successful, else a string describing the error.
   tl::expected<void, std::string> allowAdjacentLinkCollisions();
 
+  /// @brief Adds a named joint state to a joint group. Overwrites an existing state of the same
+  /// name in the group.
+  /// @details The positions are stored in the group's Pinocchio layout (ordered like
+  /// JointGroupInfo::q_indices, with continuous joints expanded to [cos, sin]). The input map has
+  /// the following restrictions:
+  ///   1. Every non-mimic joint in the group must be given a position.
+  ///   2. Every joint must belong to the group.
+  ///   3. Positions given for mimic joints are ignored.
+  ///   4. Each joint takes one value per velocity DOF. Positions must be within the joint limits.
+  ///   5. Groups containing floating joints are not supported.
+  /// @param group_name The name of the joint group the state belongs to. The empty-string all-joint
+  /// group is supported.
+  /// @param state_name The name of the state to add.
+  /// @param positions A map from joint names to joint positions.
+  /// @return Void if successful, else a string describing the error.
+  tl::expected<void, std::string>
+  addNamedJointState(const std::string& group_name, const std::string& state_name,
+                     const std::map<std::string, std::vector<double>>& positions);
+
+  /// @brief Removes an existing named joint state from the group named by `group_name`.
+  /// @param group_name the name of the group to remove the joint state from.
+  /// @param state_name the name of the joint state to remove.
+  /// @return void if successful, else a string describing the error.
+  tl::expected<void, std::string> removeNamedJointState(const std::string& group_name,
+                                                        const std::string& state_name);
+
+  /// @brief Returns the NamedJointState struct for an existing named joint state.
+  /// @param group_name the name of the group the joint state is associated with.
+  /// @param state_name the name of the joint state to return.
+  /// @return the named joint state struct if successful, else a string describing the error.
+  tl::expected<NamedJointState, std::string>
+  getNamedJointState(const std::string& group_name, const std::string& state_name) const;
+
+  /// @brief Returns the names of all the named joint states.
+  /// @return a map from the group name to the list of names of named joint states.
+  std::map<std::string, std::vector<std::string>> getNamedJointStateNames() const;
+
+  /// @brief Returns the full joint positions for a named joint state.
+  /// @param group_name the name of the group the joint state is associated with.
+  /// @param state_name the name of the joint state to return.
+  /// @param q_reference the reference state to use for filling in the joints not associated with
+  /// `group_name`. If not specified, defaults to getCurrentJointPositions().
+  /// @return the full joint positions in pinocchio layout with model.nq entries if successful, else
+  /// a string describing the error.
+  tl::expected<Eigen::VectorXd, std::string> getNamedJointStatePositions(
+      const std::string& group_name, const std::string& state_name,
+      const std::optional<Eigen::VectorXd>& q_reference = std::nullopt) const;
+
   /// @brief Prints basic information about the scene.
   friend std::ostream& operator<<(std::ostream& os, const Scene& scene);
 
 private:
+  /// @brief Private copy-constructor to support the clone function.
+  /// @param other Scene to clone from.
+  Scene(const Scene& other) = default;
+
   void applyMimicJointLimits();
 
   /// @brief Builds a geometry object attached to a named frame.
-  /// @param name The name of the object to add. Must be unique.
+  /// @param name The name of the object to add. Must be unique, and not the name of a model frame.
   /// @param parent_frame The name of the parent frame to add the object to.
   /// @param geom_ptr The collision geometry shape.
   /// @param tform The transform between the parent frame and the geometry.
@@ -764,6 +868,10 @@ private:
 
   /// @brief The collision geometry IDs of the robot itself (see getRobotCollisionGeometryIds).
   std::vector<pinocchio::GeomIndex> robot_collision_geometry_ids_;
+
+  /// @brief Named joint states, keyed by group name and then state name.
+  std::unordered_map<std::string, std::unordered_map<std::string, NamedJointState>>
+      named_joint_states_;
 
   /// @brief Incremented on every change to the collision geometry, so that SceneContexts
   /// snapshotted from an older version can detect that they are stale.

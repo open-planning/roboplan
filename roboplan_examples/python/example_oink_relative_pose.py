@@ -40,6 +40,7 @@ def main(
     bar_radius: float = 0.02,
     config_task_weight: float = 0.05,
     self_collision_num_pairs: int = 4,
+    singularity_threshold: float = 0.1,
     control_freq: float = 100.0,
     host: str = "localhost",
     port: str = "8000",
@@ -65,6 +66,8 @@ def main(
         config_task_weight: Weight of a priority-2 ConfigurationTask pulling toward the start.
         self_collision_num_pairs: Number of closest collision pairs constrained by the
             self-collision barrier; 0 disables the barrier.
+        singularity_threshold: Damps near-singular directions of both frame tasks (0 disables).
+            Higher values stop the arms more smoothly there but can add lag in some directions.
         control_freq: Control loop frequency in Hz.
         host: The host for the ViserVisualizer.
         port: The port for the ViserVisualizer.
@@ -152,7 +155,12 @@ def main(
         scene,
         goal,
         FrameTaskOptions(
-            position_cost=1.0, orientation_cost=0.1, task_gain=1.0, lm_damping=0.01
+            position_cost=1.0,
+            orientation_cost=0.1,
+            task_gain=1.0,
+            lm_damping=1.0,
+            position_saturation=0.1,
+            singularity_threshold=singularity_threshold,
         ),
     )
     tasks = [marker_task]
@@ -170,7 +178,8 @@ def main(
                     position_cost=relative_task_weight,
                     orientation_cost=relative_task_weight,
                     task_gain=1.0,
-                    lm_damping=0.01,
+                    lm_damping=1.0,
+                    singularity_threshold=singularity_threshold,
                 ),
             )
         )
@@ -179,7 +188,7 @@ def main(
         oink,
         q_start[oink.q_indices],
         np.full(oink.num_variables, config_task_weight),
-        ConfigurationTaskOptions(priority=2),
+        ConfigurationTaskOptions(task_gain=0.1, priority=2),
     )
     tasks.append(config_task)
 

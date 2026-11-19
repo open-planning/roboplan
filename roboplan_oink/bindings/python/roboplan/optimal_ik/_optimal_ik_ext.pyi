@@ -43,7 +43,7 @@ class Task:
 class FrameTaskOptions:
     """Parameters for FrameTask."""
 
-    def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0, position_saturation: float = float('inf'), orientation_saturation: float = float('inf'), position_tolerance: float = 0.001, orientation_tolerance: float = 0.001, priority: int = 1) -> None:
+    def __init__(self, position_cost: float = 1.0, orientation_cost: float = 1.0, task_gain: float = 1.0, lm_damping: float = 0.0, position_saturation: float = float('inf'), orientation_saturation: float = float('inf'), position_tolerance: float = 0.001, orientation_tolerance: float = 0.001, priority: int = 1, singularity_threshold: float = 0.0) -> None:
         """Constructor with custom parameters."""
 
     @property
@@ -116,6 +116,15 @@ class FrameTaskOptions:
 
     @priority.setter
     def priority(self, arg: int, /) -> None: ...
+
+    @property
+    def singularity_threshold(self) -> float:
+        """
+        Singular values of the weighted Jacobian W*J below this are damped, which bounds the step in near-singular directions. Lower priority levels may use the damped directions at a soft cost. 0 disables.
+        """
+
+    @singularity_threshold.setter
+    def singularity_threshold(self, arg: float, /) -> None: ...
 
 class FrameTask(Task):
     """Task to reach a target pose for a specified frame."""

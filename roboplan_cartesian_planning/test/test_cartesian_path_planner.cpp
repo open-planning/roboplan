@@ -551,6 +551,32 @@ TEST_F(CartesianPlannerTest, RejectsBadSeedSize) {
   ASSERT_FALSE(result.has_value());
 }
 
+TEST_F(CartesianPlannerTest, RejectsPathInCollisionInBothSpeedModes) {
+  JointConfiguration q_start;
+  q_start.positions = scene_->getCurrentJointPositions();
+  ASSERT_FALSE(scene_->hasCollisions(q_start.positions));
+
+  // A box around the end of a 15 cm line, clear of the start.
+  const CartesianPath path = makeLinePath(q_start.positions, 7, 0.025);
+  const Eigen::Matrix4d box_tform =
+      scene_->forwardKinematics(q_start.positions, kBaseFrame) * path.tforms.at(0).back();
+  ASSERT_TRUE(scene_->addBoxGeometry("box", "universe", Box(0.05, 0.05, 0.05), box_tform,
+                                     Eigen::Vector4d(1.0, 0.0, 0.0, 1.0)));
+  ASSERT_FALSE(scene_->hasCollisions(q_start.positions));
+
+  for (const auto mode : {CartesianSpeedMode::Bounded, CartesianSpeedMode::TimeOptimal}) {
+    CartesianPlannerOptions options;
+    options.group_name = kGroup;
+    options.speed_mode = mode;
+    CartesianPathPlanner planner(scene_, options);
+
+    const auto result = planner.plan(path, q_start);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_NE(result.error().find("in collision"), std::string::npos) << result.error();
+    EXPECT_NE(result.error().find("box"), std::string::npos) << result.error();
+  }
+}
+
 TEST_F(CartesianPlannerTest, EmptyBaseFrame) {
   CartesianPlannerOptions options;
   options.group_name = kGroup;

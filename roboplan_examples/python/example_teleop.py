@@ -275,7 +275,8 @@ def main(
     angular_sensitivity: float = 0.5,
     reference_filter_tau: float = 0.1,
     task_gain: float = 1.0,
-    lm_damping: float = 0.01,
+    lm_damping: float = 1.0,
+    singularity_threshold: float = 0.1,
     regularization: float = 1e-6,
     config_task_gain: float = 1e-4,
     target_axes_length: float = 0.1,
@@ -300,6 +301,8 @@ def main(
             Set to 0 to disable filtering.
         task_gain: OInK FrameTask gain.
         lm_damping: OInK FrameTask Levenberg-Marquardt damping.
+        singularity_threshold: Damps near-singular directions of the frame task (0 disables).
+            Higher values stop the arm more smoothly there but can add lag in some directions.
         regularization: Tikhonov regularization for OInK.
         config_task_gain: Per-DoF gain for the mild ConfigurationTask regularization.
             Keep this small (e.g. 1e-4) so it reduces nullspace drift without
@@ -400,6 +403,7 @@ def main(
         orientation_cost=0.1,
         task_gain=task_gain,
         lm_damping=lm_damping,
+        singularity_threshold=singularity_threshold,
     )
     frame_tasks = []
     for ee_frame_name in ee_frame_names:
@@ -415,7 +419,7 @@ def main(
         q_home[oink.q_indices],
         np.full(num_variables, config_task_gain),
         ConfigurationTaskOptions(
-            task_gain=1.0,
+            task_gain=0.1,
             lm_damping=0.0,
         ),
     )
