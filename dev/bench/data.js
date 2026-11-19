@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795009408794,
+  "lastUpdate": 1795051386682,
   "repoUrl": "https://github.com/open-planning/roboplan",
   "entries": {
     "Benchmark": [
@@ -6243,6 +6243,233 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.15854094719825532",
             "extra": "mean: 331.3829886000576 msec\nrounds: 10"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.hoelscher@pal-robotics.com",
+            "name": "Andrew Hoelscher",
+            "username": "andrewhoelscher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "27ef3a490cb207700a37dcbfb1a02edb8fb61221",
+          "message": "Add `clone` function for Scenes (#414)",
+          "timestamp": "2026-11-18T20:07:22-05:00",
+          "tree_id": "29a6183fa30366672f6fb527bef8eacca56dc243",
+          "url": "https://github.com/open-planning/roboplan/commit/27ef3a490cb207700a37dcbfb1a02edb8fb61221"
+        },
+        "date": 1795051385994,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[ur5-CartesianSpeedMode.Bounded]",
+            "value": 280.0020584573253,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00004131338103110306",
+            "extra": "mean: 3.5714023157883625 msec\nrounds: 285"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[ur5-CartesianSpeedMode.TimeOptimal]",
+            "value": 234.2849105938298,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00008183905271401543",
+            "extra": "mean: 4.26830732489494 msec\nrounds: 237"
+          },
+          {
+            "name": "benchmarks/test_benchmark_oink.py::test_benchmark_oink_solve[so101]",
+            "value": 5737.666153617987,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000010773636154309577",
+            "extra": "mean: 174.28689178254686 usec\nrounds: 5914"
+          },
+          {
+            "name": "benchmarks/test_benchmark_scene.py::test_benchmark_has_collisions[so101-no_obstacles]",
+            "value": 101.19431073701402,
+            "unit": "iter/sec",
+            "range": "stddev: 0.007093976487718837",
+            "extra": "mean: 9.881978470102155 msec\nrounds: 485"
+          },
+          {
+            "name": "benchmarks/test_benchmark_scene.py::test_benchmark_has_collisions[dual-no_obstacles]",
+            "value": 562.9162328274665,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00007309396005088071",
+            "extra": "mean: 1.7764632492069194 msec\nrounds: 630"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[franka-CartesianSpeedMode.Bounded]",
+            "value": 171.2748034411256,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00016285235575544567",
+            "extra": "mean: 5.838570413795525 msec\nrounds: 174"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[franka-CartesianSpeedMode.TimeOptimal]",
+            "value": 146.08605991383163,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000043783813604107416",
+            "extra": "mean: 6.845280108107828 msec\nrounds: 148"
+          },
+          {
+            "name": "benchmarks/test_benchmark_oink.py::test_benchmark_oink_solve[kinova]",
+            "value": 2278.7171599030708,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015224946130846842",
+            "extra": "mean: 438.84340610422083 usec\nrounds: 2359"
+          },
+          {
+            "name": "benchmarks/test_benchmark_scene.py::test_benchmark_has_collisions[dual-with_obstacles]",
+            "value": 593.7517828011581,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000873106712479366",
+            "extra": "mean: 1.6842054692994335 msec\nrounds: 684"
+          },
+          {
+            "name": "benchmarks/test_benchmark_scene.py::test_benchmark_has_collisions[so101-with_obstacles]",
+            "value": 131.87827417689365,
+            "unit": "iter/sec",
+            "range": "stddev: 0.005942648355445113",
+            "extra": "mean: 7.582750125002846 msec\nrounds: 480"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[stretch-CartesianSpeedMode.Bounded]",
+            "value": 53.46296108083911,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0003339985490245992",
+            "extra": "mean: 18.70453824074469 msec\nrounds: 54"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[stretch-CartesianSpeedMode.TimeOptimal]",
+            "value": 31.297852399062073,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0005064557488498134",
+            "extra": "mean: 31.951074062511964 msec\nrounds: 32"
+          },
+          {
+            "name": "benchmarks/test_benchmark_oink.py::test_benchmark_oink_solve[ur5]",
+            "value": 3266.6264662272433,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009156113218039604",
+            "extra": "mean: 306.1262162474731 usec\nrounds: 3385"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[tiago_pro-CartesianSpeedMode.Bounded]",
+            "value": 17.30773794020955,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0006702214615652831",
+            "extra": "mean: 57.77762544444284 msec\nrounds: 18"
+          },
+          {
+            "name": "benchmarks/test_benchmark_cartesian_planning.py::test_benchmark_cartesian_planning[tiago_pro-CartesianSpeedMode.TimeOptimal]",
+            "value": 14.331479654847492,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0005550068031550704",
+            "extra": "mean: 69.77646580000965 msec\nrounds: 15"
+          },
+          {
+            "name": "benchmarks/test_benchmark_oink.py::test_benchmark_oink_solve[franka]",
+            "value": 2744.263427055595,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000012714349979793197",
+            "extra": "mean: 364.39650441026754 usec\nrounds: 2835"
+          },
+          {
+            "name": "benchmarks/test_benchmark_oink.py::test_benchmark_oink_solve[dual]",
+            "value": 1702.1337703434858,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000019583764145423257",
+            "extra": "mean: 587.4978908374533 usec\nrounds: 1768"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt[so101]",
+            "value": 3.441008522364183,
+            "unit": "iter/sec",
+            "range": "stddev: 0.2171071576237306",
+            "extra": "mean: 290.6124740757512 msec\nrounds: 66"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt_connect[so101]",
+            "value": 10.03505193465666,
+            "unit": "iter/sec",
+            "range": "stddev: 0.05385469744686605",
+            "extra": "mean: 99.65070499998504 msec\nrounds: 21"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt[kinova]",
+            "value": 0.8905149895239272,
+            "unit": "iter/sec",
+            "range": "stddev: 2.2174027975113133",
+            "extra": "mean: 1.1229457243999945 sec\nrounds: 10"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt_connect[kinova]",
+            "value": 7.998308679331417,
+            "unit": "iter/sec",
+            "range": "stddev: 0.06942462479918567",
+            "extra": "mean: 125.02643247367024 msec\nrounds: 19"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt[ur5]",
+            "value": 0.3709755663502665,
+            "unit": "iter/sec",
+            "range": "stddev: 5.636232028542408",
+            "extra": "mean: 2.6955953186842048 sec\nrounds: 19"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt_connect[ur5]",
+            "value": 2.8076615200519224,
+            "unit": "iter/sec",
+            "range": "stddev: 0.4780427504259794",
+            "extra": "mean: 356.168289111113 msec\nrounds: 45"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt[franka]",
+            "value": 10.808155528593634,
+            "unit": "iter/sec",
+            "range": "stddev: 0.060620228292968946",
+            "extra": "mean: 92.52272484000059 msec\nrounds: 25"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt_connect[franka]",
+            "value": 42.459392738321604,
+            "unit": "iter/sec",
+            "range": "stddev: 0.005929491845285303",
+            "extra": "mean: 23.55191479451973 msec\nrounds: 73"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt[dual]",
+            "value": 0.16496487361177126,
+            "unit": "iter/sec",
+            "range": "stddev: 7.512181969016738",
+            "extra": "mean: 6.061896560799982 sec\nrounds: 10"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt_connect[dual]",
+            "value": 17.435507847968807,
+            "unit": "iter/sec",
+            "range": "stddev: 0.010624555972863168",
+            "extra": "mean: 57.354222699999966 msec\nrounds: 30"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt[tiago_pro]",
+            "value": 0.2017648892877179,
+            "unit": "iter/sec",
+            "range": "stddev: 6.625966345517379",
+            "extra": "mean: 4.956263716299986 sec\nrounds: 10"
+          },
+          {
+            "name": "benchmarks/test_benchmark_rrt.py::test_benchmark_rrt_connect[tiago_pro]",
+            "value": 4.269923953218045,
+            "unit": "iter/sec",
+            "range": "stddev: 0.17288747349403694",
+            "extra": "mean: 234.1962083999988 msec\nrounds: 10"
           }
         ]
       }
