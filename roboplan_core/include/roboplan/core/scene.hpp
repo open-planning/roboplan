@@ -594,7 +594,7 @@ public:
   /// @param tform The transform between the parent frame and the geometry.
   tl::expected<void, std::string> updateGeometryPlacement(const std::string& name,
                                                           const std::string& parent_frame,
-                                                          Eigen::Matrix4d& tform);
+                                                          const Eigen::Matrix4d& tform);
 
   /// @brief Removes a geometry from the scene.
   /// @details Fails if the object is attached; call `detachObject` first.
