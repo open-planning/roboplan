@@ -69,6 +69,7 @@ add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_simple_ik"
                  "roboplan_simple_ik")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_oink" "roboplan_oink")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_rrt" "roboplan_rrt")
+add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_ompl" "roboplan_ompl")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_toppra"
                  "roboplan_toppra")
 add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan_cartesian_planning"

@@ -9,6 +9,7 @@ install(
            example_oink_position_barriers.py
            example_oink_relative_pose.py
            example_oink.py
+           example_ompl.py
            example_pick_and_place.py
            example_pick_and_place_mujoco.py
            example_rrt.py
