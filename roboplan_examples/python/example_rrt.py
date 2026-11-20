@@ -13,21 +13,44 @@ from pinocchio.visualize import ViserVisualizer
 
 from roboplan.core import (
     JointConfiguration,
+    JointPath,
     PathShortcutter,
     PathShortcuttingOptions,
     Scene,
+    computePathLength,
     loadJointLimitsConfig,
     loadUrdfSceneDescriptionFromXml,
 )
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRT, RRTOptions, visualizeTree
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOptions
+from roboplan.vex import Vex, VexOptions
 from roboplan.visualization import (
     plotJointTrajectory,
     visualizeJointTrajectory,
     visualizeOcTree,
     visualizePath,
 )
+
+# One color per visual element, used for both the drawing and the GUI legend.
+START_COLOR = (0, 200, 0)
+GOAL_COLOR = (200, 0, 0)
+START_TREE_COLOR = (0, 100, 100)
+GOAL_TREE_COLOR = (100, 0, 100)
+RRT_PATH_COLOR = (100, 0, 0)
+SHORTCUT_PATH_COLOR = (230, 140, 0)
+TRAJECTORY_COLOR = (0, 70, 220)
+
+
+def legend_html(entries: list[tuple[str, tuple]]) -> str:
+    """Builds a compact HTML legend of colored swatches for the Viser GUI panel."""
+    rows = "".join(
+        f'<div style="display:flex;align-items:center;gap:6px;margin:2px 0;">'
+        f'<span style="width:14px;height:4px;background:rgb{color};display:inline-block;"></span>'
+        f"<span>{label}</span></div>"
+        for label, color in entries
+    )
+    return f'<div style="font-size:0.8em;">{rows}</div>'
 
 
 def main(
@@ -50,6 +73,8 @@ def main(
     rng_seed: int | None = None,
     include_obstacles: bool = False,
     include_octrees: bool = False,
+    vex: bool = False,
+    vex_duration: float = 5.0,
 ):
     """
     Plan RRT paths between random collision-free configurations and animate the trajectory.
@@ -82,6 +107,10 @@ def main(
             Don't use with `include_octrees`.
         include_octrees: Whether or not to include additional octrees in the scene.
             Don't use with `include_obstacles`.
+        vex: Whether to optimize the found (and optionally shortcutted) path with vex and show
+            the vex trajectory instead of the TOPP-RA one (falls back to TOPP-RA if vex
+            returns an error).
+        vex_duration: The duration (in seconds) of the vex trajectory.
     """
     model_data = get_model_data().get(model)
     if model_data is None:
@@ -204,18 +233,56 @@ def main(
             shortened_path = shortcutter.shortcut(path)
             print(f"Shortcutted path in {time.time() - t_start:.3f} s")
 
-        # Set up TOPP-RA to time-parameterize the path
-        print("Generating trajectory...")
-        t_start = time.time()
-        traj = toppra.generate(
-            shortened_path if include_shortcutting else path,
-            TOPPRAOptions(dt=traj_dt, mode=toppra_mode),
-        )
-        print(f"Generated trajectory in {time.time() - t_start:.3f} s")
+        traj = None
+        if vex:
+            # Optimize the path with vex, which also time-parameterizes it.
+            print("Optimizing trajectory with vex...")
+            seed = shortened_path if include_shortcutting else path
+            vex_options = VexOptions()
+            vex_options.group_name = model_data.default_joint_group
+            t_start = time.time()
+            try:
+                result = Vex(scene, vex_options).solve(start, goal, vex_duration, seed)
+            except RuntimeError as error:
+                # E.g. a start or goal with a clearance below collision_margin.
+                print(f"vex failed: {error}")
+                print("Falling back to TOPP-RA.")
+            else:
+                print(f"Optimized trajectory in {time.time() - t_start:.3f} s")
+                traj = result.trajectory
+                optimized = JointPath()
+                optimized.joint_names = traj.joint_names
+                optimized.positions = traj.positions
+                group_name = model_data.default_joint_group
+                print(
+                    f"Path length: {computePathLength(scene, group_name, seed):.3f} before, "
+                    f"{computePathLength(scene, group_name, optimized):.3f} after vex"
+                )
+                print(
+                    f"vex status: {result.status}, "
+                    f"continuous collision free: {result.continuous_collision_free}"
+                )
+        if traj is None:
+            # Set up TOPP-RA to time-parameterize the path
+            print("Generating trajectory...")
+            t_start = time.time()
+            traj = toppra.generate(
+                shortened_path if include_shortcutting else path,
+                TOPPRAOptions(dt=traj_dt, mode=toppra_mode),
+            )
+            print(f"Generated trajectory in {time.time() - t_start:.3f} s")
 
         # Visualize the tree and path
         viz.display(q_full)
-        visualizeTree(viz, scene, rrt, model_data.ee_names, 0.05)
+        visualizeTree(
+            viz,
+            scene,
+            rrt,
+            model_data.ee_names,
+            0.05,
+            start_tree_color=START_TREE_COLOR,
+            goal_tree_color=GOAL_TREE_COLOR,
+        )
 
         # Show the start (green) and goal (red) end-effector positions.
         q_start_full = scene.toFullJointPositions(
@@ -228,32 +295,39 @@ def main(
             viz.viewer.scene.add_icosphere(
                 f"/rrt/start/{ee_name}",
                 radius=0.03,
-                color=(0, 200, 0),
+                color=START_COLOR,
                 position=scene.forwardKinematics(q_start_full, ee_name)[:3, 3],
             )
             viz.viewer.scene.add_icosphere(
                 f"/rrt/goal/{ee_name}",
                 radius=0.03,
-                color=(200, 0, 0),
+                color=GOAL_COLOR,
                 position=scene.forwardKinematics(q_goal_full, ee_name)[:3, 3],
             )
 
+        # The raw RRT path, the optional shortcut path, and the final trajectory (vex or TOPP-RA)
+        # always use the same colors, matching the legend in the GUI panel.
+        visualizePath(
+            viz, scene, path, model_data.ee_names, 0.05, RRT_PATH_COLOR, "/rrt/path"
+        )
         if include_shortcutting:
             visualizePath(
-                viz, scene, path, model_data.ee_names, 0.05, (100, 0, 0), "/rrt/path"
-            )
-            visualizeJointTrajectory(
                 viz,
                 scene,
-                traj,
+                shortened_path,
                 model_data.ee_names,
-                (0, 100, 0),
+                0.05,
+                SHORTCUT_PATH_COLOR,
                 "/rrt/shortcut_path",
             )
-        else:
-            visualizeJointTrajectory(
-                viz, scene, traj, model_data.ee_names, (100, 0, 0), "/rrt/path"
-            )
+        visualizeJointTrajectory(
+            viz,
+            scene,
+            traj,
+            model_data.ee_names,
+            TRAJECTORY_COLOR,
+            "/rrt/trajectory",
+        )
 
         traj_queue.put(traj)
         plan_button.disabled = False
@@ -261,6 +335,21 @@ def main(
 
     animate_button = viz.viewer.gui.add_button("Animate trajectory")
     animate_button.disabled = True
+
+    legend_entries = [("Start", START_COLOR), ("Goal", GOAL_COLOR)]
+    legend_entries.append(("RRT start tree", START_TREE_COLOR))
+    if rrt_connect:
+        legend_entries.append(("RRT goal tree", GOAL_TREE_COLOR))
+    legend_entries.append(("RRT path", RRT_PATH_COLOR))
+    if include_shortcutting:
+        legend_entries.append(("Shortcut path", SHORTCUT_PATH_COLOR))
+    legend_entries.append(
+        (
+            "Trajectory (vex, TOPP-RA on failure)" if vex else "Trajectory (TOPP-RA)",
+            TRAJECTORY_COLOR,
+        )
+    )
+    viz.viewer.gui.add_html(legend_html(legend_entries))
 
     @animate_button.on_click
     def animate_trajectory(_):
@@ -285,10 +374,12 @@ def main(
             plt.pause(0.1)
         elif animate and cur_traj is not None:
             print("Animating trajectory...")
+            # TOPP-RA samples at traj_dt; vex at its own node spacing.
+            anim_dt = cur_traj.times[1] - cur_traj.times[0]
             for q in cur_traj.positions:
                 q_full = scene.toFullJointPositions(model_data.default_joint_group, q)
                 viz.display(q_full)
-                time.sleep(traj_dt)
+                time.sleep(anim_dt)
             animate = False
             plan_button.disabled = False
             animate_button.disabled = False

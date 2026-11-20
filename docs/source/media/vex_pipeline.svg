@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 390" width="940" height="390" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/></marker></defs><rect width="940" height="390" fill="#ffffff"/>
+<rect x="20" y="20" width="230" height="78" rx="10" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.8"/>
+<text x="135.0" y="51" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">① Input check</text>
+<text x="135.0" y="78" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">seed, start, goal</text>
+<rect x="300" y="20" width="330" height="78" rx="10" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.8"/>
+<text x="465.0" y="51" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">② Initial point</text>
+<text x="465.0" y="78" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">project onto the linear rows</text>
+<path d="M250,59 H300" fill="none" stroke="#4a5568" stroke-width="2.2" marker-end="url(#ah)"/>
+<path d="M465,98 V136" fill="none" stroke="#4a5568" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="20" y="136" width="610" height="236" rx="14" fill="none" stroke="#4a5568" stroke-width="1.8" stroke-dasharray="7 5"/>
+<text x="36" y="164" font-size="17" text-anchor="start" fill="#4a5568" font-weight="bold">Optimization loop</text>
+<rect x="38" y="206" width="170" height="84" rx="10" fill="#fffaf0" stroke="#c05621" stroke-width="1.8"/>
+<text x="123.0" y="237" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">③ Linearize</text>
+<text x="123.0" y="264" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">collision rows</text>
+<rect x="244" y="206" width="170" height="84" rx="10" fill="#fffaf0" stroke="#c05621" stroke-width="1.8"/>
+<text x="329.0" y="237" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">④ Solve QP</text>
+<text x="329.0" y="264" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">slacks, trust box</text>
+<rect x="450" y="206" width="160" height="84" rx="10" fill="#fffaf0" stroke="#c05621" stroke-width="1.8"/>
+<text x="530.0" y="237" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">⑤ Test</text>
+<text x="530.0" y="264" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">accept / reject</text>
+<path d="M208,248 H244" fill="none" stroke="#4a5568" stroke-width="2.2" marker-end="url(#ah)"/>
+<path d="M414,248 H450" fill="none" stroke="#4a5568" stroke-width="2.2" marker-end="url(#ah)"/>
+<path d="M530,206 C530,166 123,166 123,206" fill="none" stroke="#2f855a" stroke-width="2.2" marker-end="url(#ah)"/>
+<text x="326" y="163" font-size="17" text-anchor="middle" fill="#2f855a" font-weight="normal">accept: update z, grow trust box</text>
+<path d="M530,290 C530,338 329,338 329,290" fill="none" stroke="#c53030" stroke-width="2.2" marker-end="url(#ah)"/>
+<text x="430" y="358" font-size="17" text-anchor="middle" fill="#c53030" font-weight="normal">reject: shrink trust box</text>
+<rect x="710" y="20" width="210" height="78" rx="10" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.8"/>
+<text x="815.0" y="51" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">⑦ Post-check</text>
+<text x="815.0" y="78" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">dense collision check</text>
+<rect x="710" y="206" width="210" height="84" rx="10" fill="#f0fff4" stroke="#2f855a" stroke-width="1.8"/>
+<text x="815.0" y="237" font-size="20" text-anchor="middle" fill="#1a202c" font-weight="bold">⑥ Penalty</text>
+<text x="815.0" y="264" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">violation ≤ tolerance ?</text>
+<path d="M610,248 H710" fill="none" stroke="#4a5568" stroke-width="2.2" marker-end="url(#ah)"/>
+<text x="668" y="236" font-size="17" text-anchor="middle" fill="#4a5568" font-weight="normal">converged</text>
+<path d="M815,206 V98" fill="none" stroke="#2f855a" stroke-width="2.2" marker-end="url(#ah)"/>
+<text x="836" y="160" font-size="17" text-anchor="start" fill="#2f855a" font-weight="normal">yes</text>
+<path d="M760,290 C760,350 710,364 632,364" fill="none" stroke="#c53030" stroke-width="2.2" marker-end="url(#ah)"/>
+<text x="772" y="352" font-size="17" text-anchor="start" fill="#c53030" font-weight="normal">no: raise penalty</text>
+</svg>
