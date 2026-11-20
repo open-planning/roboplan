@@ -119,7 +119,7 @@ Each C++ package ships its own Python bindings, exposed as a submodule of the ``
      - :doc:`Cartesian path planning </concepts/cartesian_planning>`, composing OInK and TOPP-RA.
    * - ``roboplan_vex``
      - ``roboplan.vex``
-     - :doc:`Sequential convex trajectory optimization </concepts/sequential_convex_trajectory_optimization>` (vex).
+     - :doc:`Sequential convex trajectory optimization </concepts/trajectory_optimization/vex>` (vex).
    * - ``roboplan_example_models``
      - ``roboplan.example_models``
      - Example robot models (URDF/SRDF) used in examples and tests.
