@@ -4,10 +4,26 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 #include <roboplan_vex/qp_backend.hpp>
 
 namespace roboplan::detail {
+
+// SCP loop (ScpLoop::run), starting from a z that satisfies the hard rows:
+//
+//   penalty round                       (penalty *= penalty_increase, <= max_penalty_increases)
+//     repeat until converged:           <- ScpLoop::trustRegionStep
+//       merit(z) = cost(z) + penalty * sum_i violation(g_i(z))
+//       QP at z: minimize the linearized merit s.t. hard rows and |dz| <= box
+//         QP failed             -> box *= trust_shrink, retry
+//         predicted gain < tol  -> converged
+//       evaluate g at z + dz
+//         actual / predicted >= improve_ratio -> accept, z += dz, box *= trust_expand
+//         else                                -> box *= trust_shrink, retry (box < tol: converged)
+//     max_violation <= tol -> Converged; else next round, or ConvergedInfeasible after the last.
+//
+// MaxIterations and Timeout end the loop from any step.
 
 namespace {
 
@@ -64,7 +80,7 @@ double violation(const NonconvexRow& row, double value) {
   return row.equality ? std::abs(value) : std::max(0.0, value);
 }
 
-// Evaluates all terms at z, values only.
+// Evaluates all terms at z; the Jacobians only if requested.
 tl::expected<void, std::string>
 evaluateTerms(const std::vector<std::shared_ptr<NonconvexTerm>>& terms, const VexLayout& layout,
               const Eigen::VectorXd& z, bool compute_jacobian, std::vector<NonconvexRow>& rows) {
@@ -199,6 +215,172 @@ double linearizedViolation(const std::vector<NonconvexRow>& rows, const Eigen::V
   return sum;
 }
 
+// Outcome of one trust-region step attempt (see ScpLoop::trustRegionStep).
+enum class StepOutcome {
+  /// z moved to the candidate.
+  Accepted,
+  /// No step improves the merit by more than the tolerance, or the box collapsed.
+  Converged,
+  MaxIterations,
+  Timeout,
+  QpFailure,
+};
+
+// The l1-penalty / trust-box loop. State shared by the steps lives in the members; the constructor
+// takes the point z that satisfies the hard rows.
+class ScpLoop {
+public:
+  ScpLoop(const ConvexProblem& problem, const std::vector<std::shared_ptr<NonconvexTerm>>& terms,
+          Eigen::VectorXd z, const VexOptions& options)
+      : problem_{problem}, terms_{terms}, options_{options}, scaled_{scaleProblem(problem)},
+        z_{std::move(z)},
+        // Without nonconvex terms the QP model is exact: no trust box is needed.
+        has_terms_{!terms.empty()}, penalty_{options.initial_penalty},
+        box_{has_terms_ ? options.initial_trust_box : kInfinity},
+        start_time_{std::chrono::steady_clock::now()} {}
+
+  tl::expected<ScpResult, std::string> run() {
+    // `linearized_` always holds all rows (values and Jacobians) at the current z.
+    if (auto evaluated = evaluateTerms(terms_, problem_.layout, z_, true, linearized_);
+        !evaluated) {
+      return tl::make_unexpected(evaluated.error());
+    }
+
+    for (size_t penalty_round = 0;; ++penalty_round) {
+      // Minimize the merit for the current penalty.
+      for (bool converged = false; !converged;) {
+        const auto outcome = trustRegionStep();
+        if (!outcome) {
+          return tl::make_unexpected(outcome.error());
+        }
+        switch (*outcome) {
+        case StepOutcome::Accepted:
+          // An exact model's accepted step is the optimum.
+          converged = !has_terms_;
+          break;
+        case StepOutcome::Converged:
+          converged = true;
+          break;
+        case StepOutcome::MaxIterations:
+          return finish(VexStatus::MaxIterations);
+        case StepOutcome::Timeout:
+          return finish(VexStatus::Timeout);
+        case StepOutcome::QpFailure:
+          return finish(VexStatus::QpFailure);
+        }
+      }
+
+      // Converged for this penalty: done if feasible, else increase the penalty.
+      if (maxViolation(linearized_) <= options_.tolerance) {
+        return finish(VexStatus::Converged);
+      }
+      if (penalty_round >= options_.max_penalty_increases) {
+        return finish(VexStatus::ConvergedInfeasible);
+      }
+      penalty_ *= options_.penalty_increase;
+      box_ = std::max(box_, 1.5 * options_.tolerance / options_.trust_shrink);
+    }
+  }
+
+private:
+  // Solves subproblems at z, shrinking the box after every rejected step, until a step passes the
+  // ratio test or a stopping condition holds. Every attempt counts as one iteration.
+  tl::expected<StepOutcome, std::string> trustRegionStep() {
+    const Eigen::Index nz = problem_.layout.size();
+
+    // The merit counts all rows; only the rows the step can influence enter the QP. The pointers
+    // refer to `linearized_` and are valid until it is swapped on acceptance, which ends the step.
+    const double merit = problem_.cost(z_) + penalty_ * sumViolation(linearized_);
+    std::vector<const NonconvexRow*> qp_rows;
+    for (const auto& row : linearized_) {
+      if (isInfluenceable(row)) {
+        qp_rows.push_back(&row);
+      }
+    }
+
+    while (true) {
+      if (result_.iterations >= options_.max_iterations) {
+        return StepOutcome::MaxIterations;
+      }
+      if (timedOut()) {
+        return StepOutcome::Timeout;
+      }
+      ++result_.iterations;
+
+      // Primal warm start at dy = 0 with the smallest feasible slacks.
+      Eigen::VectorXd guess = Eigen::VectorXd::Zero(nz + static_cast<Eigen::Index>(qp_rows.size()));
+      for (size_t i = 0; i < qp_rows.size(); ++i) {
+        guess(nz + static_cast<Eigen::Index>(i)) = violation(*qp_rows.at(i), qp_rows.at(i)->value);
+      }
+      const SparseQp qp = assembleSubproblem(problem_, scaled_, z_, qp_rows, penalty_, box_);
+      const auto solution = solveSparseQp(
+          qp, SparseQpSettings{.eps_primal_inf = kSubproblemPrimalInfeasibility}, guess);
+      if (!solution) {
+        box_ *= options_.trust_shrink;
+        if (!has_terms_ || box_ < options_.tolerance) {
+          return StepOutcome::QpFailure;
+        }
+        continue;
+      }
+
+      const Eigen::VectorXd dz = problem_.scale.cwiseProduct(solution->head(nz));
+      const Eigen::VectorXd z_candidate = z_ + dz;
+      const double candidate_cost = problem_.cost(z_candidate);
+      const double approx_improve =
+          merit - (candidate_cost + penalty_ * linearizedViolation(linearized_, dz));
+      if (approx_improve < options_.tolerance) {
+        return StepOutcome::Converged;
+      }
+
+      // Candidates are evaluated with Jacobians, so an accepted candidate's rows are swapped in
+      // without evaluating the terms again (the signed distances dominate the cost).
+      if (auto evaluated =
+              evaluateTerms(terms_, problem_.layout, z_candidate, true, candidate_rows_);
+          !evaluated) {
+        return tl::make_unexpected(evaluated.error());
+      }
+      const double exact_improve =
+          merit - (candidate_cost + penalty_ * sumViolation(candidate_rows_));
+      if (exact_improve / approx_improve >= options_.improve_ratio) {
+        z_ = z_candidate;
+        linearized_.swap(candidate_rows_);
+        box_ *= options_.trust_expand;
+        return StepOutcome::Accepted;
+      }
+      box_ *= options_.trust_shrink;
+      if (box_ < options_.tolerance) {
+        return StepOutcome::Converged;
+      }
+    }
+  }
+
+  bool timedOut() const {
+    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start_time_;
+    return elapsed.count() > options_.max_time;
+  }
+
+  tl::expected<ScpResult, std::string> finish(VexStatus status) {
+    result_.z = z_;
+    result_.status = status;
+    result_.cost = problem_.cost(z_);
+    result_.max_violation = maxViolation(linearized_);
+    return result_;
+  }
+
+  const ConvexProblem& problem_;
+  const std::vector<std::shared_ptr<NonconvexTerm>>& terms_;
+  const VexOptions& options_;
+  const ScaledProblem scaled_;
+  Eigen::VectorXd z_;
+  const bool has_terms_;
+  double penalty_;
+  double box_;
+  const std::chrono::steady_clock::time_point start_time_;
+  std::vector<NonconvexRow> linearized_;
+  std::vector<NonconvexRow> candidate_rows_;
+  ScpResult result_;
+};
+
 }  // namespace
 
 ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd& start,
@@ -330,121 +512,7 @@ projectOntoConstraints(const ConvexProblem& problem, const std::vector<Eigen::Ve
 tl::expected<ScpResult, std::string>
 runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<NonconvexTerm>>& terms,
        Eigen::VectorXd z, const VexOptions& options) {
-  const auto start_time = std::chrono::steady_clock::now();
-  const auto& layout = problem.layout;
-  const Eigen::Index nz = layout.size();
-  const ScaledProblem scaled = scaleProblem(problem);
-
-  // Without nonconvex terms the QP model is exact: no trust box is needed.
-  const bool has_terms = !terms.empty();
-  double penalty = options.initial_penalty;
-  double box = has_terms ? options.initial_trust_box : kInfinity;
-
-  // `linearized` always holds all rows (values and Jacobians) at the current z: candidates are
-  // evaluated with Jacobians, so an accepted candidate's rows are swapped in without evaluating
-  // the terms again (the signed distances dominate the cost; the Jacobians are cheap).
-  std::vector<NonconvexRow> linearized;
-  std::vector<NonconvexRow> candidate_rows;
-  std::vector<const NonconvexRow*> qp_rows;
-  ScpResult result;
-  if (auto evaluated = evaluateTerms(terms, layout, z, true, linearized); !evaluated) {
-    return tl::make_unexpected(evaluated.error());
-  }
-
-  const auto finish = [&](VexStatus status) -> tl::expected<ScpResult, std::string> {
-    result.z = z;
-    result.status = status;
-    result.cost = problem.cost(z);
-    result.max_violation = maxViolation(linearized);
-    return result;
-  };
-  const auto timed_out = [&]() {
-    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start_time;
-    return elapsed.count() > options.max_time;
-  };
-
-  for (size_t penalty_round = 0;; ++penalty_round) {
-    bool converged = false;
-    while (!converged) {
-      // The merit counts all rows; only the rows the step can influence enter the QP.
-      const double merit = problem.cost(z) + penalty * sumViolation(linearized);
-      qp_rows.clear();
-      for (const auto& row : linearized) {
-        if (isInfluenceable(row)) {
-          qp_rows.push_back(&row);
-        }
-      }
-
-      // Trust region loop: shrink the box until a step passes the ratio test.
-      while (true) {
-        if (result.iterations >= options.max_iterations) {
-          return finish(VexStatus::MaxIterations);
-        }
-        if (timed_out()) {
-          return finish(VexStatus::Timeout);
-        }
-        ++result.iterations;
-
-        // Primal warm start at dy = 0 with the smallest feasible slacks.
-        Eigen::VectorXd guess =
-            Eigen::VectorXd::Zero(nz + static_cast<Eigen::Index>(qp_rows.size()));
-        for (size_t i = 0; i < qp_rows.size(); ++i) {
-          guess(nz + static_cast<Eigen::Index>(i)) =
-              violation(*qp_rows.at(i), qp_rows.at(i)->value);
-        }
-        const SparseQp qp = assembleSubproblem(problem, scaled, z, qp_rows, penalty, box);
-        const auto solution = solveSparseQp(
-            qp, SparseQpSettings{.eps_primal_inf = kSubproblemPrimalInfeasibility}, guess);
-        if (!solution) {
-          box *= options.trust_shrink;
-          if (!has_terms || box < options.tolerance) {
-            return finish(VexStatus::QpFailure);
-          }
-          continue;
-        }
-
-        const Eigen::VectorXd dz = problem.scale.cwiseProduct(solution->head(nz));
-        const Eigen::VectorXd z_candidate = z + dz;
-        const double candidate_cost = problem.cost(z_candidate);
-        const double approx_improve =
-            merit - (candidate_cost + penalty * linearizedViolation(linearized, dz));
-        if (approx_improve < options.tolerance) {
-          converged = true;
-          break;
-        }
-
-        if (auto evaluated = evaluateTerms(terms, layout, z_candidate, true, candidate_rows);
-            !evaluated) {
-          return tl::make_unexpected(evaluated.error());
-        }
-        const double exact_improve =
-            merit - (candidate_cost + penalty * sumViolation(candidate_rows));
-        if (exact_improve / approx_improve >= options.improve_ratio) {
-          z = z_candidate;
-          linearized.swap(candidate_rows);
-          box *= options.trust_expand;
-          // An exact model's accepted step is the optimum.
-          converged = !has_terms;
-          break;
-        }
-        box *= options.trust_shrink;
-        if (box < options.tolerance) {
-          converged = true;
-          break;
-        }
-      }
-    }
-
-    // Converged for this penalty: done if feasible, else increase the penalty.
-    if (maxViolation(linearized) <= options.tolerance) {
-      return finish(VexStatus::Converged);
-    }
-    if (penalty_round >= options.max_penalty_increases) {
-      return finish(VexStatus::ConvergedInfeasible);
-    }
-    penalty *= options.penalty_increase;
-    box = std::max(box, 1.5 * options.tolerance / options.trust_shrink);
-  }
+  return ScpLoop(problem, terms, std::move(z), options).run();
 }
 
 }  // namespace roboplan::detail
