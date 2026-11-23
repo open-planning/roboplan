@@ -11,12 +11,7 @@
 
 #include <roboplan/core/robot_body_filter.hpp>
 
-// Mirror the coal/hpp-fcl include guard used in geometry_wrappers.hpp.
-#if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/collision.h>
-#else
-#include <hpp/fcl/collision.h>
-#endif
 
 namespace roboplan {
 
@@ -98,7 +93,7 @@ RobotBodyFilter::computeMask(const Eigen::VectorXd& q, const Eigen::Ref<const Po
           // security margin of the geometry surface.
           request.security_margin = margin;
           coal::CollisionResult result;
-          coal::collide(&point_geom, CoalTransform(point), object.collisionGeometry().get(),
+          coal::collide(&point_geom, coal::Transform3s(point), object.collisionGeometry().get(),
                         object.getTransform(), request, result);
           near_body = result.isCollision();
         } else {

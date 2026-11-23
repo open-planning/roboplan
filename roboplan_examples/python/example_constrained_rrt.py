@@ -13,10 +13,7 @@ import xacro
 from common import ObstacleConfig, get_model_data
 from pinocchio.visualize import ViserVisualizer
 
-try:
-    import coal
-except ModuleNotFoundError:
-    import hppfcl as coal
+import coal
 
 import itertools
 

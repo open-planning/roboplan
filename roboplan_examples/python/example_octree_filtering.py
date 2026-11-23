@@ -16,10 +16,7 @@ import numpy as np
 import tyro
 import xacro
 
-try:
-    import coal
-except ModuleNotFoundError:
-    import hppfcl as coal
+import coal
 
 import pinocchio as pin
 from common import (

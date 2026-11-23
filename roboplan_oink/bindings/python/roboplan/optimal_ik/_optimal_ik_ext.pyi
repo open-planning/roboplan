@@ -536,7 +536,7 @@ class SelfCollisionBarrierOptions:
 
 class SelfCollisionBarrier(Barrier):
     """
-    Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.
+    Self-collision avoidance barrier based on coal collision pair distances.
 
     Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at
     least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.
