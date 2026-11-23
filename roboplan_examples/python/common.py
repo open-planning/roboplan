@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import coal
-
 import numpy as np
 import pinocchio as pin
 import xacro

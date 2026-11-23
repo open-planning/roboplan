@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+import itertools
 import queue
 import sys
 import time
 from dataclasses import replace
 
+import coal
 import matplotlib.pyplot as plt
 import numpy as np
 import pinocchio as pin
@@ -12,10 +14,6 @@ import tyro
 import xacro
 from common import ObstacleConfig, get_model_data
 from pinocchio.visualize import ViserVisualizer
-
-import coal
-
-import itertools
 
 from roboplan.core import (
     CartesianConfiguration,

@@ -4,7 +4,6 @@ import threading
 import time
 
 import coal
-
 import numpy as np
 import pinocchio as pin
 import tyro
