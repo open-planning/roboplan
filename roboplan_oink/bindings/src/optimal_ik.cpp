@@ -263,7 +263,7 @@ void init_optimal_ik(nanobind::module_& m) {
 
   nanobind::class_<SelfCollisionBarrier, Barrier>(
       m, "SelfCollisionBarrier",
-      "Self-collision avoidance barrier based on hpp-fcl / coal collision pair distances.\n\n"
+      "Self-collision avoidance barrier based on coal collision pair distances.\n\n"
       "Constrains the closest `n_collision_pairs` collision pairs in the scene to remain at\n"
       "least `d_min` apart. Inspired by pink.barriers.SelfCollisionBarrier.")
       .def(nanobind::init<const Oink&, const Scene&, double, const SelfCollisionBarrierOptions&>(),

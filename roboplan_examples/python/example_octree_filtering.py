@@ -12,16 +12,11 @@ filter with --method; timing is printed for each cycle.
 
 import time
 
+import coal
 import numpy as np
+import pinocchio as pin
 import tyro
 import xacro
-
-try:
-    import coal
-except ModuleNotFoundError:
-    import hppfcl as coal
-
-import pinocchio as pin
 from common import (
     ROBOPLAN_MODELS_DIR,
     get_home_configuration,

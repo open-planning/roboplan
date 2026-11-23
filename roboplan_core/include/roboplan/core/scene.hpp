@@ -25,14 +25,7 @@
 #include <roboplan/core/geometry_wrappers.hpp>
 #include <roboplan/core/types.hpp>
 
-// The concrete broadphase manager (AABB tree). Mirror the coal/hpp-fcl include guard used in
-// geometry_wrappers.hpp so the `coal` namespace resolves in both modern and legacy builds.
-#if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
-#else
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-namespace coal = hpp::fcl;
-#endif
 
 namespace roboplan {
 
