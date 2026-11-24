@@ -18,6 +18,7 @@
   <depend>roboplan_cartesian_planning</depend>
   <depend>roboplan_simple_ik</depend>
   <depend>roboplan_oink</depend>
+  <depend>roboplan_ompl</depend>
   <depend>roboplan_rrt</depend>
   <depend>roboplan_toppra</depend>
 

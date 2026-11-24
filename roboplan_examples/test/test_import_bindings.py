@@ -14,6 +14,7 @@ BINDINGS_MODULES = [
     "roboplan.core",
     "roboplan.example_models",
     "roboplan.filters",
+    "roboplan.ompl",
     "roboplan.optimal_ik",
     "roboplan.rrt",
     "roboplan.simple_ik",
