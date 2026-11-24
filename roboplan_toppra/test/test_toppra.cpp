@@ -276,6 +276,21 @@ TEST_F(RoboPlanToppraTest, LongPathAdaptive) {
   ASSERT_TRUE(result.has_value());
 }
 
+TEST_F(RoboPlanToppraTest, AdaptiveWithCollidingFinalWaypoint) {
+  auto path = createTestPathShort();
+  const auto q_indices = scene->getJointGroupInfo("arm").value().q_indices;
+  scene->setRngSeed(1234);
+  Eigen::VectorXd q_full = scene->randomPositions();
+  while (!scene->hasCollisions(q_full)) {
+    q_full = scene->randomPositions();
+  }
+  path.positions.back() = q_full(q_indices);
+
+  auto toppra = PathParameterizerTOPPRA(scene, "arm");
+  auto result = toppra.generate(path, {0.01, SplineFittingMode::Adaptive});
+  ASSERT_TRUE(result.has_value()) << result.error();
+}
+
 TEST_F(RoboPlanToppraTest, ShortPathLinearBlend) {
   auto path = createTestPathShort();
   double dt = 0.01;

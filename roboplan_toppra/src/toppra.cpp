@@ -278,6 +278,15 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   // below, so it uses its own scratch rather than the Scene's shared collision data.
   const SceneContext scene_context(*scene_);
 
+  // Inserting waypoints cannot fix colliding endpoints, so skip straight to the fallback.
+  if (max_collision_iterations > 0) {
+    const auto q_start = scene_->toFullJointPositions(group_name_, path.positions.front());
+    const auto q_end = scene_->toFullJointPositions(group_name_, path.positions.back());
+    if (scene_context.hasCollisions(q_start) || scene_context.hasCollisions(q_end)) {
+      max_collision_iterations = 0;
+    }
+  }
+
   toppra::GeometricPathPtr geom_path;
   bool found_collision_free_path = false;
   for (int idx = 0; idx < max_collision_iterations; ++idx) {
