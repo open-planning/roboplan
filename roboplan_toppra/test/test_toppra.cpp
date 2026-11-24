@@ -219,6 +219,18 @@ TEST_F(RoboPlanToppraTest, BadVelocityAccelerationScales) {
   }
 }
 
+TEST_F(RoboPlanToppraTest, BadVelocityAccelerationLimits) {
+  for (const std::string limit_type : {"max_velocity", "max_acceleration"}) {
+    for (const std::string value : {"0.0", "-1.0"}) {
+      auto bad_scene = scene->clone();
+      bad_scene->importJointLimitsFromConfig(
+          YAML::Load("joint_limits:\n  elbow_joint:\n    " + limit_type + ": [" + value + "]"));
+      EXPECT_THROW(PathParameterizerTOPPRA(std::move(bad_scene), "arm"), std::runtime_error)
+          << limit_type << " = " << value;
+    }
+  }
+}
+
 TEST_F(RoboPlanToppraTest, ShortPathHermite) {
   auto path = createTestPathShort();
   double dt = 0.01;

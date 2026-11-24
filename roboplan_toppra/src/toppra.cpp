@@ -76,6 +76,10 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   }
   vel_lower_limits_ = maybe_joint_velocity_limits->first;
   vel_upper_limits_ = maybe_joint_velocity_limits->second;
+  if ((vel_upper_limits_.array() <= 0.0).any()) {
+    throw std::runtime_error("All joint velocity limits in group '" + group_name_ +
+                             "' must be positive.");
+  }
 
   const auto maybe_joint_acceleration_limits = scene_->getAccelerationLimitVectors(group_name_);
   if (!maybe_joint_acceleration_limits) {
@@ -84,6 +88,10 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   }
   acc_lower_limits_ = maybe_joint_acceleration_limits->first;
   acc_upper_limits_ = maybe_joint_acceleration_limits->second;
+  if ((acc_upper_limits_.array() <= 0.0).any()) {
+    throw std::runtime_error("All joint acceleration limits in group '" + group_name_ +
+                             "' must be positive.");
+  }
 
   // Get the continuous joint position indices for unwrapping positions.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name_);
