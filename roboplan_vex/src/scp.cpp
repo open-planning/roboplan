@@ -75,10 +75,8 @@ void appendTriplets(const Eigen::SparseMatrix<double>& matrix, Eigen::Index row_
   }
 }
 
-// Violation of one row: hinge for inequalities, absolute value for equalities.
-double violation(const NonconvexRow& row, double value) {
-  return row.equality ? std::abs(value) : std::max(0.0, value);
-}
+// Violation of a row with value g: the hinge max(0, g).
+double violation(double value) { return std::max(0.0, value); }
 
 // Evaluates all terms at z; the Jacobians only if requested.
 tl::expected<void, std::string>
@@ -96,7 +94,7 @@ evaluateTerms(const std::vector<std::shared_ptr<NonconvexTerm>>& terms, const Ve
 double sumViolation(const std::vector<NonconvexRow>& rows) {
   double sum = 0.0;
   for (const auto& row : rows) {
-    sum += violation(row, row.value);
+    sum += violation(row.value);
   }
   return sum;
 }
@@ -104,7 +102,7 @@ double sumViolation(const std::vector<NonconvexRow>& rows) {
 double maxViolation(const std::vector<NonconvexRow>& rows) {
   double max = 0.0;
   for (const auto& row : rows) {
-    max = std::max(max, violation(row, row.value));
+    max = std::max(max, violation(row.value));
   }
   return max;
 }
@@ -116,7 +114,7 @@ double maxViolation(const std::vector<NonconvexRow>& rows) {
 // penalty >= 1e2 and reported PROXQP_PRIMAL_INFEASIBLE at 1e5..1e6, although dy = 0 with
 // s = max(g, 0) is always feasible.
 //   s.t. A S dy = b - A z,  l - C z <= C S dy <= u - C z,  -box <= dy <= box,
-//        J S dy - s <= -g (all rows),  J S dy + s >= -g (equality rows),  s >= 0.
+//        J S dy - s <= -g (all rows),  s >= 0.
 SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd& z,
                             const std::vector<const NonconvexRow*>& rows, double penalty,
                             double box) {
@@ -137,10 +135,7 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd&
   qp.b = problem.b - problem.A * z;
 
   const bool use_box = std::isfinite(box);
-  const Eigen::Index num_equality_rows =
-      std::count_if(rows.begin(), rows.end(), [](const auto* row) { return row->equality; });
-  const Eigen::Index num_rows =
-      problem.C_scaled.rows() + (use_box ? nz : 0) + ns + num_equality_rows + ns;
+  const Eigen::Index num_rows = problem.C_scaled.rows() + (use_box ? nz : 0) + ns + ns;
   Triplets c_triplets;
   qp.l.resize(num_rows);
   qp.u.resize(num_rows);
@@ -162,17 +157,14 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd&
   }
 
   // Linearized nonconvex rows with their ℓ1 slacks.
-  for (Eigen::Index i = 0; i < ns; ++i) {
+  for (Eigen::Index i = 0; i < ns; ++i, ++row) {
     const auto& nonconvex_row = *rows.at(static_cast<size_t>(i));
-    const int num_sides = nonconvex_row.equality ? 2 : 1;
-    for (int side = 0; side < num_sides; ++side, ++row) {
-      for (const auto& [index, derivative] : nonconvex_row.jacobian) {
-        c_triplets.emplace_back(row, index, derivative * problem.scale(index));
-      }
-      c_triplets.emplace_back(row, nz + i, side == 0 ? -1.0 : 1.0);
-      qp.l(row) = side == 0 ? -kInfinity : -nonconvex_row.value;
-      qp.u(row) = side == 0 ? -nonconvex_row.value : kInfinity;
+    for (const auto& [index, derivative] : nonconvex_row.jacobian) {
+      c_triplets.emplace_back(row, index, derivative * problem.scale(index));
     }
+    c_triplets.emplace_back(row, nz + i, -1.0);
+    qp.l(row) = -kInfinity;
+    qp.u(row) = -nonconvex_row.value;
   }
 
   // Slacks are nonnegative.
@@ -194,7 +186,7 @@ double linearizedViolation(const std::vector<NonconvexRow>& rows, const Eigen::V
     for (const auto& [index, derivative] : row.jacobian) {
       value += derivative * dz(index);
     }
-    sum += violation(row, value);
+    sum += violation(value);
   }
   return sum;
 }
@@ -293,7 +285,7 @@ private:
       // Primal warm start at dy = 0 with the smallest feasible slacks.
       Eigen::VectorXd guess = Eigen::VectorXd::Zero(nz + static_cast<Eigen::Index>(qp_rows.size()));
       for (size_t i = 0; i < qp_rows.size(); ++i) {
-        guess(nz + static_cast<Eigen::Index>(i)) = violation(*qp_rows.at(i), qp_rows.at(i)->value);
+        guess(nz + static_cast<Eigen::Index>(i)) = violation(qp_rows.at(i)->value);
       }
       const SparseQp qp = assembleSubproblem(problem_, z_, qp_rows, penalty_, box_);
       const auto solution = solveSparseQp(

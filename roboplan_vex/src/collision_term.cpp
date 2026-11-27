@@ -71,7 +71,7 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
     if (distance >= collision_check_distance_) {
       continue;
     }
-    NonconvexRow row{.value = collision_margin_ - distance, .equality = false, .jacobian = {}};
+    NonconvexRow row{.value = collision_margin_ - distance, .jacobian = {}};
     if (compute_jacobian) {
       context_.computeDistanceJacobian(pair, gradient_);
       row.jacobian.reserve(num_blocks * static_cast<size_t>(n));

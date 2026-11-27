@@ -29,11 +29,8 @@ struct VexLayout {
 
 /// @brief One scalar row of a nonconvex term at a point z.
 struct NonconvexRow {
-  /// @brief The value g(z). Inequalities require g <= 0, equalities g == 0.
+  /// @brief The value g(z); the row requires g <= 0.
   double value = 0.0;
-
-  /// @brief Whether the row is an equality.
-  bool equality = false;
 
   /// @brief Sparse gradient dg/dz as (variable index into z, derivative) pairs. Only the local
   /// variables the row touches (e.g. q_k, v_k, a_k of one segment) appear.
