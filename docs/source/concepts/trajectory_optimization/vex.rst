@@ -141,7 +141,7 @@ Solving
 ^^^^^^^^^^^^^
 
 ``Vex::solve`` (``vex.cpp``) returns an error, without optimizing, for invalid input, for a start or goal outside the joint limits, and for a start or goal whose signed distance on any active pair is below ``collision_margin``.
-The last case includes collision.
+The last case includes collision. ``hasCollisions`` backs up the distances, because coal reports mesh-mesh distances unsigned.
 The trajectory begins and ends at start and goal, so a margin row there could never be satisfied.
 Joints with :math:`n_q \ne n_v` (continuous, floating) are not supported.
 
@@ -150,7 +150,7 @@ Joints with :math:`n_q \ne n_v` (continuous, floating) are not supported.
 
 The loop starts from a point :math:`z_0` that satisfies the dynamics, boundary and limit rows (:math:`A`, :math:`G`) up to solver tolerance; only the collision rows may be violated.
 A seed path has no velocities or accelerations and ignores the duration and the limits, so it cannot be used directly.
-``resampleSeed`` resamples it to :math:`N` nodes, uniformly in arc length.
+``resampleSeed`` resamples it to :math:`N` nodes, uniformly in arc length. ``resampleUniform`` only downsamples, so each seed segment is first subdivided linearly.
 ``projectOntoConstraints`` (``convex_problem.cpp``) then finds the trajectory closest to the resampled positions that satisfies the linear rows:
 
 .. math::
@@ -293,7 +293,7 @@ It tests for contact only, not for ``collision_margin``. The result is ``VexResu
 Configuration
 -------------
 
-``VexOptions``. Joint limits are read from the ``Scene``.
+``VexOptions``. Joint limits are read from the ``Scene``. The defaults for the penalty, the trust box and the ratio test follow Tesseract's ``trajopt_sqp``.
 
 .. list-table::
    :header-rows: 1
@@ -385,7 +385,15 @@ Result
 Implementation Notes
 --------------------
 
-- The QPs are solved with the sparse `ProxQP <https://github.com/Simple-Robotics/proxsuite>`_ solver, wrapped in ``qp_backend.cpp``, the only file that includes proxsuite. The solver is rebuilt for every QP because the number of rows changes between iterations.
+- The QPs are solved with the sparse `ProxQP <https://github.com/Simple-Robotics/proxsuite>`_ solver, wrapped in ``qp_backend.cpp``, the only file that includes proxsuite. The solver is rebuilt for every QP because the number of rows changes between iterations. The primal warm start is :math:`\Delta z = 0` with the smallest feasible slacks.
+- The ProxQP settings are tuned for these QPs, measured on collision QPs with about 1400 variables and 2900 inequality rows:
+
+  - The initial inequality proximal parameter ``mu_in`` is 1e-3 instead of ProxQP's 1e-1. With the default the solver spends most of its time in ``mu_in`` updates, each of which updates the sparse LDLT for every inequality row. The solve time drops from about 1.6 s to about 0.04 s with the same solution.
+  - The primal infeasibility threshold ``eps_primal_inf`` is 1e-12 instead of 1e-4. The subproblem is feasible by construction (:math:`\Delta z = 0` with :math:`s = \max(0, g)`), yet the default threshold reported primal infeasibility on about 1 in 20 subproblems and the tighter one never did.
+  - Dividing the objective by :math:`\lambda` keeps the dual variables of order 1. Without it ProxQP needed hundreds of iterations at :math:`\lambda \ge 10^2` and reported primal infeasibility at :math:`10^5` to :math:`10^6`.
+
+- A collision row is treated as constant under the step if its gradient norm is at most 1e-9. On the UR5 with gripper, pairs the group cannot move had gradient norms below 1e-15, and the smallest movable ones were many orders of magnitude above 1e-9.
+- The projection QP of ② adds a weight of 1e-6 on velocity and acceleration, so that its Hessian is not singular on blocks that the equality rows already determine.
 - A QP has :math:`(3N-1)\,n` variables plus one slack per collision row. The signed distances dominate the cost per iteration, so accepted steps reuse the rows evaluated for the test.
 - Without active collision pairs the QP model is exact: no trust box is used and the first accepted step is the optimum.
 - ``solve`` uses its own ``SceneContext`` and never modifies the ``Scene``. Use one ``Vex`` per thread.
