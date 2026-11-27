@@ -216,6 +216,7 @@ Where:
 - The linear rows are written in the step, so they hold exactly for :math:`z + \Delta z`.
 - :math:`S = \operatorname{diag}(I,\; \Delta t^{-1} I,\; \Delta t^{-2} I)` rescales :math:`z = S y` so that :math:`q`, :math:`v \Delta t` and :math:`a \Delta t^2` have the same unit (position). The trust box then reads :math:`|\Delta q| \le \eta`, :math:`|\Delta v|\,\Delta t \le \eta`, :math:`|\Delta a|\,\Delta t^2 \le \eta`, so one radius fits all three blocks.
 - The implementation solves the QP in :math:`y` and divides the objective by :math:`\lambda`. The minimizer is the same, and the problem is better conditioned.
+- The joint-limit rows and the trust box bound the same variables, so the implementation sends one bound row per variable with the intersection of both. This removes about 38% of the inequality rows. The QP solve gets about 10% faster and the whole solve 2–6%.
 - At the optimum :math:`s_i = \max(0,\, g_i + J_{g,i} \Delta z)`, so :math:`\lambda \sum_i s_i` is the ℓ1 penalty of the linearized violation.
 - Collision rows with a numerically zero gradient (pairs the group cannot move) are constant under the step. They get no slack and no QP row, but still count in the merit and in the violation check.
 

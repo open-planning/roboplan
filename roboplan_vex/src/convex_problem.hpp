@@ -40,6 +40,10 @@ struct ConvexProblem {
   Eigen::VectorXd l;
   Eigen::VectorXd u;
 
+  /// @brief The same limits per variable (infinite where unbounded).
+  Eigen::VectorXd z_min;
+  Eigen::VectorXd z_max;
+
   /// @brief Scaling z = scale .* y; q, v dt and a dt^2 all have position units in y.
   Eigen::VectorXd scale;
 

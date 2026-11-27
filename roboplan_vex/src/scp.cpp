@@ -104,25 +104,24 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd&
   qp.A = fromTriplets(problem.A_scaled.rows(), nx, a_triplets);
   qp.b = problem.b - problem.A * z;
 
-  const bool use_box = std::isfinite(box);
-  const Eigen::Index num_rows = problem.C_scaled.rows() + (use_box ? nz : 0) + ns + ns;
+  // Joint limits and trust box bound the same variables, so they share one row per variable.
+  const Eigen::VectorXd step_lower =
+      (problem.z_min - z).cwiseQuotient(problem.scale).cwiseMax(-box);
+  const Eigen::VectorXd step_upper = (problem.z_max - z).cwiseQuotient(problem.scale).cwiseMin(box);
+  const Eigen::Index num_bound_rows =
+      ((step_lower.array() > -kInfinity) || (step_upper.array() < kInfinity)).count();
+  const Eigen::Index num_rows = num_bound_rows + ns + ns;
   Triplets c_triplets;
   qp.l.resize(num_rows);
   qp.u.resize(num_rows);
 
-  // Hard limit rows.
-  appendTriplets(problem.C_scaled, 0, c_triplets);
-  const Eigen::VectorXd cz = problem.C * z;
-  Eigen::Index row = problem.C_scaled.rows();
-  qp.l.head(row) = problem.l - cz;
-  qp.u.head(row) = problem.u - cz;
-
-  // Trust box on all trajectory variables.
-  if (use_box) {
-    for (Eigen::Index i = 0; i < nz; ++i, ++row) {
+  Eigen::Index row = 0;
+  for (Eigen::Index i = 0; i < nz; ++i) {
+    if (step_lower(i) > -kInfinity || step_upper(i) < kInfinity) {
       c_triplets.emplace_back(row, i, 1.0);
-      qp.l(row) = -box;
-      qp.u(row) = box;
+      qp.l(row) = step_lower(i);
+      qp.u(row) = step_upper(i);
+      ++row;
     }
   }
 

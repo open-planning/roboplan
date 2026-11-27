@@ -96,6 +96,8 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
   Triplets c_triplets;
   std::vector<double> lower;
   std::vector<double> upper;
+  problem.z_min = Eigen::VectorXd::Constant(nz, -kInfinity);
+  problem.z_max = Eigen::VectorXd::Constant(nz, kInfinity);
   const auto bound = [&](Eigen::Index index, double lo, double hi) {
     if (!isBounded(lo) && !isBounded(hi)) {
       return;
@@ -103,6 +105,8 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
     c_triplets.emplace_back(static_cast<Eigen::Index>(lower.size()), index, 1.0);
     lower.push_back(isBounded(lo) ? lo : -kInfinity);
     upper.push_back(isBounded(hi) ? hi : kInfinity);
+    problem.z_min(index) = lower.back();
+    problem.z_max(index) = upper.back();
   };
   for (Eigen::Index k = 0; k < num_nodes; ++k) {
     for (Eigen::Index j = 0; j < n; ++j) {
