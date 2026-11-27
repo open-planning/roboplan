@@ -2,11 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-try:
-    import coal
-except ModuleNotFoundError:
-    import hppfcl as coal
-
+import coal
 import numpy as np
 import pinocchio as pin
 import xacro

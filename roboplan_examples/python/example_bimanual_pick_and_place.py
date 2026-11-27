@@ -5,11 +5,7 @@ import threading
 import time
 from dataclasses import dataclass
 
-try:
-    import coal
-except ModuleNotFoundError:
-    import hppfcl as coal
-
+import coal
 import numpy as np
 import pinocchio as pin
 import tyro

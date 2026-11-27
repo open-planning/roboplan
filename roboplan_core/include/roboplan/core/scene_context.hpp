@@ -12,13 +12,7 @@
 #include <pinocchio/multibody/geometry.hpp>
 #include <pinocchio/multibody/model.hpp>
 
-// The concrete broadphase manager (AABB tree).
-#if defined(__has_include) && __has_include(<coal/fwd.hh>)
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
-#else
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-namespace coal = hpp::fcl;
-#endif
 
 namespace roboplan {
 

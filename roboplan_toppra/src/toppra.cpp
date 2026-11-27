@@ -76,6 +76,10 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   }
   vel_lower_limits_ = maybe_joint_velocity_limits->first;
   vel_upper_limits_ = maybe_joint_velocity_limits->second;
+  if ((vel_upper_limits_.array() <= 0.0).any()) {
+    throw std::runtime_error("All joint velocity limits in group '" + group_name_ +
+                             "' must be positive.");
+  }
 
   const auto maybe_joint_acceleration_limits = scene_->getAccelerationLimitVectors(group_name_);
   if (!maybe_joint_acceleration_limits) {
@@ -84,6 +88,10 @@ PathParameterizerTOPPRA::PathParameterizerTOPPRA(const std::shared_ptr<Scene> sc
   }
   acc_lower_limits_ = maybe_joint_acceleration_limits->first;
   acc_upper_limits_ = maybe_joint_acceleration_limits->second;
+  if ((acc_upper_limits_.array() <= 0.0).any()) {
+    throw std::runtime_error("All joint acceleration limits in group '" + group_name_ +
+                             "' must be positive.");
+  }
 
   // Get the continuous joint position indices for unwrapping positions.
   const auto maybe_joint_group_info = scene_->getJointGroupInfo(group_name_);
@@ -269,6 +277,15 @@ PathParameterizerTOPPRA::generate(const JointPath& path, const TOPPRAOptions& op
   // Snapshot the scene geometry into a private collision context for the collision-check loop
   // below, so it uses its own scratch rather than the Scene's shared collision data.
   const SceneContext scene_context(*scene_);
+
+  // Inserting waypoints cannot fix colliding endpoints, so skip straight to the fallback.
+  if (max_collision_iterations > 0) {
+    const auto q_start = scene_->toFullJointPositions(group_name_, path.positions.front());
+    const auto q_end = scene_->toFullJointPositions(group_name_, path.positions.back());
+    if (scene_context.hasCollisions(q_start) || scene_context.hasCollisions(q_end)) {
+      max_collision_iterations = 0;
+    }
+  }
 
   toppra::GeometricPathPtr geom_path;
   bool found_collision_free_path = false;
