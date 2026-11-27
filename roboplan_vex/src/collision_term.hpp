@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cmath>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <Eigen/Core>
@@ -13,6 +15,29 @@
 
 // Internal collision term and continuous post-check of roboplan_vex (design §6, L2, L10).
 namespace roboplan::detail {
+
+/// @brief Calls `visit(pair_index, signed_distance)` for every active collision pair of the
+/// context's collision data, which must hold the distances of the configuration of interest
+/// (SceneContext::computeDistances).
+/// @param where Suffix of the error message, e.g. " at the start configuration".
+/// @return An error naming the pair if a distance is NaN, otherwise success.
+template <typename Visitor>
+tl::expected<void, std::string> forEachActivePairDistance(const SceneContext& context,
+                                                          std::string_view where, Visitor&& visit) {
+  const auto& geometry_data = context.getCollisionData();
+  for (size_t pair = 0; pair < geometry_data.distanceResults.size(); ++pair) {
+    if (!geometry_data.activeCollisionPairs[pair]) {
+      continue;
+    }
+    const double distance = geometry_data.distanceResults[pair].min_distance;
+    if (std::isnan(distance)) {
+      return tl::make_unexpected("Collision pair " + std::to_string(pair) +
+                                 " returned a NaN signed distance" + std::string(where) + ".");
+    }
+    visit(pair, distance);
+  }
+  return {};
+}
 
 /// @brief Collision avoidance d_safe - sd(q(t)) <= 0 for every active collision pair of the
 /// Scene, at every interior node and at `samples_per_segment` interior points of every segment.

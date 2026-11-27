@@ -54,22 +54,13 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
     context_.computeJointJacobians(q_full);
   }
 
-  const auto& geometry_data = context_.getCollisionData();
   const std::array<double, 3> coefficients{1.0, t, 0.5 * t * t};
   const std::array<Eigen::Index, 3> offsets{layout.q(segment), layout.v(segment),
                                             layout.a(segment)};
   const size_t num_blocks = t > 0.0 ? 3 : 1;
-  for (size_t pair = 0; pair < geometry_data.distanceResults.size(); ++pair) {
-    if (!geometry_data.activeCollisionPairs[pair]) {
-      continue;
-    }
-    const double distance = geometry_data.distanceResults[pair].min_distance;
-    if (std::isnan(distance)) {
-      return tl::make_unexpected("Collision pair " + std::to_string(pair) +
-                                 " returned a NaN signed distance.");
-    }
+  return forEachActivePairDistance(context_, "", [&](size_t pair, double distance) {
     if (distance >= collision_check_distance_) {
-      continue;
+      return;
     }
     NonconvexRow row{.value = collision_margin_ - distance, .jacobian = {}};
     if (compute_jacobian) {
@@ -83,8 +74,7 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
       }
     }
     rows.push_back(std::move(row));
-  }
-  return {};
+  });
 }
 
 bool isContinuousCollisionFree(const SceneContext& context, const std::string& group_name,

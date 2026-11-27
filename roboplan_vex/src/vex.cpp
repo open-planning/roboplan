@@ -46,23 +46,17 @@ tl::expected<void, std::string> checkClearance(const std::string& label,
                                                const VexOptions& options) {
   context.computeDistances(q_full, options.collision_check_distance);
   const auto& geometry_model = context.getCollisionModel();
-  const auto& geometry_data = context.getCollisionData();
   double min_distance = std::numeric_limits<double>::infinity();
   size_t closest_pair = 0;
-  for (size_t pair = 0; pair < geometry_data.distanceResults.size(); ++pair) {
-    if (!geometry_data.activeCollisionPairs[pair]) {
-      continue;
-    }
-    const double distance = geometry_data.distanceResults[pair].min_distance;
-    if (std::isnan(distance)) {
-      return tl::make_unexpected("Collision pair " + std::to_string(pair) +
-                                 " returned a NaN signed distance at the " + label +
-                                 " configuration.");
-    }
-    if (distance < min_distance) {
-      min_distance = distance;
-      closest_pair = pair;
-    }
+  const auto scanned = detail::forEachActivePairDistance(
+      context, " at the " + label + " configuration", [&](size_t pair, double distance) {
+        if (distance < min_distance) {
+          min_distance = distance;
+          closest_pair = pair;
+        }
+      });
+  if (!scanned) {
+    return scanned;
   }
   const bool in_collision = min_distance <= 0.0 || context.hasCollisions(q_full);
   if (!in_collision && min_distance >= options.collision_margin) {
@@ -147,9 +141,6 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
                                  "' is not a vector-space joint (nq != nv); vex supports "
                                  "vector-space joints only.");
     }
-  }
-  if (group.q_indices.size() != group.v_indices.size()) {
-    return tl::make_unexpected("The group has nq != nv; vex supports vector-space joints only.");
   }
 
   const auto position_limits = scene_->getPositionLimitVectors(options_.group_name);
