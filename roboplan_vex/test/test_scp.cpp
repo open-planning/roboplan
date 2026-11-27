@@ -12,6 +12,17 @@ namespace {
 constexpr double kRadius = 0.5;
 constexpr double kConstantViolation = 0.2;
 
+// One joint without limits, rest-to-rest from `start` to `goal`.
+ConvexProblem makeProblem(Eigen::Index num_nodes, double dt, double start, double goal) {
+  const VexLayout layout{.n = 1, .num_nodes = num_nodes, .dt = dt};
+  const Eigen::VectorXd unbounded =
+      Eigen::VectorXd::Constant(1, std::numeric_limits<double>::max());
+  const JointBounds bounds{
+      .q_min = -unbounded, .q_max = unbounded, .v_max = unbounded, .a_max = unbounded};
+  return buildConvexProblem(layout, Eigen::VectorXd::Constant(1, start),
+                            Eigen::VectorXd::Constant(1, goal), bounds, 1.0, 1e-2);
+}
+
 // Nonconvex inequality g(q) = r^2 - q_k^2 <= 0 on joint 0 of node k: keep |q_k| >= r.
 class OutsideIntervalTerm : public NonconvexTerm {
 public:
@@ -39,13 +50,9 @@ private:
 // forces the middle node out to |q| >= 0.5, which needs the linearization, the ℓ1 slack, the
 // trust box and the ratio test.
 TEST(ScpTest, NonconvexTermIsSatisfied) {
-  const VexLayout layout{.n = 1, .num_nodes = 11, .dt = 0.1};
+  const auto problem = makeProblem(11, 0.1, 0.0, 0.0);
+  const auto& layout = problem.layout;
   const Eigen::VectorXd zero = Eigen::VectorXd::Zero(1);
-  const Eigen::VectorXd unbounded =
-      Eigen::VectorXd::Constant(1, std::numeric_limits<double>::max());
-  const JointBounds bounds{
-      .q_min = -unbounded, .q_max = unbounded, .v_max = unbounded, .a_max = unbounded};
-  const auto problem = buildConvexProblem(layout, zero, zero, bounds, 1.0, 1e-2);
 
   // A seed slightly on the positive side, so the gradient of the term is nonzero.
   std::vector<Eigen::VectorXd> q_seed(11, zero);
@@ -96,13 +103,9 @@ private:
 };
 
 TEST(ScpTest, ZeroGradientRowIsReportedButDoesNotBlockOtherTerms) {
-  const VexLayout layout{.n = 1, .num_nodes = 11, .dt = 0.1};
+  const auto problem = makeProblem(11, 0.1, 0.0, 0.0);
+  const auto& layout = problem.layout;
   const Eigen::VectorXd zero = Eigen::VectorXd::Zero(1);
-  const Eigen::VectorXd unbounded =
-      Eigen::VectorXd::Constant(1, std::numeric_limits<double>::max());
-  const JointBounds bounds{
-      .q_min = -unbounded, .q_max = unbounded, .v_max = unbounded, .a_max = unbounded};
-  const auto problem = buildConvexProblem(layout, zero, zero, bounds, 1.0, 1e-2);
   std::vector<Eigen::VectorXd> q_seed(11, zero);
   q_seed.at(5)(0) = 0.05;
   const auto z0 = projectOntoConstraints(problem, q_seed);
@@ -128,14 +131,8 @@ TEST(ScpTest, ZeroGradientRowIsReportedButDoesNotBlockOtherTerms) {
 }
 
 TEST(ScpTest, WithoutTermsConvergesInOneIteration) {
-  const VexLayout layout{.n = 1, .num_nodes = 5, .dt = 0.25};
+  const auto problem = makeProblem(5, 0.25, 0.0, 1.0);
   const Eigen::VectorXd start = Eigen::VectorXd::Zero(1);
-  const Eigen::VectorXd goal = Eigen::VectorXd::Ones(1);
-  const Eigen::VectorXd unbounded =
-      Eigen::VectorXd::Constant(1, std::numeric_limits<double>::max());
-  const JointBounds bounds{
-      .q_min = -unbounded, .q_max = unbounded, .v_max = unbounded, .a_max = unbounded};
-  const auto problem = buildConvexProblem(layout, start, goal, bounds, 1.0, 1e-2);
   const auto z0 = projectOntoConstraints(problem, std::vector<Eigen::VectorXd>(5, start));
   ASSERT_TRUE(z0.has_value()) << z0.error();
 

@@ -261,8 +261,10 @@ TEST_F(VexTest, InvalidOptionsReturnError) {
   for (const auto& [name, apply] : cases) {
     auto options = options_;
     apply(options);
-    EXPECT_FALSE(Vex(scene_, options).solve(config(start), config(goal), 2.0, seed).has_value())
-        << name;
+    const auto result = Vex(scene_, options).solve(config(start), config(goal), 2.0, seed);
+    ASSERT_FALSE(result.has_value()) << name;
+    // The error comes from the option check, not from a later stage.
+    EXPECT_EQ(result.error().rfind("VexOptions", 0), 0u) << name << ": " << result.error();
   }
 }
 
@@ -351,6 +353,20 @@ TEST_F(VexCollisionTest, StraightLineSeedIsPushedOutOfObstacle) {
   const auto again = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
   ASSERT_TRUE(again.has_value());
   EXPECT_EQ(again->trajectory.positions, result->trajectory.positions);
+}
+
+TEST_F(VexCollisionTest, PostCheckCatchesCollisionBetweenNodes) {
+  // Only 4 nodes and no samples inside the segments: the two interior nodes lie on either side of
+  // the obstacle, so every collision row holds while the segment between them passes through it.
+  options_.num_nodes = 4;
+  options_.samples_per_segment = 0;
+
+  Vex vex(scene_, options_);
+  const auto result = vex.solve(config(start_), config(goal_), 4.0, path({start_, goal_}));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->status, VexStatus::Converged);
+  EXPECT_LE(result->max_violation, options_.tolerance);
+  EXPECT_FALSE(result->continuous_collision_free);
 }
 
 TEST_F(VexCollisionTest, DetourSeedIsShortened) {
