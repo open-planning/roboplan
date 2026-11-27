@@ -6,6 +6,8 @@
 #include <string>
 #include <utility>
 
+#include <roboplan/core/scene_utils.hpp>
+
 namespace roboplan::detail {
 
 CollisionTerm::CollisionTerm(const SceneContext& context, std::string group_name,
@@ -45,7 +47,11 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
   Eigen::VectorXd q = z.segment(layout.q(segment), n);
   q.noalias() += t * z.segment(layout.v(segment), n);
   q.noalias() += 0.5 * t * t * z.segment(layout.a(segment), n);
-  const Eigen::VectorXd q_full = context_.toFullJointPositions(group_name_, q);
+  const auto q_expanded = expandContinuousJointPositions(context_.getScene(), group_name_, q);
+  if (!q_expanded) {
+    return tl::make_unexpected(q_expanded.error());
+  }
+  const Eigen::VectorXd q_full = context_.toFullJointPositions(group_name_, *q_expanded);
 
   context_.computeDistances(q_full, collision_check_distance_);
   context_.computeJointJacobians(q_full);
@@ -74,7 +80,9 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
 bool isContinuousCollisionFree(const SceneContext& context, const std::string& group_name,
                                const JointTrajectory& trajectory) {
   const auto collides = [&](const Eigen::VectorXd& q) {
-    return context.hasCollisions(context.toFullJointPositions(group_name, q));
+    const auto expanded = expandContinuousJointPositions(context.getScene(), group_name, q);
+    // A configuration that cannot be evaluated is not known to be free.
+    return !expanded || context.hasCollisions(context.toFullJointPositions(group_name, *expanded));
   };
   for (size_t k = 0; k + 1 < trajectory.positions.size(); ++k) {
     const double dt = trajectory.times.at(k + 1) - trajectory.times.at(k);

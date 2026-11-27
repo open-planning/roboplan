@@ -104,8 +104,9 @@ struct VexResult {
 };
 
 /// @brief Offline, kinematic trajectory optimizer based on sequential convex programming.
-/// @details Details in docs/source/concepts/trajectory_optimization/vex.rst. Only vector-space
-/// joints (nq == nv) are supported. solve() never modifies the Scene; use one Vex per thread.
+/// @details Details in docs/source/concepts/trajectory_optimization/vex.rst. Vector-space and
+/// continuous joints are supported; planar, floating and spherical joints are not. solve() never
+/// modifies the Scene; use one Vex per thread.
 class Vex {
 public:
   /// @param scene The scene; must not be null.

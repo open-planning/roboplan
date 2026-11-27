@@ -402,7 +402,7 @@ Implementation Notes
 Limitations
 -----------
 
-- Only vector-space joints (:math:`n_q = n_v`) are supported.
+- Vector-space and continuous joints are supported. A continuous joint is optimized as one unbounded angle, unwrapped along the seed, so the seed decides which way it turns. Planar, floating and spherical joints are not supported.
 - The duration is fixed by the caller. For a time-optimal trajectory, apply :doc:`/concepts/trajectory_generation` to the resulting positions.
 - Collision is constrained only at the samples and verified by the post-check, which reports but does not repair.
 - Position limits are enforced at the nodes. Velocity and acceleration bounds hold along a segment, but position is quadratic between nodes and can leave its limits there.

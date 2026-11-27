@@ -68,6 +68,7 @@ private:
 constexpr double kPostCheckStep = 0.01;
 
 /// @brief Checks the trajectory for contact (not for the margin) between the nodes (vex.rst, ⑦).
+/// @details The positions are collapsed, one angle per continuous joint, as in the optimizer.
 /// @return True if no checked configuration is in collision.
 [[nodiscard]] bool isContinuousCollisionFree(const SceneContext& context,
                                              const std::string& group_name,

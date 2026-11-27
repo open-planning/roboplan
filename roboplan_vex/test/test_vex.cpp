@@ -14,6 +14,7 @@
 #include <roboplan/core/path_utils.hpp>
 #include <roboplan/core/scene.hpp>
 #include <roboplan/core/scene_context.hpp>
+#include <roboplan/core/scene_utils.hpp>
 #include <roboplan_example_models/resources.hpp>
 #include <roboplan_vex/vex.hpp>
 
@@ -440,20 +441,71 @@ TEST_F(VexCollisionTest, StartInCollisionReturnsError) {
       << result.error();
 }
 
-TEST(VexLieGroupTest, ContinuousJointReturnsError) {
-  // The Kinova arm has continuous joints (nq = 2, nv = 1).
+// The Kinova arm has continuous joints (nq = 2, nv = 1) at joint_1, 3, 5 and 7.
+TEST(VexContinuousJointTest, TurnsThroughTheWrapAround) {
   const auto scene =
       loadScene("kinova_robot_model", "kinova_robotiq", "kinova_robotiq_config.yaml");
-  const auto group = scene->getJointGroupInfo("manipulator");
+  const std::string group_name = "manipulator";
+  const auto group = scene->getJointGroupInfo(group_name);
+  ASSERT_TRUE(group.has_value());
+  const auto expand = [&](const Eigen::VectorXd& angles) {
+    return *expandContinuousJointPositions(*scene, group_name, angles);
+  };
+
+  // joint_1 goes from +3 to -3 rad: 0.283 rad through +-pi, not 6 rad the other way around.
+  Eigen::VectorXd start_angles(7);
+  start_angles << 3.0, 0.3, 0.0, -1.0, 0.0, 0.5, 0.0;
+  Eigen::VectorXd goal_angles = start_angles;
+  goal_angles(0) = -3.0;
+  const Eigen::VectorXd start = expand(start_angles);
+  const Eigen::VectorXd goal = expand(goal_angles);
+  ASSERT_EQ(start.size(), 11);
+
+  Vex vex(scene, VexOptions{.group_name = group_name, .num_nodes = 20});
+  const auto result =
+      vex.solve(JointConfiguration{.joint_names = group->joint_names, .positions = start},
+                JointConfiguration{.joint_names = group->joint_names, .positions = goal}, 3.0,
+                JointPath{.joint_names = group->joint_names, .positions = {start, goal}});
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->status, VexStatus::Converged);
+  EXPECT_TRUE(result->continuous_collision_free);
+
+  const auto& traj = result->trajectory;
+  ASSERT_EQ(traj.positions.size(), 20U);
+  EXPECT_EQ(traj.positions.front(), start);
+  EXPECT_EQ(traj.positions.back(), goal);
+  EXPECT_EQ(traj.velocities.front().size(), 7);
+
+  // Positions are [cos, sin] pairs: each step of joint_1 is small and in the same direction.
+  double travelled = 0.0;
+  for (size_t k = 0; k < traj.positions.size(); ++k) {
+    const Eigen::VectorXd angles =
+        *collapseContinuousJointPositions(*scene, group_name, traj.positions.at(k));
+    EXPECT_NEAR(std::hypot(traj.positions.at(k)(0), traj.positions.at(k)(1)), 1.0, kTolerance);
+    if (k > 0) {
+      const Eigen::VectorXd previous =
+          *collapseContinuousJointPositions(*scene, group_name, traj.positions.at(k - 1));
+      const double step = std::remainder(angles(0) - previous(0), 2.0 * M_PI);
+      EXPECT_GE(step, -kTolerance);
+      travelled += step;
+    }
+  }
+  EXPECT_NEAR(travelled, 2.0 * M_PI - 6.0, kTolerance);
+}
+
+TEST(VexContinuousJointTest, PlanarJointReturnsError) {
+  const auto scene = loadScene("tiago_pro_robot_model", "tiago_pro", "tiago_pro_config.yaml");
+  const auto group = scene->getJointGroupInfo("base");
   ASSERT_TRUE(group.has_value());
   const Eigen::VectorXd q = scene->getCurrentJointPositions()(group->q_indices);
   const JointConfiguration configuration{.joint_names = group->joint_names, .positions = q};
 
-  Vex vex(scene, VexOptions{.group_name = "manipulator"});
+  Vex vex(scene, VexOptions{.group_name = "base"});
   const auto result = vex.solve(configuration, configuration, 2.0,
                                 JointPath{.joint_names = group->joint_names, .positions = {q, q}});
   ASSERT_FALSE(result.has_value());
-  EXPECT_NE(result.error().find("vector-space"), std::string::npos) << result.error();
+  EXPECT_NE(result.error().find("neither a vector-space nor a continuous"), std::string::npos)
+      << result.error();
 }
 
 }  // namespace
