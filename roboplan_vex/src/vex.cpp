@@ -29,6 +29,9 @@ tl::expected<void, std::string> checkConfiguration(const std::string& label,
         "The " + label + " configuration has " + std::to_string(configuration.positions.size()) +
         " positions, but the group has " + std::to_string(bounds.q_min.size()) + ".");
   }
+  if (!configuration.positions.allFinite()) {
+    return tl::make_unexpected("The " + label + " configuration has non-finite positions.");
+  }
   if ((configuration.positions.array() < bounds.q_min.array()).any() ||
       (configuration.positions.array() > bounds.q_max.array()).any()) {
     return tl::make_unexpected("The " + label + " configuration is outside the joint limits.");
@@ -47,19 +50,24 @@ tl::expected<void, std::string> checkClearance(const std::string& label,
   const auto& geometry_model = context.getCollisionModel();
   double min_distance = std::numeric_limits<double>::infinity();
   size_t closest_pair = 0;
-  const auto scanned = detail::forEachActivePairDistance(
-      context, " at the " + label + " configuration", [&](size_t pair, double distance) {
-        if (distance < min_distance) {
-          min_distance = distance;
-          closest_pair = pair;
-        }
-      });
+  bool found_pair = false;
+  auto scanned = detail::forEachActivePairDistance(context, " at the " + label + " configuration",
+                                                   [&](size_t pair, double distance) {
+                                                     if (distance < min_distance) {
+                                                       min_distance = distance;
+                                                       closest_pair = pair;
+                                                       found_pair = true;
+                                                     }
+                                                   });
   if (!scanned) {
     return scanned;
   }
   const bool in_collision = min_distance <= 0.0 || context.hasCollisions(q_full);
   if (!in_collision && min_distance >= options.collision_margin) {
     return {};
+  }
+  if (!found_pair) {
+    return tl::make_unexpected("The " + label + " configuration is in collision.");
   }
   const auto& pair = geometry_model.collisionPairs.at(closest_pair);
   std::ostringstream message;
@@ -97,6 +105,52 @@ std::vector<Eigen::VectorXd> resampleSeed(const std::vector<Eigen::VectorXd>& po
   return resampled;
 }
 
+tl::expected<void, std::string> validateOptions(const VexOptions& options) {
+  const auto finite_in = [](double value, double low, double high) {
+    return std::isfinite(value) && value >= low && value <= high;
+  };
+  constexpr double kMax = std::numeric_limits<double>::max();
+  if (options.num_nodes < 3) {
+    return tl::make_unexpected("VexOptions::num_nodes must be at least 3.");
+  }
+  if (!finite_in(options.velocity_weight, 0.0, kMax) ||
+      !finite_in(options.acceleration_weight, 0.0, kMax)) {
+    return tl::make_unexpected("VexOptions cost weights must be finite and nonnegative.");
+  }
+  if (!std::isfinite(options.collision_margin) ||
+      !(options.collision_check_distance > options.collision_margin) ||
+      !std::isfinite(options.collision_check_distance)) {
+    return tl::make_unexpected(
+        "VexOptions::collision_check_distance must be finite and greater than collision_margin.");
+  }
+  if (!(finite_in(options.initial_penalty, 0.0, kMax) && options.initial_penalty > 0.0)) {
+    return tl::make_unexpected("VexOptions::initial_penalty must be positive and finite.");
+  }
+  if (!(finite_in(options.penalty_increase, 1.0, kMax) && options.penalty_increase > 1.0)) {
+    return tl::make_unexpected("VexOptions::penalty_increase must be finite and greater than 1.");
+  }
+  if (!(finite_in(options.initial_trust_box, 0.0, kMax) && options.initial_trust_box > 0.0)) {
+    return tl::make_unexpected("VexOptions::initial_trust_box must be positive and finite.");
+  }
+  if (!(finite_in(options.trust_shrink, 0.0, 1.0) && options.trust_shrink > 0.0 &&
+        options.trust_shrink < 1.0)) {
+    return tl::make_unexpected("VexOptions::trust_shrink must be in (0, 1).");
+  }
+  if (!finite_in(options.trust_expand, 1.0, kMax)) {
+    return tl::make_unexpected("VexOptions::trust_expand must be finite and at least 1.");
+  }
+  if (!finite_in(options.improve_ratio, 0.0, 1.0)) {
+    return tl::make_unexpected("VexOptions::improve_ratio must be in [0, 1].");
+  }
+  if (!(finite_in(options.tolerance, 0.0, kMax) && options.tolerance > 0.0)) {
+    return tl::make_unexpected("VexOptions::tolerance must be positive and finite.");
+  }
+  if (!(options.max_time >= 0.0)) {
+    return tl::make_unexpected("VexOptions::max_time must not be negative or NaN.");
+  }
+  return {};
+}
+
 struct ValidatedInput {
   JointGroupInfo group;
   detail::JointBounds bounds;
@@ -109,15 +163,8 @@ validateInput(const Scene& scene, const VexOptions& options, const JointConfigur
   if (!std::isfinite(duration) || duration <= 0.0) {
     return tl::make_unexpected("The duration must be positive and finite.");
   }
-  if (options.num_nodes < 3) {
-    return tl::make_unexpected("VexOptions::num_nodes must be at least 3.");
-  }
-  if (options.velocity_weight < 0.0 || options.acceleration_weight < 0.0) {
-    return tl::make_unexpected("VexOptions cost weights must be nonnegative.");
-  }
-  if (!(options.collision_check_distance > options.collision_margin)) {
-    return tl::make_unexpected(
-        "VexOptions::collision_check_distance must be greater than collision_margin.");
+  if (auto checked = validateOptions(options); !checked) {
+    return tl::make_unexpected(checked.error());
   }
 
   auto maybe_group = scene.getJointGroupInfo(options.group_name);
@@ -165,6 +212,9 @@ validateInput(const Scene& scene, const VexOptions& options, const JointConfigur
   for (const auto& positions : seed.positions) {
     if (positions.size() != group.q_indices.size()) {
       return tl::make_unexpected("A seed waypoint has the wrong number of positions.");
+    }
+    if (!positions.allFinite()) {
+      return tl::make_unexpected("A seed waypoint has non-finite positions.");
     }
   }
   return ValidatedInput{.group = std::move(group), .bounds = std::move(bounds)};

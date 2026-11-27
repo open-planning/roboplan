@@ -140,7 +140,7 @@ Solving
 ① Input Check
 ^^^^^^^^^^^^^
 
-``Vex::solve`` (``vex.cpp``) returns an error, without optimizing, for invalid input, for a start or goal outside the joint limits, and for a start or goal whose signed distance on any active pair is below ``collision_margin``.
+``Vex::solve`` (``vex.cpp``) returns an error, without optimizing, for invalid input (including non-finite positions and option values outside their valid range), for a start or goal outside the joint limits, and for a start or goal whose signed distance on any active pair is below ``collision_margin``.
 The last case includes collision. ``hasCollisions`` backs up the distances, because coal reports mesh-mesh distances unsigned.
 The trajectory begins and ends at start and goal, so a margin row there could never be satisfied.
 Joints with :math:`n_q \ne n_v` (continuous, floating) are not supported.
@@ -350,7 +350,7 @@ Configuration
      - Maximum number of QP solves in the loop. Rejected steps count too.
      - 50
    * - ``max_time``
-     - Wall-time limit of the loop in seconds, checked before every QP solve.
+     - Wall-time limit of the loop in seconds, checked before every QP solve. A QP solve in progress is not interrupted.
      - ∞
    * - ``tolerance``
      - Threshold for collision violation, predicted decrease and trust box size. Lower values typically need more iterations.

@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -208,6 +211,81 @@ TEST_F(VexTest, InvalidInputReturnsError) {
   options = options_;
   options.group_name = "no_such_group";
   EXPECT_FALSE(Vex(scene_, options).solve(config(start), config(goal), 2.0, seed).has_value());
+}
+
+TEST_F(VexTest, NonFiniteInputReturnsError) {
+  const Eigen::VectorXd start = Eigen::VectorXd::Zero(6);
+  Eigen::VectorXd goal = start;
+  goal(0) = 0.5;
+  const auto seed = path({start, goal});
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+
+  Vex vex(scene_, options_);
+  Eigen::VectorXd bad = goal;
+  bad(1) = nan;
+  EXPECT_FALSE(vex.solve(config(bad), config(goal), 2.0, seed).has_value());
+  EXPECT_FALSE(vex.solve(config(start), config(bad), 2.0, seed).has_value());
+  EXPECT_FALSE(vex.solve(config(start), config(goal), nan, seed).has_value());
+  EXPECT_FALSE(vex.solve(config(start), config(goal), std::numeric_limits<double>::infinity(), seed)
+                   .has_value());
+  auto bad_seed = seed;
+  bad_seed.positions.back() = bad;
+  EXPECT_FALSE(vex.solve(config(start), config(goal), 2.0, bad_seed).has_value());
+}
+
+TEST_F(VexTest, InvalidOptionsReturnError) {
+  const Eigen::VectorXd start = Eigen::VectorXd::Zero(6);
+  Eigen::VectorXd goal = start;
+  goal(0) = 0.5;
+  const auto seed = path({start, goal});
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  const double inf = std::numeric_limits<double>::infinity();
+
+  // Each entry breaks one option; the defaults are valid (see the other tests).
+  const std::vector<std::pair<std::string, std::function<void(VexOptions&)>>> cases{
+      {"velocity_weight nan", [&](VexOptions& o) { o.velocity_weight = nan; }},
+      {"acceleration_weight inf", [&](VexOptions& o) { o.acceleration_weight = inf; }},
+      {"collision_margin nan", [&](VexOptions& o) { o.collision_margin = nan; }},
+      {"collision_check_distance inf", [&](VexOptions& o) { o.collision_check_distance = inf; }},
+      {"initial_penalty 0", [&](VexOptions& o) { o.initial_penalty = 0.0; }},
+      {"penalty_increase 1", [&](VexOptions& o) { o.penalty_increase = 1.0; }},
+      {"initial_trust_box 0", [&](VexOptions& o) { o.initial_trust_box = 0.0; }},
+      {"trust_shrink 1", [&](VexOptions& o) { o.trust_shrink = 1.0; }},
+      {"trust_shrink 0", [&](VexOptions& o) { o.trust_shrink = 0.0; }},
+      {"trust_expand 0.5", [&](VexOptions& o) { o.trust_expand = 0.5; }},
+      {"improve_ratio 2", [&](VexOptions& o) { o.improve_ratio = 2.0; }},
+      {"tolerance 0", [&](VexOptions& o) { o.tolerance = 0.0; }},
+      {"max_time nan", [&](VexOptions& o) { o.max_time = nan; }},
+      {"max_time -1", [&](VexOptions& o) { o.max_time = -1.0; }},
+  };
+  for (const auto& [name, apply] : cases) {
+    auto options = options_;
+    apply(options);
+    EXPECT_FALSE(Vex(scene_, options).solve(config(start), config(goal), 2.0, seed).has_value())
+        << name;
+  }
+}
+
+TEST_F(VexTest, IterationAndTimeLimitsSetTheStatus) {
+  Eigen::VectorXd start(6);
+  start << 0.0, -1.5, 1.0, -1.0, -1.5, 0.0;
+  Eigen::VectorXd goal = start;
+  goal(0) = 0.5;
+  const auto seed = path({start, goal});
+
+  // Both limits are checked before the first QP solve, so 0 stops the loop immediately.
+  auto options = options_;
+  options.max_iterations = 0;
+  auto result = Vex(scene_, options).solve(config(start), config(goal), 4.0, seed);
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->status, VexStatus::MaxIterations);
+  EXPECT_EQ(result->iterations, 0u);
+
+  options = options_;
+  options.max_time = 0.0;
+  result = Vex(scene_, options).solve(config(start), config(goal), 4.0, seed);
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->status, VexStatus::Timeout);
 }
 
 // A sphere obstacle centered on the tool0 position halfway along the straight joint-space line

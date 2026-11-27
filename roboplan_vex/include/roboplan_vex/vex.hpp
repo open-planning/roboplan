@@ -74,7 +74,7 @@ struct VexOptions {
   /// @brief Maximum number of QP solves in the SCP loop.
   size_t max_iterations = 50;
 
-  /// @brief Wall-time limit of the SCP loop, in seconds.
+  /// @brief Wall-time limit of the SCP loop, in seconds. Checked before every QP solve.
   double max_time = std::numeric_limits<double>::infinity();
 
   /// @brief Tolerance on collision violation, predicted decrease and trust box size.
