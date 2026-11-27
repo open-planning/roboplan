@@ -29,14 +29,11 @@ public:
   OutsideIntervalTerm(Eigen::Index node, double radius) : node_{node}, radius_{radius} {}
 
   tl::expected<void, std::string> evaluate(const VexLayout& layout, const Eigen::VectorXd& z,
-                                           bool compute_jacobian,
                                            std::vector<NonconvexRow>& rows) override {
     const Eigen::Index index = layout.q(node_);
     NonconvexRow row;
     row.value = radius_ * radius_ - z(index) * z(index);
-    if (compute_jacobian) {
-      row.jacobian.emplace_back(index, -2.0 * z(index));
-    }
+    row.jacobian.emplace_back(index, -2.0 * z(index));
     rows.push_back(std::move(row));
     return {};
   }
@@ -87,13 +84,10 @@ public:
   explicit ConstantViolationTerm(double value) : value_{value} {}
 
   tl::expected<void, std::string> evaluate(const VexLayout& layout, const Eigen::VectorXd& /*z*/,
-                                           bool compute_jacobian,
                                            std::vector<NonconvexRow>& rows) override {
     NonconvexRow row;
     row.value = value_;
-    if (compute_jacobian) {
-      row.jacobian.emplace_back(layout.q(1), 0.0);
-    }
+    row.jacobian.emplace_back(layout.q(1), 0.0);
     rows.push_back(std::move(row));
     return {};
   }

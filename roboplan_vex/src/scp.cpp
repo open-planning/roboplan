@@ -61,10 +61,10 @@ double violation(double value) { return std::max(0.0, value); }
 
 tl::expected<void, std::string>
 evaluateTerms(const std::vector<std::shared_ptr<NonconvexTerm>>& terms, const VexLayout& layout,
-              const Eigen::VectorXd& z, bool compute_jacobian, std::vector<NonconvexRow>& rows) {
+              const Eigen::VectorXd& z, std::vector<NonconvexRow>& rows) {
   rows.clear();
   for (const auto& term : terms) {
-    if (auto evaluated = term->evaluate(layout, z, compute_jacobian, rows); !evaluated) {
+    if (auto evaluated = term->evaluate(layout, z, rows); !evaluated) {
       return evaluated;
     }
   }
@@ -187,8 +187,7 @@ public:
 
   tl::expected<ScpResult, std::string> run() {
     // `linearized_` always holds all rows (values and Jacobians) at the current z.
-    if (auto evaluated = evaluateTerms(terms_, problem_.layout, z_, true, linearized_);
-        !evaluated) {
+    if (auto evaluated = evaluateTerms(terms_, problem_.layout, z_, linearized_); !evaluated) {
       return tl::make_unexpected(evaluated.error());
     }
 
@@ -277,8 +276,7 @@ private:
       }
 
       // Candidates carry Jacobians, so an accepted candidate's rows replace `linearized_` as is.
-      if (auto evaluated =
-              evaluateTerms(terms_, problem_.layout, z_candidate, true, candidate_rows_);
+      if (auto evaluated = evaluateTerms(terms_, problem_.layout, z_candidate, candidate_rows_);
           !evaluated) {
         return tl::make_unexpected(evaluated.error());
       }

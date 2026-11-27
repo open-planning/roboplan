@@ -40,8 +40,7 @@ tl::expected<void, std::string> forEachActivePairDistance(const SceneContext& co
 
 /// @brief Rows d_safe - sd(q(t)) <= 0 for every active pair with sd < d_check, at every interior
 /// node and `samples_per_segment` points inside every segment (vex.rst, ③).
-/// @details Joints outside the group keep the context's configuration. The rows are the same with
-/// and without Jacobians, so the merit and the QP see the same pairs.
+/// @details Joints outside the group keep the context's configuration.
 class CollisionTerm final : public NonconvexTerm {
 public:
   CollisionTerm(const SceneContext& context, std::string group_name, Eigen::VectorXi v_indices,
@@ -49,13 +48,11 @@ public:
                 double collision_check_distance);
 
   tl::expected<void, std::string> evaluate(const VexLayout& layout, const Eigen::VectorXd& z,
-                                           bool compute_jacobian,
                                            std::vector<NonconvexRow>& rows) override;
 
 private:
   tl::expected<void, std::string> evaluateSample(const VexLayout& layout, const Eigen::VectorXd& z,
                                                  Eigen::Index segment, double t,
-                                                 bool compute_jacobian,
                                                  std::vector<NonconvexRow>& rows);
 
   const SceneContext& context_;

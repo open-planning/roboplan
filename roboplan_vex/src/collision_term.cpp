@@ -18,19 +18,18 @@ CollisionTerm::CollisionTerm(const SceneContext& context, std::string group_name
 
 tl::expected<void, std::string> CollisionTerm::evaluate(const VexLayout& layout,
                                                         const Eigen::VectorXd& z,
-                                                        bool compute_jacobian,
                                                         std::vector<NonconvexRow>& rows) {
   const auto inner = static_cast<double>(samples_per_segment_ + 1);
   for (Eigen::Index k = 0; k + 1 < layout.num_nodes; ++k) {
     // Node k at t = 0 (the start node 0 is fixed), then the interior samples of segment k.
     if (k > 0) {
-      if (auto sampled = evaluateSample(layout, z, k, 0.0, compute_jacobian, rows); !sampled) {
+      if (auto sampled = evaluateSample(layout, z, k, 0.0, rows); !sampled) {
         return sampled;
       }
     }
     for (size_t i = 1; i <= samples_per_segment_; ++i) {
       const double t = static_cast<double>(i) / inner * layout.dt;
-      if (auto sampled = evaluateSample(layout, z, k, t, compute_jacobian, rows); !sampled) {
+      if (auto sampled = evaluateSample(layout, z, k, t, rows); !sampled) {
         return sampled;
       }
     }
@@ -41,7 +40,6 @@ tl::expected<void, std::string> CollisionTerm::evaluate(const VexLayout& layout,
 tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& layout,
                                                               const Eigen::VectorXd& z,
                                                               Eigen::Index segment, double t,
-                                                              bool compute_jacobian,
                                                               std::vector<NonconvexRow>& rows) {
   const Eigen::Index n = layout.n;
   Eigen::VectorXd q = z.segment(layout.q(segment), n);
@@ -50,9 +48,7 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
   const Eigen::VectorXd q_full = context_.toFullJointPositions(group_name_, q);
 
   context_.computeDistances(q_full, collision_check_distance_);
-  if (compute_jacobian) {
-    context_.computeJointJacobians(q_full);
-  }
+  context_.computeJointJacobians(q_full);
 
   const std::array<double, 3> coefficients{1.0, t, 0.5 * t * t};
   const std::array<Eigen::Index, 3> offsets{layout.q(segment), layout.v(segment),
@@ -63,14 +59,12 @@ tl::expected<void, std::string> CollisionTerm::evaluateSample(const VexLayout& l
       return;
     }
     NonconvexRow row{.value = collision_margin_ - distance, .jacobian = {}};
-    if (compute_jacobian) {
-      context_.computeDistanceJacobian(pair, gradient_);
-      row.jacobian.reserve(num_blocks * static_cast<size_t>(n));
-      for (size_t block = 0; block < num_blocks; ++block) {
-        for (Eigen::Index j = 0; j < n; ++j) {
-          row.jacobian.emplace_back(offsets.at(block) + j,
-                                    -coefficients.at(block) * gradient_(v_indices_(j)));
-        }
+    context_.computeDistanceJacobian(pair, gradient_);
+    row.jacobian.reserve(num_blocks * static_cast<size_t>(n));
+    for (size_t block = 0; block < num_blocks; ++block) {
+      for (Eigen::Index j = 0; j < n; ++j) {
+        row.jacobian.emplace_back(offsets.at(block) + j,
+                                  -coefficients.at(block) * gradient_(v_indices_(j)));
       }
     }
     rows.push_back(std::move(row));

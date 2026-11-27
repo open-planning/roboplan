@@ -93,20 +93,15 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
 
   // Joint limits at the nodes. Velocities are piecewise linear, so node bounds hold on the whole
   // segment; accelerations are constant per segment.
-  Triplets c_triplets;
-  std::vector<double> lower;
-  std::vector<double> upper;
   problem.z_min = Eigen::VectorXd::Constant(nz, -kInfinity);
   problem.z_max = Eigen::VectorXd::Constant(nz, kInfinity);
   const auto bound = [&](Eigen::Index index, double lo, double hi) {
-    if (!isBounded(lo) && !isBounded(hi)) {
-      return;
+    if (isBounded(lo)) {
+      problem.z_min(index) = lo;
     }
-    c_triplets.emplace_back(static_cast<Eigen::Index>(lower.size()), index, 1.0);
-    lower.push_back(isBounded(lo) ? lo : -kInfinity);
-    upper.push_back(isBounded(hi) ? hi : kInfinity);
-    problem.z_min(index) = lower.back();
-    problem.z_max(index) = upper.back();
+    if (isBounded(hi)) {
+      problem.z_max(index) = hi;
+    }
   };
   for (Eigen::Index k = 0; k < num_nodes; ++k) {
     for (Eigen::Index j = 0; j < n; ++j) {
@@ -117,10 +112,6 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
       }
     }
   }
-  const auto num_limit_rows = static_cast<Eigen::Index>(lower.size());
-  problem.C = fromTriplets(num_limit_rows, nz, c_triplets);
-  problem.l = Eigen::Map<const Eigen::VectorXd>(lower.data(), num_limit_rows);
-  problem.u = Eigen::Map<const Eigen::VectorXd>(upper.data(), num_limit_rows);
 
   problem.scale = Eigen::VectorXd::Ones(nz);
   problem.scale.segment(layout.v(0), num_nodes * n).setConstant(1.0 / dt);
@@ -129,7 +120,6 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
   const auto scale = problem.scale.asDiagonal();
   problem.P_scaled = scale * problem.P * scale;
   problem.A_scaled = problem.A * scale;
-  problem.C_scaled = problem.C * scale;
   return problem;
 }
 
@@ -150,9 +140,23 @@ projectOntoConstraints(const ConvexProblem& problem, const std::vector<Eigen::Ve
   }
   qp.A = problem.A_scaled;
   qp.b = problem.b;
-  qp.C = problem.C_scaled;
-  qp.l = problem.l;
-  qp.u = problem.u;
+
+  // Joint limits: one row per bounded variable, kept in physical units (scale_i y_i in
+  // [z_min_i, z_max_i]) so that the solver tolerance applies to the limits themselves.
+  Triplets c_triplets;
+  std::vector<double> lower;
+  std::vector<double> upper;
+  for (Eigen::Index i = 0; i < nz; ++i) {
+    if (problem.z_min(i) > -kInfinity || problem.z_max(i) < kInfinity) {
+      c_triplets.emplace_back(static_cast<Eigen::Index>(lower.size()), i, problem.scale(i));
+      lower.push_back(problem.z_min(i));
+      upper.push_back(problem.z_max(i));
+    }
+  }
+  const auto num_limit_rows = static_cast<Eigen::Index>(lower.size());
+  qp.C = fromTriplets(num_limit_rows, nz, c_triplets);
+  qp.l = Eigen::Map<const Eigen::VectorXd>(lower.data(), num_limit_rows);
+  qp.u = Eigen::Map<const Eigen::VectorXd>(upper.data(), num_limit_rows);
 
   const auto y = solveSparseQp(qp, SparseQpSettings{});
   if (!y) {

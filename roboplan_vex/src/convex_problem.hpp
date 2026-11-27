@@ -30,27 +30,23 @@ struct JointBounds {
   Eigen::VectorXd a_max;
 };
 
-/// @brief Cost 1/2 z^T P z with hard rows A z = b and l <= C z <= u, in physical units.
+/// @brief Cost 1/2 z^T P z with hard rows A z = b and z_min <= z <= z_max, in physical units.
 struct ConvexProblem {
   VexLayout layout;
   Eigen::SparseMatrix<double> P;
   Eigen::SparseMatrix<double> A;
   Eigen::VectorXd b;
-  Eigen::SparseMatrix<double> C;
-  Eigen::VectorXd l;
-  Eigen::VectorXd u;
 
-  /// @brief The same limits per variable (infinite where unbounded).
+  /// @brief Joint limits per variable (infinite where unbounded).
   Eigen::VectorXd z_min;
   Eigen::VectorXd z_max;
 
   /// @brief Scaling z = scale .* y; q, v dt and a dt^2 all have position units in y.
   Eigen::VectorXd scale;
 
-  /// @brief S P S, A S and C S for the scaled variables, computed once.
+  /// @brief S P S and A S for the scaled variables, computed once.
   Eigen::SparseMatrix<double> P_scaled;
   Eigen::SparseMatrix<double> A_scaled;
-  Eigen::SparseMatrix<double> C_scaled;
 
   double cost(const Eigen::VectorXd& z) const { return 0.5 * z.dot(P * z); }
 };

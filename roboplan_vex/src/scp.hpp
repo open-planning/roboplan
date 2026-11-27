@@ -29,11 +29,9 @@ class NonconvexTerm {
 public:
   virtual ~NonconvexTerm() = default;
 
-  /// @brief Appends this term's rows at z to `rows`.
-  /// @param compute_jacobian If false, only the values are needed (merit evaluation).
-  virtual tl::expected<void, std::string> evaluate(const VexLayout& layout,
-                                                   const Eigen::VectorXd& z, bool compute_jacobian,
-                                                   std::vector<NonconvexRow>& rows) = 0;
+  /// @brief Appends this term's rows at z, with their Jacobians, to `rows`.
+  virtual tl::expected<void, std::string>
+  evaluate(const VexLayout& layout, const Eigen::VectorXd& z, std::vector<NonconvexRow>& rows) = 0;
 };
 
 struct ScpResult {
