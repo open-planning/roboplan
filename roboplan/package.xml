@@ -22,6 +22,7 @@
   <exec_depend>roboplan_rrt</exec_depend>
   <exec_depend>roboplan_simple_ik</exec_depend>
   <exec_depend>roboplan_toppra</exec_depend>
+  <exec_depend>roboplan_vex</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

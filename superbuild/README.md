@@ -29,7 +29,7 @@ Then build the compiled packages in dependency order.
 
 ```bash
 for pkg in roboplan_core roboplan_example_models roboplan_oink roboplan_rrt \
-           roboplan_simple_ik roboplan_toppra roboplan_cartesian_planning; do
+           roboplan_simple_ik roboplan_toppra roboplan_cartesian_planning roboplan_vex; do
   uv build --wheel --find-links wheelhouse --out-dir wheelhouse "$pkg"
 done
 ```

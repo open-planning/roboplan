@@ -20,6 +20,7 @@
   <depend>roboplan_oink</depend>
   <depend>roboplan_rrt</depend>
   <depend>roboplan_toppra</depend>
+  <depend>roboplan_vex</depend>
 
   <exec_depend>xacro</exec_depend>
 
