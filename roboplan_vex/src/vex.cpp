@@ -99,40 +99,38 @@ std::vector<Eigen::VectorXd> resampleSeed(const std::vector<Eigen::VectorXd>& po
   return resampled;
 }
 
-}  // namespace
+// What validateInput() resolves from the scene: the group and its joint limits.
+struct ValidatedInput {
+  JointGroupInfo group;
+  detail::JointBounds bounds;
+};
 
-Vex::Vex(std::shared_ptr<Scene> scene, VexOptions options)
-    : scene_{std::move(scene)}, options_{std::move(options)} {
-  if (!scene_) {
-    throw std::invalid_argument("Vex requires a non-null scene.");
-  }
-}
-
-tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
-                                                const JointConfiguration& goal, double duration,
-                                                const JointPath& seed) {
+// Stage ① (input check), everything that does not need collision geometry.
+tl::expected<ValidatedInput, std::string>
+validateInput(const Scene& scene, const VexOptions& options, const JointConfiguration& start,
+              const JointConfiguration& goal, double duration, const JointPath& seed) {
   if (!std::isfinite(duration) || duration <= 0.0) {
     return tl::make_unexpected("The duration must be positive and finite.");
   }
-  if (options_.num_nodes < 3) {
+  if (options.num_nodes < 3) {
     return tl::make_unexpected("VexOptions::num_nodes must be at least 3.");
   }
-  if (options_.velocity_weight < 0.0 || options_.acceleration_weight < 0.0) {
+  if (options.velocity_weight < 0.0 || options.acceleration_weight < 0.0) {
     return tl::make_unexpected("VexOptions cost weights must be nonnegative.");
   }
-  if (!(options_.collision_check_distance > options_.collision_margin)) {
+  if (!(options.collision_check_distance > options.collision_margin)) {
     return tl::make_unexpected(
         "VexOptions::collision_check_distance must be greater than collision_margin.");
   }
 
-  const auto maybe_group = scene_->getJointGroupInfo(options_.group_name);
+  auto maybe_group = scene.getJointGroupInfo(options.group_name);
   if (!maybe_group) {
     return tl::make_unexpected(maybe_group.error());
   }
-  const auto& group = *maybe_group;
+  auto& group = *maybe_group;
   // Lie-group joints (nq != nv) are not supported yet (design L9).
   for (const auto& joint_name : group.joint_names) {
-    const auto joint_info = scene_->getJointInfo(joint_name);
+    const auto joint_info = scene.getJointInfo(joint_name);
     if (!joint_info) {
       return tl::make_unexpected(joint_info.error());
     }
@@ -143,17 +141,17 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
     }
   }
 
-  const auto position_limits = scene_->getPositionLimitVectors(options_.group_name);
-  const auto velocity_limits = scene_->getVelocityLimitVectors(options_.group_name);
-  const auto acceleration_limits = scene_->getAccelerationLimitVectors(options_.group_name);
+  const auto position_limits = scene.getPositionLimitVectors(options.group_name);
+  const auto velocity_limits = scene.getVelocityLimitVectors(options.group_name);
+  const auto acceleration_limits = scene.getAccelerationLimitVectors(options.group_name);
   if (!position_limits || !velocity_limits || !acceleration_limits) {
-    return tl::make_unexpected("Failed to read the joint limits of group '" + options_.group_name +
+    return tl::make_unexpected("Failed to read the joint limits of group '" + options.group_name +
                                "'.");
   }
-  const detail::JointBounds bounds{.q_min = position_limits->first,
-                                   .q_max = position_limits->second,
-                                   .v_max = velocity_limits->second,
-                                   .a_max = acceleration_limits->second};
+  detail::JointBounds bounds{.q_min = position_limits->first,
+                             .q_max = position_limits->second,
+                             .v_max = velocity_limits->second,
+                             .a_max = acceleration_limits->second};
 
   if (auto checked = checkConfiguration("start", start, group, bounds); !checked) {
     return tl::make_unexpected(checked.error());
@@ -172,7 +170,90 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
       return tl::make_unexpected("A seed waypoint has the wrong number of positions.");
     }
   }
+  return ValidatedInput{.group = std::move(group), .bounds = std::move(bounds)};
+}
 
+// The convex problem and a starting point for the SCP loop.
+struct InitialPoint {
+  detail::ConvexProblem problem;
+  Eigen::VectorXd z0;
+};
+
+// Stage ②: builds the convex problem and projects the resampled seed onto its hard rows.
+tl::expected<InitialPoint, std::string>
+computeInitialPoint(const Scene& scene, const VexOptions& options, const ValidatedInput& input,
+                    const JointConfiguration& start, const JointConfiguration& goal,
+                    double duration, const JointPath& seed) {
+  const detail::VexLayout layout{.n = input.group.v_indices.size(),
+                                 .num_nodes = static_cast<Eigen::Index>(options.num_nodes),
+                                 .dt = duration / static_cast<double>(options.num_nodes - 1)};
+  auto problem = detail::buildConvexProblem(layout, start.positions, goal.positions, input.bounds,
+                                            options.velocity_weight, options.acceleration_weight);
+
+  // The hard rows must hold at the reference before the trust-box loop, so project the seed.
+  const auto q_seed = resampleSeed(seed.positions, options.num_nodes, scene, input.group.q_indices);
+  auto z0 = detail::projectOntoConstraints(problem, q_seed);
+  if (!z0) {
+    return tl::make_unexpected("No trajectory of duration " + std::to_string(duration) +
+                               " s satisfies the boundary conditions and joint limits (" +
+                               z0.error() + ")");
+  }
+  return InitialPoint{.problem = std::move(problem), .z0 = std::move(*z0)};
+}
+
+// Stage ③'s term: collision avoidance, only if the scene has active collision pairs.
+std::vector<std::shared_ptr<detail::NonconvexTerm>>
+makeTerms(const SceneContext& context, const VexOptions& options, const JointGroupInfo& group) {
+  std::vector<std::shared_ptr<detail::NonconvexTerm>> terms;
+  const auto& active_pairs = context.getCollisionData().activeCollisionPairs;
+  if (std::ranges::find(active_pairs, true) != active_pairs.end()) {
+    terms.push_back(std::make_shared<detail::CollisionTerm>(
+        context, options.group_name, group.v_indices, options.samples_per_segment,
+        options.collision_margin, options.collision_check_distance));
+  }
+  return terms;
+}
+
+// Unpacks z into a trajectory with t_k = k dt.
+JointTrajectory toTrajectory(const Eigen::VectorXd& z, const detail::VexLayout& layout,
+                             const JointGroupInfo& group, const JointConfiguration& start,
+                             const JointConfiguration& goal) {
+  JointTrajectory trajectory;
+  trajectory.joint_names = group.joint_names;
+  const Eigen::Index n = layout.n;
+  for (Eigen::Index k = 0; k < layout.num_nodes; ++k) {
+    trajectory.times.push_back(static_cast<double>(k) * layout.dt);
+    trajectory.positions.emplace_back(z.segment(layout.q(k), n));
+    trajectory.velocities.emplace_back(z.segment(layout.v(k), n));
+    // Acceleration is constant per segment; the last node reports the last segment's value.
+    const Eigen::Index segment = std::min(k, layout.num_nodes - 2);
+    trajectory.accelerations.emplace_back(z.segment(layout.a(segment), n));
+  }
+  // The boundary conditions are hard; remove the QP's residual from the reported endpoints.
+  trajectory.positions.front() = start.positions;
+  trajectory.positions.back() = goal.positions;
+  trajectory.velocities.front().setZero();
+  trajectory.velocities.back().setZero();
+  return trajectory;
+}
+
+}  // namespace
+
+Vex::Vex(std::shared_ptr<Scene> scene, VexOptions options)
+    : scene_{std::move(scene)}, options_{std::move(options)} {
+  if (!scene_) {
+    throw std::invalid_argument("Vex requires a non-null scene.");
+  }
+}
+
+tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
+                                                const JointConfiguration& goal, double duration,
+                                                const JointPath& seed) {
+  // ① Input check.
+  const auto input = validateInput(*scene_, options_, start, goal, duration, seed);
+  if (!input) {
+    return tl::make_unexpected(input.error());
+  }
   // Per-solve scratch (design L3): never touches the Scene's shared state. The context reads the
   // Scene's current joint positions once, here; joints outside the group keep them.
   const SceneContext context(*scene_);
@@ -189,30 +270,15 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
     return tl::make_unexpected(checked.error());
   }
 
-  const detail::VexLayout layout{.n = group.v_indices.size(),
-                                 .num_nodes = static_cast<Eigen::Index>(options_.num_nodes),
-                                 .dt = duration / static_cast<double>(options_.num_nodes - 1)};
-  const auto problem =
-      detail::buildConvexProblem(layout, start.positions, goal.positions, bounds,
-                                 options_.velocity_weight, options_.acceleration_weight);
-
-  // The hard rows must hold at the reference before the trust-box loop, so project the seed.
-  const auto q_seed = resampleSeed(seed.positions, options_.num_nodes, *scene_, group.q_indices);
-  const auto z0 = detail::projectOntoConstraints(problem, q_seed);
-  if (!z0) {
-    return tl::make_unexpected("No trajectory of duration " + std::to_string(duration) +
-                               " s satisfies the boundary conditions and joint limits (" +
-                               z0.error() + ")");
+  // ② Initial point.
+  const auto initial = computeInitialPoint(*scene_, options_, *input, start, goal, duration, seed);
+  if (!initial) {
+    return tl::make_unexpected(initial.error());
   }
 
-  std::vector<std::shared_ptr<detail::NonconvexTerm>> terms;
-  const auto& active_pairs = context.getCollisionData().activeCollisionPairs;
-  if (std::ranges::find(active_pairs, true) != active_pairs.end()) {
-    terms.push_back(std::make_shared<detail::CollisionTerm>(
-        context, options_.group_name, group.v_indices, options_.samples_per_segment,
-        options_.collision_margin, options_.collision_check_distance));
-  }
-  const auto scp = detail::runScp(problem, terms, *z0, options_);
+  // ③–⑥ SCP loop.
+  const auto terms = makeTerms(context, options_, input->group);
+  const auto scp = detail::runScp(initial->problem, terms, initial->z0, options_);
   if (!scp) {
     return tl::make_unexpected(scp.error());
   }
@@ -222,27 +288,12 @@ tl::expected<VexResult, std::string> Vex::solve(const JointConfiguration& start,
   result.iterations = scp->iterations;
   result.cost = scp->cost;
   result.max_violation = scp->max_violation;
+  result.trajectory = toTrajectory(scp->z, initial->problem.layout, input->group, start, goal);
 
-  auto& trajectory = result.trajectory;
-  trajectory.joint_names = group.joint_names;
-  const Eigen::Index n = layout.n;
-  for (Eigen::Index k = 0; k < layout.num_nodes; ++k) {
-    trajectory.times.push_back(static_cast<double>(k) * layout.dt);
-    trajectory.positions.emplace_back(scp->z.segment(layout.q(k), n));
-    trajectory.velocities.emplace_back(scp->z.segment(layout.v(k), n));
-    // Acceleration is constant per segment; the last node reports the last segment's value.
-    const Eigen::Index segment = std::min(k, layout.num_nodes - 2);
-    trajectory.accelerations.emplace_back(scp->z.segment(layout.a(segment), n));
-  }
-  // The boundary conditions are hard; remove the QP's residual from the reported endpoints.
-  trajectory.positions.front() = start.positions;
-  trajectory.positions.back() = goal.positions;
-  trajectory.velocities.front().setZero();
-  trajectory.velocities.back().setZero();
-
-  // Independent of the status: the flag reports exactly what this dense check covered.
+  // ⑦ Post-check. Independent of the status: the flag reports exactly what this dense check
+  // covered.
   result.continuous_collision_free =
-      detail::isContinuousCollisionFree(context, options_.group_name, trajectory);
+      detail::isContinuousCollisionFree(context, options_.group_name, result.trajectory);
   return result;
 }
 
