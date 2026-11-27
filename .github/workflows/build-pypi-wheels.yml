@@ -36,6 +36,7 @@ jobs:
               "roboplan_simple_ik",
               "roboplan_toppra",
               "roboplan_cartesian_planning",
+              "roboplan_vex",
           ]
           versions = {
               package: tomllib.loads((Path(package) / "pyproject.toml").read_text())["project"]["version"]
@@ -221,13 +222,18 @@ jobs:
         with:
           package-dir: roboplan_cartesian_planning
           output-dir: wheelhouse
+      - name: Build roboplan-vex wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          package-dir: roboplan_vex
+          output-dir: wheelhouse
         env:
           # The metapackage pins every subpackage, so this pulls the full set from the wheelhouse.
           CIBW_TEST_REQUIRES: roboplan==${{ needs.check_version.outputs.version }}
           CIBW_TEST_COMMAND: >-
             python -c "import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;
-            import roboplan.toppra; import roboplan.cartesian_planning; print('roboplan imports ok')"
+            import roboplan.toppra; import roboplan.cartesian_planning; import roboplan.vex; print('roboplan imports ok')"
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions-${{ matrix.artifact }}
@@ -261,7 +267,7 @@ jobs:
           python -m pip install --upgrade build twine
           mkdir -p "$HOME/.config/pip" dist
           printf '[global]\nfind-links = %s/wheelhouse\n' "$PWD" > "$HOME/.config/pip/pip.conf"
-          for package in roboplan_common roboplan_core roboplan_example_models roboplan_oink roboplan_rrt roboplan_simple_ik roboplan_toppra roboplan_cartesian_planning roboplan; do
+          for package in roboplan_common roboplan_core roboplan_example_models roboplan_oink roboplan_rrt roboplan_simple_ik roboplan_toppra roboplan_cartesian_planning roboplan_vex roboplan; do
             python -m build --sdist --outdir dist "$package"
           done
           python -m twine check dist/*.tar.gz

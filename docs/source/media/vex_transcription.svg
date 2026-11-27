@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 480" width="940" height="480" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/></marker></defs><rect width="940" height="480" fill="#ffffff"/>
+<line x1="105" y1="215" x2="835" y2="215" stroke="#4a5568" stroke-width="3"/>
+<line x1="105" y1="96" x2="275" y2="96" stroke="#4a5568" stroke-width="1.5" marker-start="url(#ah)" marker-end="url(#ah)"/>
+<text x="190" y="82" font-size="19" text-anchor="middle" fill="#4a5568" font-weight="normal">Δt = T / (N − 1)</text>
+<rect x="31" y="100" width="148" height="72" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="105" y="129" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">q<tspan baseline-shift="sub" font-size="72%">0</tspan> = start</text>
+<text x="105" y="156" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">v<tspan baseline-shift="sub" font-size="72%">0</tspan> = 0</text>
+<line x1="105" y1="172" x2="105" y2="205" stroke="#2b6cb0" stroke-width="1.6"/>
+<circle cx="105" cy="215" r="10" fill="#2b6cb0" stroke="#fff" stroke-width="2"/>
+<rect x="201" y="132" width="148" height="40" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="275" y="159" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">q<tspan baseline-shift="sub" font-size="72%">1</tspan>, v<tspan baseline-shift="sub" font-size="72%">1</tspan></text>
+<line x1="275" y1="172" x2="275" y2="205" stroke="#2b6cb0" stroke-width="1.6"/>
+<circle cx="275" cy="215" r="10" fill="#2b6cb0" stroke="#c53030" stroke-width="4"/>
+<rect x="371" y="132" width="148" height="40" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="445" y="159" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">q<tspan baseline-shift="sub" font-size="72%">2</tspan>, v<tspan baseline-shift="sub" font-size="72%">2</tspan></text>
+<line x1="445" y1="172" x2="445" y2="205" stroke="#2b6cb0" stroke-width="1.6"/>
+<circle cx="445" cy="215" r="10" fill="#2b6cb0" stroke="#c53030" stroke-width="4"/>
+<rect x="596" y="132" width="148" height="40" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="670" y="159" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">q<tspan baseline-shift="sub" font-size="72%">N−2</tspan>, v<tspan baseline-shift="sub" font-size="72%">N−2</tspan></text>
+<line x1="670" y1="172" x2="670" y2="205" stroke="#2b6cb0" stroke-width="1.6"/>
+<circle cx="670" cy="215" r="10" fill="#2b6cb0" stroke="#c53030" stroke-width="4"/>
+<rect x="761" y="100" width="148" height="72" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="835" y="129" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">q<tspan baseline-shift="sub" font-size="72%">N−1</tspan> = goal</text>
+<text x="835" y="156" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">v<tspan baseline-shift="sub" font-size="72%">N−1</tspan> = 0</text>
+<line x1="835" y1="172" x2="835" y2="205" stroke="#2b6cb0" stroke-width="1.6"/>
+<circle cx="835" cy="215" r="10" fill="#2b6cb0" stroke="#fff" stroke-width="2"/>
+<text x="557" y="223" font-size="28" text-anchor="middle" fill="#4a5568" font-weight="normal">· · ·</text>
+<text x="557" y="150" font-size="28" text-anchor="middle" fill="#4a5568" font-weight="normal">· · ·</text>
+<path d="M147.5,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M190.0,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M232.5,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M111,253 v9 h158 v-9" fill="none" stroke="#c05621" stroke-width="2.2"/>
+<rect x="142.0" y="271" width="96" height="38" rx="9" fill="#fffaf0" stroke="#c05621" stroke-width="1.6"/>
+<text x="190.0" y="297" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">a<tspan baseline-shift="sub" font-size="72%">0</tspan></text>
+<path d="M317.5,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M360.0,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M402.5,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M281,253 v9 h158 v-9" fill="none" stroke="#c05621" stroke-width="2.2"/>
+<rect x="312.0" y="271" width="96" height="38" rx="9" fill="#fffaf0" stroke="#c05621" stroke-width="1.6"/>
+<text x="360.0" y="297" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">a<tspan baseline-shift="sub" font-size="72%">1</tspan></text>
+<path d="M711.25,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M752.5,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M793.75,206 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<path d="M676,253 v9 h153 v-9" fill="none" stroke="#c05621" stroke-width="2.2"/>
+<rect x="704.5" y="271" width="96" height="38" rx="9" fill="#fffaf0" stroke="#c05621" stroke-width="1.6"/>
+<text x="752.5" y="297" font-size="19" text-anchor="middle" fill="#1a202c" font-weight="normal">a<tspan baseline-shift="sub" font-size="72%">N−2</tspan></text>
+<circle cx="60" cy="350" r="10" fill="#2b6cb0"/>
+<text x="84" y="356" font-size="18" text-anchor="start" fill="#4a5568" font-weight="normal">node: position and velocity</text>
+<circle cx="500" cy="350" r="10" fill="#2b6cb0" stroke="#c53030" stroke-width="4"/>
+<text x="524" y="356" font-size="18" text-anchor="start" fill="#4a5568" font-weight="normal">node that is also a collision sample</text>
+<path d="M60,375 l8,9 l-8,9 l-8,-9 z" fill="#c53030"/>
+<text x="84" y="390" font-size="18" text-anchor="start" fill="#4a5568" font-weight="normal">collision sample</text>
+<rect x="488" y="375" width="24" height="18" rx="4" fill="#fffaf0" stroke="#c05621" stroke-width="1.6"/>
+<text x="524" y="390" font-size="18" text-anchor="start" fill="#4a5568" font-weight="normal">segment: constant acceleration</text>
+<text x="24" y="454" font-size="22" text-anchor="start" fill="#1a202c" font-weight="bold">z =</text>
+<rect x="75" y="418" width="280" height="52" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="215.0" y="452" font-size="21" text-anchor="middle" fill="#1a202c" font-weight="normal">q<tspan baseline-shift="sub" font-size="72%">0</tspan> … q<tspan baseline-shift="sub" font-size="72%">N−1</tspan></text>
+<rect x="365" y="418" width="280" height="52" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.6"/>
+<text x="505.0" y="452" font-size="21" text-anchor="middle" fill="#1a202c" font-weight="normal">v<tspan baseline-shift="sub" font-size="72%">0</tspan> … v<tspan baseline-shift="sub" font-size="72%">N−1</tspan></text>
+<rect x="655" y="418" width="260" height="52" rx="9" fill="#fffaf0" stroke="#c05621" stroke-width="1.6"/>
+<text x="785.0" y="452" font-size="21" text-anchor="middle" fill="#1a202c" font-weight="normal">a<tspan baseline-shift="sub" font-size="72%">0</tspan> … a<tspan baseline-shift="sub" font-size="72%">N−2</tspan></text>
+</svg>

@@ -9,3 +9,4 @@ Concepts
    path_shortcutting
    trajectory_generation
    cartesian_planning
+   trajectory_optimization/index

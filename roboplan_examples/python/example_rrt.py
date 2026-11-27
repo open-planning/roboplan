@@ -13,15 +13,18 @@ from pinocchio.visualize import ViserVisualizer
 
 from roboplan.core import (
     JointConfiguration,
+    JointPath,
     PathShortcutter,
     PathShortcuttingOptions,
     Scene,
+    computePathLength,
     loadJointLimitsConfig,
     loadUrdfSceneDescriptionFromXml,
 )
 from roboplan.example_models import get_package_share_dir
 from roboplan.rrt import RRT, RRTOptions, visualizeTree
 from roboplan.toppra import PathParameterizerTOPPRA, SplineFittingMode, TOPPRAOptions
+from roboplan.vex import Vex, VexOptions
 from roboplan.visualization import (
     plotJointTrajectory,
     visualizeJointTrajectory,
@@ -50,6 +53,8 @@ def main(
     rng_seed: int | None = None,
     include_obstacles: bool = False,
     include_octrees: bool = False,
+    vex: bool = False,
+    vex_duration: float = 5.0,
 ):
     """
     Plan RRT paths between random collision-free configurations and animate the trajectory.
@@ -82,6 +87,10 @@ def main(
             Don't use with `include_octrees`.
         include_octrees: Whether or not to include additional octrees in the scene.
             Don't use with `include_obstacles`.
+        vex: Whether to optimize the found (and optionally shortcutted) path with vex and show
+            the vex trajectory instead of the TOPP-RA one (falls back to TOPP-RA if vex
+            returns an error).
+        vex_duration: The duration (in seconds) of the vex trajectory.
     """
     model_data = get_model_data().get(model)
     if model_data is None:
@@ -204,14 +213,44 @@ def main(
             shortened_path = shortcutter.shortcut(path)
             print(f"Shortcutted path in {time.time() - t_start:.3f} s")
 
-        # Set up TOPP-RA to time-parameterize the path
-        print("Generating trajectory...")
-        t_start = time.time()
-        traj = toppra.generate(
-            shortened_path if include_shortcutting else path,
-            TOPPRAOptions(dt=traj_dt, mode=toppra_mode),
-        )
-        print(f"Generated trajectory in {time.time() - t_start:.3f} s")
+        traj = None
+        if vex:
+            # Optimize the path with vex, which also time-parameterizes it.
+            print("Optimizing trajectory with vex...")
+            seed = shortened_path if include_shortcutting else path
+            vex_options = VexOptions()
+            vex_options.group_name = model_data.default_joint_group
+            t_start = time.time()
+            try:
+                result = Vex(scene, vex_options).solve(start, goal, vex_duration, seed)
+            except RuntimeError as error:
+                # E.g. a start or goal with a clearance below collision_margin.
+                print(f"vex failed: {error}")
+                print("Falling back to TOPP-RA.")
+            else:
+                print(f"Optimized trajectory in {time.time() - t_start:.3f} s")
+                traj = result.trajectory
+                optimized = JointPath()
+                optimized.joint_names = traj.joint_names
+                optimized.positions = traj.positions
+                group_name = model_data.default_joint_group
+                print(
+                    f"Path length: {computePathLength(scene, group_name, seed):.3f} before, "
+                    f"{computePathLength(scene, group_name, optimized):.3f} after vex"
+                )
+                print(
+                    f"vex status: {result.status}, "
+                    f"continuous collision free: {result.continuous_collision_free}"
+                )
+        if traj is None:
+            # Set up TOPP-RA to time-parameterize the path
+            print("Generating trajectory...")
+            t_start = time.time()
+            traj = toppra.generate(
+                shortened_path if include_shortcutting else path,
+                TOPPRAOptions(dt=traj_dt, mode=toppra_mode),
+            )
+            print(f"Generated trajectory in {time.time() - t_start:.3f} s")
 
         # Visualize the tree and path
         viz.display(q_full)
@@ -285,10 +324,12 @@ def main(
             plt.pause(0.1)
         elif animate and cur_traj is not None:
             print("Animating trajectory...")
+            # TOPP-RA samples at traj_dt; vex at its own node spacing.
+            anim_dt = cur_traj.times[1] - cur_traj.times[0]
             for q in cur_traj.positions:
                 q_full = scene.toFullJointPositions(model_data.default_joint_group, q)
                 viz.display(q_full)
-                time.sleep(traj_dt)
+                time.sleep(anim_dt)
             animate = False
             plan_button.disabled = False
             animate_button.disabled = False

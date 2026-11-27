@@ -18,6 +18,7 @@ BINDINGS_MODULES = [
     "roboplan.rrt",
     "roboplan.simple_ik",
     "roboplan.toppra",
+    "roboplan.vex",
 ]
 
 
