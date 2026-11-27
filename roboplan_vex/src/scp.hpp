@@ -75,6 +75,12 @@ struct ConvexProblem {
   /// have position units. This conditions the QP and makes one trust box size fit all blocks.
   Eigen::VectorXd scale;
 
+  /// @brief The matrices above in the scaled variables y (z = scale .* y): S P S, A S and C S.
+  /// Computed once by buildConvexProblem.
+  Eigen::SparseMatrix<double> P_scaled;
+  Eigen::SparseMatrix<double> A_scaled;
+  Eigen::SparseMatrix<double> C_scaled;
+
   double cost(const Eigen::VectorXd& z) const { return 0.5 * z.dot(P * z); }
 };
 

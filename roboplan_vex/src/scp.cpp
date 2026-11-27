@@ -109,22 +109,6 @@ double maxViolation(const std::vector<NonconvexRow>& rows) {
   return max;
 }
 
-// The convex QP data mapped to the scaled variables y (z = scale .* y).
-struct ScaledProblem {
-  Eigen::SparseMatrix<double> hessian;
-  Eigen::SparseMatrix<double> equality;
-  Eigen::SparseMatrix<double> inequality;
-};
-
-ScaledProblem scaleProblem(const ConvexProblem& problem) {
-  const auto scale = problem.scale.asDiagonal();
-  ScaledProblem scaled;
-  scaled.hessian = scale * problem.P * scale;
-  scaled.equality = problem.A * scale;
-  scaled.inequality = problem.C * scale;
-  return scaled;
-}
-
 // Builds the SCP subproblem in increments dy (and one slack per QP row) at z:
 //   min 1/2 dy^T H dy + (S P z)^T dy + penalty * sum(s)
 // passed to the solver divided by `penalty` (same minimizer). With the slack cost at 1 the dual
@@ -133,38 +117,38 @@ ScaledProblem scaleProblem(const ConvexProblem& problem) {
 // s = max(g, 0) is always feasible.
 //   s.t. A S dy = b - A z,  l - C z <= C S dy <= u - C z,  -box <= dy <= box,
 //        J S dy - s <= -g (all rows),  J S dy + s >= -g (equality rows),  s >= 0.
-SparseQp assembleSubproblem(const ConvexProblem& problem, const ScaledProblem& scaled,
-                            const Eigen::VectorXd& z, const std::vector<const NonconvexRow*>& rows,
-                            double penalty, double box) {
+SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd& z,
+                            const std::vector<const NonconvexRow*>& rows, double penalty,
+                            double box) {
   const Eigen::Index nz = problem.layout.size();
   const auto ns = static_cast<Eigen::Index>(rows.size());
   const Eigen::Index nx = nz + ns;
 
   SparseQp qp;
   Triplets h_triplets;
-  appendTriplets(scaled.hessian, 0, h_triplets);
+  appendTriplets(problem.P_scaled, 0, h_triplets);
   qp.H = fromTriplets(nx, nx, h_triplets) / penalty;
   qp.g = Eigen::VectorXd::Ones(nx);
   qp.g.head(nz) = problem.scale.cwiseProduct(problem.P * z) / penalty;
 
   Triplets a_triplets;
-  appendTriplets(scaled.equality, 0, a_triplets);
-  qp.A = fromTriplets(scaled.equality.rows(), nx, a_triplets);
+  appendTriplets(problem.A_scaled, 0, a_triplets);
+  qp.A = fromTriplets(problem.A_scaled.rows(), nx, a_triplets);
   qp.b = problem.b - problem.A * z;
 
   const bool use_box = std::isfinite(box);
   const Eigen::Index num_equality_rows =
       std::count_if(rows.begin(), rows.end(), [](const auto* row) { return row->equality; });
   const Eigen::Index num_rows =
-      scaled.inequality.rows() + (use_box ? nz : 0) + ns + num_equality_rows + ns;
+      problem.C_scaled.rows() + (use_box ? nz : 0) + ns + num_equality_rows + ns;
   Triplets c_triplets;
   qp.l.resize(num_rows);
   qp.u.resize(num_rows);
 
   // Hard limit rows.
-  appendTriplets(scaled.inequality, 0, c_triplets);
+  appendTriplets(problem.C_scaled, 0, c_triplets);
   const Eigen::VectorXd cz = problem.C * z;
-  Eigen::Index row = scaled.inequality.rows();
+  Eigen::Index row = problem.C_scaled.rows();
   qp.l.head(row) = problem.l - cz;
   qp.u.head(row) = problem.u - cz;
 
@@ -232,8 +216,7 @@ class ScpLoop {
 public:
   ScpLoop(const ConvexProblem& problem, const std::vector<std::shared_ptr<NonconvexTerm>>& terms,
           Eigen::VectorXd z, const VexOptions& options)
-      : problem_{problem}, terms_{terms}, options_{options}, scaled_{scaleProblem(problem)},
-        z_{std::move(z)},
+      : problem_{problem}, terms_{terms}, options_{options}, z_{std::move(z)},
         // Without nonconvex terms the QP model is exact: no trust box is needed.
         has_terms_{!terms.empty()}, penalty_{options.initial_penalty},
         box_{has_terms_ ? options.initial_trust_box : kInfinity},
@@ -312,7 +295,7 @@ private:
       for (size_t i = 0; i < qp_rows.size(); ++i) {
         guess(nz + static_cast<Eigen::Index>(i)) = violation(*qp_rows.at(i), qp_rows.at(i)->value);
       }
-      const SparseQp qp = assembleSubproblem(problem_, scaled_, z_, qp_rows, penalty_, box_);
+      const SparseQp qp = assembleSubproblem(problem_, z_, qp_rows, penalty_, box_);
       const auto solution = solveSparseQp(
           qp, SparseQpSettings{.eps_primal_inf = kSubproblemPrimalInfeasibility}, guess);
       if (!solution) {
@@ -370,7 +353,6 @@ private:
   const ConvexProblem& problem_;
   const std::vector<std::shared_ptr<NonconvexTerm>>& terms_;
   const VexOptions& options_;
-  const ScaledProblem scaled_;
   Eigen::VectorXd z_;
   const bool has_terms_;
   double penalty_;
@@ -477,6 +459,11 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
   problem.scale = Eigen::VectorXd::Ones(nz);
   problem.scale.segment(layout.v(0), num_nodes * n).setConstant(1.0 / dt);
   problem.scale.segment(layout.a(0), (num_nodes - 1) * n).setConstant(1.0 / (dt * dt));
+
+  const auto scale = problem.scale.asDiagonal();
+  problem.P_scaled = scale * problem.P * scale;
+  problem.A_scaled = problem.A * scale;
+  problem.C_scaled = problem.C * scale;
   return problem;
 }
 
@@ -485,7 +472,6 @@ projectOntoConstraints(const ConvexProblem& problem, const std::vector<Eigen::Ve
   const auto& layout = problem.layout;
   const Eigen::Index nz = layout.size();
   const Eigen::Index nq = layout.num_nodes * layout.n;
-  const ScaledProblem scaled = scaleProblem(problem);
 
   // min sum_k ||q_k - q_seed_k||^2 (+ tiny regularization) in the scaled variables, where y_q = q.
   SparseQp qp;
@@ -496,9 +482,9 @@ projectOntoConstraints(const ConvexProblem& problem, const std::vector<Eigen::Ve
   for (Eigen::Index k = 0; k < layout.num_nodes; ++k) {
     qp.g.segment(layout.q(k), layout.n) = -q_seed.at(static_cast<size_t>(k));
   }
-  qp.A = scaled.equality;
+  qp.A = problem.A_scaled;
   qp.b = problem.b;
-  qp.C = scaled.inequality;
+  qp.C = problem.C_scaled;
   qp.l = problem.l;
   qp.u = problem.u;
 
