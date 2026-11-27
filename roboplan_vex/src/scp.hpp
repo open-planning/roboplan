@@ -13,21 +13,18 @@
 
 #include "convex_problem.hpp"
 
-// Internal SCP loop of roboplan_vex (not installed, no public extension API; design L2/L4). The
-// convex part of the problem is in convex_problem.hpp.
+// Internal SCP loop of roboplan_vex (not installed).
 namespace roboplan::detail {
 
-/// @brief One scalar row of a nonconvex term at a point z.
+/// @brief One scalar row g(z) <= 0 of a nonconvex term.
 struct NonconvexRow {
-  /// @brief The value g(z); the row requires g <= 0.
   double value = 0.0;
 
-  /// @brief Sparse gradient dg/dz as (variable index into z, derivative) pairs. Only the local
-  /// variables the row touches (e.g. q_k, v_k, a_k of one segment) appear.
+  /// @brief Sparse gradient dg/dz as (index into z, derivative) pairs.
   std::vector<std::pair<Eigen::Index, double>> jacobian;
 };
 
-/// @brief A nonconvex term, linearized at every SCP iteration and penalized with ℓ1 slacks.
+/// @brief A nonconvex term, linearized at every iteration and penalized with ℓ1 slacks.
 class NonconvexTerm {
 public:
   virtual ~NonconvexTerm() = default;
@@ -39,7 +36,6 @@ public:
                                                    std::vector<NonconvexRow>& rows) = 0;
 };
 
-/// @brief Output of the SCP loop.
 struct ScpResult {
   Eigen::VectorXd z;
   VexStatus status = VexStatus::QpFailure;
@@ -48,9 +44,8 @@ struct ScpResult {
   double max_violation = 0.0;
 };
 
-/// @brief Runs the ℓ1-penalty / trust-box SCP loop from a point z that satisfies the hard rows.
-/// @details Without nonconvex terms the QP model is exact, so no trust box is used and the first
-/// accepted step is optimal (status Converged).
+/// @brief Runs the ℓ1-penalty / trust-box SCP loop from a z that satisfies the hard rows.
+/// @details Without nonconvex terms the first accepted step is optimal.
 tl::expected<ScpResult, std::string>
 runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<NonconvexTerm>>& terms,
        Eigen::VectorXd z, const VexOptions& options);

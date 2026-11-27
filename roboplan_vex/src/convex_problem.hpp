@@ -7,11 +7,10 @@
 #include <Eigen/SparseCore>
 #include <tl/expected.hpp>
 
-// Internal convex part of the roboplan_vex problem (not installed; design L2/L4).
+// Internal convex part of the roboplan_vex problem (not installed).
 namespace roboplan::detail {
 
-/// @brief Variable layout of the double-integrator model (physical units):
-/// z = [q_0 .. q_{N-1}, v_0 .. v_{N-1}, a_0 .. a_{N-2}], each block of size n.
+/// @brief Layout z = [q_0 .. q_{N-1}, v_0 .. v_{N-1}, a_0 .. a_{N-2}], each block of size n.
 struct VexLayout {
   Eigen::Index n = 0;
   Eigen::Index num_nodes = 0;
@@ -23,7 +22,7 @@ struct VexLayout {
   Eigen::Index size() const { return (3 * num_nodes - 1) * n; }
 };
 
-/// @brief Per-joint limits; entries that are non-finite or >= 1e20 in magnitude are unbounded.
+/// @brief Per-joint limits; non-finite entries and magnitudes >= 1e20 are unbounded.
 struct JointBounds {
   Eigen::VectorXd q_min;
   Eigen::VectorXd q_max;
@@ -31,8 +30,7 @@ struct JointBounds {
   Eigen::VectorXd a_max;
 };
 
-/// @brief The convex part of the problem, in physical units:
-/// cost 1/2 z^T P z, hard rows A z = b and l <= C z <= u.
+/// @brief Cost 1/2 z^T P z with hard rows A z = b and l <= C z <= u, in physical units.
 struct ConvexProblem {
   VexLayout layout;
   Eigen::SparseMatrix<double> P;
@@ -42,12 +40,10 @@ struct ConvexProblem {
   Eigen::VectorXd l;
   Eigen::VectorXd u;
 
-  /// @brief Variable scaling z = scale .* y: the QP works in y, where q, v dt and a dt^2 all
-  /// have position units. This conditions the QP and makes one trust box size fit all blocks.
+  /// @brief Scaling z = scale .* y; q, v dt and a dt^2 all have position units in y.
   Eigen::VectorXd scale;
 
-  /// @brief The matrices above in the scaled variables y (z = scale .* y): S P S, A S and C S.
-  /// Computed once by buildConvexProblem.
+  /// @brief S P S, A S and C S for the scaled variables, computed once.
   Eigen::SparseMatrix<double> P_scaled;
   Eigen::SparseMatrix<double> A_scaled;
   Eigen::SparseMatrix<double> C_scaled;
@@ -60,8 +56,8 @@ ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd&
                                  const Eigen::VectorXd& goal, const JointBounds& bounds,
                                  double velocity_weight, double acceleration_weight);
 
-/// @brief Finds the trajectory closest to the seed positions (one per node) that satisfies all
-/// hard rows of `problem`. Fails if the hard rows are infeasible.
+/// @brief Finds the z closest to the seed positions (one per node) that satisfies the hard rows.
+/// @return An error if the hard rows are infeasible.
 tl::expected<Eigen::VectorXd, std::string>
 projectOntoConstraints(const ConvexProblem& problem, const std::vector<Eigen::VectorXd>& q_seed);
 

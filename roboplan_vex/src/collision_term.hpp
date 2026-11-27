@@ -13,14 +13,13 @@
 
 #include "scp.hpp"
 
-// Internal collision term and continuous post-check of roboplan_vex (design §6, L2, L10).
+// Internal collision term and continuous post-check of roboplan_vex (not installed).
 namespace roboplan::detail {
 
-/// @brief Calls `visit(pair_index, signed_distance)` for every active collision pair of the
-/// context's collision data, which must hold the distances of the configuration of interest
-/// (SceneContext::computeDistances).
+/// @brief Calls `visit(pair_index, signed_distance)` for every active pair, using the distances
+/// last computed by SceneContext::computeDistances.
 /// @param where Suffix of the error message, e.g. " at the start configuration".
-/// @return An error naming the pair if a distance is NaN, otherwise success.
+/// @return An error naming the pair if a distance is NaN.
 template <typename Visitor>
 tl::expected<void, std::string> forEachActivePairDistance(const SceneContext& context,
                                                           std::string_view where, Visitor&& visit) {
@@ -39,14 +38,10 @@ tl::expected<void, std::string> forEachActivePairDistance(const SceneContext& co
   return {};
 }
 
-/// @brief Collision avoidance d_safe - sd(q(t)) <= 0 for every active collision pair of the
-/// Scene, at every interior node and at `samples_per_segment` interior points of every segment.
-/// @details A sample at time t in segment k uses the exact M2 polynomial
-/// q(t) = q_k + v_k t + a_k t^2 / 2, so its Jacobian with respect to (q_k, v_k, a_k) is
-/// (I, t I, t^2/2 I) times the group columns of the signed-distance gradient. Joints outside the
-/// group are taken from the context's configuration. Every active pair with sd < d_check yields
-/// one inequality row, with or without the Jacobian, so the merit sees the same pairs as the QP
-/// (pairs with sd >= d_check have a negative value and no violation).
+/// @brief Rows d_safe - sd(q(t)) <= 0 for every active pair with sd < d_check, at every interior
+/// node and `samples_per_segment` points inside every segment (vex.rst, ③).
+/// @details Joints outside the group keep the context's configuration. The rows are the same with
+/// and without Jacobians, so the merit and the QP see the same pairs.
 class CollisionTerm final : public NonconvexTerm {
 public:
   CollisionTerm(const SceneContext& context, std::string group_name, Eigen::VectorXi v_indices,
@@ -72,15 +67,10 @@ private:
   Eigen::RowVectorXd gradient_;  ///< Scratch row of size model.nv.
 };
 
-/// @brief Largest per-joint displacement (rad or m) between consecutive configurations of the
-/// continuous post-check.
+/// @brief Largest per-joint displacement (rad or m) between two post-check configurations.
 constexpr double kPostCheckStep = 0.01;
 
-/// @brief Checks the trajectory for collisions by sampling the M2 polynomial of every segment so
-/// that no group joint moves more than kPostCheckStep between consecutive checks.
-/// @details Within a segment the velocity is linear in t, so max(|v_k|, |v_{k+1}|) bounds every
-/// joint's speed; the step count follows from that bound. Both endpoints of every segment are
-/// checked.
+/// @brief Checks the trajectory for contact (not for the margin) between the nodes (vex.rst, ⑦).
 /// @return True if no checked configuration is in collision.
 bool isContinuousCollisionFree(const SceneContext& context, const std::string& group_name,
                                const JointTrajectory& trajectory);

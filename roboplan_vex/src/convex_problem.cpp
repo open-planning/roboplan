@@ -13,8 +13,7 @@ using Triplets = std::vector<Eigen::Triplet<double>>;
 
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
-// Weight of the velocity / acceleration regularization in the projection QP; only there so the
-// QP Hessian is not singular on blocks that the equality rows already determine.
+// Keeps the projection QP Hessian nonsingular on blocks the equality rows already determine.
 constexpr double kProjectionRegularization = 1e-6;
 
 bool isBounded(double value) { return std::isfinite(value) && std::abs(value) < 1e20; }

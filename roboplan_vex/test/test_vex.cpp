@@ -111,9 +111,8 @@ TEST_F(VexTest, NoObstaclesGivesStraightLine) {
   const auto result = vex.solve(config(start), config(goal), 4.0, path({start, detour, goal}));
   ASSERT_TRUE(result.has_value()) << result.error();
   EXPECT_EQ(result->status, VexStatus::Converged);
-  // The ur5 has active self-collision pairs, so the collision term (and the trust box) is in the
-  // loop and the solve takes more than one iteration; the one-iteration exactness of the convex
-  // model without terms is covered by ScpTest.WithoutTermsConvergesInOneIteration.
+  // The ur5 has active self-collision pairs, so the collision term is in the loop (the exact
+  // convex model without terms is covered by ScpTest.WithoutTermsConvergesInOneIteration).
   EXPECT_EQ(result->max_violation, 0.0);
   // The ur5 is collision-free along the straight line between these configurations.
   EXPECT_TRUE(result->continuous_collision_free);

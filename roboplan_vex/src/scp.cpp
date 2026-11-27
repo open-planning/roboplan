@@ -10,20 +10,7 @@
 
 namespace roboplan::detail {
 
-// SCP loop (ScpLoop::run), starting from a z that satisfies the hard rows:
-//
-//   penalty round                       (penalty *= penalty_increase, <= max_penalty_increases)
-//     repeat until converged:           <- ScpLoop::trustRegionStep
-//       merit(z) = cost(z) + penalty * sum_i violation(g_i(z))
-//       QP at z: minimize the linearized merit s.t. hard rows and |dz| <= box
-//         QP failed             -> box *= trust_shrink, retry
-//         predicted gain < tol  -> converged
-//       evaluate g at z + dz
-//         actual / predicted >= improve_ratio -> accept, z += dz, box *= trust_expand
-//         else                                -> box *= trust_shrink, retry (box < tol: converged)
-//     max_violation <= tol -> Converged; else next round, or ConvergedInfeasible after the last.
-//
-// MaxIterations and Timeout end the loop from any step.
+// SCP loop: stages ③ to ⑥ of docs/source/concepts/trajectory_optimization/vex.rst.
 
 namespace {
 
@@ -31,20 +18,16 @@ using Triplets = std::vector<Eigen::Triplet<double>>;
 
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
-// The SCP subproblem is feasible by construction (dy = 0 with s = max(g, 0)), so ProxQP's primal
-// infeasibility certificate can only be a false positive there; it was observed on ~1 in 20
-// subproblems at the default threshold (1e-4) and never at this one.
+// The subproblems are feasible by construction (dy = 0, s = max(g, 0)); ProxQP's default
+// primal infeasibility threshold (1e-4) still reports infeasibility on ~1 in 20 of them.
 constexpr double kSubproblemPrimalInfeasibility = 1e-12;
 
-// Rows whose gradient norm is at or below this are constant under the step and stay out of the
-// QP. Measured on the collision rows (ur5 + gripper): pairs the group cannot move have gradient
-// norms below 1e-15, the smallest influenceable ones are many orders of magnitude above 1e-9.
+// Rows with a gradient norm at or below this are constant under the step (measured: below 1e-15
+// for pairs the group cannot move, far above 1e-9 for the others).
 constexpr double kMinRowGradientNorm = 1e-9;
 
-// Whether the step can change the row's value. A row with a (numerically) zero gradient, e.g. a
-// collision pair between two bodies the group does not move, adds the same constant to the QP
-// model and to the merit; it is therefore left out of the QP (no row, no slack) but still counted
-// in the merit and the violation (design §6), so a violated one is still reported.
+// Whether the step can change the row. Constant rows stay out of the QP but still count in the
+// merit and the violation.
 bool isInfluenceable(const NonconvexRow& row) {
   double squared_norm = 0.0;
   for (const auto& [index, derivative] : row.jacobian) {
@@ -72,7 +55,6 @@ void appendTriplets(const Eigen::SparseMatrix<double>& matrix, Eigen::Index row_
 // Violation of a row with value g: the hinge max(0, g).
 double violation(double value) { return std::max(0.0, value); }
 
-// Evaluates all terms at z; the Jacobians only if requested.
 tl::expected<void, std::string>
 evaluateTerms(const std::vector<std::shared_ptr<NonconvexTerm>>& terms, const VexLayout& layout,
               const Eigen::VectorXd& z, bool compute_jacobian, std::vector<NonconvexRow>& rows) {
@@ -101,14 +83,8 @@ double maxViolation(const std::vector<NonconvexRow>& rows) {
   return max;
 }
 
-// Builds the SCP subproblem in increments dy (and one slack per QP row) at z:
-//   min 1/2 dy^T H dy + (S P z)^T dy + penalty * sum(s)
-// passed to the solver divided by `penalty` (same minimizer). With the slack cost at 1 the dual
-// variables stay O(1) as the penalty grows; unscaled, ProxQP needed hundreds of iterations at
-// penalty >= 1e2 and reported PROXQP_PRIMAL_INFEASIBLE at 1e5..1e6, although dy = 0 with
-// s = max(g, 0) is always feasible.
-//   s.t. A S dy = b - A z,  l - C z <= C S dy <= u - C z,  -box <= dy <= box,
-//        J S dy - s <= -g (all rows),  s >= 0.
+// Builds the QP for the scaled step dy, one slack per row (vex.rst, ④). The objective is divided
+// by `penalty` so the duals stay O(1); undivided, ProxQP stalls at large penalties.
 SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd& z,
                             const std::vector<const NonconvexRow*>& rows, double penalty,
                             double box) {
@@ -161,7 +137,6 @@ SparseQp assembleSubproblem(const ConvexProblem& problem, const Eigen::VectorXd&
     qp.u(row) = -nonconvex_row.value;
   }
 
-  // Slacks are nonnegative.
   for (Eigen::Index i = 0; i < ns; ++i, ++row) {
     c_triplets.emplace_back(row, nz + i, 1.0);
     qp.l(row) = 0.0;
@@ -196,14 +171,13 @@ enum class StepOutcome {
   QpFailure,
 };
 
-// The l1-penalty / trust-box loop. State shared by the steps lives in the members; the constructor
-// takes the point z that satisfies the hard rows.
+// Trust-region loop with penalty rounds (vex.rst, ⑤ and ⑥).
 class ScpLoop {
 public:
   ScpLoop(const ConvexProblem& problem, const std::vector<std::shared_ptr<NonconvexTerm>>& terms,
           Eigen::VectorXd z, const VexOptions& options)
       : problem_{problem}, terms_{terms}, options_{options}, z_{std::move(z)},
-        // Without nonconvex terms the QP model is exact: no trust box is needed.
+        // No nonconvex terms: the QP model is exact, so no trust box.
         has_terms_{!terms.empty()}, penalty_{options.initial_penalty},
         box_{has_terms_ ? options.initial_trust_box : kInfinity},
         start_time_{std::chrono::steady_clock::now()} {}
@@ -216,7 +190,6 @@ public:
     }
 
     for (size_t penalty_round = 0;; ++penalty_round) {
-      // Minimize the merit for the current penalty.
       for (bool converged = false; !converged;) {
         const auto outcome = trustRegionStep();
         if (!outcome) {
@@ -239,7 +212,6 @@ public:
         }
       }
 
-      // Converged for this penalty: done if feasible, else increase the penalty.
       if (maxViolation(linearized_) <= options_.tolerance) {
         return finish(VexStatus::Converged);
       }
@@ -252,13 +224,13 @@ public:
   }
 
 private:
-  // Solves subproblems at z, shrinking the box after every rejected step, until a step passes the
-  // ratio test or a stopping condition holds. Every attempt counts as one iteration.
+  // Solves QPs at z, shrinking the box on every rejection, until a step is accepted or the loop
+  // stops. Every solve counts as one iteration.
   tl::expected<StepOutcome, std::string> trustRegionStep() {
     const Eigen::Index nz = problem_.layout.size();
 
-    // The merit counts all rows; only the rows the step can influence enter the QP. The pointers
-    // refer to `linearized_` and are valid until it is swapped on acceptance, which ends the step.
+    // Only rows the step can change enter the QP. The pointers refer to `linearized_` and are
+    // valid until it is swapped on acceptance.
     const double merit = problem_.cost(z_) + penalty_ * sumViolation(linearized_);
     std::vector<const NonconvexRow*> qp_rows;
     for (const auto& row : linearized_) {
@@ -301,8 +273,7 @@ private:
         return StepOutcome::Converged;
       }
 
-      // Candidates are evaluated with Jacobians, so an accepted candidate's rows are swapped in
-      // without evaluating the terms again (the signed distances dominate the cost).
+      // Candidates carry Jacobians, so an accepted candidate's rows replace `linearized_` as is.
       if (auto evaluated =
               evaluateTerms(terms_, problem_.layout, z_candidate, true, candidate_rows_);
           !evaluated) {

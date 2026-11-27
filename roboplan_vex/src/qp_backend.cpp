@@ -23,8 +23,7 @@ solveSparseQp(const SparseQp& qp, const SparseQpSettings& settings,
     return tl::make_unexpected("QP primal warm start has the wrong size.");
   }
 
-  // The number of rows changes between SCP iterations, so the solver is rebuilt for every
-  // solve. H must always be passed (sparse init dereferences it even when it is nullopt).
+  // H must always be passed: sparse init dereferences it even when it is nullopt.
   Solver solver(n, n_eq, n_in);
   solver.settings.eps_abs = settings.eps_abs;
   solver.settings.eps_rel = settings.eps_rel;

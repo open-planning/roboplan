@@ -14,130 +14,113 @@ namespace roboplan {
 
 /// @brief Termination status of a vex solve.
 enum class VexStatus {
-  /// @brief Converged with all nonconvex constraints satisfied within the tolerance.
+  /// @brief Converged, collision violation within the tolerance.
   Converged,
-  /// @brief Converged, but nonconvex constraints are still violated after the maximum number of
-  /// penalty increases.
+  /// @brief Converged, but collision violations remain after `max_penalty_increases` increases.
   ConvergedInfeasible,
-  /// @brief Stopped after `max_iterations` QP iterations.
+  /// @brief `max_iterations` QP solves reached.
   MaxIterations,
-  /// @brief A convex subproblem could not be solved.
+  /// @brief A QP could not be solved.
   QpFailure,
-  /// @brief Stopped after `max_time` seconds.
+  /// @brief `max_time` exceeded.
   Timeout,
 };
 
-/// @brief Options of the vex trajectory optimizer.
-/// @details Joint position, velocity and acceleration limits are read from the Scene, not from
-/// here. The ℓ1 penalty / trust box / ratio test defaults follow Tesseract `trajopt_sqp`.
+/// @brief Options of the vex trajectory optimizer. Joint limits are read from the Scene.
 struct VexOptions {
   /// @brief The name of the joint group to optimize.
   std::string group_name;
 
-  /// @brief The number of trajectory nodes N (>= 3), uniformly spaced in time.
+  /// @brief Number of trajectory nodes N (>= 3), uniformly spaced in time.
   size_t num_nodes = 50;
 
-  /// @brief Collision samples per segment, in addition to the nodes (0 = nodes only).
+  /// @brief Collision samples inside each segment, besides the nodes (0 = nodes only).
   size_t samples_per_segment = 3;
 
-  /// @brief Weight of the path-energy cost, the exact integral of ||v(t)||^2 over the trajectory.
+  /// @brief Weight of the integral of ||v(t)||^2.
   double velocity_weight = 1.0;
 
-  /// @brief Weight of the smoothing cost, the exact integral of ||a(t)||^2 over the trajectory.
+  /// @brief Weight of the integral of ||a(t)||^2.
   double acceleration_weight = 1e-2;
 
-  /// @brief Minimum signed distance d_safe (m) between every active collision pair.
-  /// @details The start and goal must already have this clearance on every active pair: the
-  /// trajectory begins and ends there, so solve() returns an error instead of optimizing.
+  /// @brief Minimum signed distance d_safe (m) on every active collision pair.
+  /// @details Start and goal must already have this clearance, otherwise solve() fails.
   double collision_margin = 0.01;
 
-  /// @brief Pairs closer than this distance d_check (m) enter the QP; must exceed d_safe.
+  /// @brief Pairs closer than d_check (m) enter the QP; must exceed `collision_margin`.
   double collision_check_distance = 0.05;
 
-  /// @brief Initial ℓ1 penalty weight on nonconvex constraint violations.
+  /// @brief Initial ℓ1 penalty weight on collision violations.
   double initial_penalty = 10.0;
 
-  /// @brief Factor by which the penalty grows when converged but still infeasible.
+  /// @brief Factor by which the penalty grows when converged with violations left.
   double penalty_increase = 10.0;
 
   /// @brief Maximum number of penalty increases.
   size_t max_penalty_increases = 5;
 
-  /// @brief Initial half-width of the trust box, in position units (see Vex::solve).
+  /// @brief Initial trust box radius, in rad or m.
   double initial_trust_box = 0.1;
 
-  /// @brief Factor applied to the trust box after a rejected step.
+  /// @brief Factor on the trust box after a rejected step.
   double trust_shrink = 0.1;
 
-  /// @brief Factor applied to the trust box after an accepted step.
+  /// @brief Factor on the trust box after an accepted step.
   double trust_expand = 1.5;
 
-  /// @brief Minimum ratio of actual to predicted merit improvement to accept a step.
+  /// @brief Minimum ratio of actual to predicted merit decrease to accept a step.
   double improve_ratio = 0.25;
 
-  /// @brief Maximum number of SCP iterations (QP solves after the initial projection).
+  /// @brief Maximum number of QP solves in the SCP loop.
   size_t max_iterations = 50;
 
-  /// @brief Maximum wall time of the SCP loop, in seconds.
+  /// @brief Wall-time limit of the SCP loop, in seconds.
   double max_time = std::numeric_limits<double>::infinity();
 
-  /// @brief Tolerance on constraint violation, predicted merit improvement and trust box size.
+  /// @brief Tolerance on collision violation, predicted decrease and trust box size.
   double tolerance = 1e-4;
 };
 
 /// @brief Result of a vex solve.
 struct VexResult {
-  /// @brief The optimized trajectory over the group joints. Not retimed.
+  /// @brief The trajectory over the group joints, not retimed.
   JointTrajectory trajectory;
 
   /// @brief The termination status.
   VexStatus status = VexStatus::QpFailure;
 
-  /// @brief The number of SCP iterations (QP solves after the initial projection).
+  /// @brief Number of QP solves in the SCP loop.
   size_t iterations = 0;
 
-  /// @brief The final convex (smoothness) cost.
+  /// @brief The smoothness cost 1/2 z^T P z of the result.
   double cost = 0.0;
 
-  /// @brief The final maximum violation of the nonconvex constraints.
+  /// @brief The largest collision violation at the samples.
   double max_violation = 0.0;
 
-  /// @brief Whether a dense collision post-check over all active pairs passed.
-  /// @details Samples the trajectory's piecewise-quadratic positions so that no group joint moves
-  /// more than 0.01 rad (or m) between consecutive checks. Independent of the status.
+  /// @brief Whether the dense post-check found no contact between the samples.
+  /// @details Independent of the status. It does not check `collision_margin`.
   bool continuous_collision_free = false;
 };
 
-/// @brief Offline, kinematic-only trajectory optimizer based on sequential convex programming.
-/// @details Transcription with a double-integrator model: per node k = 0..N-1 the position q_k and
-/// velocity v_k, per segment k = 0..N-2 a constant acceleration a_k, with a fixed step
-/// dt = duration / (N - 1) and exact dynamics
-///   q_{k+1} = q_k + v_k dt + a_k dt^2 / 2,   v_{k+1} = v_k + a_k dt.
-/// Only vector-space joints (nq == nv) are supported. Each solve() uses its own SceneContext and
-/// never modifies the Scene. Use one Vex per thread.
+/// @brief Offline, kinematic trajectory optimizer based on sequential convex programming.
+/// @details Details in docs/source/concepts/trajectory_optimization/vex.rst. Only vector-space
+/// joints (nq == nv) are supported. solve() never modifies the Scene; use one Vex per thread.
 class Vex {
 public:
-  /// @brief Constructor.
   /// @param scene The scene; must not be null.
-  /// @param options The optimizer options. Validated on every solve().
+  /// @param options The optimizer options, validated on every solve().
   Vex(std::shared_ptr<Scene> scene, VexOptions options);
 
-  /// @brief Optimizes a rest-to-rest trajectory from start to goal.
-  /// @details The trajectory satisfies q_0 = start, q_{N-1} = goal, v_0 = v_{N-1} = 0, the
-  /// dynamics, and the Scene's joint position / velocity / acceleration limits at the nodes as
-  /// hard constraints. Every active collision pair of the Scene keeps a signed distance of at
-  /// least `collision_margin` at the nodes and the collision samples (ℓ1-penalized). The seed is
-  /// resampled to N nodes and projected onto those constraints before
-  /// the SCP loop. Joints outside the group stay at the Scene's configuration.
-  /// The trust box bounds the step in position units: |dq| <= r, |dv| dt <= r, |da| dt^2 <= r.
+  /// @brief Optimizes a rest-to-rest trajectory from start to goal in `duration` seconds.
+  /// @details Joint limits hold at the nodes. Collision margins hold at the nodes and samples.
+  /// Joints outside the group stay at the Scene's configuration.
   /// @param start The start configuration of the group joints.
   /// @param goal The goal configuration of the group joints.
-  /// @param duration The trajectory duration T > 0 (s).
+  /// @param duration The duration T > 0 (s).
   /// @param seed The seed path over the group joints (at least 2 waypoints).
-  /// @return The result, or an error for invalid input, a start or goal whose signed distance on
-  /// any active collision pair is below `collision_margin` (including in collision; the message
-  /// names the endpoint, the two geometries, the distance and the margin), or an infeasible
-  /// problem.
+  /// @return The result, or an error for invalid input, an endpoint with a clearance below
+  /// `collision_margin` (including in collision), or no feasible trajectory of that duration.
   tl::expected<VexResult, std::string> solve(const JointConfiguration& start,
                                              const JointConfiguration& goal, double duration,
                                              const JointPath& seed);
