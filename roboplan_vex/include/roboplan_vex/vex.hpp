@@ -121,9 +121,9 @@ public:
   /// @param seed The seed path over the group joints (at least 2 waypoints).
   /// @return The result, or an error for invalid input, an endpoint with a clearance below
   /// `collision_margin` (including in collision), or no feasible trajectory of that duration.
-  tl::expected<VexResult, std::string> solve(const JointConfiguration& start,
-                                             const JointConfiguration& goal, double duration,
-                                             const JointPath& seed);
+  [[nodiscard]] tl::expected<VexResult, std::string> solve(const JointConfiguration& start,
+                                                           const JointConfiguration& goal,
+                                                           double duration, const JointPath& seed);
 
 private:
   std::shared_ptr<Scene> scene_;

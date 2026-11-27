@@ -6,7 +6,7 @@
 #include <limits>
 #include <utility>
 
-#include <roboplan_vex/qp_backend.hpp>
+#include "qp_backend.hpp"
 
 namespace roboplan::detail {
 
@@ -17,6 +17,10 @@ namespace {
 using Triplets = std::vector<Eigen::Triplet<double>>;
 
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
+
+// After a penalty increase the trust box is at least this factor above the size at which a
+// rejected step ends the round (tolerance / trust_shrink), so one rejection cannot end it.
+constexpr double kBoxResetFactor = 1.5;
 
 // The subproblems are feasible by construction (dy = 0, s = max(g, 0)); ProxQP's default
 // primal infeasibility threshold (1e-4) still reports infeasibility on ~1 in 20 of them.
@@ -218,7 +222,7 @@ public:
         return finish(VexStatus::ConvergedInfeasible);
       }
       penalty_ *= options_.penalty_increase;
-      box_ = std::max(box_, 1.5 * options_.tolerance / options_.trust_shrink);
+      box_ = std::max(box_, kBoxResetFactor * options_.tolerance / options_.trust_shrink);
     }
   }
 
@@ -293,7 +297,7 @@ private:
     }
   }
 
-  bool timedOut() const {
+  [[nodiscard]] bool timedOut() const {
     const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start_time_;
     return elapsed.count() > options_.max_time;
   }
@@ -310,10 +314,10 @@ private:
   const std::vector<std::shared_ptr<NonconvexTerm>>& terms_;
   const VexOptions& options_;
   Eigen::VectorXd z_;
-  const bool has_terms_;
+  bool has_terms_;
   double penalty_;
   double box_;
-  const std::chrono::steady_clock::time_point start_time_;
+  std::chrono::steady_clock::time_point start_time_;
   std::vector<NonconvexRow> linearized_;
   std::vector<NonconvexRow> candidate_rows_;
   ScpResult result_;

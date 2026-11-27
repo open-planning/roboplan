@@ -109,12 +109,12 @@ tl::expected<void, std::string> validateOptions(const VexOptions& options) {
   const auto finite_in = [](double value, double low, double high) {
     return std::isfinite(value) && value >= low && value <= high;
   };
-  constexpr double kMax = std::numeric_limits<double>::max();
+  constexpr double max_value = std::numeric_limits<double>::max();
   if (options.num_nodes < 3) {
     return tl::make_unexpected("VexOptions::num_nodes must be at least 3.");
   }
-  if (!finite_in(options.velocity_weight, 0.0, kMax) ||
-      !finite_in(options.acceleration_weight, 0.0, kMax)) {
+  if (!finite_in(options.velocity_weight, 0.0, max_value) ||
+      !finite_in(options.acceleration_weight, 0.0, max_value)) {
     return tl::make_unexpected("VexOptions cost weights must be finite and nonnegative.");
   }
   if (!std::isfinite(options.collision_margin) ||
@@ -123,26 +123,26 @@ tl::expected<void, std::string> validateOptions(const VexOptions& options) {
     return tl::make_unexpected(
         "VexOptions::collision_check_distance must be finite and greater than collision_margin.");
   }
-  if (!(finite_in(options.initial_penalty, 0.0, kMax) && options.initial_penalty > 0.0)) {
+  if (!(finite_in(options.initial_penalty, 0.0, max_value) && options.initial_penalty > 0.0)) {
     return tl::make_unexpected("VexOptions::initial_penalty must be positive and finite.");
   }
-  if (!(finite_in(options.penalty_increase, 1.0, kMax) && options.penalty_increase > 1.0)) {
+  if (!(finite_in(options.penalty_increase, 1.0, max_value) && options.penalty_increase > 1.0)) {
     return tl::make_unexpected("VexOptions::penalty_increase must be finite and greater than 1.");
   }
-  if (!(finite_in(options.initial_trust_box, 0.0, kMax) && options.initial_trust_box > 0.0)) {
+  if (!(finite_in(options.initial_trust_box, 0.0, max_value) && options.initial_trust_box > 0.0)) {
     return tl::make_unexpected("VexOptions::initial_trust_box must be positive and finite.");
   }
   if (!(finite_in(options.trust_shrink, 0.0, 1.0) && options.trust_shrink > 0.0 &&
         options.trust_shrink < 1.0)) {
     return tl::make_unexpected("VexOptions::trust_shrink must be in (0, 1).");
   }
-  if (!finite_in(options.trust_expand, 1.0, kMax)) {
+  if (!finite_in(options.trust_expand, 1.0, max_value)) {
     return tl::make_unexpected("VexOptions::trust_expand must be finite and at least 1.");
   }
   if (!finite_in(options.improve_ratio, 0.0, 1.0)) {
     return tl::make_unexpected("VexOptions::improve_ratio must be in [0, 1].");
   }
-  if (!(finite_in(options.tolerance, 0.0, kMax) && options.tolerance > 0.0)) {
+  if (!(finite_in(options.tolerance, 0.0, max_value) && options.tolerance > 0.0)) {
     return tl::make_unexpected("VexOptions::tolerance must be positive and finite.");
   }
   if (!(options.max_time >= 0.0)) {

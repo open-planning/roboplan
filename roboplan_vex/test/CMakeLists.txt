@@ -5,6 +5,8 @@ endif()
 
 add_executable(test_vex_qp_backend test_qp_backend.cpp)
 set_property(TARGET test_vex_qp_backend PROPERTY CXX_STANDARD 20)
+target_include_directories(test_vex_qp_backend
+                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 target_link_libraries(test_vex_qp_backend PRIVATE roboplan_vex
                                                   GTest::gtest_main)
 

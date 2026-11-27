@@ -3,7 +3,7 @@
 #include <cmath>
 #include <limits>
 
-#include <roboplan_vex/qp_backend.hpp>
+#include "qp_backend.hpp"
 
 namespace roboplan::detail {
 

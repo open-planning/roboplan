@@ -72,7 +72,8 @@ constexpr double kPostCheckStep = 0.01;
 
 /// @brief Checks the trajectory for contact (not for the margin) between the nodes (vex.rst, ⑦).
 /// @return True if no checked configuration is in collision.
-bool isContinuousCollisionFree(const SceneContext& context, const std::string& group_name,
-                               const JointTrajectory& trajectory);
+[[nodiscard]] bool isContinuousCollisionFree(const SceneContext& context,
+                                             const std::string& group_name,
+                                             const JointTrajectory& trajectory);
 
 }  // namespace roboplan::detail

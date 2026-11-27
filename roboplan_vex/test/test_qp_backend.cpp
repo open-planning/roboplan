@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include <roboplan_vex/qp_backend.hpp>
+#include "qp_backend.hpp"
 
 namespace roboplan::detail {
 namespace {

@@ -56,13 +56,15 @@ struct ConvexProblem {
 };
 
 /// @brief Builds the smoothness cost, dynamics, rest-to-rest boundary rows and limit rows.
-ConvexProblem buildConvexProblem(const VexLayout& layout, const Eigen::VectorXd& start,
-                                 const Eigen::VectorXd& goal, const JointBounds& bounds,
-                                 double velocity_weight, double acceleration_weight);
+[[nodiscard]] ConvexProblem buildConvexProblem(const VexLayout& layout,
+                                               const Eigen::VectorXd& start,
+                                               const Eigen::VectorXd& goal,
+                                               const JointBounds& bounds, double velocity_weight,
+                                               double acceleration_weight);
 
 /// @brief Finds the z closest to the seed positions (one per node) that satisfies the hard rows.
 /// @return An error if the hard rows are infeasible.
-tl::expected<Eigen::VectorXd, std::string>
+[[nodiscard]] tl::expected<Eigen::VectorXd, std::string>
 projectOntoConstraints(const ConvexProblem& problem, const std::vector<Eigen::VectorXd>& q_seed);
 
 }  // namespace roboplan::detail

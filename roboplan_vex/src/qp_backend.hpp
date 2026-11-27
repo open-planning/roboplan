@@ -52,7 +52,7 @@ struct SparseQpSettings {
 /// @param settings The solver settings.
 /// @param primal_guess Optional primal warm start (one entry per variable).
 /// @return The primal solution, or a message describing why the solve failed.
-tl::expected<Eigen::VectorXd, std::string>
+[[nodiscard]] tl::expected<Eigen::VectorXd, std::string>
 solveSparseQp(const SparseQp& qp, const SparseQpSettings& settings,
               std::optional<Eigen::Ref<const Eigen::VectorXd>> primal_guess = std::nullopt);
 

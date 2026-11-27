@@ -46,7 +46,7 @@ struct ScpResult {
 
 /// @brief Runs the ℓ1-penalty / trust-box SCP loop from a z that satisfies the hard rows.
 /// @details Without nonconvex terms the first accepted step is optimal.
-tl::expected<ScpResult, std::string>
+[[nodiscard]] tl::expected<ScpResult, std::string>
 runScp(const ConvexProblem& problem, const std::vector<std::shared_ptr<NonconvexTerm>>& terms,
        Eigen::VectorXd z, const VexOptions& options);
 

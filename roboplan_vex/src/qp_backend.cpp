@@ -1,4 +1,4 @@
-#include <roboplan_vex/qp_backend.hpp>
+#include "qp_backend.hpp"
 
 #include <proxsuite/proxqp/sparse/sparse.hpp>
 
