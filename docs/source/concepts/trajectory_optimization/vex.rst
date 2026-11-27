@@ -151,7 +151,7 @@ Joints with :math:`n_q \ne n_v` (continuous, floating) are not supported.
 The loop starts from a point :math:`z_0` that satisfies the dynamics, boundary and limit rows (:math:`A`, :math:`G`) up to solver tolerance; only the collision rows may be violated.
 A seed path has no velocities or accelerations and ignores the duration and the limits, so it cannot be used directly.
 ``resampleSeed`` resamples it to :math:`N` nodes, uniformly in arc length.
-``projectOntoConstraints`` (``scp.cpp``) then finds the trajectory closest to the resampled positions that satisfies the linear rows:
+``projectOntoConstraints`` (``convex_problem.cpp``) then finds the trajectory closest to the resampled positions that satisfies the linear rows:
 
 .. math::
 
